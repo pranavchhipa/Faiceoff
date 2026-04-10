@@ -1,0 +1,180 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { AtSign, FileText, ArrowRight, SkipForward } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default function InstagramPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const [handle, setHandle] = useState("");
+  const [bio, setBio] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function advanceStep() {
+    const res = await fetch("/api/onboarding/update-step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "categories" }),
+    });
+    if (!res.ok) {
+      const body = await res.json();
+      throw new Error(body.error || "Failed to update step");
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      // Save instagram handle and bio via server API (bypasses RLS)
+      const saveRes = await fetch("/api/onboarding/save-instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instagram_handle: handle,
+          bio: bio || null,
+        }),
+      });
+
+      if (!saveRes.ok) {
+        const body = await saveRes.json();
+        throw new Error(body.error || "Failed to save Instagram details");
+      }
+
+      await advanceStep();
+      router.push("/dashboard/onboarding/categories");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSkip() {
+    setSaving(true);
+    setError(null);
+    try {
+      await advanceStep();
+      router.push("/dashboard/onboarding/categories");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="mb-8">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+          <AtSign className="size-3.5" />
+          Social Profile
+        </div>
+        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+          Connect your Instagram
+        </h2>
+        <p className="text-sm text-[var(--color-neutral-500)]">
+          Help brands discover you. Your handle will be visible on your creator profile.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="handle">Instagram handle</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-500 text-[var(--color-neutral-400)]">
+              @
+            </span>
+            <Input
+              id="handle"
+              type="text"
+              placeholder="yourhandle"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              className="pl-8 rounded-[var(--radius-input)]"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bio">
+            Bio
+            <span className="ml-2 text-xs font-400 text-[var(--color-neutral-400)]">
+              {bio.length}/500
+            </span>
+          </Label>
+          <div className="relative">
+            <FileText className="absolute left-3 top-3 size-4 text-[var(--color-neutral-400)]" />
+            <textarea
+              id="bio"
+              maxLength={500}
+              rows={4}
+              placeholder="Tell brands what you're about..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-2 pl-10 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 resize-none"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Button
+            type="submit"
+            disabled={saving}
+            className="bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+          >
+            {saving ? (
+              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            ) : (
+              <>
+                Continue
+                <ArrowRight className="size-4" />
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={handleSkip}
+            className="rounded-[var(--radius-button)] h-11 px-6 font-500 text-[var(--color-neutral-500)]"
+          >
+            <SkipForward className="size-4" />
+            Skip for now
+          </Button>
+        </div>
+      </form>
+    </motion.div>
+  );
+}

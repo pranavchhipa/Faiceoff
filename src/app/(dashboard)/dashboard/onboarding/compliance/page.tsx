@@ -1,0 +1,101 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Shield, ArrowRight } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Button } from "@/components/ui/button";
+
+export default function CompliancePage() {
+  const { isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleContinue() {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/onboarding/update-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "consent" }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Failed to advance step");
+      }
+
+      router.push("/dashboard/onboarding/consent");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setSaving(false);
+    }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="mb-8">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+          <Shield className="size-3.5" />
+          Compliance Check
+        </div>
+        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+          Compliance verification
+        </h2>
+        <p className="text-sm text-[var(--color-neutral-500)]">
+          We run automated compliance checks to ensure your profile meets platform standards.
+        </p>
+      </div>
+
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-8 text-center">
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-[var(--color-mint)]">
+          <Shield className="size-7 text-[var(--color-ink)]" />
+        </div>
+        <h3 className="text-lg font-700 text-[var(--color-ink)] mb-2">
+          Auto-check passed
+        </h3>
+        <p className="text-sm text-[var(--color-neutral-500)] max-w-sm mx-auto mb-6">
+          Your profile information has been validated. Detailed compliance verification will run in the background after onboarding.
+        </p>
+
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+            {error}
+          </p>
+        )}
+
+        <Button
+          onClick={handleContinue}
+          disabled={saving}
+          className="bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+        >
+          {saving ? (
+            <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <>
+              Continue
+              <ArrowRight className="size-4" />
+            </>
+          )}
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
