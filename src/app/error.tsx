@@ -32,7 +32,7 @@ export default function Error({
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <h2 className="mt-6 font-[family-name:var(--font-display)] text-2xl font-700 text-[var(--color-ink)]">
+      <h2 className="mt-6 text-2xl font-700 text-[var(--color-ink)]">
         Something went wrong
       </h2>
       <p className="mt-2 max-w-md text-center text-[var(--color-neutral-500)]">
@@ -40,14 +40,14 @@ export default function Error({
         problem persists.
       </p>
       {error.digest && (
-        <p className="mt-2 font-[family-name:var(--font-mono)] text-xs text-[var(--color-neutral-400)]">
+        <p className="mt-2 text-xs text-[var(--color-neutral-400)]">
           Error ID: {error.digest}
         </p>
       )}
       <button
         type="button"
         onClick={reset}
-        className="mt-8 inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-ink)] px-6 py-3 font-[family-name:var(--font-display)] text-sm font-600 text-[var(--color-background)] transition-opacity hover:opacity-90"
+        className="mt-8 inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-ink)] px-6 py-3 text-sm font-600 text-[var(--color-background)] transition-opacity hover:opacity-90"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

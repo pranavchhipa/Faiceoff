@@ -3,6 +3,8 @@
  *
  * Icons are referenced by name (string) so components can resolve
  * them to any icon library (e.g. lucide-react) at render time.
+ *
+ * ⚠️  Keep in sync with CREATOR_NAV / BRAND_NAV in (dashboard)/layout.tsx
  */
 
 export interface NavItem {
@@ -15,10 +17,10 @@ export interface NavItem {
 
 export const creatorNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-  { label: "My Likeness", href: "/dashboard/likeness", icon: "User" },
+  { label: "My Likeness", href: "/dashboard/likeness", icon: "ScanFace" },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: "Megaphone" },
-  { label: "Earnings", href: "/dashboard/earnings", icon: "IndianRupee" },
-  { label: "Approvals", href: "/dashboard/approvals", icon: "CheckCircle" },
+  { label: "Approvals", href: "/dashboard/approvals", icon: "ClipboardCheck" },
+  { label: "Earnings", href: "/dashboard/wallet", icon: "IndianRupee" },
   { label: "Analytics", href: "/dashboard/analytics", icon: "BarChart3" },
   { label: "Settings", href: "/dashboard/settings", icon: "Settings" },
 ];
@@ -27,11 +29,9 @@ export const creatorNav: NavItem[] = [
 
 export const brandNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-  { label: "Discover", href: "/dashboard/discover", icon: "Search" },
+  { label: "Discover Creators", href: "/dashboard/creators", icon: "Users" },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: "Megaphone" },
-  { label: "Generate", href: "/dashboard/generate", icon: "Sparkles" },
-  { label: "Library", href: "/dashboard/library", icon: "FolderOpen" },
-  { label: "Billing", href: "/dashboard/billing", icon: "CreditCard" },
+  { label: "Wallet", href: "/dashboard/wallet", icon: "Wallet" },
   { label: "Settings", href: "/dashboard/settings", icon: "Settings" },
 ];
 

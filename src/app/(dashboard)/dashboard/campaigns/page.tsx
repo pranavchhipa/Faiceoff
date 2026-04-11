@@ -25,8 +25,10 @@ interface CampaignRow {
   budget_paise: number;
   spent_paise: number;
   created_at: string;
-  creator: { id: string; user: { display_name: string } | null } | null;
-  brand: { id: string; user: { display_name: string } | null } | null;
+  creator_id: string;
+  brand_id: string;
+  creator_display_name: string;
+  brand_display_name: string;
 }
 
 /* ── Helpers ── */
@@ -41,10 +43,12 @@ function formatINR(paise: number): string {
 }
 
 const statusColors: Record<string, string> = {
-  active: "bg-[var(--color-mint)] text-[var(--color-ink)]",
-  paused: "bg-[var(--color-ocean)] text-[var(--color-ink)]",
-  completed: "bg-[var(--color-lilac)] text-[var(--color-ink)]",
-  cancelled: "bg-[var(--color-blush)] text-[var(--color-ink)]",
+  active: "bg-[var(--color-mint)] text-green-700",
+  paused: "bg-[var(--color-blush)] text-red-700",
+  completed:
+    "bg-[var(--color-surface-container-high)] text-[var(--color-on-surface-variant)]",
+  cancelled:
+    "bg-[var(--color-lilac)] text-[var(--color-primary)]",
 };
 
 /* ── Component ── */
@@ -62,42 +66,16 @@ export default function CampaignsListPage() {
     async function fetchCampaigns() {
       setLoading(true);
 
-      // Brands see campaigns they created; creators see campaigns assigned to them
-      let query = supabase
-        .from("campaigns")
-        .select(
-          `id, name, description, status, generation_count, max_generations,
-           budget_paise, spent_paise, created_at,
-           creator:creators!campaigns_creator_id_fkey(id, user:users!creators_user_id_fkey(display_name)),
-           brand:brands!campaigns_brand_id_fkey(id, user:users!brands_user_id_fkey(display_name))`
-        )
-        .order("created_at", { ascending: false });
-
-      if (role === "brand") {
-        // RLS already filters, but we explicitly scope for safety
-        const { data: brandRow } = await supabase
-          .from("brands")
-          .select("id")
-          .eq("user_id", user!.id)
-          .single();
-
-        if (brandRow) {
-          query = query.eq("brand_id", brandRow.id);
+      try {
+        const res = await fetch("/api/campaigns");
+        if (res.ok) {
+          const data = await res.json();
+          setCampaigns(data.campaigns ?? []);
         }
-      } else {
-        const { data: creatorRow } = await supabase
-          .from("creators")
-          .select("id")
-          .eq("user_id", user!.id)
-          .single();
-
-        if (creatorRow) {
-          query = query.eq("creator_id", creatorRow.id);
-        }
+      } catch (err) {
+        console.error("Failed to fetch campaigns:", err);
       }
 
-      const { data } = await query;
-      setCampaigns((data as unknown as CampaignRow[]) ?? []);
       setLoading(false);
     }
 
@@ -108,7 +86,7 @@ export default function CampaignsListPage() {
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-surface-container-high)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -118,15 +96,15 @@ export default function CampaignsListPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mx-auto max-w-4xl"
+      className="max-w-4xl"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+          <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
             Campaigns
           </h1>
-          <p className="mt-1 text-[var(--color-neutral-500)]">
+          <p className="mt-1 text-[var(--color-outline)]">
             {role === "brand"
               ? "Manage your AI content campaigns with creators."
               : "View campaigns you are assigned to."}
@@ -134,7 +112,7 @@ export default function CampaignsListPage() {
         </div>
         {role === "brand" && (
           <Link href="/dashboard/campaigns/new">
-            <Button className="rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]">
+            <Button className="rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90 transition-opacity">
               <Plus className="size-4" />
               New Campaign
             </Button>
@@ -144,21 +122,21 @@ export default function CampaignsListPage() {
 
       {/* ── Empty state ── */}
       {campaigns.length === 0 && (
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-12 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[var(--color-ocean)]/30">
-            <Megaphone className="size-6 text-[var(--color-neutral-500)]" />
+        <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-12 text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[var(--color-surface-container-low)]">
+            <Megaphone className="size-6 text-[var(--color-on-surface-variant)]" />
           </div>
-          <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
+          <h2 className="text-xl font-700 text-[var(--color-on-surface)] mb-2">
             No campaigns yet
           </h2>
-          <p className="text-sm text-[var(--color-neutral-500)] max-w-sm mx-auto mb-6">
+          <p className="text-sm text-[var(--color-outline)] max-w-sm mx-auto mb-6">
             {role === "brand"
               ? "Create your first campaign to start generating AI content with a creator."
               : "When brands assign you to campaigns, they will appear here."}
           </p>
           {role === "brand" && (
             <Link href="/dashboard/campaigns/new">
-              <Button className="rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]">
+              <Button className="rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90 transition-opacity">
                 Create Campaign
                 <ArrowRight className="size-4" />
               </Button>
@@ -171,10 +149,14 @@ export default function CampaignsListPage() {
       {campaigns.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {campaigns.map((campaign, i) => {
-            const creatorName =
-              campaign.creator?.user?.display_name ?? "Unknown Creator";
-            const brandName =
-              campaign.brand?.user?.display_name ?? "Unknown Brand";
+            const creatorName = campaign.creator_display_name ?? "Creator";
+            const brandName = campaign.brand_display_name ?? "Brand";
+            const progressPercent =
+              campaign.max_generations > 0
+                ? Math.round(
+                    (campaign.generation_count / campaign.max_generations) * 100
+                  )
+                : 0;
 
             return (
               <motion.div
@@ -185,11 +167,11 @@ export default function CampaignsListPage() {
               >
                 <Link
                   href={`/dashboard/campaigns/${campaign.id}`}
-                  className="group block rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 transition-shadow hover:shadow-[var(--shadow-card)]"
+                  className="group block rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-5 transition-shadow hover:shadow-[var(--shadow-card)]"
                 >
                   {/* Top row: name + status */}
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <h3 className="text-base font-700 text-[var(--color-ink)] leading-tight line-clamp-2 group-hover:text-[var(--color-gold-hover)] transition-colors">
+                    <h3 className="text-base font-700 text-[var(--color-on-surface)] leading-tight line-clamp-2 group-hover:text-[var(--color-primary)] transition-colors">
                       {campaign.name}
                     </h3>
                     <span
@@ -202,19 +184,29 @@ export default function CampaignsListPage() {
                   </div>
 
                   {/* Creator/Brand name */}
-                  <p className="text-sm text-[var(--color-neutral-500)] mb-4">
+                  <p className="text-sm text-[var(--color-on-surface-variant)] mb-3">
                     {role === "brand"
                       ? `Creator: ${creatorName}`
                       : `Brand: ${brandName}`}
                   </p>
 
+                  {/* Progress bar */}
+                  <div className="mb-3">
+                    <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-container-low)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] transition-all duration-500"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
                   {/* Stats */}
-                  <div className="flex items-center gap-4 text-xs text-[var(--color-neutral-500)]">
+                  <div className="flex items-center gap-4 text-xs text-[var(--color-on-surface-variant)]">
                     <span className="inline-flex items-center gap-1.5">
                       <ImageIcon className="size-3.5" />
                       {campaign.generation_count}/{campaign.max_generations}
                     </span>
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[var(--color-accent-gold)]">
                       <IndianRupee className="size-3.5" />
                       {formatINR(campaign.spent_paise)} /{" "}
                       {formatINR(campaign.budget_paise)}

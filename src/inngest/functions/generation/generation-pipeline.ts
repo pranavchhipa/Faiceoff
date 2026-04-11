@@ -4,14 +4,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // ---------------------------------------------------------------------------
 // Function 1: Run the full generation pipeline
 // Triggered when a brand creates a new generation request
+//
+// Pipeline: compliance → LLM prompt assembly → image generation → safety → approval
 // ---------------------------------------------------------------------------
 export const runPipeline = inngest.createFunction(
-  { id: "generation/run-pipeline", triggers: [{ event: "generation/created" }] },
+  {
+    id: "generation/run-pipeline",
+    triggers: [{ event: "generation/created" }],
+  },
   async ({ event, step }) => {
     const { generation_id } = event.data as { generation_id: string };
     const admin = createAdminClient();
 
-    // -- Step 1: Compliance check --
+    // ── Step 1: Compliance Check ──────────────────────────────────────────
+    // Verify the brief doesn't violate the creator's blocked concepts.
+    // In production: pgvector similarity search against compliance_vectors.
     await step.run("compliance-check", async () => {
       await admin
         .from("generations")
@@ -26,10 +33,10 @@ export const runPipeline = inngest.createFunction(
 
       if (!gen) throw new Error("Generation not found");
 
-      // In production: check structured_brief against
-      // creator_compliance_vectors.blocked_concept for this creator.
-      // For now, simulate a compliance check with a short delay.
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // TODO: In production, check structured_brief against
+      // creator_compliance_vectors using pgvector similarity search.
+      // For now, all briefs pass compliance.
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       await admin
         .from("generations")
@@ -42,7 +49,9 @@ export const runPipeline = inngest.createFunction(
         .eq("id", generation_id);
     });
 
-    // -- Step 2: Assemble prompt --
+    // ── Step 2: LLM Prompt Assembly ───────────────────────────────────────
+    // Use OpenRouter LLM to craft a professional photography-grade prompt
+    // from the structured brief. Falls back to simple concatenation if LLM fails.
     const assembledPrompt = await step.run("assemble-prompt", async () => {
       const { data: gen } = await admin
         .from("generations")
@@ -54,17 +63,15 @@ export const runPipeline = inngest.createFunction(
 
       const brief = gen.structured_brief as Record<string, unknown>;
 
-      const parts: string[] = [];
-      if (brief.subject) parts.push(String(brief.subject));
-      if (brief.scene) parts.push(`in a ${brief.scene}`);
-      if (brief.style) parts.push(`${brief.style} style`);
-      if (brief.lighting) parts.push(`${brief.lighting} lighting`);
-      if (brief.mood) parts.push(`${brief.mood} mood`);
-      if (brief.outfit) parts.push(`wearing ${brief.outfit}`);
-      if (brief.background) parts.push(`with ${brief.background} background`);
-      if (brief.extras) parts.push(String(brief.extras));
+      // Use LLM for high-quality prompt assembly
+      const { assemblePromptWithLLM } = await import(
+        "@/lib/ai/prompt-assembler"
+      );
+      const { prompt, method } = await assemblePromptWithLLM(brief);
 
-      const prompt = parts.join(", ") || "portrait photo";
+      console.log(
+        `[pipeline] Prompt assembled via ${method}: "${prompt.slice(0, 100)}..."`
+      );
 
       await admin
         .from("generations")
@@ -74,31 +81,84 @@ export const runPipeline = inngest.createFunction(
       return prompt;
     });
 
-    // -- Step 3: Generate image (placeholder) --
+    // ── Step 3: Image Generation ──────────────────────────────────────────
+    // If creator has a trained LoRA model → call Replicate FLUX with LoRA.
+    // If not → dev mode with placeholder image from picsum.photos.
     await step.run("generate-image", async () => {
-      // In production: call replicate.run() with the creator's LoRA model
-      const dummyImageUrl = `https://placeholder.faiceoff.com/generations/${generation_id}.png`;
-
       const { data: gen } = await admin
         .from("generations")
-        .select("cost_paise")
+        .select("creator_id, cost_paise, assembled_prompt")
         .eq("id", generation_id)
         .single();
+
+      if (!gen) throw new Error("Generation not found");
+
+      // Check if creator has a trained LoRA model
+      const { data: loraModel } = await admin
+        .from("creator_lora_models")
+        .select("replicate_model_id, training_status")
+        .eq("creator_id", gen.creator_id)
+        .eq("training_status", "completed")
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let imageUrl: string;
+      let predictionId: string;
+
+      if (loraModel?.replicate_model_id) {
+        // ─── Production Path: FLUX.1 Dev + Creator LoRA ───
+        const { replicate } = await import("@/lib/ai/replicate-client");
+
+        const output = await replicate.run(
+          loraModel.replicate_model_id as `${string}/${string}`,
+          {
+            input: {
+              prompt: gen.assembled_prompt ?? assembledPrompt,
+              num_outputs: 1,
+              guidance_scale: 7.5,
+              num_inference_steps: 50,
+              output_format: "png",
+              aspect_ratio: "1:1",
+            },
+          }
+        );
+
+        const urls = output as string[];
+        imageUrl =
+          urls[0] ??
+          `https://picsum.photos/seed/${generation_id}/768/768`;
+        predictionId = `rep_${generation_id}`;
+
+        console.log(`[pipeline] Image generated via Replicate LoRA`);
+      } else {
+        // ─── Dev Mode: No LoRA trained yet ───
+        const seed = generation_id.replace(/-/g, "").slice(0, 12);
+        imageUrl = `https://picsum.photos/seed/${seed}/768/768`;
+        predictionId = `dev_${generation_id}`;
+
+        console.log(
+          `[DEV MODE] No trained LoRA for creator ${gen.creator_id}. Using placeholder.`
+        );
+      }
 
       await admin
         .from("generations")
         .update({
-          image_url: dummyImageUrl,
-          cost_paise: gen?.cost_paise ?? 500,
-          replicate_prediction_id: `sim_${generation_id}`,
+          image_url: imageUrl,
+          cost_paise: gen.cost_paise ?? 500,
+          replicate_prediction_id: predictionId,
           status: "output_check",
         })
         .eq("id", generation_id);
     });
 
-    // -- Step 4: Output safety check (placeholder) --
+    // ── Step 4: Output Safety Check ───────────────────────────────────────
+    // In production: call Hive Moderation API to check for NSFW/harmful content.
+    // For now: auto-pass.
     await step.run("output-check", async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // TODO: Use hive-client.ts checkImage() for content moderation
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       await admin
         .from("generations")
@@ -106,7 +166,8 @@ export const runPipeline = inngest.createFunction(
         .eq("id", generation_id);
     });
 
-    // -- Step 5: Create approval row --
+    // ── Step 5: Create Approval Record ────────────────────────────────────
+    // Creator gets 48 hours to approve or reject the generated content.
     await step.run("create-approval", async () => {
       const { data: gen } = await admin
         .from("generations")
@@ -127,6 +188,10 @@ export const runPipeline = inngest.createFunction(
         status: "pending",
         expires_at: expiresAt,
       });
+
+      console.log(
+        `[pipeline] Approval created for generation ${generation_id}, expires ${expiresAt}`
+      );
     });
 
     return { generation_id, assembledPrompt, status: "ready_for_approval" };
@@ -135,10 +200,13 @@ export const runPipeline = inngest.createFunction(
 
 // ---------------------------------------------------------------------------
 // Function 2: Handle approved generation
-// Finalize payment and delivery after creator approves
+// Creator approved → credit creator wallet, debit brand wallet, set delivery URL
 // ---------------------------------------------------------------------------
 export const handleApproval = inngest.createFunction(
-  { id: "generation/handle-approval", triggers: [{ event: "generation/approved" }] },
+  {
+    id: "generation/handle-approval",
+    triggers: [{ event: "generation/approved" }],
+  },
   async ({ event, step }) => {
     const { generation_id } = event.data as { generation_id: string };
     const admin = createAdminClient();
@@ -154,7 +222,7 @@ export const handleApproval = inngest.createFunction(
 
       const costPaise = gen.cost_paise ?? 0;
 
-      // Update campaign: increment spent and generation count
+      // Update campaign spend + generation count
       const { data: campaign } = await admin
         .from("campaigns")
         .select("spent_paise, generation_count")
@@ -188,7 +256,7 @@ export const handleApproval = inngest.createFunction(
         throw new Error("Creator or brand user not found");
       }
 
-      // Creator credit
+      // Creator credit (earning)
       await admin.from("wallet_transactions").insert({
         user_id: creatorRow.user_id,
         type: "generation_earning",
@@ -196,11 +264,11 @@ export const handleApproval = inngest.createFunction(
         direction: "credit" as const,
         reference_id: generation_id,
         reference_type: "generation",
-        balance_after_paise: 0, // In production: compute from current balance
+        balance_after_paise: 0, // TODO: compute from current balance
         description: `Earning for generation ${generation_id}`,
       });
 
-      // Brand debit
+      // Brand debit (spend)
       await admin.from("wallet_transactions").insert({
         user_id: brandRow.user_id,
         type: "generation_spend",
@@ -208,15 +276,19 @@ export const handleApproval = inngest.createFunction(
         direction: "debit" as const,
         reference_id: generation_id,
         reference_type: "generation",
-        balance_after_paise: 0, // In production: compute from current balance
+        balance_after_paise: 0, // TODO: compute from current balance
         description: `Spend for generation ${generation_id}`,
       });
 
-      // Set delivery URL
+      // Set delivery URL (in production: upload to R2 CDN first)
       await admin
         .from("generations")
         .update({ delivery_url: gen.image_url })
         .eq("id", generation_id);
+
+      console.log(
+        `[pipeline] Generation ${generation_id} approved. ₹${costPaise / 100} settled.`
+      );
     });
 
     return { generation_id, status: "finalized" };
@@ -225,10 +297,13 @@ export const handleApproval = inngest.createFunction(
 
 // ---------------------------------------------------------------------------
 // Function 3: Handle rejected generation
-// Log the rejection, no money changes
+// Creator rejected → log to audit, no money changes
 // ---------------------------------------------------------------------------
 export const handleRejection = inngest.createFunction(
-  { id: "generation/handle-rejection", triggers: [{ event: "generation/rejected" }] },
+  {
+    id: "generation/handle-rejection",
+    triggers: [{ event: "generation/rejected" }],
+  },
   async ({ event, step }) => {
     const { generation_id } = event.data as { generation_id: string };
     const admin = createAdminClient();
@@ -251,6 +326,8 @@ export const handleRejection = inngest.createFunction(
           brand_id: gen?.brand_id ?? null,
         },
       });
+
+      console.log(`[pipeline] Generation ${generation_id} rejected.`);
     });
 
     return { generation_id, status: "rejected" };

@@ -115,7 +115,7 @@ export default function BrandSetupPage() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="mx-auto max-w-lg py-8"
+      className="max-w-3xl py-8"
     >
       {/* Ocean accent badge */}
       <div className="mb-6 flex justify-center">
@@ -127,7 +127,7 @@ export default function BrandSetupPage() {
 
       <Card className="border-[var(--color-neutral-200)] shadow-[var(--shadow-card)]">
         <CardHeader className="text-center">
-          <CardTitle className="font-[family-name:var(--font-display)] text-2xl font-700 tracking-tight text-[var(--color-ink)]">
+          <CardTitle className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
             Set up your brand
           </CardTitle>
           <CardDescription className="text-[var(--color-neutral-500)]">

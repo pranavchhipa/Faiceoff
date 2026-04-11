@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scratch / temp files
+/tmp/
+/scratch_replace.py
+/architecture.html
+GEMINI.md
+INTERNAL_APP_STITCH_PROMPT.md
+LANDING_PAGE_PROMPT.md
+STITCH_UI_PROMPT.md
+
+# claude config (local only)
+.claude/settings.local.json

@@ -3,17 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AtSign, FileText, ArrowRight, SkipForward } from "lucide-react";
+import { AtSign, FileText, ArrowRight, SkipForward, Users } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const FOLLOWER_RANGES = [
+  { value: "",      label: "Select range" },
+  { value: "1000",  label: "Under 1K" },
+  { value: "5000",  label: "1K - 10K (Nano)" },
+  { value: "25000", label: "10K - 50K (Micro)" },
+  { value: "75000", label: "50K - 100K (Mid)" },
+  { value: "250000", label: "100K - 500K (Macro)" },
+  { value: "750000", label: "500K - 1M (Mega)" },
+  { value: "1500000", label: "1M+ (Celebrity)" },
+] as const;
 
 export default function InstagramPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [handle, setHandle] = useState("");
+  const [followers, setFollowers] = useState("");
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,12 +50,12 @@ export default function InstagramPage() {
     setError(null);
 
     try {
-      // Save instagram handle and bio via server API (bypasses RLS)
       const saveRes = await fetch("/api/onboarding/save-instagram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           instagram_handle: handle,
+          instagram_followers: followers ? parseInt(followers, 10) : null,
           bio: bio || null,
         }),
       });
@@ -99,11 +111,12 @@ export default function InstagramPage() {
           Connect your Instagram
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)]">
-          Help brands discover you. Your handle will be visible on your creator profile.
+          Help brands discover you. Your handle and follower count will be visible on your creator profile.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Instagram Handle */}
         <div className="space-y-2">
           <Label htmlFor="handle">Instagram handle</Label>
           <div className="relative">
@@ -121,6 +134,28 @@ export default function InstagramPage() {
           </div>
         </div>
 
+        {/* Followers Count */}
+        <div className="space-y-2">
+          <Label htmlFor="followers">Follower count</Label>
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+            <select
+              id="followers"
+              value={followers}
+              onChange={(e) => setFollowers(e.target.value)}
+              className="w-full h-10 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white pl-10 pr-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20 appearance-none"
+            >
+              {FOLLOWER_RANGES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-[var(--color-neutral-400)]">
+            Helps brands filter creators by reach. You can update this later.
+          </p>
+        </div>
+
+        {/* Bio */}
         <div className="space-y-2">
           <Label htmlFor="bio">
             Bio
@@ -137,7 +172,7 @@ export default function InstagramPage() {
               placeholder="Tell brands what you're about..."
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-2 pl-10 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 resize-none"
+              className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 py-2 pl-10 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-[var(--color-neutral-400)] focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20 resize-none"
             />
           </div>
         </div>

@@ -115,65 +115,34 @@ export default function CreatorProfilePage({
     setIsLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from("creators")
-      .select(
-        `
-        id,
-        bio,
-        instagram_handle,
-        instagram_followers,
-        kyc_status,
-        user_id,
-        users!inner (
-          display_name,
-          avatar_url
-        ),
-        creator_categories (
-          id,
-          category,
-          subcategories,
-          price_per_generation_paise,
-          is_active
-        )
-      `
-      )
-      .eq("id", id)
-      .eq("is_active", true)
-      .single();
+    try {
+      const res = await fetch(`/api/creators/${id}`);
+      if (!res.ok) {
+        setError("Creator not found or is no longer available.");
+        setIsLoading(false);
+        return;
+      }
+      const { creator: d } = await res.json();
 
-    if (fetchError || !data) {
-      setError("Creator not found or is no longer available.");
-      setIsLoading(false);
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = data as any;
     const profile: CreatorProfile = {
       id: d.id,
       bio: d.bio,
       instagram_handle: d.instagram_handle,
       instagram_followers: d.instagram_followers,
       kyc_status: d.kyc_status,
-      display_name: d.users?.display_name ?? "Creator",
-      avatar_url: d.users?.avatar_url ?? null,
-      categories: (d.creator_categories ?? [])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((cc: any) => cc.is_active)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((cc: any) => ({
-          id: cc.id,
-          category: cc.category,
-          subcategories: cc.subcategories,
-          price_per_generation_paise: cc.price_per_generation_paise,
-          is_active: cc.is_active,
-        })),
+      display_name: d.display_name ?? "Creator",
+      avatar_url: d.avatar_url ?? null,
+      categories: d.categories ?? [],
     };
 
     setCreator(profile);
-    setIsLoading(false);
-  }, [supabase, authLoading, id]);
+    } catch (err) {
+      console.error("Failed to fetch creator:", err);
+      setError("Creator not found or is no longer available.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authLoading, id]);
 
   useEffect(() => {
     fetchCreator();
@@ -182,7 +151,7 @@ export default function CreatorProfilePage({
   /* ── Loading State ── */
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="max-w-5xl">
         <div className="mb-6">
           <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         </div>
@@ -207,7 +176,7 @@ export default function CreatorProfilePage({
   /* ── Error / Not Found ── */
   if (error || !creator) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="max-w-5xl">
         <Link
           href="/dashboard/creators"
           className="mb-6 inline-flex items-center gap-2 text-sm font-500 text-[var(--color-neutral-500)] no-underline transition-colors hover:text-[var(--color-ink)]"
@@ -216,7 +185,7 @@ export default function CreatorProfilePage({
           Back to creators
         </Link>
         <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-white py-16 shadow-[var(--shadow-card)]">
-          <h3 className="font-[family-name:var(--font-display)] text-lg font-600 text-[var(--color-ink)]">
+          <h3 className="text-lg font-600 text-[var(--color-ink)]">
             Creator not found
           </h3>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
@@ -235,7 +204,7 @@ export default function CreatorProfilePage({
 
   /* ── Main render ── */
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-5xl">
       {/* Back button */}
       <motion.div
         initial={{ opacity: 0, x: -12 }}
@@ -267,14 +236,14 @@ export default function CreatorProfilePage({
               backgroundColor: getAvatarColor(creator.display_name),
             }}
           >
-            <span className="font-[family-name:var(--font-display)] text-2xl font-700 text-[var(--color-ink)]">
+            <span className="text-2xl font-700 text-[var(--color-ink)]">
               {getInitials(creator.display_name)}
             </span>
           </div>
 
           {/* Info */}
           <div className="flex-1">
-            <h1 className="font-[family-name:var(--font-display)] text-2xl font-700 tracking-tight text-[var(--color-ink)]">
+            <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
               {creator.display_name}
             </h1>
 
@@ -337,7 +306,7 @@ export default function CreatorProfilePage({
           animate="visible"
           className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
         >
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-700 text-[var(--color-ink)]">
+          <h2 className="text-lg font-700 text-[var(--color-ink)]">
             Categories & Pricing
           </h2>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
@@ -406,7 +375,7 @@ export default function CreatorProfilePage({
         className="mt-6 flex flex-col items-center rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
       >
         <Sparkles className="size-8 text-[var(--color-gold)]" />
-        <h3 className="mt-3 font-[family-name:var(--font-display)] text-lg font-700 text-[var(--color-ink)]">
+        <h3 className="mt-3 text-lg font-700 text-[var(--color-ink)]">
           Ready to create with {creator.display_name}?
         </h3>
         <p className="mt-1 text-center text-sm text-[var(--color-neutral-500)]">
@@ -415,7 +384,7 @@ export default function CreatorProfilePage({
         </p>
         <Button
           asChild
-          className="mt-5 h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] px-8 font-[family-name:var(--font-display)] text-sm font-600 text-white hover:bg-[var(--color-gold-hover)]"
+          className="mt-5 h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] px-8 text-sm font-600 text-white hover:bg-[var(--color-gold-hover)]"
         >
           <Link href={`/dashboard/campaigns/new?creator=${creator.id}`}>
             Start Campaign

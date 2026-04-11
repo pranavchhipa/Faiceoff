@@ -46,11 +46,11 @@ export async function POST(request: Request) {
 
   // Insert new categories
   const inserts = categories.map(
-    (cat: { category: string; price_paise: number }) => ({
+    (cat: { category: string; price_paise: number; subcategories?: string[] }) => ({
       creator_id: creator.id,
       category: cat.category,
       price_per_generation_paise: cat.price_paise,
-      subcategories: [],
+      subcategories: cat.subcategories ?? [],
       is_active: true,
     })
   );

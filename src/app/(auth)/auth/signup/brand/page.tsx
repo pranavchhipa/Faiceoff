@@ -42,7 +42,7 @@ export default function BrandSignupPage() {
       const data = await res.json();
 
       if (data.error) {
-        setError(data.error);
+        setError(data.debug ? `${data.error} — ${data.debug}` : data.error);
         setLoading(false);
         return;
       }

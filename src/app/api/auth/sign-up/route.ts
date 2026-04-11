@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { generateAndSendOtp } from "@/lib/email/send-otp";
 
 export async function POST(request: Request) {
   const { email, displayName, role, phone } = await request.json();
@@ -15,37 +16,58 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  // Create user without sending confirmation email
-  // (email confirmation should be disabled in Supabase dashboard)
-  const { error: signUpError } = await supabase.auth.signUp({
-    email,
-    password: crypto.randomUUID(),
-    options: {
-      data: {
+  // ── Check if user already exists with a DIFFERENT role ──
+  const { data: existingUser } = await admin
+    .from("users")
+    .select("id, role")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingUser && existingUser.role !== role) {
+    return NextResponse.json(
+      {
+        error: `This email is already registered as a ${existingUser.role}. Please use a different email.`,
+      },
+      { status: 409 }
+    );
+  }
+
+  // ── Create auth user via admin (skips confirmation email entirely) ──
+  if (!existingUser) {
+    const { error: createError } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
         display_name: displayName,
         role,
         phone: phone || null,
       },
-    },
-  });
+    });
 
-  if (signUpError) {
-    // If user already exists, that's fine — we'll just send OTP
-    if (!signUpError.message.includes("already registered")) {
-      return NextResponse.json(
-        { error: signUpError.message },
-        { status: 400 }
-      );
+    if (createError) {
+      // User might exist in auth but not in public.users — continue to OTP
+      if (
+        !createError.message.toLowerCase().includes("already") &&
+        !createError.message.toLowerCase().includes("duplicate")
+      ) {
+        return NextResponse.json(
+          { error: createError.message },
+          { status: 400 }
+        );
+      }
     }
   }
 
-  // Send OTP code (6-digit) — this is the only email the user receives
-  const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+  // ── Generate OTP via admin API + send via Resend ──
+  const { error: otpError, debug } = await generateAndSendOtp(email);
 
   if (otpError) {
-    return NextResponse.json({ error: otpError.message }, { status: 400 });
+    return NextResponse.json(
+      { error: otpError, debug: process.env.NODE_ENV === "development" ? debug : undefined },
+      { status: 400 }
+    );
   }
 
   return NextResponse.json({ success: true });

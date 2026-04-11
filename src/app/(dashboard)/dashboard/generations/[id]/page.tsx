@@ -239,7 +239,7 @@ export default function GenerationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [generation, setGeneration] = useState<GenerationDetail | null>(null);
   const [approval, setApproval] = useState<ApprovalRecord | null>(null);
@@ -251,75 +251,49 @@ export default function GenerationDetailPage({
   const [feedback, setFeedback] = useState("");
   const [actionDone, setActionDone] = useState(false);
 
-  /* ── Fetch data ── */
+  /* ── Fetch data via API route (bypasses RLS) ── */
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
 
-    // Fetch generation with campaign join
-    const { data: genData, error: genError } = await supabase
-      .from("generations")
-      .select(
-        `id, campaign_id, creator_id, brand_id, status, assembled_prompt,
-         structured_brief, image_url, cost_paise, created_at, updated_at,
-         campaign:campaigns!generations_campaign_id_fkey(id, name)`
-      )
-      .eq("id", id)
-      .single();
+    try {
+      const res = await fetch(`/api/generations/${id}`);
+      if (!res.ok) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
 
-    if (genError || !genData) {
+      const data = await res.json();
+
+      const d = data.generation;
+      const gen: GenerationDetail = {
+        id: d.id,
+        campaign_id: d.campaign_id,
+        creator_id: d.creator_id,
+        brand_id: d.brand_id,
+        status: d.status,
+        assembled_prompt: d.assembled_prompt,
+        structured_brief: d.structured_brief,
+        image_url: d.image_url,
+        cost_paise: d.cost_paise,
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+        campaign: d.campaign ?? null,
+      };
+
+      setGeneration(gen);
+      setIsCreator(data.is_creator ?? false);
+
+      if (data.approval) {
+        setApproval(data.approval as ApprovalRecord);
+      }
+    } catch {
       setNotFound(true);
-      setLoading(false);
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = genData as any;
-    const gen: GenerationDetail = {
-      id: d.id,
-      campaign_id: d.campaign_id,
-      creator_id: d.creator_id,
-      brand_id: d.brand_id,
-      status: d.status,
-      assembled_prompt: d.assembled_prompt,
-      structured_brief: d.structured_brief,
-      image_url: d.image_url,
-      cost_paise: d.cost_paise,
-      created_at: d.created_at,
-      updated_at: d.updated_at,
-      campaign: d.campaign
-        ? { id: d.campaign.id, name: d.campaign.name }
-        : null,
-    };
-
-    setGeneration(gen);
-
-    // Check if user is the creator for this generation
-    const { data: creatorRow } = await supabase
-      .from("creators")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (creatorRow && creatorRow.id === gen.creator_id) {
-      setIsCreator(true);
-    }
-
-    // Fetch approval record if exists
-    const { data: approvalData } = await supabase
-      .from("approvals")
-      .select("id, status, feedback, decided_at, expires_at, created_at")
-      .eq("generation_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (approvalData) {
-      setApproval(approvalData as ApprovalRecord);
     }
 
     setLoading(false);
-  }, [user, id, supabase]);
+  }, [user, id]);
 
   useEffect(() => {
     fetchData();
@@ -358,7 +332,7 @@ export default function GenerationDetailPage({
   /* ── Loading ── */
   if (authLoading || loading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="max-w-5xl">
         <div className="mb-6">
           <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         </div>
@@ -380,7 +354,7 @@ export default function GenerationDetailPage({
   /* ── Not Found ── */
   if (notFound || !generation) {
     return (
-      <div className="mx-auto max-w-2xl py-24 text-center">
+      <div className="max-w-2xl py-24 text-center">
         <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
           Generation not found
         </h2>
@@ -407,7 +381,7 @@ export default function GenerationDetailPage({
     generation.status === "ready_for_approval" && isCreator && !actionDone;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-5xl">
       {/* Back link */}
       <motion.div
         initial={{ opacity: 0, x: -12 }}
@@ -493,6 +467,32 @@ export default function GenerationDetailPage({
               <p className="text-sm text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">
                 {generation.assembled_prompt}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Product Reference ── */}
+        {generation.structured_brief?.product_name && (
+          <div className="mb-6 flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-ocean)]/10 p-4">
+            {generation.structured_brief.product_image_url && (
+              <img
+                src={generation.structured_brief.product_image_url}
+                alt={generation.structured_brief.product_name}
+                className="size-16 shrink-0 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] object-contain bg-white"
+              />
+            )}
+            <div>
+              <p className="text-xs font-600 text-[var(--color-neutral-500)]">
+                Brand's Product
+              </p>
+              <p className="text-sm font-700 text-[var(--color-ink)]">
+                {generation.structured_brief.product_name}
+              </p>
+              {generation.structured_brief.product_description && (
+                <p className="text-xs text-[var(--color-neutral-500)] mt-0.5">
+                  {generation.structured_brief.product_description}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -681,7 +681,7 @@ export default function GenerationDetailPage({
         animate="visible"
         className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
       >
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Timeline
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-5">
@@ -741,7 +741,7 @@ export default function GenerationDetailPage({
         animate="visible"
         className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
       >
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Details
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-5">

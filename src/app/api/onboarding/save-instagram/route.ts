@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { instagram_handle, bio } = await request.json();
+  const { instagram_handle, instagram_followers, bio } = await request.json();
 
   const admin = createAdminClient();
 
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     .from("creators")
     .update({
       instagram_handle: cleanHandle,
+      instagram_followers: instagram_followers ? Number(instagram_followers) : null,
       bio: bio || null,
     })
     .eq("id", creator.id);

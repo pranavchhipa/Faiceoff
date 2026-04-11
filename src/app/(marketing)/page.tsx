@@ -1,128 +1,111 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { ArrowRight, Building2 } from "lucide-react";
 
-const mistSwatches = [
-  { name: "Blush", label: "Creator", color: "#f6dfe0", deep: "#f0cdd0" },
-  { name: "Ocean", label: "Brand", color: "#d9e5f0", deep: "#c4d6e8" },
-  { name: "Lilac", label: "Generation", color: "#e2dcef", deep: "#d0c7e3" },
-  { name: "Mint", label: "Approval", color: "#daece0", deep: "#c3deca" },
-] as const;
-
-const fadeUp = {
-  initial: { opacity: 0, y: 32 },
-  animate: { opacity: 1, y: 0 },
-};
-
-export default function LandingPage() {
+export default function Home() {
   return (
-    <div className="relative overflow-hidden">
-      {/* ── Hero Section ── */}
-      <section className="mx-auto max-w-5xl px-6 pb-24 pt-20 sm:pt-32">
-        <motion.div
-          className="flex flex-col items-center text-center"
-          initial="initial"
-          animate="animate"
-          transition={{ staggerChildren: 0.12 }}
-        >
-          {/* Badge */}
-          <motion.div
-            variants={fadeUp}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <span className="inline-flex items-center rounded-[var(--radius-pill)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] px-4 py-1.5 text-xs font-500 text-[var(--color-neutral-600)]">
-              Licensed AI likeness marketplace
+    <div className="min-h-screen pt-24 pb-12 px-6 lg:px-12 flex flex-col items-center justify-center bg-surface w-full">
+      {/* Hero Header Area */}
+      <header className="text-center max-w-3xl mb-16 space-y-6">
+        <h1 className="text-[3.5rem] md:text-6xl leading-tight font-headline font-bold tracking-tight text-on-surface">
+          The Digital <span className="text-primary">Atelier</span> for Creators & Brands.
+        </h1>
+        <p className="text-lg text-on-surface-variant font-body max-w-2xl mx-auto leading-relaxed">
+          Faiceoff is the exclusive marketplace connecting influencers and brands. Influencers register to create and store their AI versions. Brands browse popular influencers to generate content mixing their products with licensed AI personas.
+        </p>
+      </header>
+
+      {/* Main Interaction: Split Bento Concept */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mx-auto">
+        
+        {/* Creator Card */}
+        <div className="group relative overflow-hidden bg-surface-container-lowest rounded-[2rem] p-10 flex flex-col justify-between min-h-[500px] border border-outline-variant/15 hover:shadow-[0px_24px_48px_rgba(44,47,48,0.06)] transition-all duration-500">
+          <div className="relative z-10 w-full">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary-container/10 text-primary font-label text-[0.7rem] tracking-widest uppercase mb-6">
+              Discovery Tier
             </span>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.h1
-            className="mt-8 max-w-3xl font-[family-name:var(--font-display)] text-5xl font-800 leading-[1.08] tracking-tight text-[var(--color-ink)] sm:text-6xl lg:text-7xl"
-            variants={fadeUp}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          >
-            A house for licensed likeness.
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            className="mt-6 max-w-xl text-lg text-[var(--color-neutral-600)]"
-            variants={fadeUp}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          >
-            Creators own their face. Brands get authentic, consented AI content.
-            Every generation tracked, every rupee split fairly.
-          </motion.p>
-
-          {/* CTA buttons */}
-          <motion.div
-            className="mt-10 flex flex-col gap-4 sm:flex-row"
-            variants={fadeUp}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          >
-            <Link
-              href="/signup?role=creator"
-              className="inline-flex items-center justify-center rounded-[var(--radius-button)] bg-[var(--color-ink)] px-8 py-3.5 font-[family-name:var(--font-display)] text-sm font-600 text-[var(--color-background)] shadow-[var(--shadow-soft)] transition-opacity hover:opacity-90"
-            >
-              Join as Creator
-            </Link>
-            <Link
-              href="/signup?role=brand"
-              className="inline-flex items-center justify-center rounded-[var(--radius-button)] border border-[var(--color-neutral-300)] bg-[var(--color-background)] px-8 py-3.5 font-[family-name:var(--font-display)] text-sm font-600 text-[var(--color-ink)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--color-neutral-50)]"
-            >
-              Join as Brand
-            </Link>
-          </motion.div>
-        </motion.div>
-
-        {/* ── Journey Lane mist swatches ── */}
-        <motion.div
-          className="mt-24 flex flex-col items-center"
-          initial={{ opacity: 0, y: 32 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut", delay: 0.6 }}
-        >
-          <p className="mb-6 font-[family-name:var(--font-display)] text-sm font-600 uppercase tracking-widest text-[var(--color-neutral-400)]">
-            Four Journey Lanes
-          </p>
-          <div className="grid w-full max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
-            {mistSwatches.map((swatch) => (
-              <div key={swatch.name} className="flex flex-col items-center gap-3">
-                <div className="relative h-20 w-20 overflow-hidden rounded-2xl shadow-[var(--shadow-card)]">
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background: `linear-gradient(135deg, ${swatch.color} 0%, ${swatch.deep} 100%)`,
-                    }}
-                  />
-                </div>
-                <div className="text-center">
-                  <p className="font-[family-name:var(--font-display)] text-sm font-600 text-[var(--color-ink)]">
-                    {swatch.name}
-                  </p>
-                  <p className="text-xs text-[var(--color-neutral-500)]">
-                    {swatch.label}
-                  </p>
-                </div>
-              </div>
-            ))}
+            <h2 className="text-4xl font-headline font-bold mb-4 text-on-surface">I'm a Creator</h2>
+            <p className="text-on-surface-variant leading-relaxed max-w-sm font-body pr-4">
+              Register yourself, let us create and securely store your high-fidelity AI version, and get discovered by top brands.
+            </p>
           </div>
-        </motion.div>
-      </section>
+          <div className="relative z-10 flex flex-col gap-4 mt-12 w-full">
+            <Link
+              href="/for-creators"
+              className="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary py-4 rounded-xl font-headline font-bold text-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 group/btn no-underline"
+            >
+              Start Creating
+              <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+            </Link>
+            <p className="text-center text-xs font-label text-outline uppercase tracking-tighter m-0">
+              Join 12,000+ top-tier artists
+            </p>
+          </div>
+          {/* Abstract Decorative Image for Creator */}
+          <div className="absolute bottom-0 right-0 w-2/3 h-2/3 opacity-20 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-tl from-primary/30 to-transparent z-10 rounded-tl-[4rem]"></div>
+            <Image 
+              src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop" 
+              alt="Creative visual" 
+              fill
+              className="object-cover rounded-tl-[4rem]"
+            />
+          </div>
+        </div>
 
-      {/* ── How it works (placeholder) ── */}
-      <section
-        id="how-it-works"
-        className="border-t border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)]"
-      >
-        <div className="mx-auto max-w-5xl px-6 py-24 text-center">
-          <h2 className="font-[family-name:var(--font-display)] text-3xl font-700 tracking-tight text-[var(--color-ink)]">
-            How it works
-          </h2>
-          <p className="mt-4 text-[var(--color-neutral-500)]">
-            Coming soon -- the full journey from onboarding to payout.
-          </p>
+        {/* Brand Card */}
+        <div className="group relative overflow-hidden bg-surface-container rounded-[2rem] p-10 flex flex-col justify-between min-h-[500px] border border-outline-variant/15 hover:shadow-[0px_24px_48px_rgba(44,47,48,0.06)] transition-all duration-500">
+          <div className="relative z-10 w-full">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-on-surface/5 text-on-surface font-label text-[0.7rem] tracking-widest uppercase mb-6">
+              Enterprise Hub
+            </span>
+            <h2 className="text-4xl font-headline font-bold mb-4 text-on-surface">I'm a Brand</h2>
+            <p className="text-on-surface-variant leading-relaxed max-w-sm font-body pr-4">
+               Discover popular influencers, access their licensed AI personas, and seamlessly generate compelling content featuring your products.
+            </p>
+          </div>
+          <div className="relative z-10 flex flex-col gap-4 mt-12 w-full">
+            <Link
+              href="/for-brands"
+              className="w-full bg-on-surface text-surface-container-lowest py-4 rounded-xl font-headline font-bold text-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 group/btn no-underline"
+            >
+              Partner with Us
+              <Building2 className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+            </Link>
+            <p className="text-center text-xs font-label text-outline uppercase tracking-tighter m-0">
+              Trusted by Fortune 500 Agencies
+            </p>
+          </div>
+          {/* Abstract Decorative Image for Brand */}
+          <div className="absolute bottom-0 right-0 w-2/3 h-2/3 opacity-10 group-hover:opacity-25 transition-opacity duration-500 pointer-events-none">
+             <div className="absolute inset-0 bg-gradient-to-tl from-on-surface/30 to-transparent z-10 rounded-tl-[4rem]"></div>
+             <Image 
+              src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=600&auto=format&fit=crop" 
+              alt="Professional visual" 
+              fill
+              className="object-cover rounded-tl-[4rem] grayscale"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Content Section: Trust & Stats */}
+      <section className="mt-32 w-full max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center pb-20">
+        <div className="space-y-2">
+          <p className="text-4xl font-headline font-bold text-primary m-0">500M+</p>
+          <p className="text-sm font-label text-on-surface-variant uppercase tracking-widest m-0">Total Reach</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-4xl font-headline font-bold text-primary m-0">15k</p>
+          <p className="text-sm font-label text-on-surface-variant uppercase tracking-widest m-0">Active Creators</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-4xl font-headline font-bold text-primary m-0">2.4s</p>
+          <p className="text-sm font-label text-on-surface-variant uppercase tracking-widest m-0">Model Sync</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-4xl font-headline font-bold text-primary m-0">99.9%</p>
+          <p className="text-sm font-label text-on-surface-variant uppercase tracking-widest m-0">IP Protection</p>
         </div>
       </section>
     </div>

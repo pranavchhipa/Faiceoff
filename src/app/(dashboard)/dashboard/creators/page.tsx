@@ -117,61 +117,27 @@ export default function CreatorCatalogPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  /* ── Fetch creators ── */
+  /* ── Fetch creators via API route (bypasses RLS on users table) ── */
   const fetchCreators = useCallback(async () => {
     if (authLoading) return;
 
     setIsLoading(true);
 
-    const { data: creatorsData, error: creatorsError } = await supabase
-      .from("creators")
-      .select(
-        `
-        id,
-        bio,
-        instagram_handle,
-        instagram_followers,
-        user_id,
-        users!inner (
-          display_name,
-          avatar_url
-        ),
-        creator_categories (
-          category,
-          price_per_generation_paise,
-          is_active
-        )
-      `
-      )
-      .eq("is_active", true);
-
-    if (creatorsError) {
-      console.error("Failed to fetch creators:", creatorsError);
+    try {
+      const res = await fetch("/api/creators");
+      if (!res.ok) {
+        console.error("Failed to fetch creators:", res.status);
+        setIsLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setCreators(data.creators ?? []);
+    } catch (err) {
+      console.error("Failed to fetch creators:", err);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapped: CreatorWithDetails[] = (creatorsData ?? []).map((c: any) => ({
-      id: c.id,
-      bio: c.bio,
-      instagram_handle: c.instagram_handle,
-      instagram_followers: c.instagram_followers,
-      display_name: c.users?.display_name ?? "Creator",
-      avatar_url: c.users?.avatar_url ?? null,
-      categories: (c.creator_categories ?? [])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((cc: any) => cc.is_active)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((cc: any) => ({
-          category: cc.category,
-          price_per_generation_paise: cc.price_per_generation_paise,
-        })),
-    }));
-
-    setCreators(mapped);
-    setIsLoading(false);
-  }, [supabase, authLoading]);
+  }, [authLoading]);
 
   useEffect(() => {
     fetchCreators();
@@ -211,10 +177,10 @@ export default function CreatorCatalogPage() {
 
   /* ── Render ── */
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-800 tracking-tight text-[var(--color-ink)] lg:text-4xl">
+        <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)] lg:text-4xl">
           Discover Creators
         </h1>
         <p className="mt-2 text-base text-[var(--color-neutral-500)]">
@@ -288,7 +254,7 @@ export default function CreatorCatalogPage() {
           <div className="flex size-16 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
             <Users className="size-7 text-[var(--color-neutral-400)]" />
           </div>
-          <h3 className="mt-4 font-[family-name:var(--font-display)] text-lg font-600 text-[var(--color-ink)]">
+          <h3 className="mt-4 text-lg font-600 text-[var(--color-ink)]">
             No creators found
           </h3>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
@@ -322,12 +288,12 @@ export default function CreatorCatalogPage() {
                     className="flex size-14 shrink-0 items-center justify-center rounded-full"
                     style={{ backgroundColor: getAvatarColor(creator.display_name) }}
                   >
-                    <span className="font-[family-name:var(--font-display)] text-base font-700 text-[var(--color-ink)]">
+                    <span className="text-base font-700 text-[var(--color-ink)]">
                       {getInitials(creator.display_name)}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-[family-name:var(--font-display)] text-base font-700 text-[var(--color-ink)]">
+                    <h3 className="truncate text-base font-700 text-[var(--color-ink)]">
                       {creator.display_name}
                     </h3>
                     {creator.instagram_handle && (

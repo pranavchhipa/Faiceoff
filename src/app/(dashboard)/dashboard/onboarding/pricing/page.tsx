@@ -6,8 +6,6 @@ import { motion } from "framer-motion";
 import { IndianRupee, ArrowRight, Tag } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 interface CategoryRow {
   id: string;
@@ -145,40 +143,58 @@ export default function PricingPage() {
           </div>
         ) : (
           <div className="space-y-4 mb-6">
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className="flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-600 text-[var(--color-ink)] capitalize">
+            {categories.map((cat) => {
+              const presets = [500, 1000, 2000, 5000];
+              const currentPrice = prices[cat.id] ?? "";
+              const isCustom = currentPrice !== "" && !presets.includes(Number(currentPrice));
+              return (
+                <div
+                  key={cat.id}
+                  className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
+                >
+                  <p className="text-sm font-600 text-[var(--color-ink)] capitalize mb-3">
                     {cat.category}
                   </p>
-                  <p className="text-xs text-[var(--color-neutral-400)]">
-                    Per generation
-                  </p>
-                </div>
-                <div className="w-36">
-                  <div className="relative">
-                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[var(--color-neutral-400)]" />
-                    <Input
-                      type="number"
-                      min={500}
-                      step={1}
-                      required
-                      value={prices[cat.id] ?? ""}
-                      onChange={(e) =>
-                        setPrices((prev) => ({
-                          ...prev,
-                          [cat.id]: e.target.value,
-                        }))
-                      }
-                      className="pl-8 rounded-[var(--radius-input)] text-right"
-                    />
+                  <div className="flex flex-wrap gap-2">
+                    {presets.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPrices((prev) => ({ ...prev, [cat.id]: String(p) }))}
+                        className={`rounded-[var(--radius-pill)] border px-4 py-2 text-sm font-500 transition-all ${
+                          Number(currentPrice) === p
+                            ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white shadow-[var(--shadow-soft)]"
+                            : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)]"
+                        }`}
+                      >
+                        <span className="font-600">{p >= 1000 ? `${p / 1000}K` : p}</span>
+                      </button>
+                    ))}
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-[var(--color-neutral-400)]" />
+                      <input
+                        type="number"
+                        min={500}
+                        step={100}
+                        placeholder="Custom"
+                        value={isCustom ? currentPrice : ""}
+                        onChange={(e) => setPrices((prev) => ({ ...prev, [cat.id]: e.target.value }))}
+                        className={`h-[38px] w-28 rounded-[var(--radius-pill)] border pl-7 pr-3 text-sm outline-none transition-all ${
+                          isCustom
+                            ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-[var(--color-ink)] font-600"
+                            : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)]"
+                        } focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20`}
+                      />
+                    </div>
                   </div>
+                  {currentPrice && (
+                    <p className="mt-2 text-xs text-[var(--color-neutral-400)]">
+                      Brands pay <span className="font-600 text-[var(--color-ink)]">{Number(currentPrice).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span> per generation
+                    </p>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

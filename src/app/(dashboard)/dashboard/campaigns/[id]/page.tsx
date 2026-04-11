@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import {
   XCircle,
   Loader2,
   FileText,
+  Shield,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,7 +27,7 @@ import Link from "next/link";
    Types
    ================================================================ */
 
-interface Campaign {
+interface CampaignData {
   id: string;
   name: string;
   description: string | null;
@@ -34,8 +37,10 @@ interface Campaign {
   generation_count: number;
   max_generations: number;
   created_at: string;
-  creator: { id: string; user: { display_name: string } | null } | null;
-  brand: { id: string; user: { display_name: string } | null } | null;
+  creator_id: string;
+  brand_id: string;
+  creator_display_name: string;
+  brand_display_name: string;
 }
 
 interface Generation {
@@ -46,6 +51,7 @@ interface Generation {
   image_url: string | null;
   cost_paise: number | null;
   created_at: string;
+  replicate_prediction_id: string | null;
 }
 
 /* ================================================================
@@ -87,7 +93,7 @@ const genStatusConfig: Record<
   },
   compliance_check: {
     bg: "bg-[var(--color-ocean)]/60 text-[var(--color-ink)]",
-    icon: Clock,
+    icon: Shield,
     label: "Compliance Check",
   },
   generating: {
@@ -97,7 +103,7 @@ const genStatusConfig: Record<
   },
   output_check: {
     bg: "bg-[var(--color-ocean)] text-[var(--color-ink)]",
-    icon: Clock,
+    icon: Eye,
     label: "Output Check",
   },
   ready_for_approval: {
@@ -122,6 +128,18 @@ const genStatusConfig: Record<
   },
 };
 
+/** Check if any generation is in-progress (needs polling) */
+const IN_PROGRESS_STATUSES = [
+  "draft",
+  "compliance_check",
+  "generating",
+  "output_check",
+];
+
+function hasInProgressGenerations(gens: Generation[]): boolean {
+  return gens.some((g) => IN_PROGRESS_STATUSES.includes(g.status));
+}
+
 /* ================================================================
    Component
    ================================================================ */
@@ -129,55 +147,60 @@ const genStatusConfig: Record<
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
 
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaign, setCampaign] = useState<CampaignData | null>(null);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const campaignId = params.id;
 
-  const fetchData = useCallback(async () => {
-    if (!user || !campaignId) return;
-    setLoading(true);
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (!campaignId) return;
+      if (!silent) setLoading(true);
 
-    // Fetch campaign
-    const { data: campData, error: campError } = await supabase
-      .from("campaigns")
-      .select(
-        `id, name, description, status, budget_paise, spent_paise,
-         generation_count, max_generations, created_at,
-         creator:creators!campaigns_creator_id_fkey(id, user:users!creators_user_id_fkey(display_name)),
-         brand:brands!campaigns_brand_id_fkey(id, user:users!brands_user_id_fkey(display_name))`
-      )
-      .eq("id", campaignId)
-      .single();
+      try {
+        const res = await fetch(`/api/campaigns/${campaignId}`);
+        if (!res.ok) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
 
-    if (campError || !campData) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-
-    setCampaign(campData as unknown as Campaign);
-
-    // Fetch generations
-    const { data: genData } = await supabase
-      .from("generations")
-      .select(
-        "id, status, assembled_prompt, structured_brief, image_url, cost_paise, created_at"
-      )
-      .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
-
-    setGenerations((genData as unknown as Generation[]) ?? []);
-    setLoading(false);
-  }, [user, campaignId, supabase]);
+        const data = await res.json();
+        setCampaign(data.campaign);
+        setGenerations(data.generations ?? []);
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [campaignId]
+  );
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh when generations are in-progress
+  useEffect(() => {
+    if (hasInProgressGenerations(generations)) {
+      pollRef.current = setInterval(() => {
+        fetchData(true); // silent refresh
+      }, 4000);
+    }
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [generations, fetchData]);
 
   /* ── Loading ── */
   if (authLoading || loading) {
@@ -191,7 +214,7 @@ export default function CampaignDetailPage() {
   /* ── Not Found ── */
   if (notFound || !campaign) {
     return (
-      <div className="mx-auto max-w-2xl py-24 text-center">
+      <div className="max-w-2xl py-24 text-center">
         <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
           Campaign not found
         </h2>
@@ -211,8 +234,6 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const creatorName =
-    campaign.creator?.user?.display_name ?? "Unknown Creator";
   const canAddGeneration =
     campaign.status === "active" &&
     campaign.generation_count < campaign.max_generations;
@@ -232,22 +253,36 @@ export default function CampaignDetailPage() {
           )
         )
       : 0;
+  const isPolling = hasInProgressGenerations(generations);
+  const isDevMode = generations.some(
+    (g) => g.replicate_prediction_id?.startsWith("dev_")
+  );
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mx-auto max-w-3xl"
+      className="max-w-5xl"
     >
       {/* Back link */}
       <Link
         href="/dashboard/campaigns"
-        className="inline-flex items-center gap-1.5 text-sm font-500 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] mb-6 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-500 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] mb-6 transition-colors no-underline"
       >
         <ArrowLeft className="size-4" />
         Back to Campaigns
       </Link>
+
+      {/* Dev mode banner */}
+      {isDevMode && (
+        <div className="mb-4 rounded-[var(--radius-input)] border border-amber-300 bg-amber-50 px-4 py-2.5">
+          <p className="text-xs font-600 text-amber-800">
+            DEV MODE — LoRA model not yet trained. Using placeholder images
+            instead of AI-generated content.
+          </p>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -266,7 +301,7 @@ export default function CampaignDetailPage() {
             </span>
           </div>
           <p className="text-sm text-[var(--color-neutral-500)]">
-            Creator: {creatorName}
+            Creator: {campaign.creator_display_name}
           </p>
           {campaign.description && (
             <p className="text-sm text-[var(--color-neutral-500)] mt-1">
@@ -277,7 +312,9 @@ export default function CampaignDetailPage() {
         {canAddGeneration && (
           <Button
             onClick={() =>
-              router.push(`/dashboard/campaigns/new?creator=${campaign.creator?.id ?? ""}`)
+              router.push(
+                `/dashboard/campaigns/new?creator=${campaign.creator_id}`
+              )
             }
             className="shrink-0 rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
           >
@@ -306,7 +343,6 @@ export default function CampaignDetailPage() {
               / {formatINR(campaign.budget_paise)}
             </span>
           </p>
-          {/* Progress bar */}
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-neutral-100)]">
             <div
               className="h-full rounded-full bg-[var(--color-gold)] transition-all"
@@ -332,7 +368,6 @@ export default function CampaignDetailPage() {
               / {campaign.max_generations}
             </span>
           </p>
-          {/* Progress bar */}
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-neutral-100)]">
             <div
               className="h-full rounded-full bg-[var(--color-ocean-deep)] transition-all"
@@ -346,9 +381,17 @@ export default function CampaignDetailPage() {
 
       {/* ── Generation History ── */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-700 text-[var(--color-ink)]">
-          Generation History
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-700 text-[var(--color-ink)]">
+            Generation History
+          </h2>
+          {isPolling && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-500 text-[var(--color-gold)]">
+              <RefreshCw className="size-3 animate-spin" />
+              Processing...
+            </span>
+          )}
+        </div>
         <p className="text-sm text-[var(--color-neutral-400)]">
           {generations.length} generation{generations.length !== 1 ? "s" : ""}
         </p>
@@ -371,57 +414,73 @@ export default function CampaignDetailPage() {
           {generations.map((gen, i) => {
             const cfg = genStatusConfig[gen.status] ?? genStatusConfig.draft;
             const StatusIcon = cfg.icon;
+            const isInProgress = IN_PROGRESS_STATUSES.includes(gen.status);
+            const isDevImage = gen.replicate_prediction_id?.startsWith("dev_");
 
             return (
-              <motion.div
+              <Link
                 key={gen.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: i * 0.04 }}
-                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
+                href={`/dashboard/generations/${gen.id}`}
+                className="no-underline"
               >
-                <div className="flex items-start gap-4">
-                  {/* Image or placeholder */}
-                  <div className="shrink-0 size-16 rounded-[var(--radius-input)] bg-[var(--color-neutral-100)] flex items-center justify-center overflow-hidden">
-                    {gen.image_url ? (
-                      <img
-                        src={gen.image_url}
-                        alt="Generated"
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="size-6 text-[var(--color-neutral-300)]" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2 py-0.5 text-xs font-600 ${cfg.bg}`}
-                      >
-                        <StatusIcon
-                          className={`size-3 ${gen.status === "generating" ? "animate-spin" : ""}`}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: i * 0.04 }}
+                  className={`group rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4 transition-shadow hover:shadow-[var(--shadow-elevated)] ${
+                    isInProgress ? "border-[var(--color-ocean)]/40" : ""
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Image or placeholder */}
+                    <div className="shrink-0 size-16 rounded-[var(--radius-input)] bg-[var(--color-neutral-100)] flex items-center justify-center overflow-hidden">
+                      {gen.image_url ? (
+                        <img
+                          src={gen.image_url}
+                          alt="Generated"
+                          className="size-full object-cover"
                         />
-                        {cfg.label}
-                      </span>
-                      <span className="text-xs text-[var(--color-neutral-400)]">
-                        {formatDate(gen.created_at)}
-                      </span>
+                      ) : isInProgress ? (
+                        <Loader2 className="size-6 text-[var(--color-ocean)] animate-spin" />
+                      ) : (
+                        <ImageIcon className="size-6 text-[var(--color-neutral-300)]" />
+                      )}
                     </div>
-                    {gen.assembled_prompt && (
-                      <p className="text-sm text-[var(--color-neutral-600)] line-clamp-2 leading-relaxed">
-                        {gen.assembled_prompt}
-                      </p>
-                    )}
-                    {gen.cost_paise != null && gen.cost_paise > 0 && (
-                      <p className="mt-1 text-xs text-[var(--color-neutral-400)]">
-                        Cost: {formatINR(gen.cost_paise)}
-                      </p>
-                    )}
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2 py-0.5 text-xs font-600 ${cfg.bg}`}
+                        >
+                          <StatusIcon
+                            className={`size-3 ${gen.status === "generating" ? "animate-spin" : ""}`}
+                          />
+                          {cfg.label}
+                        </span>
+                        {isDevImage && (
+                          <span className="rounded-[var(--radius-pill)] bg-amber-100 px-2 py-0.5 text-[10px] font-600 text-amber-700">
+                            DEV
+                          </span>
+                        )}
+                        <span className="text-xs text-[var(--color-neutral-400)]">
+                          {formatDate(gen.created_at)}
+                        </span>
+                      </div>
+                      {gen.assembled_prompt && (
+                        <p className="text-sm text-[var(--color-neutral-600)] line-clamp-2 leading-relaxed group-hover:text-[var(--color-ink)] transition-colors">
+                          {gen.assembled_prompt}
+                        </p>
+                      )}
+                      {gen.cost_paise != null && gen.cost_paise > 0 && (
+                        <p className="mt-1 text-xs text-[var(--color-neutral-400)]">
+                          Cost: {formatINR(gen.cost_paise)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </Link>
             );
           })}
         </div>

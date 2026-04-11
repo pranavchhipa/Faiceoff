@@ -93,17 +93,26 @@ export async function POST(request: Request) {
   }
 
   // --- Check budget against creator price ---
-  const { data: creatorCategory, error: categoryError } = await admin
+  // Try to match the category from structured_brief, fall back to first active category
+  const briefCategory = structured_brief.category as string | undefined;
+
+  let categoryQuery = admin
     .from("creator_categories")
-    .select("price_per_generation_paise")
+    .select("price_per_generation_paise, category")
     .eq("creator_id", campaign.creator_id)
-    .eq("is_active", true)
+    .eq("is_active", true);
+
+  if (briefCategory) {
+    categoryQuery = categoryQuery.eq("category", briefCategory);
+  }
+
+  const { data: creatorCategory, error: categoryError } = await categoryQuery
     .limit(1)
     .single();
 
   if (categoryError || !creatorCategory) {
     return NextResponse.json(
-      { error: "Creator pricing not found" },
+      { error: "Creator pricing not found for selected category" },
       { status: 400 },
     );
   }

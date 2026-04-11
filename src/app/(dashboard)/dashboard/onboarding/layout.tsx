@@ -25,7 +25,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
   const activeIndex = getActiveIndex(pathname);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-5xl">
       {/* ── Progress Stepper ── */}
       <nav className="mb-10" aria-label="Onboarding progress">
         {/* Desktop stepper */}

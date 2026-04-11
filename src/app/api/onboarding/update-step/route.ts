@@ -15,7 +15,8 @@ const VALID_STEPS = [
 ] as const;
 
 export async function POST(request: Request) {
-  const { step } = await request.json();
+  const body = await request.json();
+  const { step, kyc_document_url, kyc_status } = body;
 
   if (!step || !VALID_STEPS.includes(step)) {
     return NextResponse.json(
@@ -35,11 +36,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Build the update payload
+  const updatePayload: {
+    onboarding_step: string;
+    kyc_document_url?: string;
+    kyc_status?: "not_started" | "pending" | "approved" | "rejected";
+  } = { onboarding_step: step };
+
+  // Add KYC fields if provided (from identity step)
+  if (kyc_document_url) {
+    updatePayload.kyc_document_url = kyc_document_url;
+  }
+  if (kyc_status && ["not_started", "pending", "approved", "rejected"].includes(kyc_status)) {
+    updatePayload.kyc_status = kyc_status as "not_started" | "pending" | "approved" | "rejected";
+  }
+
   // Use admin client to bypass RLS for the update
   const admin = createAdminClient();
   const { error: updateError } = await admin
     .from("creators")
-    .update({ onboarding_step: step })
+    .update(updatePayload)
     .eq("user_id", user.id);
 
   if (updateError) {

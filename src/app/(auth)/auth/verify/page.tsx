@@ -17,8 +17,9 @@ import {
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") ?? "";
+  const emailFromUrl = searchParams.get("email") ?? "";
 
+  const [email, setEmail] = useState(emailFromUrl);
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,12 +104,30 @@ function VerifyForm() {
           Check your email
         </h1>
         <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
-          We sent a verification code to{" "}
-          <span className="font-500 text-[var(--color-ink)]">{email}</span>
+          {email
+            ? <>We sent a verification code to{" "}<span className="font-500 text-[var(--color-ink)]">{email}</span></>
+            : "Enter your email and verification code"
+          }
         </p>
       </div>
 
       <div className="flex flex-col items-center gap-6">
+        {!emailFromUrl && (
+          <div className="w-full space-y-1.5">
+            <label htmlFor="verify-email" className="text-sm font-500 text-[var(--color-ink)]">
+              Email
+            </label>
+            <input
+              id="verify-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full h-11 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+            />
+          </div>
+        )}
+
         <InputOTP
           maxLength={8}
           value={otp}

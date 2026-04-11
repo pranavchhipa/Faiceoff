@@ -3,9 +3,34 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, X, ImagePlus, ArrowRight } from "lucide-react";
+import {
+  Camera,
+  Upload,
+  X,
+  ImagePlus,
+  ArrowRight,
+  Check,
+  AlertTriangle,
+} from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+
+const PHOTO_DOS = [
+  "Clear face visibility — no sunglasses, masks, or heavy makeup",
+  "Varied angles: front-facing, 3/4 profile, slight head tilt",
+  "Mix of lighting: natural sunlight, indoor, golden hour",
+  "Different expressions: neutral, smiling, serious, laughing",
+  "Solo photos only — no group shots or other faces",
+  "High resolution (min 512×512px), sharp & not blurry",
+  "Recent photos taken within the last 6 months",
+] as const;
+
+const PHOTO_DONTS = [
+  "No heavy filters, Snapchat lenses, or AI face-tuning",
+  "No photos where face is less than 30% of the frame",
+  "No blurry, pixelated, or low-light dark photos",
+  "No duplicate or near-identical photos",
+] as const;
 
 interface PhotoPreview {
   id: string;
@@ -14,12 +39,13 @@ interface PhotoPreview {
 }
 
 export default function PhotosPage() {
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [photos, setPhotos] = useState<PhotoPreview[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -75,32 +101,41 @@ export default function PhotosPage() {
     if (!user || photos.length < 5) return;
 
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
 
     try {
-      // First, get the creator ID via the save-photos API to use for storage paths
-      // We use a temp ID for file paths; the server will resolve the real creator ID
-      const tempId = crypto.randomUUID();
-
-      // Upload each photo to Supabase Storage (storage uses separate auth policies)
+      // Upload each photo one-by-one through our API (admin client, no RLS)
       const uploadedPaths: string[] = [];
 
-      for (const photo of photos) {
-        const ext = photo.file.name.split(".").pop() || "jpg";
-        const path = `${tempId}/${crypto.randomUUID()}.${ext}`;
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        setUploadProgress(i + 1);
 
-        const { error: uploadErr } = await supabase.storage
-          .from("reference-photos")
-          .upload(path, photo.file, {
-            contentType: photo.file.type,
-            upsert: false,
-          });
+        const form = new FormData();
+        form.append("photo", photo.file);
 
-        if (uploadErr) throw uploadErr;
+        const res = await fetch("/api/onboarding/upload-photo", {
+          method: "POST",
+          body: form,
+        });
+
+        if (!res.ok) {
+          let msg = "Upload failed";
+          try {
+            const body = await res.json();
+            msg = body.error || msg;
+          } catch {
+            msg = `Server error (${res.status})`;
+          }
+          throw new Error(msg);
+        }
+
+        const { path } = (await res.json()) as { path: string };
         uploadedPaths.push(path);
       }
 
-      // Save photo records via server API (bypasses RLS)
+      // Save all paths to DB + advance step
       const saveRes = await fetch("/api/onboarding/save-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,20 +143,14 @@ export default function PhotosPage() {
       });
 
       if (!saveRes.ok) {
-        const body = await saveRes.json();
-        throw new Error(body.error || "Failed to save photo records");
-      }
-
-      // Advance step
-      const res = await fetch("/api/onboarding/update-step", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: "lora_review" }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || "Failed to update step");
+        let msg = "Failed to save photos";
+        try {
+          const body = await saveRes.json();
+          msg = body.error || msg;
+        } catch {
+          msg = `Server error (${saveRes.status})`;
+        }
+        throw new Error(msg);
       }
 
       router.push("/dashboard/onboarding/lora-review");
@@ -129,6 +158,7 @@ export default function PhotosPage() {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   }
 
@@ -158,6 +188,38 @@ export default function PhotosPage() {
         <p className="text-sm text-[var(--color-neutral-500)]">
           Upload 5-15 high-quality photos for AI model training. Use varied angles, lighting, and expressions for best results.
         </p>
+      </div>
+
+      {/* Photo Guidelines */}
+      <div className="grid sm:grid-cols-2 gap-4 mb-6">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-mint)] bg-[var(--color-mint)]/10 p-4">
+          <p className="text-sm font-700 text-[var(--color-ink)] mb-2 flex items-center gap-1.5">
+            <Check className="size-4 text-green-600" />
+            Best for LoRA training
+          </p>
+          <ul className="space-y-1.5">
+            {PHOTO_DOS.map((item, i) => (
+              <li key={i} className="text-xs text-[var(--color-neutral-600)] leading-relaxed flex gap-1.5">
+                <span className="text-green-500 shrink-0 mt-0.5">•</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50/50 p-4">
+          <p className="text-sm font-700 text-[var(--color-ink)] mb-2 flex items-center gap-1.5">
+            <AlertTriangle className="size-4 text-red-500" />
+            Avoid these
+          </p>
+          <ul className="space-y-1.5">
+            {PHOTO_DONTS.map((item, i) => (
+              <li key={i} className="text-xs text-[var(--color-neutral-600)] leading-relaxed flex gap-1.5">
+                <span className="text-red-400 shrink-0 mt-0.5">•</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -260,11 +322,19 @@ export default function PhotosPage() {
 
         {/* Upload progress */}
         {uploading && (
-          <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-4 mb-4">
-            <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
-            <span className="text-sm text-[var(--color-neutral-500)]">
-              Uploading {photos.length} photos...
-            </span>
+          <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-4 mb-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+              <span className="text-sm text-[var(--color-neutral-500)]">
+                Uploading photo {uploadProgress} of {photos.length}...
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-[var(--color-neutral-200)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-300"
+                style={{ width: `${(uploadProgress / photos.length) * 100}%` }}
+              />
+            </div>
           </div>
         )}
 

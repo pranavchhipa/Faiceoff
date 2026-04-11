@@ -38,10 +38,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Delete old photo records
+  await admin
+    .from("creator_reference_photos")
+    .delete()
+    .eq("creator_id", creator.id);
+
   // Insert photo records
-  const inserts = storage_paths.map((path: string) => ({
+  const inserts = storage_paths.map((path: string, i: number) => ({
     creator_id: creator.id,
     storage_path: path,
+    is_primary: i === 0,
   }));
 
   const { error: insertErr } = await admin
@@ -52,5 +59,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, creator_id: creator.id });
+  // Advance onboarding step
+  await admin
+    .from("creators")
+    .update({ onboarding_step: "lora_review" })
+    .eq("user_id", user.id);
+
+  return NextResponse.json({ success: true });
 }

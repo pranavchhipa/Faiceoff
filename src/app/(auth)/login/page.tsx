@@ -93,7 +93,7 @@ export default function LoginPage() {
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Send magic link"
+            "Send OTP"
           )}
         </Button>
       </form>

@@ -10,10 +10,13 @@ import {
   IndianRupee,
   Clock,
   RefreshCw,
+  X,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 
 /* ── Types ── */
 
@@ -54,7 +57,8 @@ function txTypeLabel(type: string): string {
     topup: "Wallet Top-up",
     generation_charge: "Generation Charge",
     generation_earning: "Generation Earning",
-    payout: "Payout",
+    generation_spend: "Generation Spend",
+    payout: "Payout to Bank",
     refund: "Refund",
   };
   return map[type] ?? type.replace(/_/g, " ");
@@ -69,6 +73,13 @@ export default function WalletPage() {
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [topupLoading, setTopupLoading] = useState(false);
+
+  // Payout state
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [payoutSuccess, setPayoutSuccess] = useState(false);
 
   const role = user?.user_metadata?.role ?? "creator";
 
@@ -87,7 +98,7 @@ export default function WalletPage() {
       setTransactions(data as unknown as WalletTransaction[]);
       if (data.length > 0) {
         setBalance(
-          (data[0] as unknown as WalletTransaction).balance_after_paise
+          (data[0] as unknown as WalletTransaction).balance_after_paise,
         );
       }
     }
@@ -99,19 +110,19 @@ export default function WalletPage() {
     if (!authLoading) fetchWallet();
   }, [authLoading, fetchWallet]);
 
+  /* ── Brand: Razorpay top-up ── */
   async function handleTopup() {
     setTopupLoading(true);
     try {
       const res = await fetch("/api/wallet/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_paise: 100_00 }), // Default ₹100
+        body: JSON.stringify({ amount_paise: 100_00 }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create order");
 
-      // Open Razorpay checkout
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: data.amount,
@@ -124,7 +135,6 @@ export default function WalletPage() {
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          // Verify payment
           const verifyRes = await fetch("/api/wallet/verify-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -139,12 +149,8 @@ export default function WalletPage() {
             fetchWallet();
           }
         },
-        prefill: {
-          email: user?.email ?? "",
-        },
-        theme: {
-          color: "#c9a96e",
-        },
+        prefill: { email: user?.email ?? "" },
+        theme: { color: "#c9a96e" },
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,168 +163,378 @@ export default function WalletPage() {
     }
   }
 
+  /* ── Creator: Request payout ── */
+  async function handlePayout() {
+    setPayoutError(null);
+    setPayoutLoading(true);
+
+    const amountRupees = parseFloat(payoutAmount);
+    if (isNaN(amountRupees) || amountRupees <= 0) {
+      setPayoutError("Enter a valid amount");
+      setPayoutLoading(false);
+      return;
+    }
+
+    const amountPaise = Math.round(amountRupees * 100);
+
+    try {
+      const res = await fetch("/api/wallet/request-payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_paise: amountPaise }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPayoutError(data.error || "Payout request failed");
+        setPayoutLoading(false);
+        return;
+      }
+
+      setPayoutSuccess(true);
+      setBalance(data.new_balance_paise);
+
+      // Close modal after 2s and refresh
+      setTimeout(() => {
+        setShowPayoutModal(false);
+        setPayoutSuccess(false);
+        setPayoutAmount("");
+        fetchWallet();
+      }, 2000);
+    } catch (err) {
+      setPayoutError(
+        err instanceof Error ? err.message : "Network error",
+      );
+    } finally {
+      setPayoutLoading(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-outline-variant)]/30 border-t-[var(--color-accent-gold)]" />
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mx-auto max-w-3xl"
-    >
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-800 tracking-tight text-[var(--color-ink)]">
-          Wallet
-        </h1>
-        <p className="mt-1 text-[var(--color-neutral-500)]">
-          {role === "brand"
-            ? "Manage your campaign budget and payments."
-            : "Track your earnings and request payouts."}
-        </p>
-      </div>
-
-      {/* Balance Card */}
-      <div className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)] mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-500 text-[var(--color-neutral-500)] mb-1">
-              Current Balance
-            </p>
-            <p className="font-[family-name:var(--font-display)] text-4xl font-800 text-[var(--color-ink)]">
-              {formatINR(balance)}
-            </p>
-          </div>
-          <div className="flex size-14 items-center justify-center rounded-full bg-[var(--color-gold)]/10">
-            <Wallet className="size-7 text-[var(--color-gold)]" />
-          </div>
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          {role === "brand" && (
-            <Button
-              onClick={handleTopup}
-              disabled={topupLoading}
-              className="rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
-            >
-              {topupLoading ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <>
-                  <Plus className="size-4" />
-                  Add Funds
-                </>
-              )}
-            </Button>
-          )}
-          {role === "creator" && balance > 0 && (
-            <Button
-              variant="outline"
-              className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600"
-            >
-              <ArrowUpRight className="size-4" />
-              Request Payout
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            onClick={fetchWallet}
-            className="rounded-[var(--radius-button)]"
-          >
-            <RefreshCw className="size-4" />
-          </Button>
-        </div>
-      </div>
-
-      <Separator className="mb-6 bg-[var(--color-neutral-200)]" />
-
-      {/* Transactions */}
-      <h2 className="font-[family-name:var(--font-display)] text-lg font-700 text-[var(--color-ink)] mb-4">
-        Transaction History
-      </h2>
-
-      {transactions.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-10 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
-            <Clock className="size-5 text-[var(--color-neutral-400)]" />
-          </div>
-          <p className="text-sm font-600 text-[var(--color-ink)] mb-1">
-            No transactions yet
-          </p>
-          <p className="text-xs text-[var(--color-neutral-500)]">
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="max-w-5xl"
+      >
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+            {role === "brand" ? "Wallet" : "Earnings"}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--color-outline-variant)]">
             {role === "brand"
-              ? "Add funds to your wallet to start running campaigns."
-              : "Earnings from approved generations will appear here."}
+              ? "Manage your campaign budget and payments."
+              : "Track your earnings and request payouts."}
           </p>
         </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <AnimatePresence>
-            {transactions.map((tx, i) => (
-              <motion.div
-                key={tx.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: i * 0.03 }}
-                className="flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
+
+        {/* Balance Card */}
+        <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-6 shadow-sm mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mb-2">
+                {role === "brand" ? "CURRENT BALANCE" : "AVAILABLE EARNINGS"}
+              </p>
+              <p className="text-4xl font-700 text-[var(--color-on-surface)]">
+                {formatINR(balance)}
+              </p>
+            </div>
+            <div className="flex size-14 items-center justify-center rounded-full bg-[var(--color-accent-gold)]/10">
+              {role === "brand" ? (
+                <Wallet className="size-7 text-[var(--color-accent-gold)]" />
+              ) : (
+                <IndianRupee className="size-7 text-[var(--color-accent-gold)]" />
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 flex gap-3">
+            {role === "brand" && (
+              <Button
+                onClick={handleTopup}
+                disabled={topupLoading}
+                className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
               >
-                {/* Direction icon */}
-                <div
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                    tx.direction === "credit"
-                      ? "bg-[var(--color-mint)]/40"
-                      : "bg-[var(--color-blush)]/40"
-                  }`}
+                {topupLoading ? (
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <>
+                    <Plus className="size-4" />
+                    Add Funds
+                  </>
+                )}
+              </Button>
+            )}
+            {role === "creator" && (
+              <Button
+                onClick={() => {
+                  setPayoutError(null);
+                  setPayoutSuccess(false);
+                  setPayoutAmount("");
+                  setShowPayoutModal(true);
+                }}
+                disabled={balance < 10000}
+                className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90 disabled:opacity-50"
+              >
+                <ArrowUpRight className="size-4" />
+                Request Payout
+              </Button>
+            )}
+            {role === "creator" && balance < 10000 && balance > 0 && (
+              <p className="flex items-center text-xs text-[var(--color-outline-variant)]">
+                Min. payout: ₹100
+              </p>
+            )}
+            <Button
+              variant="ghost"
+              onClick={fetchWallet}
+              className="rounded-xl text-[var(--color-outline-variant)] hover:text-[var(--color-on-surface)]"
+            >
+              <RefreshCw className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Transactions */}
+        <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mb-4">
+          TRANSACTION HISTORY
+        </p>
+
+        {transactions.length === 0 ? (
+          <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-10 text-center">
+            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-surface-container-low)]">
+              <Clock className="size-5 text-[var(--color-outline-variant)]" />
+            </div>
+            <p className="text-sm font-600 text-[var(--color-on-surface)] mb-1">
+              No transactions yet
+            </p>
+            <p className="text-xs text-[var(--color-outline-variant)]">
+              {role === "brand"
+                ? "Add funds to your wallet to start running campaigns."
+                : "Earnings from approved generations will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <AnimatePresence>
+              {transactions.map((tx, i) => (
+                <motion.div
+                  key={tx.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: i * 0.03 }}
+                  className="flex items-center gap-4 rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-4"
                 >
-                  {tx.direction === "credit" ? (
-                    <ArrowDownLeft className="size-4 text-green-600" />
-                  ) : (
-                    <ArrowUpRight className="size-4 text-red-500" />
-                  )}
-                </div>
-
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-600 text-[var(--color-ink)]">
-                    {txTypeLabel(tx.type)}
-                  </p>
-                  {tx.description && (
-                    <p className="text-xs text-[var(--color-neutral-500)] truncate">
-                      {tx.description}
-                    </p>
-                  )}
-                  <p className="text-xs text-[var(--color-neutral-400)] mt-0.5">
-                    {formatDate(tx.created_at)}
-                  </p>
-                </div>
-
-                {/* Amount */}
-                <div className="text-right shrink-0">
-                  <p
-                    className={`text-sm font-700 ${
+                  {/* Direction icon */}
+                  <div
+                    className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
                       tx.direction === "credit"
-                        ? "text-green-600"
-                        : "text-[var(--color-ink)]"
+                        ? "bg-[var(--color-mint)]"
+                        : "bg-[var(--color-blush)]"
                     }`}
                   >
-                    {tx.direction === "credit" ? "+" : "-"}
-                    {formatINR(tx.amount_paise)}
-                  </p>
-                  <p className="text-xs text-[var(--color-neutral-400)]">
-                    Bal: {formatINR(tx.balance_after_paise)}
+                    {tx.direction === "credit" ? (
+                      <ArrowDownLeft className="size-4 text-green-600" />
+                    ) : (
+                      <ArrowUpRight className="size-4 text-red-500" />
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-600 text-[var(--color-on-surface)]">
+                      {txTypeLabel(tx.type)}
+                    </p>
+                    {tx.description && (
+                      <p className="text-xs text-[var(--color-outline-variant)] truncate">
+                        {tx.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-[var(--color-outline-variant)] mt-0.5">
+                      {formatDate(tx.created_at)}
+                    </p>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="text-right shrink-0">
+                    <p
+                      className={`text-sm font-700 ${
+                        tx.direction === "credit"
+                          ? "text-green-600"
+                          : "text-[var(--color-on-surface)]"
+                      }`}
+                    >
+                      {tx.direction === "credit" ? "+" : "-"}
+                      {formatINR(tx.amount_paise)}
+                    </p>
+                    <p className="text-xs text-[var(--color-outline-variant)]">
+                      Bal: {formatINR(tx.balance_after_paise)}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </motion.div>
+
+      {/* ── Payout Modal ── */}
+      <AnimatePresence>
+        {showPayoutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[var(--color-on-surface)]/40"
+              onClick={() => !payoutLoading && setShowPayoutModal(false)}
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-6 shadow-[var(--shadow-elevated)] mx-4"
+            >
+              {/* Close */}
+              <button
+                onClick={() => !payoutLoading && setShowPayoutModal(false)}
+                className="absolute right-4 top-4 flex size-7 items-center justify-center rounded-xl text-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-on-surface)]"
+              >
+                <X className="size-4" />
+              </button>
+
+              {payoutSuccess ? (
+                /* Success state */
+                <div className="text-center py-4">
+                  <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-mint)]">
+                    <CheckCircle2 className="size-6 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-700 text-[var(--color-on-surface)] mb-1">
+                    Payout Requested
+                  </h3>
+                  <p className="text-sm text-[var(--color-outline-variant)]">
+                    {formatINR(parseFloat(payoutAmount) * 100)} will be
+                    transferred to your bank account within 3-5 business days.
                   </p>
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-    </motion.div>
+              ) : (
+                /* Form state */
+                <>
+                  <h3 className="text-xl font-700 text-[var(--color-on-surface)] mb-1">
+                    Request Payout
+                  </h3>
+                  <p className="text-sm text-[var(--color-outline-variant)] mb-5">
+                    Enter the amount you want to withdraw to your bank account.
+                  </p>
+
+                  {/* Available balance */}
+                  <div className="rounded-xl bg-[var(--color-surface-container-low)] px-4 py-3 mb-4">
+                    <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mb-0.5">
+                      Available Balance
+                    </p>
+                    <p className="text-lg font-700 text-[var(--color-accent-gold)]">
+                      {formatINR(balance)}
+                    </p>
+                  </div>
+
+                  {/* Amount input */}
+                  <label className="block text-sm font-600 text-[var(--color-on-surface)] mb-2">
+                    Payout Amount (₹)
+                  </label>
+                  <div className="relative mb-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-outline-variant)]">
+                      ₹
+                    </span>
+                    <Input
+                      type="number"
+                      min={100}
+                      max={balance / 100}
+                      step={1}
+                      value={payoutAmount}
+                      onChange={(e) => {
+                        setPayoutAmount(e.target.value);
+                        setPayoutError(null);
+                      }}
+                      placeholder="Enter amount"
+                      className="rounded-xl pl-7 text-lg font-600 border-[var(--color-outline-variant)]/15"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mb-5">
+                    <p className="text-xs text-[var(--color-outline-variant)]">
+                      Min: ₹100
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPayoutAmount(String(Math.floor(balance / 100)))
+                      }
+                      className="text-xs font-600 text-[var(--color-accent-gold)] hover:underline"
+                    >
+                      Withdraw all
+                    </button>
+                  </div>
+
+                  {/* Error */}
+                  {payoutError && (
+                    <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 mb-4">
+                      <AlertCircle className="size-4 text-red-500 shrink-0" />
+                      <p className="text-sm text-red-600">{payoutError}</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPayoutModal(false)}
+                      disabled={payoutLoading}
+                      className="flex-1 rounded-xl border-[var(--color-outline-variant)]/15 font-600 text-[var(--color-on-surface)]"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handlePayout}
+                      disabled={payoutLoading || !payoutAmount}
+                      className="flex-1 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
+                    >
+                      {payoutLoading ? (
+                        <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      ) : (
+                        <>
+                          <ArrowUpRight className="size-4" />
+                          Confirm Payout
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Info */}
+                  <p className="mt-4 text-[11px] text-[var(--color-outline-variant)] text-center">
+                    Payouts are processed within 3-5 business days to your
+                    registered bank account.
+                  </p>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

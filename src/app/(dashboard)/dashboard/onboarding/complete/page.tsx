@@ -49,19 +49,32 @@ export default function CompletePage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [saved, setSaved] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !user || saved) return;
 
     async function markComplete() {
-      // Mark onboarding complete via server API (bypasses RLS)
-      const res = await fetch("/api/onboarding/complete", {
-        method: "POST",
-      });
+      try {
+        // Mark onboarding complete via server API (bypasses RLS)
+        const res = await fetch("/api/onboarding/complete", {
+          method: "POST",
+        });
 
-      if (!res.ok) return;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const msg = (body as { error?: string }).error || `Failed (${res.status})`;
+          console.error("[complete] API error:", msg);
+          setCompleteError(msg);
+          return;
+        }
 
-      setSaved(true);
+        setSaved(true);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Network error";
+        console.error("[complete] error:", msg);
+        setCompleteError(msg);
+      }
     }
 
     markComplete();
@@ -139,6 +152,12 @@ export default function CompletePage() {
             </div>
           ))}
         </div>
+
+        {completeError && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4 max-w-md mx-auto">
+            Error: {completeError}
+          </p>
+        )}
 
         <Button
           onClick={() => router.push("/dashboard")}

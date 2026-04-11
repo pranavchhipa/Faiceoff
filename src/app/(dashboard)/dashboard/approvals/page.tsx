@@ -7,7 +7,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  ImageIcon,
+  Sparkles,
   MessageSquare,
   Megaphone,
   Inbox,
@@ -29,6 +29,7 @@ interface ApprovalItem {
     id: string;
     assembled_prompt: string | null;
     image_url: string | null;
+    structured_brief: Record<string, string> | null;
   } | null;
   campaign: {
     id: string;
@@ -108,7 +109,7 @@ export default function ApprovalsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
 
-  /* ── Fetch creator ID ── */
+  /* -- Fetch creator ID -- */
   const fetchCreatorId = useCallback(async () => {
     if (!user) return null;
     const { data } = await supabase
@@ -119,7 +120,7 @@ export default function ApprovalsPage() {
     return data?.id ?? null;
   }, [user, supabase]);
 
-  /* ── Fetch approvals ── */
+  /* -- Fetch approvals -- */
   const fetchApprovals = useCallback(
     async (cId: string) => {
       setLoading(true);
@@ -128,7 +129,7 @@ export default function ApprovalsPage() {
         .from("approvals")
         .select(
           `id, status, feedback, expires_at, created_at,
-         generation:generations!approvals_generation_id_fkey(id, assembled_prompt, image_url),
+         generation:generations!approvals_generation_id_fkey(id, assembled_prompt, image_url, structured_brief),
          campaign:generations!approvals_generation_id_fkey(campaign:campaigns!generations_campaign_id_fkey(id, name))`
         )
         .eq("creator_id", cId)
@@ -148,6 +149,7 @@ export default function ApprovalsPage() {
                 id: row.generation.id,
                 assembled_prompt: row.generation.assembled_prompt,
                 image_url: row.generation.image_url,
+                structured_brief: row.generation.structured_brief ?? null,
               }
             : null,
           campaign: row.campaign?.campaign
@@ -179,7 +181,7 @@ export default function ApprovalsPage() {
     })();
   }, [user, fetchCreatorId, fetchApprovals]);
 
-  /* ── Handle approve / reject ── */
+  /* -- Handle approve / reject -- */
   async function handleAction(
     approvalId: string,
     generationId: string,
@@ -208,11 +210,11 @@ export default function ApprovalsPage() {
     }
   }
 
-  /* ── Loading ── */
+  /* -- Loading -- */
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-outline-variant)]/30 border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -222,19 +224,19 @@ export default function ApprovalsPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mx-auto max-w-3xl"
+      className="max-w-5xl"
     >
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+        <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
           Approvals
         </h1>
-        <p className="mt-1 text-[var(--color-neutral-500)]">
+        <p className="mt-1 text-[var(--color-outline)]">
           Review and approve AI-generated content using your likeness.
         </p>
       </div>
 
-      {/* ── Empty state ── */}
+      {/* -- Empty state -- */}
       {approvals.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
@@ -243,22 +245,22 @@ export default function ApprovalsPage() {
             duration: 0.4,
             ease: [0.25, 0.46, 0.45, 0.94] as const,
           }}
-          className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-12 text-center"
+          className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-12 text-center shadow-[var(--shadow-card)]"
         >
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[var(--color-mint)]/30">
-            <Inbox className="size-6 text-[var(--color-neutral-500)]" />
+            <Inbox className="size-6 text-[var(--color-outline)]" />
           </div>
-          <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
+          <h2 className="text-xl font-700 text-[var(--color-on-surface)] mb-2">
             No pending approvals
           </h2>
-          <p className="text-sm text-[var(--color-neutral-500)] max-w-sm mx-auto">
+          <p className="text-sm text-[var(--color-outline)] max-w-sm mx-auto">
             You're all caught up! When brands generate content using your
             likeness, approval requests will appear here.
           </p>
         </motion.div>
       )}
 
-      {/* ── Approval cards ── */}
+      {/* -- Approval cards -- */}
       <AnimatePresence mode="popLayout">
         {approvals.map((approval, i) => {
           const gen = approval.generation;
@@ -276,12 +278,12 @@ export default function ApprovalsPage() {
               animate="animate"
               exit="exit"
               layout
-              className="mb-4 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white"
+              className="mb-4 overflow-hidden rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-card)]"
             >
               <div className="p-5">
                 <div className="flex items-start gap-4">
                   {/* Image thumbnail or placeholder */}
-                  <div className="shrink-0 size-20 rounded-[var(--radius-input)] bg-[var(--color-neutral-100)] flex items-center justify-center overflow-hidden">
+                  <div className="shrink-0 size-20 rounded-xl bg-[var(--color-lilac)] flex items-center justify-center overflow-hidden">
                     {gen?.image_url ? (
                       <img
                         src={gen.image_url}
@@ -289,7 +291,7 @@ export default function ApprovalsPage() {
                         className="size-full object-cover"
                       />
                     ) : (
-                      <ImageIcon className="size-7 text-[var(--color-neutral-300)]" />
+                      <Sparkles className="size-7 text-[var(--color-primary)]" />
                     )}
                   </div>
 
@@ -300,7 +302,7 @@ export default function ApprovalsPage() {
                       {campaign && (
                         <Link
                           href={`/dashboard/campaigns/${campaign.id}`}
-                          className="inline-flex items-center gap-1.5 text-sm font-700 text-[var(--color-ink)] hover:text-[var(--color-gold-hover)] transition-colors no-underline"
+                          className="inline-flex items-center gap-1.5 text-sm font-700 text-[var(--color-on-surface)] hover:text-[var(--color-primary)] transition-colors no-underline"
                         >
                           <Megaphone className="size-3.5" />
                           {campaign.name}
@@ -310,7 +312,7 @@ export default function ApprovalsPage() {
 
                     {/* Prompt preview */}
                     {gen?.assembled_prompt && (
-                      <p className="text-sm text-[var(--color-neutral-600)] line-clamp-2 leading-relaxed mb-2">
+                      <p className="text-sm text-[var(--color-on-surface-variant)] line-clamp-2 leading-relaxed mb-2">
                         {gen.assembled_prompt}
                       </p>
                     )}
@@ -318,13 +320,13 @@ export default function ApprovalsPage() {
                     {/* Time remaining badge */}
                     <div className="flex items-center gap-1.5">
                       <Clock
-                        className={`size-3.5 ${expiringSoon ? "text-[var(--color-blush)]" : "text-[var(--color-neutral-400)]"}`}
+                        className={`size-3.5 ${expiringSoon ? "text-[var(--color-error)]" : "text-[var(--color-outline-variant)]"}`}
                       />
                       <span
-                        className={`text-xs font-600 ${
+                        className={`text-xl font-700 ${
                           expiringSoon
-                            ? "text-[var(--color-blush)]"
-                            : "text-[var(--color-neutral-400)]"
+                            ? "text-[var(--color-error)]"
+                            : "text-[var(--color-on-surface)]"
                         }`}
                       >
                         {timeRemaining(approval.expires_at)}
@@ -332,6 +334,32 @@ export default function ApprovalsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Product reference from brand */}
+                {gen?.structured_brief?.product_name && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-low)] px-4 py-3">
+                    {gen.structured_brief.product_image_url && (
+                      <img
+                        src={gen.structured_brief.product_image_url}
+                        alt={gen.structured_brief.product_name}
+                        className="size-12 shrink-0 rounded-lg border border-[var(--color-outline-variant)]/15 object-contain bg-white"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-600 text-[var(--color-outline)]">
+                        Brand's Product
+                      </p>
+                      <p className="text-sm font-600 text-[var(--color-on-surface)] truncate">
+                        {gen.structured_brief.product_name}
+                      </p>
+                      {gen.structured_brief.product_description && (
+                        <p className="text-xs text-[var(--color-outline-variant)] line-clamp-1">
+                          {gen.structured_brief.product_description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Reject feedback textarea */}
                 <AnimatePresence>
@@ -346,8 +374,8 @@ export default function ApprovalsPage() {
                       }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-4 pt-4 border-t border-[var(--color-neutral-100)]">
-                        <label className="block text-xs font-600 text-[var(--color-neutral-500)] mb-2">
+                      <div className="mt-4 pt-4">
+                        <label className="block text-xs font-600 text-[var(--color-outline)] mb-2">
                           <MessageSquare className="inline size-3.5 mr-1" />
                           Rejection feedback (optional)
                         </label>
@@ -356,7 +384,7 @@ export default function ApprovalsPage() {
                           onChange={(e) => setFeedback(e.target.value)}
                           placeholder="Describe what needs to change..."
                           rows={3}
-                          className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-paper)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20 transition-all resize-none"
+                          className="w-full rounded-xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-low)] px-3 py-2 text-sm text-[var(--color-on-surface)] placeholder:text-[var(--color-outline-variant)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all resize-none"
                         />
                       </div>
                     </motion.div>
@@ -364,12 +392,12 @@ export default function ApprovalsPage() {
                 </AnimatePresence>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[var(--color-neutral-100)]">
+                <div className="flex items-center gap-3 mt-4 pt-4">
                   {/* View detail link */}
                   {gen && (
                     <Link
                       href={`/dashboard/generations/${gen.id}`}
-                      className="text-xs font-500 text-[var(--color-neutral-400)] hover:text-[var(--color-ink)] transition-colors no-underline mr-auto"
+                      className="text-xs font-500 text-[var(--color-outline-variant)] hover:text-[var(--color-on-surface)] transition-colors no-underline mr-auto"
                     >
                       View details
                     </Link>
@@ -382,7 +410,7 @@ export default function ApprovalsPage() {
                       size="sm"
                       disabled={isActioning}
                       onClick={() => setRejectingId(approval.id)}
-                      className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] text-[var(--color-neutral-600)] hover:border-[var(--color-blush)] hover:text-[var(--color-ink)] hover:bg-[var(--color-blush)]/20"
+                      className="rounded-xl border border-[var(--color-outline-variant)]/15 text-red-500 hover:border-red-300 hover:bg-red-50"
                     >
                       <XCircle className="size-4" />
                       Reject
@@ -397,7 +425,7 @@ export default function ApprovalsPage() {
                           setRejectingId(null);
                           setFeedback("");
                         }}
-                        className="rounded-[var(--radius-button)] text-[var(--color-neutral-500)]"
+                        className="rounded-xl text-[var(--color-outline)]"
                       >
                         Cancel
                       </Button>
@@ -410,10 +438,10 @@ export default function ApprovalsPage() {
                             handleAction(approval.id, gen.id, "reject");
                           }
                         }}
-                        className="rounded-[var(--radius-button)]"
+                        className="rounded-xl border border-[var(--color-outline-variant)]/15 bg-transparent text-red-500 hover:bg-red-50"
                       >
                         {isActioning ? (
-                          <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          <div className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-500" />
                         ) : (
                           <XCircle className="size-4" />
                         )}
@@ -432,7 +460,7 @@ export default function ApprovalsPage() {
                           handleAction(approval.id, gen.id, "approve");
                         }
                       }}
-                      className="rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
+                      className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
                     >
                       {isActioning ? (
                         <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

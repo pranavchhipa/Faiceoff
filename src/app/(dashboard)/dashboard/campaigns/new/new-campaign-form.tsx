@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
   FileText,
   Palette,
   Eye,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,6 +44,9 @@ interface PromptBrief {
   props: string;
   style: string;
   notes: string;
+  productName: string;
+  productDescription: string;
+  productImageUrl: string;
 }
 
 /* ================================================================
@@ -163,16 +168,13 @@ function SelectField({
 export function NewCampaignForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   /* ── State ── */
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Brand identity
-  const [brandId, setBrandId] = useState<string | null>(null);
 
   // Creator selection
   const [creators, setCreators] = useState<CreatorOption[]>([]);
@@ -184,6 +186,7 @@ export function NewCampaignForm() {
   // Step 1: Campaign details
   const [campaignName, setCampaignName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [maxGenerations, setMaxGenerations] = useState(5);
 
   // Step 2: Prompt builder
@@ -198,62 +201,112 @@ export function NewCampaignForm() {
     props: "",
     style: "",
     notes: "",
+    productName: "",
+    productDescription: "",
+    productImageUrl: "",
   });
 
-  /* ── Fetch brand profile + available creators ── */
+  // Product image upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [productUploading, setProductUploading] = useState(false);
+  const [productUploadError, setProductUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  /* ── Upload product image ── */
+  async function uploadProductImage(file: File) {
+    // Validate on client
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setProductUploadError("Only JPEG, PNG, or WebP images allowed");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProductUploadError("Image must be under 5 MB");
+      return;
+    }
+
+    setProductUploading(true);
+    setProductUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch("/api/campaigns/upload-product-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Upload failed");
+      }
+
+      setBrief((b) => ({ ...b, productImageUrl: data.url }));
+    } catch (err) {
+      setProductUploadError(
+        err instanceof Error ? err.message : "Upload failed"
+      );
+    } finally {
+      setProductUploading(false);
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadProductImage(file);
+    // Reset so same file can be re-selected
+    e.target.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadProductImage(file);
+  }
+
+  function removeProductImage() {
+    setBrief((b) => ({ ...b, productImageUrl: "" }));
+    setProductUploadError(null);
+  }
+
+  /* ── Fetch available creators ── */
   useEffect(() => {
     if (!user) return;
 
     async function load() {
       setCreatorsLoading(true);
 
-      // Get brand_id
-      const { data: brandRow } = await supabase
-        .from("brands")
-        .select("id")
-        .eq("user_id", user!.id)
-        .single();
-
-      if (brandRow) setBrandId(brandRow.id);
-
-      // Get active creators with their categories
-      const { data: creatorRows } = await supabase
-        .from("creators")
-        .select(
-          `id,
-           user:users!creators_user_id_fkey(display_name),
-           categories:creator_categories(category, price_per_generation_paise)`
-        )
-        .eq("is_active", true);
-
-      if (creatorRows) {
-        const mapped: CreatorOption[] = (
-          creatorRows as unknown as {
-            id: string;
-            user: { display_name: string } | null;
-            categories: {
-              category: string;
-              price_per_generation_paise: number;
-            }[];
-          }[]
-        ).map((c) => ({
-          id: c.id,
-          display_name: c.user?.display_name ?? "Unnamed Creator",
-          categories: c.categories ?? [],
-        }));
-        setCreators(mapped);
+      // Get active creators via API (bypasses RLS on users table)
+      try {
+        const res = await fetch("/api/creators");
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: CreatorOption[] = (data.creators ?? []).map(
+            (c: { id: string; display_name: string; categories: { category: string; price_per_generation_paise: number }[] }) => ({
+              id: c.id,
+              display_name: c.display_name ?? "Unnamed Creator",
+              categories: c.categories ?? [],
+            })
+          );
+          setCreators(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch creators:", err);
       }
 
       setCreatorsLoading(false);
     }
 
     load();
-  }, [user, supabase]);
+  }, [user]);
 
   /* ── Derived values ── */
   const selectedCreator = creators.find((c) => c.id === selectedCreatorId);
-  const pricePerGen =
-    selectedCreator?.categories?.[0]?.price_per_generation_paise ?? 0;
+  const creatorCategories = selectedCreator?.categories ?? [];
+  const selectedCat = creatorCategories.find((c) => c.category === selectedCategory);
+  const pricePerGen = selectedCat?.price_per_generation_paise ?? 0;
   const totalBudget = pricePerGen * maxGenerations;
 
   const creatorDisplayName = selectedCreator?.display_name ?? "[creator]";
@@ -277,6 +330,10 @@ export function NewCampaignForm() {
     if (expression)
       parts.push(`with a ${expression.toLowerCase()} expression`);
     if (brief.outfit) parts.push(`, ${brief.outfit}`);
+    if (brief.productName)
+      parts.push(`, showcasing ${brief.productName}`);
+    if (brief.productDescription)
+      parts.push(`(${brief.productDescription})`);
     if (brief.props) parts.push(`, ${brief.props}`);
     if (brief.notes) parts.push(`. ${brief.notes}`);
 
@@ -287,6 +344,7 @@ export function NewCampaignForm() {
   const step1Valid =
     campaignName.trim().length > 0 &&
     selectedCreatorId.length > 0 &&
+    selectedCategory.length > 0 &&
     maxGenerations >= 1 &&
     maxGenerations <= 100;
 
@@ -305,29 +363,36 @@ export function NewCampaignForm() {
 
   /* ── Submit ── */
   async function handleSubmit() {
-    if (!brandId || !selectedCreatorId) return;
+    if (!selectedCreatorId) {
+      setError("Please select a creator");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
     try {
-      // 1. Insert campaign
-      const { data: campaign, error: campError } = await supabase
-        .from("campaigns")
-        .insert({
-          brand_id: brandId,
+      // 1. Insert campaign via API route (bypasses RLS)
+      const campRes = await fetch("/api/campaigns/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           creator_id: selectedCreatorId,
           name: campaignName.trim(),
           description: description.trim() || null,
           budget_paise: totalBudget,
           max_generations: maxGenerations,
-          status: "active",
-        })
-        .select("id")
-        .single();
+        }),
+      });
 
-      if (campError) throw campError;
+      if (!campRes.ok) {
+        const campData = await campRes.json();
+        throw new Error(campData.error ?? "Failed to create campaign");
+      }
 
-      // 2. Insert first generation as draft
+      const { campaign_id } = await campRes.json();
+
+      // 2. Create generation via API route (triggers Inngest pipeline)
       const structuredBrief = {
         setting:
           brief.setting === "Custom" ? brief.settingCustom : brief.setting,
@@ -340,21 +405,29 @@ export function NewCampaignForm() {
         props: brief.props,
         style: brief.style,
         notes: brief.notes,
+        subject: creatorDisplayName,
+        category: selectedCategory,
+        product_name: brief.productName || null,
+        product_description: brief.productDescription || null,
+        product_image_url: brief.productImageUrl || null,
       };
 
-      const { error: genError } = await supabase.from("generations").insert({
-        campaign_id: campaign.id,
-        brand_id: brandId,
-        creator_id: selectedCreatorId,
-        structured_brief: structuredBrief,
-        assembled_prompt: assembledPrompt,
-        status: "draft",
+      const genRes = await fetch("/api/generations/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaign_id,
+          structured_brief: structuredBrief,
+        }),
       });
 
-      if (genError) throw genError;
+      if (!genRes.ok) {
+        const genData = await genRes.json();
+        throw new Error(genData.error ?? "Failed to create generation");
+      }
 
-      // 3. Redirect
-      router.push(`/dashboard/campaigns/${campaign.id}`);
+      // 3. Redirect to campaign detail
+      router.push(`/dashboard/campaigns/${campaign_id}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -377,7 +450,7 @@ export function NewCampaignForm() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mx-auto max-w-2xl"
+      className="max-w-4xl"
     >
       {/* Back link */}
       <Link
@@ -510,27 +583,51 @@ export function NewCampaignForm() {
                   <div className="relative">
                     <select
                       value={selectedCreatorId}
-                      onChange={(e) => setSelectedCreatorId(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedCreatorId(e.target.value);
+                        setSelectedCategory(""); // Reset category on creator change
+                      }}
                       className="h-9 w-full appearance-none rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-1 pr-8 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
                       <option value="">Select a creator...</option>
                       {creators.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.display_name}
-                          {c.categories[0]
-                            ? ` — ${formatINR(c.categories[0].price_per_generation_paise)}/gen`
-                            : ""}
+                          {c.display_name} — {c.categories.length} categor{c.categories.length === 1 ? "y" : "ies"}
                         </option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-neutral-400)]" />
                   </div>
-                  {selectedCreator && pricePerGen > 0 && (
-                    <p className="text-xs text-[var(--color-neutral-400)]">
-                      Price: {formatINR(pricePerGen)} per generation
-                    </p>
-                  )}
                 </div>
+
+                {/* Category Selection (shown after creator is picked) */}
+                {selectedCreator && creatorCategories.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-600 text-[var(--color-ink)]">
+                      Category <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="h-9 w-full appearance-none rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-1 pr-8 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        <option value="">Select a category...</option>
+                        {creatorCategories.map((cat) => (
+                          <option key={cat.category} value={cat.category}>
+                            {cat.category.charAt(0).toUpperCase() + cat.category.slice(1)} — {formatINR(cat.price_per_generation_paise)}/gen
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-neutral-400)]" />
+                    </div>
+                    {selectedCat && (
+                      <p className="text-xs text-[var(--color-neutral-400)]">
+                        Price: {formatINR(selectedCat.price_per_generation_paise)} per generation
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Max Generations */}
                 <div className="flex flex-col gap-2">
@@ -686,8 +783,142 @@ export function NewCampaignForm() {
                 </div>
               </div>
 
-              {/* Additional notes */}
+              {/* ── Product Details Section ── */}
+              <Separator className="my-6" />
+              <div className="mb-1">
+                <h3 className="text-base font-700 text-[var(--color-ink)]">
+                  Your Product
+                </h3>
+                <p className="text-sm text-[var(--color-neutral-500)]">
+                  Add your product details so the creator's AI persona showcases
+                  it in the generated content.
+                </p>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2 mt-4">
+                {/* Product Name */}
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-600 text-[var(--color-ink)]">
+                    Product Name
+                  </Label>
+                  <Input
+                    placeholder="e.g. Ray-Ban Aviator Classic, boAt Rockerz 450"
+                    value={brief.productName}
+                    onChange={(e) =>
+                      setBrief((b) => ({ ...b, productName: e.target.value }))
+                    }
+                    className="rounded-[var(--radius-input)]"
+                  />
+                </div>
+
+                {/* Product Image Upload */}
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-600 text-[var(--color-ink)]">
+                    Product Image
+                  </Label>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+
+                  {brief.productImageUrl ? (
+                    /* ── Uploaded preview ── */
+                    <div className="relative group">
+                      <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-2.5">
+                        <img
+                          src={brief.productImageUrl}
+                          alt="Product"
+                          className="size-14 shrink-0 rounded-lg border border-[var(--color-neutral-200)] object-contain bg-white"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-600 text-[var(--color-neutral-600)] truncate">
+                            Product photo uploaded
+                          </p>
+                          <p className="text-xs text-[var(--color-neutral-400)]">
+                            Visible to creator during approval
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeProductImage}
+                          className="shrink-0 rounded-full p-1.5 text-[var(--color-neutral-400)] hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Remove image"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Drop zone / upload trigger ── */
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleDrop}
+                      disabled={productUploading}
+                      className={`flex flex-col items-center justify-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed p-5 transition-colors cursor-pointer ${
+                        isDragging
+                          ? "border-[var(--color-gold)] bg-[var(--color-gold)]/5"
+                          : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] hover:border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-100)]"
+                      } ${productUploading ? "opacity-60 pointer-events-none" : ""}`}
+                    >
+                      {productUploading ? (
+                        <Loader2 className="size-6 animate-spin text-[var(--color-gold)]" />
+                      ) : (
+                        <ImagePlus className="size-6 text-[var(--color-neutral-400)]" />
+                      )}
+                      <span className="text-xs font-500 text-[var(--color-neutral-500)]">
+                        {productUploading
+                          ? "Uploading..."
+                          : "Click or drag photo here"}
+                      </span>
+                      <span className="text-[10px] text-[var(--color-neutral-400)]">
+                        JPEG, PNG, WebP — max 5 MB
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Upload error */}
+                  {productUploadError && (
+                    <p className="text-xs text-red-500 font-500">
+                      {productUploadError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Product Description */}
               <div className="flex flex-col gap-2 mt-5">
+                <Label className="text-sm font-600 text-[var(--color-ink)]">
+                  Product Description
+                </Label>
+                <textarea
+                  placeholder="e.g. Premium gold-frame aviator sunglasses with gradient brown lenses"
+                  value={brief.productDescription}
+                  onChange={(e) =>
+                    setBrief((b) => ({
+                      ...b,
+                      productDescription: e.target.value,
+                    }))
+                  }
+                  rows={2}
+                  className="w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </div>
+
+              <Separator className="my-6" />
+
+              {/* Additional notes */}
+              <div className="flex flex-col gap-2">
                 <Label className="text-sm font-600 text-[var(--color-ink)]">
                   Additional Notes
                 </Label>
@@ -708,7 +939,7 @@ export function NewCampaignForm() {
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="size-4 text-[var(--color-gold)]" />
                   <p className="text-sm font-700 text-[var(--color-ink)]">
-                    Assembled Prompt
+                    Prompt Preview
                   </p>
                 </div>
                 <p className="text-sm text-[var(--color-neutral-600)] leading-relaxed">
@@ -717,6 +948,10 @@ export function NewCampaignForm() {
                       Fill in the fields above to see your prompt...
                     </span>
                   )}
+                </p>
+                <p className="mt-2 text-xs text-[var(--color-neutral-400)]">
+                  Our AI will enhance this into a professional photography-grade
+                  prompt for best results.
                 </p>
               </div>
 
@@ -815,6 +1050,34 @@ export function NewCampaignForm() {
                     </div>
                   </div>
                 </div>
+
+                {/* Product info */}
+                {brief.productName && (
+                  <div className="rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] p-4">
+                    <p className="text-xs font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-3">
+                      Product
+                    </p>
+                    <div className="flex items-start gap-4">
+                      {brief.productImageUrl && (
+                        <img
+                          src={brief.productImageUrl}
+                          alt={brief.productName}
+                          className="size-14 shrink-0 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] object-contain bg-white"
+                        />
+                      )}
+                      <div>
+                        <p className="text-sm font-600 text-[var(--color-ink)]">
+                          {brief.productName}
+                        </p>
+                        {brief.productDescription && (
+                          <p className="text-xs text-[var(--color-neutral-500)] mt-1">
+                            {brief.productDescription}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Prompt preview */}
                 <div className="rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] p-4">
