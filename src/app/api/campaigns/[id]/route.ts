@@ -96,11 +96,45 @@ export async function GET(
     .eq("campaign_id", id)
     .order("created_at", { ascending: false });
 
+  const generationIds = (generations ?? []).map((g) => g.id);
+
+  // ── Creator-only enrichment ──────────────────────────────────────
+  // Pull earnings + pending approval count scoped to this campaign so
+  // the creator's collaboration detail page can show real numbers
+  // without running its own queries.
+  let earningsPaise = 0;
+  let pendingApprovalCount = 0;
+
+  if (isCreator && generationIds.length > 0) {
+    const [{ data: earnings }, { count: pendingCount }] = await Promise.all([
+      admin
+        .from("wallet_transactions")
+        .select("amount_paise")
+        .eq("user_id", user.id)
+        .eq("direction", "credit")
+        .eq("reference_type", "generation")
+        .in("reference_id", generationIds),
+      admin
+        .from("approvals")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .in("generation_id", generationIds),
+    ]);
+
+    earningsPaise = (earnings ?? []).reduce(
+      (acc, row) => acc + (row.amount_paise ?? 0),
+      0
+    );
+    pendingApprovalCount = pendingCount ?? 0;
+  }
+
   return NextResponse.json({
     campaign: {
       ...campaign,
       creator_display_name: creatorUser?.display_name ?? "Creator",
       brand_display_name: brandUser?.display_name ?? "Brand",
+      earnings_paise: earningsPaise,
+      pending_approval_count: pendingApprovalCount,
     },
     generations: generations ?? [],
   });

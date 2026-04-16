@@ -12,6 +12,7 @@ import {
   ImageIcon,
   IndianRupee,
   Handshake,
+  Clock,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -30,6 +31,12 @@ interface CampaignRow {
   brand_id: string;
   creator_display_name: string;
   brand_display_name: string;
+  /** Creator-only: total paid out to this creator from this campaign. */
+  earnings_paise: number;
+  /** Creator-only: # of generations in this campaign awaiting creator decision. */
+  pending_approval_count: number;
+  /** Creator-only: up to 4 most-recent generation image URLs. */
+  recent_thumbnails: string[];
 }
 
 /* ── Helpers ── */
@@ -181,13 +188,22 @@ export default function CampaignsListPage() {
                     <h3 className="text-base font-700 text-[var(--color-on-surface)] leading-tight line-clamp-2 group-hover:text-[var(--color-primary)] transition-colors">
                       {campaign.name}
                     </h3>
-                    <span
-                      className={`shrink-0 rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-600 capitalize ${
-                        statusColors[campaign.status] ?? statusColors.active
-                      }`}
-                    >
-                      {campaign.status}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span
+                        className={`rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-600 capitalize ${
+                          statusColors[campaign.status] ?? statusColors.active
+                        }`}
+                      >
+                        {campaign.status}
+                      </span>
+                      {role === "creator" &&
+                        campaign.pending_approval_count > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-lilac)] px-2.5 py-0.5 text-xs font-600 text-[var(--color-ink)]">
+                            <Clock className="size-3" />
+                            {campaign.pending_approval_count} to review
+                          </span>
+                        )}
+                    </div>
                   </div>
 
                   {/* Creator/Brand name */}
@@ -196,6 +212,24 @@ export default function CampaignsListPage() {
                       ? `Creator: ${creatorName}`
                       : `Brand: ${brandName}`}
                   </p>
+
+                  {/* Thumbnails (creator only) */}
+                  {role === "creator" && campaign.recent_thumbnails.length > 0 && (
+                    <div className="mb-3 flex -space-x-1.5">
+                      {campaign.recent_thumbnails
+                        .slice(0, 4)
+                        .map((url, idx) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={`${campaign.id}-thumb-${idx}`}
+                            src={url}
+                            alt="Generation preview"
+                            className="size-10 shrink-0 rounded-lg border-2 border-white object-cover shadow-sm"
+                            loading="lazy"
+                          />
+                        ))}
+                    </div>
+                  )}
 
                   {/* Progress bar */}
                   <div className="mb-3">
@@ -218,7 +252,7 @@ export default function CampaignsListPage() {
                       <IndianRupee className="size-3.5" />
                       {role === "brand"
                         ? `${formatINR(campaign.spent_paise)} / ${formatINR(campaign.budget_paise)}`
-                        : `${formatINR(campaign.spent_paise)} earned`}
+                        : `${formatINR(campaign.earnings_paise)} earned`}
                     </span>
                   </div>
                 </Link>

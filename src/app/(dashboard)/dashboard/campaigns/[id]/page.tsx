@@ -41,6 +41,10 @@ interface CampaignData {
   brand_id: string;
   creator_display_name: string;
   brand_display_name: string;
+  /** Creator-only: total paid to this creator from this campaign. 0 for brands. */
+  earnings_paise: number;
+  /** Creator-only: generations awaiting creator's decision. 0 for brands. */
+  pending_approval_count: number;
 }
 
 interface Generation {
@@ -330,6 +334,33 @@ export default function CampaignDetailPage() {
         )}
       </div>
 
+      {/* ── Creator pending-approvals CTA ── */}
+      {role === "creator" && campaign.pending_approval_count > 0 && (
+        <Link
+          href="/dashboard/approvals"
+          className="mb-6 flex items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--color-lilac)] bg-[var(--color-lilac)]/50 px-5 py-4 no-underline transition-shadow hover:shadow-[var(--shadow-soft)]"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white">
+              <Clock className="size-4 text-[var(--color-ink)]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-700 text-[var(--color-ink)]">
+                {campaign.pending_approval_count} generation
+                {campaign.pending_approval_count === 1 ? "" : "s"} waiting
+                for your review
+              </p>
+              <p className="text-xs text-[var(--color-neutral-600)]">
+                Approvals expire 48 hours after creation.
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 text-sm font-600 text-[var(--color-ink)]">
+            Review →
+          </span>
+        </Link>
+      )}
+
       {/* ── Stats row ── */}
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
         {/* Earnings / Budget */}
@@ -343,7 +374,9 @@ export default function CampaignDetailPage() {
             </h3>
           </div>
           <p className="text-2xl font-700 text-[var(--color-ink)]">
-            {formatINR(campaign.spent_paise)}
+            {role === "creator"
+              ? formatINR(campaign.earnings_paise)
+              : formatINR(campaign.spent_paise)}
             {role === "brand" && (
               <span className="text-base font-500 text-[var(--color-neutral-400)]">
                 {" "}
@@ -360,7 +393,7 @@ export default function CampaignDetailPage() {
             </div>
           ) : (
             <p className="mt-3 text-xs text-[var(--color-neutral-400)]">
-              From approved generations in this collaboration.
+              Paid out from approved generations in this collaboration.
             </p>
           )}
         </div>
