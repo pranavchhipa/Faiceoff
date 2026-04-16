@@ -58,8 +58,8 @@ export async function GET() {
     });
   }
 
-  // 2. Fetch LoRA model + photos + blocked concepts in parallel
-  const [loraRes, photosRes, complianceRes] = await Promise.all([
+  // 2. Fetch LoRA model + photos + blocked concepts + generation count in parallel
+  const [loraRes, photosRes, complianceRes, generationCountRes] = await Promise.all([
     admin
       .from("creator_lora_models")
       .select("*")
@@ -76,6 +76,10 @@ export async function GET() {
       .from("creator_compliance_vectors")
       .select("id, blocked_concept, created_at")
       .eq("creator_id", creator.id),
+    admin
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", creator.id),
   ]);
 
   if (loraRes.error) {
@@ -86,6 +90,9 @@ export async function GET() {
   }
   if (complianceRes.error) {
     console.error("[likeness-data] compliance lookup failed", complianceRes.error);
+  }
+  if (generationCountRes.error) {
+    console.error("[likeness-data] generation count failed", generationCountRes.error);
   }
 
   // 3. Sign each photo's storage_path so the browser can render it.
@@ -125,5 +132,6 @@ export async function GET() {
     loraModel: loraRes.data ?? null,
     photos: signedPhotos,
     blockedConcepts: complianceRes.data ?? [],
+    totalGenerations: generationCountRes.count ?? 0,
   });
 }
