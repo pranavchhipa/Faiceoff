@@ -26,8 +26,15 @@ export async function POST(req: Request) {
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
+      console.error("[wallet/create-order] Missing Razorpay env vars", {
+        has_key_id: !!keyId,
+        has_key_secret: !!keySecret,
+      });
       return NextResponse.json(
-        { error: "Payment gateway not configured" },
+        {
+          error:
+            "Payment gateway not configured — RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing on server",
+        },
         { status: 500 }
       );
     }
@@ -53,10 +60,32 @@ export async function POST(req: Request) {
     });
 
     if (!rzpRes.ok) {
-      const err = await rzpRes.text();
-      console.error("Razorpay order creation failed:", err);
+      const errText = await rzpRes.text();
+      console.error(
+        "[wallet/create-order] Razorpay order creation failed:",
+        rzpRes.status,
+        errText
+      );
+
+      // Try to extract Razorpay's structured error so the client can show
+      // something actionable ("Authentication failed", "invalid amount", etc.)
+      let rzpMessage: string | null = null;
+      try {
+        const parsed = JSON.parse(errText) as {
+          error?: { description?: string; code?: string };
+        };
+        rzpMessage = parsed.error?.description ?? null;
+      } catch {
+        // not JSON — leave null
+      }
+
       return NextResponse.json(
-        { error: "Failed to create payment order" },
+        {
+          error: rzpMessage
+            ? `Razorpay: ${rzpMessage}`
+            : `Failed to create payment order (status ${rzpRes.status})`,
+          razorpay_status: rzpRes.status,
+        },
         { status: 500 }
       );
     }

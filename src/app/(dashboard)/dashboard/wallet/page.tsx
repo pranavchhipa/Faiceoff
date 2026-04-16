@@ -68,7 +68,7 @@ function txTypeLabel(type: string): string {
 /* ── Component ── */
 
 export default function WalletPage() {
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [balance, setBalance] = useState<number>(0);
@@ -93,24 +93,26 @@ export default function WalletPage() {
     if (!user) return;
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("wallet_transactions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (!error && data) {
-      setTransactions(data as unknown as WalletTransaction[]);
-      if (data.length > 0) {
-        setBalance(
-          (data[0] as unknown as WalletTransaction).balance_after_paise,
-        );
+    try {
+      const res = await fetch("/api/wallet/transactions", {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          transactions: WalletTransaction[];
+          balance_paise: number;
+        };
+        setTransactions(data.transactions ?? []);
+        setBalance(data.balance_paise ?? 0);
+      } else {
+        console.error("Failed to load wallet transactions:", res.status);
       }
+    } catch (err) {
+      console.error("Wallet fetch error:", err);
     }
 
     setLoading(false);
-  }, [user, supabase]);
+  }, [user]);
 
   useEffect(() => {
     if (!authLoading) fetchWallet();
