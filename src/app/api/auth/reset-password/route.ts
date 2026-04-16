@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * POST /api/auth/reset-password
  *
- * Updates the currently authenticated user's password. Must be called while
- * the user is signed in (e.g. after clicking the recovery link, which
- * creates a temporary session).
+ * Body: { access_token, password }
  *
- * Body: { password }
+ * Validates the recovery access_token (JWT issued by Supabase when the user
+ * clicked the recovery email) by asking the Supabase auth server who that
+ * token belongs to, then uses the admin API to update that user's password.
+ *
+ * This flow never touches the browser's Supabase session — it's immune to
+ * cookie / flowType / PKCE mismatches.
  */
 export async function POST(request: Request) {
-  let body: { password?: string };
+  let body: { access_token?: string; password?: string };
   try {
     body = await request.json();
   } catch {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { password } = body;
+  const { access_token, password } = body;
 
   if (!password || typeof password !== "string" || password.length < 8) {
     return NextResponse.json(
@@ -30,25 +33,39 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = await createClient();
+  if (!access_token || typeof access_token !== "string") {
+    return NextResponse.json(
+      { error: "Missing reset token. Request a new link." },
+      { status: 400 }
+    );
+  }
 
-  // Must have a valid session from the recovery flow
+  const admin = createAdminClient();
+
+  // Validate the JWT — Supabase will reject expired/invalid tokens here.
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser();
+  } = await admin.auth.getUser(access_token);
 
   if (authError || !user) {
     return NextResponse.json(
-      { error: "No active reset session. Request a new reset link." },
+      {
+        error:
+          "Reset link is invalid or has expired. Please request a new one.",
+      },
       { status: 401 }
     );
   }
 
-  const { error } = await supabase.auth.updateUser({ password });
+  // Update password via admin API — no user session required.
+  const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+    password,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (updateError) {
+    console.error("[reset-password] updateUserById failed:", updateError.message);
+    return NextResponse.json({ error: updateError.message }, { status: 400 });
   }
 
   return NextResponse.json({ success: true });

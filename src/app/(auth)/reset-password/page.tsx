@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -9,13 +9,20 @@ import { Loader2, Lock, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * /reset-password
+ *
+ * Defensive implementation: does NOT touch the Supabase browser client at all.
+ * Parses the URL hash manually (Supabase puts access_token + refresh_token
+ * there after a recovery redirect), then posts the access_token to the
+ * server, which uses the admin client to validate and update the password.
+ *
+ * This avoids every fragile piece of Supabase's browser session/hash state
+ * machinery — nothing to crash.
+ */
 export default function ResetPasswordPage() {
   const router = useRouter();
-  // Lazy ref — client created only once, only on the browser
-  const supabaseRef = useRef<SupabaseClient | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,53 +30,48 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [hasSession, setHasSession] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // ── 1. Check hash for an error BEFORE touching Supabase ──
-    // When the link is expired/invalid Supabase puts:
-    //   #error=access_denied&error_code=otp_expired&...
-    // in the redirect URL. We detect this and show the graceful UI
-    // instead of letting the client try to process a bad token.
-    const hash = window.location.hash;
-    if (hash.includes("error=")) {
-      setHasSession(false);
-      setCheckingSession(false);
-      return;
-    }
+    try {
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
 
-    // ── 2. Create client lazily (browser-only) ──
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient() as SupabaseClient;
-    }
-    const supabase = supabaseRef.current;
-
-    let cancelled = false;
-
-    // ── 3. Listen for PASSWORD_RECOVERY event ──
-    // Supabase fires this after it exchanges the hash token into a session.
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setHasSession(!!session);
-        setCheckingSession(false);
+      if (!hash || hash === "#") {
+        setLinkError("No reset token found. Use the link from your email.");
+        setChecking(false);
+        return;
       }
-    });
 
-    // ── 4. Also check if a session already exists ──
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      if (session) {
-        setHasSession(true);
-        setCheckingSession(false);
+      const params = new URLSearchParams(hash.replace(/^#/, ""));
+
+      const hashError = params.get("error");
+      const errorCode = params.get("error_code");
+      if (hashError) {
+        setLinkError(
+          errorCode === "otp_expired"
+            ? "This reset link has expired. Request a new one."
+            : "This reset link is invalid. Request a new one."
+        );
+        setChecking(false);
+        return;
       }
-    });
 
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
-    };
+      const token = params.get("access_token");
+      if (!token) {
+        setLinkError("Invalid reset link. Request a new one.");
+        setChecking(false);
+        return;
+      }
+
+      setAccessToken(token);
+      setChecking(false);
+    } catch (err) {
+      console.error("[reset-password] init error:", err);
+      setLinkError("Something went wrong reading the reset link.");
+      setChecking(false);
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -84,17 +86,21 @@ export default function ResetPasswordPage() {
       setFormError("Passwords do not match.");
       return;
     }
+    if (!accessToken) {
+      setFormError("Missing reset token. Request a new link.");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, access_token: accessToken }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json();
         setFormError(data.error ?? "Could not update password.");
         setLoading(false);
         return;
@@ -102,19 +108,18 @@ export default function ResetPasswordPage() {
 
       setDone(true);
       setLoading(false);
-
       setTimeout(() => {
-        router.push("/dashboard");
-        router.refresh();
-      }, 1500);
-    } catch {
-      setFormError("Something went wrong. Please try again.");
+        router.push("/login");
+      }, 2000);
+    } catch (err) {
+      console.error("[reset-password] submit error:", err);
+      setFormError("Network error. Please try again.");
       setLoading(false);
     }
   }
 
   // ── Loading state ──
-  if (checkingSession) {
+  if (checking) {
     return (
       <div className="flex justify-center py-10">
         <Loader2 className="size-5 animate-spin text-[var(--color-neutral-400)]" />
@@ -122,8 +127,8 @@ export default function ResetPasswordPage() {
     );
   }
 
-  // ── Expired / invalid link ──
-  if (!hasSession) {
+  // ── Invalid / expired link ──
+  if (linkError) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -135,7 +140,7 @@ export default function ResetPasswordPage() {
           Link expired or invalid
         </h1>
         <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
-          This reset link has expired or already been used. Request a new one.
+          {linkError}
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <Button
@@ -156,7 +161,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  // ── Success state ──
+  // ── Success ──
   if (done) {
     return (
       <motion.div
@@ -172,13 +177,13 @@ export default function ResetPasswordPage() {
           Password updated
         </h1>
         <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
-          Taking you to your dashboard…
+          Redirecting to login…
         </p>
       </motion.div>
     );
   }
 
-  // ── Set new password form ──
+  // ── Form ──
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
