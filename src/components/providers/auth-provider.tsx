@@ -52,10 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Role is resolved once per user-id from /api/whoami (DB-backed), cached
-  // here so every consumer in the app sees the same value with no flash.
+  // Role is resolved once per user-id from /api/whoami (DB-backed).
+  // We track which user id the role was resolved for so `roleLoading` can
+  // be derived SYNCHRONOUSLY during render — critical to prevent the
+  // creator-flashing-before-brand bug. A useEffect-based roleLoading flag
+  // runs one render after user changes, creating a gap where the UI renders
+  // the fallback role before the effect sets the flag.
   const [role, setRole] = useState<Role>(null);
-  const [roleLoading, setRoleLoading] = useState(true);
+  const [roleResolvedForUserId, setRoleResolvedForUserId] = useState<
+    string | null
+  >(null);
 
   const handleAuthChange = useCallback(
     (_event: string, newSession: Session | null) => {
@@ -105,11 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) {
       setRole(null);
-      setRoleLoading(false);
+      setRoleResolvedForUserId(null);
       return;
     }
     let cancelled = false;
-    setRoleLoading(true);
     (async () => {
       try {
         const res = await fetch("/api/whoami", { cache: "no-store" });
@@ -127,11 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (data.public_users_row?.role === "brand") resolved = "brand";
         else if (data.public_users_row?.role === "creator") resolved = "creator";
         setRole(resolved);
+        setRoleResolvedForUserId(user.id);
       } catch (err) {
         console.error("[auth-provider] role resolve failed", err);
-        if (!cancelled) setRole(null);
-      } finally {
-        if (!cancelled) setRoleLoading(false);
+        if (!cancelled) {
+          setRole(null);
+          // Mark as resolved (to failure) so UI stops hanging on spinner
+          setRoleResolvedForUserId(user.id);
+        }
       }
     })();
     return () => {
@@ -139,9 +147,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  // Derived synchronously — no useEffect lag. Critical for preventing the
+  // role-flash bug: if the current user's role hasn't been resolved yet,
+  // consumers see `roleLoading=true` on the SAME render the user arrives,
+  // not one render later.
+  const roleLoading = !!user && roleResolvedForUserId !== user.id;
+  // When loading for a new user, don't hand out a stale role from a previous
+  // user's fetch.
+  const currentRole: Role = roleLoading ? null : role;
+
   return (
     <AuthContext.Provider
-      value={{ user, session, supabase, isLoading, role, roleLoading }}
+      value={{
+        user,
+        session,
+        supabase,
+        isLoading,
+        role: currentRole,
+        roleLoading,
+      }}
     >
       {children}
     </AuthContext.Provider>
