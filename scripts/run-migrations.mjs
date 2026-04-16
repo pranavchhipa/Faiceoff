@@ -4,10 +4,34 @@ import path from "path";
 import dns from "dns";
 import { fileURLToPath } from "url";
 
+// Load .env.local so SUPABASE_DB_PASSWORD is available
+const envPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".env.local"
+);
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
+  for (const line of envContent.split("\n")) {
+    const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
 // Force IPv4 — Supabase DB host resolves to IPv6 which may not route
 dns.setDefaultResultOrder("ipv4first");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const password = process.env.SUPABASE_DB_PASSWORD;
+if (!password) {
+  console.error(
+    "ERROR: SUPABASE_DB_PASSWORD not set. Add it to .env.local and retry."
+  );
+  process.exit(1);
+}
 
 // Use Supabase connection pooler (session mode, port 5432) — direct DB host only has IPv6
 const client = new pg.Client({
@@ -15,7 +39,7 @@ const client = new pg.Client({
   port: 5432,
   database: "postgres",
   user: "postgres.jgmhronskdnzqkkimffp",
-  password: "H6YE38*bkG@xGyf",
+  password,
   ssl: { rejectUnauthorized: false },
 });
 

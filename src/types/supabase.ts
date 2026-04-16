@@ -225,9 +225,13 @@ export type Database = {
           id: string;
           creator_id: string;
           replicate_model_id: string | null;
+          replicate_training_id: string | null;
           training_status: "queued" | "training" | "completed" | "failed";
           training_started_at: string | null;
           training_completed_at: string | null;
+          training_zip_url: string | null;
+          training_error: string | null;
+          trigger_word: string;
           sample_images: string[];
           creator_approved: boolean;
           version: number;
@@ -238,9 +242,13 @@ export type Database = {
           id?: string;
           creator_id: string;
           replicate_model_id?: string | null;
+          replicate_training_id?: string | null;
           training_status?: "queued" | "training" | "completed" | "failed";
           training_started_at?: string | null;
           training_completed_at?: string | null;
+          training_zip_url?: string | null;
+          training_error?: string | null;
+          trigger_word?: string;
           sample_images?: string[];
           creator_approved?: boolean;
           version?: number;
@@ -249,9 +257,13 @@ export type Database = {
         };
         Update: {
           replicate_model_id?: string | null;
+          replicate_training_id?: string | null;
           training_status?: "queued" | "training" | "completed" | "failed";
           training_started_at?: string | null;
           training_completed_at?: string | null;
+          training_zip_url?: string | null;
+          training_error?: string | null;
+          trigger_word?: string;
           sample_images?: string[];
           creator_approved?: boolean;
           version?: number;

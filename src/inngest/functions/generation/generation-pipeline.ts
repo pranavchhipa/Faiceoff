@@ -83,20 +83,29 @@ export const runPipeline = inngest.createFunction(
 
     // ── Step 3: Image Generation ──────────────────────────────────────────
     // If creator has a trained LoRA model → call Replicate FLUX with LoRA.
+    // If structured_brief has a product_image_url → also pass it as an
+    // IP-Adapter reference so the product appears in the generated image.
     // If not → dev mode with placeholder image from picsum.photos.
     await step.run("generate-image", async () => {
       const { data: gen } = await admin
         .from("generations")
-        .select("creator_id, cost_paise, assembled_prompt")
+        .select("creator_id, cost_paise, assembled_prompt, structured_brief")
         .eq("id", generation_id)
         .single();
 
       if (!gen) throw new Error("Generation not found");
 
+      // Extract product image URL from structured brief (for IP-Adapter)
+      const brief = (gen.structured_brief ?? {}) as Record<string, unknown>;
+      const productImageUrl =
+        typeof brief.product_image_url === "string"
+          ? (brief.product_image_url as string)
+          : null;
+
       // Check if creator has a trained LoRA model
       const { data: loraModel } = await admin
         .from("creator_lora_models")
-        .select("replicate_model_id, training_status")
+        .select("replicate_model_id, training_status, trigger_word")
         .eq("creator_id", gen.creator_id)
         .eq("training_status", "completed")
         .order("version", { ascending: false })
@@ -107,21 +116,41 @@ export const runPipeline = inngest.createFunction(
       let predictionId: string;
 
       if (loraModel?.replicate_model_id) {
-        // ─── Production Path: FLUX.1 Dev + Creator LoRA ───
+        // ─── Production Path: FLUX.1 Dev + Creator LoRA (+ optional IP-Adapter) ───
         const { replicate } = await import("@/lib/ai/replicate-client");
+
+        // Prepend the LoRA trigger word so the trained face fires on this prompt
+        const triggerWord = loraModel.trigger_word ?? "TOK";
+        const rawPrompt = gen.assembled_prompt ?? assembledPrompt;
+        const promptWithTrigger = rawPrompt.toUpperCase().includes(triggerWord)
+          ? rawPrompt
+          : `a photo of ${triggerWord} person, ${rawPrompt}`;
+
+        // Base input — LoRA for face consistency (unchanged)
+        const input: Record<string, unknown> = {
+          prompt: promptWithTrigger,
+          num_outputs: 1,
+          guidance_scale: 7.5,
+          num_inference_steps: 50,
+          output_format: "png",
+          aspect_ratio: "1:1",
+        };
+
+        // IP-Adapter: inject product image as visual reference so the
+        // actual product (not just a described one) appears in the output.
+        // FLUX IP-Adapter models on Replicate commonly accept `image_prompt`
+        // with an optional `image_prompt_strength` (0–1) control.
+        if (productImageUrl) {
+          input.image_prompt = productImageUrl;
+          input.image_prompt_strength = 0.6;
+          console.log(
+            `[pipeline] IP-Adapter enabled with product image: ${productImageUrl}`
+          );
+        }
 
         const output = await replicate.run(
           loraModel.replicate_model_id as `${string}/${string}`,
-          {
-            input: {
-              prompt: gen.assembled_prompt ?? assembledPrompt,
-              num_outputs: 1,
-              guidance_scale: 7.5,
-              num_inference_steps: 50,
-              output_format: "png",
-              aspect_ratio: "1:1",
-            },
-          }
+          { input }
         );
 
         const urls = output as string[];

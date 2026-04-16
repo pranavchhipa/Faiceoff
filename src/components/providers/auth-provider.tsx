@@ -40,8 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleAuthChange = useCallback(
     (_event: string, newSession: Session | null) => {
+      // Always keep the latest session (access_token may have rotated).
       setSession(newSession);
-      setUser(newSession?.user ?? null);
+
+      // Only update `user` when the identity actually changes (sign-in,
+      // sign-out, different account). Supabase fires TOKEN_REFRESHED on
+      // every tab focus — if we blindly setUser(newSession.user) we create
+      // a new object reference, which cascades re-renders to every
+      // component that depends on `user`.
+      setUser((prev) => {
+        const incoming = newSession?.user ?? null;
+        // Same identity → keep the old reference → no child re-renders
+        if (prev?.id === incoming?.id) return prev;
+        return incoming;
+      });
+
       setIsLoading(false);
     },
     []

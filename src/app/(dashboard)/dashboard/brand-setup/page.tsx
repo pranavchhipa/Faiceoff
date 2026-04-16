@@ -32,7 +32,7 @@ const INDUSTRIES = [
 const GST_REGEX = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
 
 export default function BrandSetupPage() {
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [companyName, setCompanyName] = useState("");
@@ -74,20 +74,26 @@ export default function BrandSetupPage() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from("brands")
-        .update({
+      const res = await fetch("/api/brand-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           company_name: companyName.trim(),
           gst_number: gstNumber || null,
           website_url: websiteUrl || null,
           industry: industry || null,
-          is_verified: true,
-        })
-        .eq("user_id", user!.id);
+        }),
+      });
 
-      if (error) {
-        toast.error("Failed to save your profile. Please try again.");
-        console.error("Brand setup error:", error);
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+
+      if (!res.ok) {
+        toast.error(
+          json.error ?? "Failed to save your profile. Please try again.",
+        );
+        console.error("Brand setup error:", json.error ?? res.statusText);
         return;
       }
 
