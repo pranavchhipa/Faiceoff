@@ -37,7 +37,7 @@ export default function LoginPage() {
         // an older account that was created via OTP-only (no password set).
         setError(
           data.error === "Invalid login credentials"
-            ? "Email or password is incorrect. If you signed up before we added passwords, use 'Forgot password?' below to set one."
+            ? "Incorrect email or password. Never set one? Use Forgot password."
             : data.error ?? "Sign in failed."
         );
         setLoading(false);
