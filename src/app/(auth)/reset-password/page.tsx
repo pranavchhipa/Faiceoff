@@ -11,17 +11,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
+// Single stable client — must NOT be recreated inside the component or
+// it becomes a new reference every render and loops the useEffect.
+const supabase = createClient();
+
 /**
  * /reset-password
  *
- * Landing page for the password recovery email link. Supabase's SSR client
- * auto-exchanges the recovery token in the URL hash for a session, so by the
- * time this component mounts the user is signed in with a short-lived
- * recovery session. We just need to let them set a new password.
+ * Landing page for the password recovery email link. Supabase exchanges the
+ * recovery token from the URL hash into a session client-side. The
+ * onAuthStateChange PASSWORD_RECOVERY event fires once that exchange completes,
+ * at which point we show the form to set a new password.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,10 +50,10 @@ export default function ResetPasswordPage() {
 
     check();
 
-    // Listen for the PASSWORD_RECOVERY event Supabase fires after the hash
-    // token is exchanged. In that case session becomes available shortly.
+    // Listen for PASSWORD_RECOVERY event — fires when Supabase finishes
+    // exchanging the hash token into a live session.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || session) {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setHasSession(!!session);
         setCheckingSession(false);
       }
@@ -60,7 +63,7 @@ export default function ResetPasswordPage() {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
