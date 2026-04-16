@@ -59,15 +59,17 @@ function SidebarContent({
   pathname: string;
   onLinkClick?: () => void;
 }) {
-  const { user, role: dbRole, roleLoading } = useAuth();
+  const { user, role: dbRole } = useAuth();
   const router = useRouter();
   const displayName =
-    user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "User";
-  // Prefer DB-backed role. While it's resolving, fall back to the session
-  // metadata (which may be stale) so the sidebar isn't empty — but if DB
-  // resolves to something different, it wins.
-  const role: "creator" | "brand" =
-    dbRole ?? (user?.user_metadata?.role === "brand" ? "brand" : "creator");
+    user?.user_metadata?.display_name ??
+    user?.email?.split("@")[0] ??
+    "";
+  // Only trust the DB-backed role. Never fall back to session metadata — it
+  // can be stale and causes a creator→brand flash for brand accounts on
+  // session refresh. Until dbRole resolves, render the skeleton.
+  const role: "creator" | "brand" | null = dbRole;
+  const roleResolved = role !== null;
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -94,7 +96,7 @@ function SidebarContent({
         </p>
         {/* While we're still resolving the role, show a skeleton so we don't
             render creator nav to a brand (or vice-versa) and then swap. */}
-        {roleLoading && !dbRole ? (
+        {!roleResolved ? (
           <div className="flex flex-col gap-1 animate-pulse">
             {Array.from({ length: 5 }).map((_, i) => (
               <div
@@ -104,7 +106,7 @@ function SidebarContent({
             ))}
           </div>
         ) : null}
-        {(roleLoading && !dbRole ? [] : role === "brand" ? BRAND_NAV : CREATOR_NAV).map((link) => {
+        {(!roleResolved ? [] : role === "brand" ? BRAND_NAV : CREATOR_NAV).map((link) => {
           const Icon = link.icon;
           const active = isActive(pathname, link.href);
           return (
@@ -166,12 +168,14 @@ function SidebarContent({
               className="flex items-center gap-3 rounded-xl px-3 py-2.5"
             >
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/20 text-xs font-700 uppercase text-[var(--color-primary-container)]">
-                {displayName.charAt(0)}
+                {displayName ? displayName.charAt(0) : "·"}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-600 text-white/90">{displayName}</p>
+                <p className="truncate text-sm font-600 text-white/90">
+                  {displayName || "…"}
+                </p>
                 <p className="text-[11px] capitalize text-white/30">
-                  {roleLoading && !dbRole ? "…" : role}
+                  {roleResolved ? role : "…"}
                 </p>
               </div>
               <button
