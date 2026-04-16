@@ -48,10 +48,14 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
         Authorization: `Basic ${auth}`,
       },
+      // Razorpay caps `receipt` at 40 chars. UUID alone is 36, so we can't
+      // include the full user id. Use first 8 chars of the UUID + base36
+      // timestamp — still unique enough for reconciliation, and the full
+      // user_id is preserved in `notes` for lookup.
       body: JSON.stringify({
         amount: amount_paise,
         currency: "INR",
-        receipt: `wallet_${user.id}_${Date.now()}`,
+        receipt: `wlt_${user.id.slice(0, 8)}_${Date.now().toString(36)}`,
         notes: {
           user_id: user.id,
           type: "wallet_topup",
