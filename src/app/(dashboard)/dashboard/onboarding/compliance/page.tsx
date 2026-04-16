@@ -199,7 +199,7 @@ export default function CompliancePage() {
                   addCustom();
                 }
               }}
-              className="h-8 w-56 rounded-[var(--radius-pill)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] px-3 text-xs outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="h-8 w-full sm:w-56 rounded-[var(--radius-pill)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] px-3 text-xs outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
             />
             <button
               type="button"

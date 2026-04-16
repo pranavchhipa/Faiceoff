@@ -413,13 +413,13 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+        className="rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         {/* Status + Campaign */}
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-800 tracking-tight text-[var(--color-ink)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+              <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-ink)]">
                 Generation Detail
               </h1>
               <span
@@ -679,7 +679,7 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+        className="mt-6 rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Timeline
@@ -739,7 +739,7 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+        className="mt-6 rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Details

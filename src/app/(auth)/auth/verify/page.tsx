@@ -135,17 +135,17 @@ function VerifyForm() {
           onComplete={handleVerify}
         >
           <InputOTPGroup>
-            <InputOTPSlot index={0} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={1} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={2} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={3} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={0} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={1} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={2} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={3} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
           </InputOTPGroup>
           <InputOTPSeparator />
           <InputOTPGroup>
-            <InputOTPSlot index={4} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={5} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={6} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={7} className="size-11 text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={4} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={5} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={6} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
+            <InputOTPSlot index={7} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
           </InputOTPGroup>
         </InputOTP>
 

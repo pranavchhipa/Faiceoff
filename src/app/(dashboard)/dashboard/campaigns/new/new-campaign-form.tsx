@@ -557,15 +557,15 @@ export function NewCampaignForm() {
       </Link>
 
       {/* Title */}
-      <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)] mb-2">
+      <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-ink)] mb-2">
         New Campaign
       </h1>
-      <p className="text-[var(--color-neutral-500)] mb-8">
+      <p className="text-sm sm:text-base text-[var(--color-neutral-500)] mb-6 sm:mb-8">
         Create an AI content campaign with a creator.
       </p>
 
       {/* ── Step indicator ── */}
-      <div className="flex items-center gap-2 mb-8">
+      <div className="flex flex-wrap items-center gap-2 mb-6 sm:mb-8 -mx-1 overflow-x-auto sm:overflow-visible">
         {STEP_LABELS.map((s, i) => {
           const Icon = s.icon;
           const isActive = i === step;
@@ -574,7 +574,7 @@ export function NewCampaignForm() {
             <div key={s.label} className="flex items-center gap-2">
               {i > 0 && (
                 <div
-                  className={`h-px w-8 transition-colors ${
+                  className={`h-px w-4 sm:w-8 transition-colors ${
                     isDone
                       ? "bg-[var(--color-gold)]"
                       : "bg-[var(--color-neutral-200)]"

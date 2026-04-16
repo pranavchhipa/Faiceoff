@@ -109,20 +109,20 @@ export default function CampaignsListPage() {
       className="max-w-4xl"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
             {role === "brand" ? "Campaigns" : "Collaborations"}
           </h1>
-          <p className="mt-1 text-[var(--color-outline)]">
+          <p className="mt-1 text-sm sm:text-base text-[var(--color-outline)]">
             {role === "brand"
               ? "Manage your AI content campaigns with creators."
               : "Brands using your licensed likeness. Approvals happen in the Approvals tab."}
           </p>
         </div>
         {role === "brand" && (
-          <Link href="/dashboard/campaigns/new">
-            <Button className="rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90 transition-opacity">
+          <Link href="/dashboard/campaigns/new" className="shrink-0 w-full sm:w-auto">
+            <Button className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90 transition-opacity">
               <Plus className="size-4" />
               New Campaign
             </Button>

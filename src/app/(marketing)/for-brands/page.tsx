@@ -41,38 +41,38 @@ export default function ForBrandsPage() {
     <div className="bg-background font-body text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container overflow-hidden w-full">
       
       {/* ── Orbit Hero Section ── */}
-      <section className="relative min-h-[870px] flex items-center px-6 lg:px-8 max-w-7xl mx-auto pt-20">
-        <div className="grid lg:grid-cols-2 gap-16 items-center w-full">
+      <section className="relative min-h-[600px] sm:min-h-[870px] flex items-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-16 sm:pt-20">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-16 items-center w-full">
           {/* Text Content */}
-          <div className="z-10 mt-12 lg:mt-0">
-            <span className="inline-block px-4 py-1.5 mb-6 text-[10px] font-bold tracking-[0.2em] uppercase bg-surface-container text-primary rounded-full">
+          <div className="z-10 mt-6 lg:mt-0">
+            <span className="inline-block px-4 py-1.5 mb-5 sm:mb-6 text-[10px] font-bold tracking-[0.2em] uppercase bg-surface-container text-primary rounded-full">
               The New Standard for Brands
             </span>
-            <h1 className="font-headline text-5xl sm:text-[3.5rem] leading-[1.1] font-bold text-on-surface mb-8 tracking-tight">
+            <h1 className="font-headline text-[2.25rem] sm:text-5xl md:text-[3.5rem] leading-[1.1] font-bold text-on-surface mb-6 sm:mb-8 tracking-tight">
               Scale your <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container">presence</span> with AI-powered creative.
             </h1>
-            <p className="text-lg text-on-surface-variant max-w-md leading-relaxed mb-10">
+            <p className="text-base sm:text-lg text-on-surface-variant max-w-md leading-relaxed mb-8 sm:mb-10">
               Bridge the gap between vision and execution. Access a curated marketplace of AI-optimized creators and high-conversion campaign assets.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <button className="px-8 py-4 bg-primary text-on-primary font-bold rounded-xl flex items-center gap-2 hover:-translate-y-0.5 active:scale-95 transition-all duration-300">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
+              <button className="px-6 sm:px-8 py-3.5 sm:py-4 bg-primary text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 hover:-translate-y-0.5 active:scale-95 transition-all duration-300">
                 Book a Demo <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="px-8 py-4 bg-surface-container-lowest text-on-surface font-semibold rounded-xl border border-outline-variant/20 hover:bg-surface-container-low transition-all duration-300">
+              <button className="px-6 sm:px-8 py-3.5 sm:py-4 bg-surface-container-lowest text-on-surface font-semibold rounded-xl border border-outline-variant/20 hover:bg-surface-container-low transition-all duration-300">
                 View Case Studies
               </button>
             </div>
           </div>
 
           {/* Interactive Orbiting Products Visualization */}
-          <div className="relative flex justify-center items-center h-[500px] lg:h-[600px] w-full max-w-[600px] mx-auto">
+          <div className="relative flex justify-center items-center h-[380px] sm:h-[500px] lg:h-[600px] w-full max-w-[600px] mx-auto">
             
             {/* Subtle Decorative Orbit Paths */}
-            <div className="absolute w-[250px] lg:w-[350px] h-[250px] lg:h-[350px] rounded-full border border-outline-variant/20 z-0"></div>
-            <div className="absolute w-[350px] lg:w-[500px] h-[350px] lg:h-[500px] rounded-full border border-outline-variant/10 border-dashed z-0"></div>
+            <div className="absolute w-[200px] sm:w-[250px] lg:w-[350px] h-[200px] sm:h-[250px] lg:h-[350px] rounded-full border border-outline-variant/20 z-0"></div>
+            <div className="absolute w-[280px] sm:w-[350px] lg:w-[500px] h-[280px] sm:h-[350px] lg:h-[500px] rounded-full border border-outline-variant/10 border-dashed z-0"></div>
 
             {/* Central Hub (Active Model Swap) */}
-            <div className="absolute left-1/2 top-1/2 flex h-48 w-48 lg:h-64 lg:w-64 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white shadow-2xl border-4 border-primary/20 z-20 overflow-hidden group">
+            <div className="absolute left-1/2 top-1/2 flex h-36 w-36 sm:h-48 sm:w-48 lg:h-64 lg:w-64 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white shadow-2xl border-4 border-primary/20 z-20 overflow-hidden group">
                <AnimatePresence mode="wait">
                  {activeProduct === null ? (
                    <motion.div
@@ -177,20 +177,20 @@ export default function ForBrandsPage() {
       </section>
 
       {/* ── Process Section: 3-Step Visualization ── */}
-      <section className="py-32 bg-surface-container-low hidden md:block">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+      <section className="py-16 sm:py-32 bg-surface-container-low">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 sm:mb-20 gap-6 sm:gap-8">
             <div className="max-w-xl">
-              <h2 className="font-headline text-4xl font-bold mb-6 tracking-tight">From concept to campaign in minutes.</h2>
+              <h2 className="font-headline text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 tracking-tight">From concept to campaign in minutes.</h2>
               <p className="text-on-surface-variant">We've streamlined the creative workflow for the AI era. No more back-and-forth emails, just results.</p>
             </div>
             <div className="hidden md:block">
               <span className="text-[8rem] font-headline font-bold text-surface-container-highest/50 leading-none pointer-events-none">PROCESS</span>
             </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-5 sm:gap-8">
             
-            <div className="relative p-10 bg-surface-container-lowest rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
+            <div className="relative p-6 sm:p-10 bg-surface-container-lowest rounded-[2rem] sm:rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 text-6xl font-bold text-surface-container opacity-50 group-hover:text-primary-container transition-colors duration-500">01</div>
               <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center mb-8">
                 <Search className="w-8 h-8 text-primary" />
@@ -201,7 +201,7 @@ export default function ForBrandsPage() {
               </p>
             </div>
 
-            <div className="relative p-10 bg-surface-container-lowest rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
+            <div className="relative p-6 sm:p-10 bg-surface-container-lowest rounded-[2rem] sm:rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 text-6xl font-bold text-surface-container opacity-50 group-hover:text-primary-container transition-colors duration-500">02</div>
               <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center mb-8">
                 <Upload className="w-8 h-8 text-primary" />
@@ -212,7 +212,7 @@ export default function ForBrandsPage() {
               </p>
             </div>
 
-            <div className="relative p-10 bg-surface-container-lowest rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
+            <div className="relative p-6 sm:p-10 bg-surface-container-lowest rounded-[2rem] sm:rounded-[2.5rem] border border-outline-variant/10 shadow-sm overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 text-6xl font-bold text-surface-container opacity-50 group-hover:text-primary-container transition-colors duration-500">03</div>
               <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center mb-8">
                 <Sparkles className="w-8 h-8 text-primary" />
@@ -283,18 +283,18 @@ export default function ForBrandsPage() {
       </section>
 
       {/* ── CTA Section ── */}
-      <section className="py-20 px-6 lg:px-8 max-w-7xl mx-auto mb-20">
-        <div className="bg-on-surface rounded-[3rem] p-12 md:p-20 text-surface-container-lowest text-center relative overflow-hidden shadow-2xl">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-10 sm:mb-20">
+        <div className="bg-on-surface rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 md:p-20 text-surface-container-lowest text-center relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-primary/20 to-transparent pointer-events-none"></div>
           <div className="relative z-10 flex flex-col items-center">
-            <h2 className="font-headline text-5xl md:text-6xl font-bold mb-8 tracking-tighter leading-tight max-w-3xl">
+            <h2 className="font-headline text-3xl sm:text-5xl md:text-6xl font-bold mb-6 sm:mb-8 tracking-tighter leading-tight max-w-3xl">
               Ready to evolve your brand?
             </h2>
-            <p className="text-xl opacity-70 mb-12 max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl opacity-70 mb-8 sm:mb-12 max-w-2xl mx-auto">
               Join 500+ forward-thinking brands who are already scaling their creative output with Faiceoff.
             </p>
             <Link href="/signup">
-              <button className="px-12 py-5 bg-surface-container-lowest text-on-surface font-extrabold rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-xl cursor-pointer">
+              <button className="px-8 sm:px-12 py-4 sm:py-5 bg-surface-container-lowest text-on-surface font-extrabold rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-xl cursor-pointer">
                 Get Started Today
               </button>
             </Link>

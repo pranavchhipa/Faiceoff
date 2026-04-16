@@ -241,15 +241,15 @@ export default function DashboardPage() {
       className="max-w-6xl mx-auto w-full pt-2"
     >
       {/* ══════════ Header ══════════ */}
-      <motion.div variants={fadeUp} className="mb-5 flex items-start justify-between">
-        <div>
+      <motion.div variants={fadeUp} className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[11px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)] mb-1">
             {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <h1 className="text-[28px] font-700 tracking-tight text-[var(--color-ink)] flex items-center gap-2">
-            Hey, {firstName} <span className="text-[#8b5cf6] text-[24px]">✦</span>
+          <h1 className="text-2xl sm:text-[28px] font-700 tracking-tight text-[var(--color-ink)] flex items-center gap-2">
+            Hey, {firstName} <span className="text-[#8b5cf6] text-[22px] sm:text-[24px]">✦</span>
           </h1>
-          <p className="text-[14px] text-[var(--color-ink)] opacity-80 mt-0.5">
+          <p className="text-[13px] sm:text-[14px] text-[var(--color-ink)] opacity-80 mt-0.5">
              {role === "creator"
                ? "Manage your likeness, review campaigns, and track earnings."
                : "Discover creators, run campaigns, and generate AI content."}
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-14 z-50 w-80 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
+                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-80 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
                 >
                   <div className="flex items-center justify-between border-b border-[var(--color-neutral-200)] px-5 py-3.5">
                     <p className="text-sm font-700 text-[var(--color-ink)]">Notifications</p>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
+                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-64 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
                 >
                   <div className="border-b border-[var(--color-neutral-200)] px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -338,7 +338,7 @@ export default function DashboardPage() {
       {/* ══════════ Onboarding CTA ══════════ */}
       {(needsOnboarding || needsBrandSetup || noProfile) && (
         <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="mb-5 relative overflow-hidden rounded-[var(--radius-card)] bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] p-[1px]">
-          <div className="flex items-center justify-between gap-4 rounded-[calc(var(--radius-card)-1px)] bg-white p-5">
+          <div className="flex flex-col gap-4 rounded-[calc(var(--radius-card)-1px)] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex items-center gap-4 min-w-0">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]">
                 <Zap className="size-5 text-white" />
@@ -357,8 +357,8 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <Link href={role === "creator" ? "/dashboard/onboarding" : "/dashboard/brand-setup"} className="shrink-0 no-underline">
-              <span className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] px-5 py-2.5 text-sm font-600 text-white transition-all hover:shadow-[0_4px_16px_rgba(106,28,246,0.3)]">
+            <Link href={role === "creator" ? "/dashboard/onboarding" : "/dashboard/brand-setup"} className="shrink-0 no-underline w-full sm:w-auto">
+              <span className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] px-5 py-2.5 text-sm font-600 text-white transition-all hover:shadow-[0_4px_16px_rgba(106,28,246,0.3)]">
                 {role === "creator" ? "Continue setup" : "Complete profile"} <ArrowRight className="size-4" />
               </span>
             </Link>

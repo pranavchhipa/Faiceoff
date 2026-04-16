@@ -155,7 +155,7 @@ export default function CreatorProfilePage({
         <div className="mb-6">
           <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         </div>
-        <div className="animate-pulse rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]">
+        <div className="animate-pulse rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-6">
             <div className="size-24 rounded-full bg-[var(--color-neutral-200)]" />
             <div className="flex-1 space-y-3">
@@ -226,12 +226,12 @@ export default function CreatorProfilePage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+        className="rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           {/* Avatar */}
           <div
-            className="flex size-24 shrink-0 items-center justify-center rounded-full"
+            className="flex size-20 sm:size-24 shrink-0 items-center justify-center rounded-full"
             style={{
               backgroundColor: getAvatarColor(creator.display_name),
             }}
@@ -243,7 +243,7 @@ export default function CreatorProfilePage({
 
           {/* Info */}
           <div className="flex-1">
-            <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
+            <h1 className="text-xl sm:text-2xl font-700 tracking-tight text-[var(--color-ink)]">
               {creator.display_name}
             </h1>
 
@@ -304,7 +304,7 @@ export default function CreatorProfilePage({
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          className="mt-6 rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+          className="mt-6 rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
         >
           <h2 className="text-lg font-700 text-[var(--color-ink)]">
             Categories & Pricing
@@ -372,7 +372,7 @@ export default function CreatorProfilePage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-6 flex flex-col items-center rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]"
+        className="mt-6 flex flex-col items-center rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <Sparkles className="size-8 text-[var(--color-gold)]" />
         <h3 className="mt-3 text-lg font-700 text-[var(--color-ink)]">

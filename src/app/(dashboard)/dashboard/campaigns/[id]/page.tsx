@@ -295,10 +295,10 @@ export default function CampaignDetailPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-800 tracking-tight text-[var(--color-ink)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+            <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-ink)]">
               {campaign.name}
             </h1>
             <span
@@ -326,7 +326,7 @@ export default function CampaignDetailPage() {
             onClick={() =>
               router.push(`/dashboard/campaigns/${campaign.id}/generations/new`)
             }
-            className="shrink-0 rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
+            className="shrink-0 w-full sm:w-auto rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
           >
             <Plus className="size-4" />
             New Generation

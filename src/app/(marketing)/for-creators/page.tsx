@@ -28,21 +28,21 @@ export default function ForCreatorsPage() {
   return (
     <div className="w-full bg-background font-body text-on-surface overflow-hidden">
       {/* Hero Section */}
-      <section className="relative px-6 lg:px-8 py-20 md:py-32 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
-        <div className="w-full md:w-1/2 space-y-8 z-10">
-          <h1 className="text-6xl md:text-8xl font-bold font-headline leading-[0.95] tracking-tighter text-on-surface">
+      <section className="relative px-4 sm:px-6 lg:px-8 py-12 sm:py-20 md:py-32 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10 sm:gap-16">
+        <div className="w-full md:w-1/2 space-y-6 sm:space-y-8 z-10">
+          <h1 className="text-[2.5rem] sm:text-6xl md:text-8xl font-bold font-headline leading-[0.95] tracking-tighter text-on-surface">
             Your Face. <br />
             <span className="text-primary-dim">Your Rules.</span> <br />
             Your Revenue.
           </h1>
-          <p className="text-xl text-on-surface-variant max-w-lg leading-relaxed">
+          <p className="text-base sm:text-xl text-on-surface-variant max-w-lg leading-relaxed">
             License your digital likeness to global brands. Maintain 100% ownership with DPDP-compliant security and instant payouts via Razorpay.
           </p>
-          <div className="flex flex-wrap gap-4 pt-4">
-            <button className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-8 py-4 rounded-xl font-headline font-bold text-lg active:scale-95 transition-all shadow-xl shadow-primary/25 cursor-pointer">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4">
+            <button className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-headline font-bold text-base sm:text-lg active:scale-95 transition-all shadow-xl shadow-primary/25 cursor-pointer">
               Start Earning Now
             </button>
-            <button className="flex items-center gap-3 px-8 py-4 rounded-xl font-headline font-bold text-lg border border-outline-variant/30 text-on-surface hover:bg-surface-container-low transition-all cursor-pointer">
+            <button className="flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-headline font-bold text-base sm:text-lg border border-outline-variant/30 text-on-surface hover:bg-surface-container-low transition-all cursor-pointer">
               <PlayCircle className="w-5 h-5" />
               See How it Works
             </button>
@@ -75,8 +75,8 @@ export default function ForCreatorsPage() {
       </section>
 
       {/* Trust & Security */}
-      <section className="bg-surface-container-low py-16 px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+      <section className="bg-surface-container-low py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8 sm:gap-12">
           <div className="flex flex-col gap-2 w-full md:w-auto">
             <h3 className="text-sm font-label uppercase tracking-[0.2em] text-on-surface-variant/60 mb-2">Trusted Infrastructure</h3>
             <div className="flex flex-wrap items-center gap-8 md:gap-12 grayscale opacity-60">
@@ -96,22 +96,22 @@ export default function ForCreatorsPage() {
           </div>
           <div className="flex items-center gap-6 w-full md:w-auto">
             <div className="h-12 w-[1px] bg-outline-variant/30 hidden md:block"></div>
-            <p className="text-sm font-body text-on-surface-variant max-w-xs italic m-0">
-              "The most secure marketplace for AI-generated likeness and professional creator assets."
+            <p className="text-sm font-body text-on-surface-variant max-w-xs m-0">
+              &ldquo;The most secure marketplace for AI-generated likeness and professional creator assets.&rdquo;
             </p>
           </div>
         </div>
       </section>
 
       {/* Earnings Calculator (Bento Style) */}
-      <section className="py-24 px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="mb-16">
-          <h2 className="text-4xl md:text-5xl font-headline font-bold tracking-tight text-on-surface">Passive Income Potential</h2>
-          <p className="text-on-surface-variant mt-4 text-lg">Calculate how much your digital twin can earn while you sleep.</p>
+      <section className="py-12 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="mb-8 sm:mb-16">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-headline font-bold tracking-tight text-on-surface">Passive Income Potential</h2>
+          <p className="text-on-surface-variant mt-3 sm:mt-4 text-base sm:text-lg">Calculate how much your digital twin can earn while you sleep.</p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8">
           {/* Calculator Controls */}
-          <div className="lg:col-span-7 bg-surface-container-lowest p-8 md:p-12 rounded-2xl border border-outline-variant/10 shadow-[0px_24px_48px_rgba(44,47,48,0.04)]">
+          <div className="lg:col-span-7 bg-surface-container-lowest p-6 sm:p-8 md:p-12 rounded-2xl border border-outline-variant/10 shadow-[0px_24px_48px_rgba(44,47,48,0.04)]">
             <div className="space-y-12">
               <div>
                 <div className="flex justify-between items-end mb-6">
@@ -149,9 +149,9 @@ export default function ForCreatorsPage() {
                 </div>
               </div>
               <div>
-                <div className="flex justify-between items-end mb-6">
-                  <label className="text-xl font-headline font-semibold text-on-surface">Exclusive Rights</label>
-                  <div className="flex items-center gap-4 cursor-pointer" onClick={() => setIsExclusive(!isExclusive)}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-4 sm:mb-6 gap-3">
+                  <label className="text-lg sm:text-xl font-headline font-semibold text-on-surface">Exclusive Rights</label>
+                  <div className="flex items-center gap-3 sm:gap-4 cursor-pointer" onClick={() => setIsExclusive(!isExclusive)}>
                     <span className={`text-sm font-label ${!isExclusive ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>Non-Exclusive</span>
                     <button className={`w-12 h-6 rounded-full relative flex items-center px-1 transition-colors ${isExclusive ? 'bg-primary' : 'bg-surface-container-highest'}`}>
                       <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isExclusive ? 'translate-x-6' : 'translate-x-0'}`}></div>
@@ -163,13 +163,13 @@ export default function ForCreatorsPage() {
             </div>
           </div>
           {/* Result Card */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-primary to-primary-container p-12 rounded-2xl flex flex-col justify-between text-on-primary shadow-xl">
+          <div className="lg:col-span-5 bg-gradient-to-br from-primary to-primary-container p-6 sm:p-12 rounded-2xl flex flex-col justify-between text-on-primary shadow-xl">
             <div className="space-y-2">
               <span className="text-sm font-label tracking-widest uppercase opacity-80">Estimated Monthly Revenue</span>
-              <div className="text-6xl lg:text-7xl font-headline font-bold">${monthlyRevenue.toLocaleString()}</div>
+              <div className="text-5xl sm:text-6xl lg:text-7xl font-headline font-bold break-all">${monthlyRevenue.toLocaleString()}</div>
               <p className="text-on-primary/70 font-body">Based on current marketplace demand for your aesthetic profile.</p>
             </div>
-            <div className="space-y-6 pt-12 border-t border-white/20">
+            <div className="space-y-6 pt-8 sm:pt-12 mt-6 sm:mt-0 border-t border-white/20">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-white" />
@@ -188,11 +188,11 @@ export default function ForCreatorsPage() {
       </section>
 
       {/* Feature Bento */}
-      <section className="py-24 px-6 lg:px-8 bg-surface">
+      <section className="py-12 sm:py-24 px-4 sm:px-6 lg:px-8 bg-surface">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
             {/* Feature 1 */}
-            <div className="md:col-span-2 bg-surface-container-low p-10 rounded-2xl flex flex-col md:flex-row gap-10 items-center overflow-hidden">
+            <div className="md:col-span-2 bg-surface-container-low p-6 sm:p-10 rounded-2xl flex flex-col md:flex-row gap-6 sm:gap-10 items-center overflow-hidden">
               <div className="md:w-1/2 space-y-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-primary" />
@@ -212,7 +212,7 @@ export default function ForCreatorsPage() {
               </div>
             </div>
             {/* Feature 2 */}
-            <div className="bg-surface-container-lowest p-10 rounded-2xl border border-outline-variant/10 flex flex-col justify-between">
+            <div className="bg-surface-container-lowest p-6 sm:p-10 rounded-2xl border border-outline-variant/10 flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="w-12 h-12 rounded-xl bg-tertiary-fixed/20 flex items-center justify-center">
                   <Zap className="w-6 h-6 text-tertiary" />
@@ -229,7 +229,7 @@ export default function ForCreatorsPage() {
               </div>
             </div>
             {/* Feature 3 */}
-            <div className="bg-surface-container-lowest p-10 rounded-2xl border border-outline-variant/10 space-y-4">
+            <div className="bg-surface-container-lowest p-6 sm:p-10 rounded-2xl border border-outline-variant/10 space-y-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Shield className="w-6 h-6 text-primary" />
               </div>
@@ -237,9 +237,9 @@ export default function ForCreatorsPage() {
               <p className="text-on-surface-variant">Automatic smart contracts generate a legally binding DPDP-compliant agreement for every single brand partnership.</p>
             </div>
             {/* Feature 4 */}
-            <div className="md:col-span-2 bg-inverse-surface text-on-primary p-10 rounded-2xl relative overflow-hidden group">
-              <div className="relative z-10 space-y-6">
-                <h3 className="text-3xl md:text-4xl font-headline font-bold">Ready to transcend the physical?</h3>
+            <div className="md:col-span-2 bg-inverse-surface text-on-primary p-6 sm:p-10 rounded-2xl relative overflow-hidden group">
+              <div className="relative z-10 space-y-5 sm:space-y-6">
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-headline font-bold">Ready to transcend the physical?</h3>
                 <p className="text-surface-variant max-w-md">Join over 5,000 elite creators who have already automated their commercial modeling career.</p>
                 <button className="bg-primary hover:bg-primary-dim text-white px-8 py-3 rounded-xl font-headline font-bold transition-all inline-flex items-center gap-2">
                   Apply to Join <ArrowRight className="w-5 h-5" />

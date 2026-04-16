@@ -526,7 +526,7 @@ export default function SettingsPage() {
           {/* ══════════════════════════════════════════════════
              3. Save Bar
              ══════════════════════════════════════════════════ */}
-          <div className="flex items-center justify-between rounded-2xl bg-[var(--color-surface-container-lowest)] px-6 py-4" style={ghostBorder}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-[var(--color-surface-container-lowest)] px-4 py-4 sm:px-6" style={ghostBorder}>
             <div className="flex items-center gap-2 min-w-0">
               {saveStatus === "success" ? (
                 <motion.div
@@ -556,7 +556,7 @@ export default function SettingsPage() {
             <button
               onClick={handleSave}
               disabled={isSaving || !userProfile.display_name.trim()}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] px-6 py-2.5 text-sm font-600 text-white transition-all hover:shadow-[0_4px_16px_rgba(106,28,246,0.3)] disabled:opacity-50"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] px-6 py-2.5 text-sm font-600 text-white transition-all hover:shadow-[0_4px_16px_rgba(106,28,246,0.3)] disabled:opacity-50 w-full sm:w-auto"
             >
               {isSaving ? (
                 <Loader2 className="size-4 animate-spin" />

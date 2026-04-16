@@ -189,11 +189,11 @@ export default function ApprovalsPage() {
       className="max-w-5xl"
     >
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
           Approvals
         </h1>
-        <p className="mt-1 text-[var(--color-outline)]">
+        <p className="mt-1 text-sm sm:text-base text-[var(--color-outline)]">
           Review and approve AI-generated content using your likeness.
         </p>
       </div>
@@ -354,7 +354,7 @@ export default function ApprovalsPage() {
                 </AnimatePresence>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-3 mt-4 pt-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4 pt-4">
                   {/* View detail link */}
                   {gen && (
                     <Link

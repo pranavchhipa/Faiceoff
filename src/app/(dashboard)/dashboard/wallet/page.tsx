@@ -313,8 +313,8 @@ export default function WalletPage() {
         className="max-w-5xl"
       >
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
             {role === "brand" ? "Wallet" : "Earnings"}
           </h1>
           <p className="mt-1 text-sm text-[var(--color-outline-variant)]">
@@ -325,26 +325,26 @@ export default function WalletPage() {
         </div>
 
         {/* Balance Card */}
-        <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-6 shadow-sm mb-8">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-4 sm:p-6 shadow-sm mb-6 sm:mb-8">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mb-2">
                 {role === "brand" ? "CURRENT BALANCE" : "AVAILABLE EARNINGS"}
               </p>
-              <p className="text-4xl font-700 text-[var(--color-on-surface)]">
+              <p className="text-3xl sm:text-4xl font-700 text-[var(--color-on-surface)] break-all">
                 {formatINR(balance)}
               </p>
             </div>
-            <div className="flex size-14 items-center justify-center rounded-full bg-[var(--color-accent-gold)]/10">
+            <div className="flex size-12 sm:size-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-gold)]/10">
               {role === "brand" ? (
-                <Wallet className="size-7 text-[var(--color-accent-gold)]" />
+                <Wallet className="size-6 sm:size-7 text-[var(--color-accent-gold)]" />
               ) : (
-                <IndianRupee className="size-7 text-[var(--color-accent-gold)]" />
+                <IndianRupee className="size-6 sm:size-7 text-[var(--color-accent-gold)]" />
               )}
             </div>
           </div>
 
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
             {role === "brand" && (
               <Button
                 onClick={() => {
@@ -417,7 +417,7 @@ export default function WalletPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: i * 0.03 }}
-                  className="flex items-center gap-4 rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-4"
+                  className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-3 sm:p-4"
                 >
                   {/* Direction icon */}
                   <div
@@ -506,7 +506,7 @@ export default function WalletPage() {
               </p>
 
               {/* Quick presets */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 {[500, 1000, 5000, 10000].map((preset) => (
                   <button
                     key={preset}
