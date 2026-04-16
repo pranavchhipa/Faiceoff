@@ -97,6 +97,57 @@ function formatINR(paise: number): string {
   }).format(paise / 100);
 }
 
+/* ── Draft persistence ──
+ *
+ * The campaign form lives in React state, which is destroyed when the user
+ * navigates away (Back to Campaigns, refresh, accidental close). We persist
+ * the entire draft to sessionStorage so the user can pick up where they
+ * left off inside the same tab.
+ *
+ * sessionStorage (not localStorage) = cleared when the tab closes, which is
+ * the right lifetime for a "draft I'm currently filling out".
+ */
+const DRAFT_KEY = "faiceoff:campaign-draft:v1";
+
+interface CampaignDraft {
+  step: number;
+  campaignName: string;
+  description: string;
+  selectedCreatorId: string;
+  selectedCategory: string;
+  maxGenerations: number;
+  brief: PromptBrief;
+}
+
+function loadDraft(): Partial<CampaignDraft> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<CampaignDraft>;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: CampaignDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Quota exceeded or Safari private mode — silently skip
+  }
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /** Slide-in / slide-out variants keyed by direction */
 const stepVariants = {
   enter: (dir: number) => ({
@@ -170,41 +221,82 @@ export function NewCampaignForm() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
+  // Load any saved draft from sessionStorage ONCE on mount. We use a lazy
+  // initializer so the read is synchronous with the first render — no
+  // useEffect flicker.
+  const initialDraft = useRef<Partial<CampaignDraft> | null>(
+    typeof window !== "undefined" ? loadDraft() : null
+  ).current;
+
   /* ── State ── */
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialDraft?.step ?? 0);
   const [direction, setDirection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Creator selection
+  // Creator selection — URL param wins over draft so a fresh
+  // "?creator=..." link always targets that creator
   const [creators, setCreators] = useState<CreatorOption[]>([]);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string>(
-    searchParams.get("creator") ?? ""
+    searchParams.get("creator") ?? initialDraft?.selectedCreatorId ?? ""
   );
   const [creatorsLoading, setCreatorsLoading] = useState(true);
 
   // Step 1: Campaign details
-  const [campaignName, setCampaignName] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [maxGenerations, setMaxGenerations] = useState(5);
+  const [campaignName, setCampaignName] = useState(
+    initialDraft?.campaignName ?? ""
+  );
+  const [description, setDescription] = useState(
+    initialDraft?.description ?? ""
+  );
+  const [selectedCategory, setSelectedCategory] = useState(
+    initialDraft?.selectedCategory ?? ""
+  );
+  const [maxGenerations, setMaxGenerations] = useState(
+    initialDraft?.maxGenerations ?? 5
+  );
 
   // Step 2: Prompt builder
-  const [brief, setBrief] = useState<PromptBrief>({
-    setting: "",
-    settingCustom: "",
-    pose: "",
-    poseCustom: "",
-    expression: "",
-    expressionCustom: "",
-    outfit: "",
-    props: "",
-    style: "",
-    notes: "",
-    productName: "",
-    productDescription: "",
-    productImageUrl: "",
-  });
+  const [brief, setBrief] = useState<PromptBrief>(
+    initialDraft?.brief ?? {
+      setting: "",
+      settingCustom: "",
+      pose: "",
+      poseCustom: "",
+      expression: "",
+      expressionCustom: "",
+      outfit: "",
+      props: "",
+      style: "",
+      notes: "",
+      productName: "",
+      productDescription: "",
+      productImageUrl: "",
+    }
+  );
+
+  // Autosave draft whenever any tracked field changes.
+  // Runs on every render after state change — cheap JSON.stringify of small
+  // object, no need to throttle.
+  useEffect(() => {
+    saveDraft({
+      step,
+      campaignName,
+      description,
+      selectedCreatorId,
+      selectedCategory,
+      maxGenerations,
+      brief,
+    });
+  }, [
+    step,
+    campaignName,
+    description,
+    selectedCreatorId,
+    selectedCategory,
+    maxGenerations,
+    brief,
+  ]);
 
   // Product image upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -426,7 +518,10 @@ export function NewCampaignForm() {
         throw new Error(genData.error ?? "Failed to create generation");
       }
 
-      // 3. Redirect to campaign detail
+      // 3. Clear saved draft — campaign is persisted server-side now
+      clearDraft();
+
+      // 4. Redirect to campaign detail
       router.push(`/dashboard/campaigns/${campaign_id}`);
     } catch (err: unknown) {
       const message =

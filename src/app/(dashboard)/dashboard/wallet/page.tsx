@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Script from "next/script";
 import {
   Wallet,
   ArrowUpRight,
@@ -74,6 +75,11 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [topupLoading, setTopupLoading] = useState(false);
 
+  // Top-up modal
+  const [showTopupModal, setShowTopupModal] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("5000"); // rupees
+  const [topupError, setTopupError] = useState<string | null>(null);
+
   // Payout state
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -111,20 +117,72 @@ export default function WalletPage() {
   }, [authLoading, fetchWallet]);
 
   /* ── Brand: Razorpay top-up ── */
+  // Ensures the Razorpay checkout.js is loaded. The <Script> tag covers
+  // normal navigations, but on fast clicks (or if the user lands directly
+  // here) we guarantee it with a lazy loader.
+  function ensureRazorpayLoaded(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (typeof window !== "undefined" && (window as any).Razorpay) {
+        resolve();
+        return;
+      }
+      const existing = document.querySelector<HTMLScriptElement>(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", () =>
+          reject(new Error("Failed to load Razorpay script"))
+        );
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load Razorpay script"));
+      document.body.appendChild(s);
+    });
+  }
+
   async function handleTopup() {
+    setTopupError(null);
+
+    const rupees = parseFloat(topupAmount);
+    if (isNaN(rupees) || rupees < 100) {
+      setTopupError("Minimum top-up is ₹100");
+      return;
+    }
+    if (rupees > 200_000) {
+      setTopupError("Maximum top-up is ₹2,00,000 per transaction");
+      return;
+    }
+
+    const amountPaise = Math.round(rupees * 100);
+
     setTopupLoading(true);
     try {
+      await ensureRazorpayLoaded();
+
       const res = await fetch("/api/wallet/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_paise: 100_00 }),
+        body: JSON.stringify({ amount_paise: amountPaise }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create order");
 
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!keyId) {
+        throw new Error(
+          "Payment gateway not configured (NEXT_PUBLIC_RAZORPAY_KEY_ID missing)"
+        );
+      }
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: keyId,
         amount: data.amount,
         currency: "INR",
         name: "Faiceoff",
@@ -135,19 +193,34 @@ export default function WalletPage() {
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          const verifyRes = await fetch("/api/wallet/verify-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: response.razorpay_order_id,
-              payment_id: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-            }),
-          });
+          try {
+            const verifyRes = await fetch("/api/wallet/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                order_id: response.razorpay_order_id,
+                payment_id: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              }),
+            });
 
-          if (verifyRes.ok) {
-            fetchWallet();
+            if (verifyRes.ok) {
+              setShowTopupModal(false);
+              fetchWallet();
+            } else {
+              const verr = await verifyRes.json().catch(() => ({}));
+              setTopupError(verr.error ?? "Payment verification failed");
+            }
+          } catch (err) {
+            setTopupError(
+              err instanceof Error ? err.message : "Verification error"
+            );
           }
+        },
+        modal: {
+          ondismiss: () => {
+            setTopupLoading(false);
+          },
         },
         prefill: { email: user?.email ?? "" },
         theme: { color: "#c9a96e" },
@@ -155,10 +228,14 @@ export default function WalletPage() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", (resp: { error?: { description?: string } }) => {
+        setTopupError(resp.error?.description ?? "Payment failed");
+        setTopupLoading(false);
+      });
       rzp.open();
     } catch (err) {
       console.error("Topup error:", err);
-    } finally {
+      setTopupError(err instanceof Error ? err.message : "Top-up failed");
       setTopupLoading(false);
     }
   }
@@ -221,6 +298,12 @@ export default function WalletPage() {
 
   return (
     <>
+      {/* Razorpay checkout.js — required for window.Razorpay constructor */}
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+      />
+
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -262,18 +345,16 @@ export default function WalletPage() {
           <div className="mt-5 flex gap-3">
             {role === "brand" && (
               <Button
-                onClick={handleTopup}
+                onClick={() => {
+                  setTopupError(null);
+                  setTopupAmount("5000");
+                  setShowTopupModal(true);
+                }}
                 disabled={topupLoading}
                 className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
               >
-                {topupLoading ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <>
-                    <Plus className="size-4" />
-                    Add Funds
-                  </>
-                )}
+                <Plus className="size-4" />
+                Add Funds
               </Button>
             )}
             {role === "creator" && (
@@ -388,6 +469,126 @@ export default function WalletPage() {
           </div>
         )}
       </motion.div>
+
+      {/* ── Top-up Modal ── */}
+      <AnimatePresence>
+        {showTopupModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[var(--color-on-surface)]/40"
+              onClick={() => !topupLoading && setShowTopupModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-6 shadow-[var(--shadow-elevated)] mx-4"
+            >
+              <button
+                onClick={() => !topupLoading && setShowTopupModal(false)}
+                className="absolute right-4 top-4 flex size-7 items-center justify-center rounded-xl text-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-on-surface)]"
+              >
+                <X className="size-4" />
+              </button>
+
+              <h3 className="text-xl font-700 text-[var(--color-on-surface)] mb-1">
+                Add Funds
+              </h3>
+              <p className="text-sm text-[var(--color-outline-variant)] mb-5">
+                Top up your wallet to run campaigns. Full budget is held in
+                escrow when you create a campaign.
+              </p>
+
+              {/* Quick presets */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[500, 1000, 5000, 10000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setTopupAmount(String(preset));
+                      setTopupError(null);
+                    }}
+                    className={`rounded-xl px-3 py-2 text-sm font-600 transition-colors ${
+                      topupAmount === String(preset)
+                        ? "bg-[var(--color-accent-gold)]/15 text-[var(--color-accent-gold)] border border-[var(--color-accent-gold)]/40"
+                        : "bg-[var(--color-surface-container-low)] text-[var(--color-on-surface)] border border-transparent hover:bg-[var(--color-surface-container)]"
+                    }`}
+                  >
+                    ₹{preset.toLocaleString("en-IN")}
+                  </button>
+                ))}
+              </div>
+
+              <label className="block text-sm font-600 text-[var(--color-on-surface)] mb-2">
+                Custom Amount (₹)
+              </label>
+              <div className="relative mb-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-outline-variant)]">
+                  ₹
+                </span>
+                <Input
+                  type="number"
+                  min={100}
+                  max={200000}
+                  step={1}
+                  value={topupAmount}
+                  onChange={(e) => {
+                    setTopupAmount(e.target.value);
+                    setTopupError(null);
+                  }}
+                  placeholder="Enter amount"
+                  className="rounded-xl pl-7 text-lg font-600 border-[var(--color-outline-variant)]/15"
+                />
+              </div>
+              <p className="text-xs text-[var(--color-outline-variant)] mb-5">
+                Min: ₹100 • Max: ₹2,00,000
+              </p>
+
+              {topupError && (
+                <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 mb-4">
+                  <AlertCircle className="size-4 text-red-500 shrink-0" />
+                  <p className="text-sm text-red-600">{topupError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTopupModal(false)}
+                  disabled={topupLoading}
+                  className="flex-1 rounded-xl border-[var(--color-outline-variant)]/15 font-600 text-[var(--color-on-surface)]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleTopup}
+                  disabled={topupLoading || !topupAmount}
+                  className="flex-1 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
+                >
+                  {topupLoading ? (
+                    <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <>
+                      <Plus className="size-4" />
+                      Proceed to Pay
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <p className="mt-4 text-[11px] text-[var(--color-outline-variant)] text-center">
+                Razorpay test mode: card 4111 1111 1111 1111, any future
+                expiry, any CVV.
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── Payout Modal ── */}
       <AnimatePresence>
