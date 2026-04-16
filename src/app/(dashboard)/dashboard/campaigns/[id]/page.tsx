@@ -312,9 +312,7 @@ export default function CampaignDetailPage() {
         {canAddGeneration && (
           <Button
             onClick={() =>
-              router.push(
-                `/dashboard/campaigns/new?creator=${campaign.creator_id}`
-              )
+              router.push(`/dashboard/campaigns/${campaign.id}/generations/new`)
             }
             className="shrink-0 rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
           >
