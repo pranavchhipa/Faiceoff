@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -65,20 +66,35 @@ export async function POST(req: Request) {
     const order = await orderRes.json();
     const amountPaise: number = order.amount;
 
-    // Get current balance
-    const { data: lastTx } = await supabase
+    // Admin client bypasses RLS — wallet_transactions has only SELECT
+    // policies (migration 00011), so inserts from a user-scoped client
+    // get rejected. This matches the pattern used across the rest of
+    // the API routes.
+    const admin = createAdminClient();
+
+    // Get current balance (.maybeSingle so first-ever top-up with zero
+    // prior transactions doesn't throw)
+    const { data: lastTx, error: balanceErr } = await admin
       .from("wallet_transactions")
       .select("balance_after_paise")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (balanceErr) {
+      console.error("[verify-payment] Failed to read last balance:", balanceErr);
+      return NextResponse.json(
+        { error: "Payment received but failed to read wallet balance" },
+        { status: 500 }
+      );
+    }
 
     const currentBalance = lastTx?.balance_after_paise ?? 0;
     const newBalance = currentBalance + amountPaise;
 
     // Create wallet transaction
-    const { error: txError } = await supabase
+    const { error: txError } = await admin
       .from("wallet_transactions")
       .insert({
         user_id: user.id,
@@ -92,15 +108,18 @@ export async function POST(req: Request) {
       });
 
     if (txError) {
-      console.error("Failed to record transaction:", txError);
+      console.error("[verify-payment] Failed to record transaction:", txError);
       return NextResponse.json(
-        { error: "Payment received but failed to update wallet" },
+        {
+          error: "Payment received but failed to update wallet",
+          detail: txError.message,
+        },
         { status: 500 }
       );
     }
 
-    // Log success
-    await supabase.from("audit_log").insert({
+    // Log success (also via admin to bypass any audit_log RLS)
+    await admin.from("audit_log").insert({
       actor_id: user.id,
       actor_type: "user" as const,
       action: "wallet_topup_completed",
