@@ -59,11 +59,15 @@ function SidebarContent({
   pathname: string;
   onLinkClick?: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, role: dbRole, roleLoading } = useAuth();
   const router = useRouter();
   const displayName =
     user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "User";
-  const role = user?.user_metadata?.role ?? "creator";
+  // Prefer DB-backed role. While it's resolving, fall back to the session
+  // metadata (which may be stale) so the sidebar isn't empty — but if DB
+  // resolves to something different, it wins.
+  const role: "creator" | "brand" =
+    dbRole ?? (user?.user_metadata?.role === "brand" ? "brand" : "creator");
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -88,7 +92,19 @@ function SidebarContent({
         <p className="mb-2 px-3 text-[10px] font-700 uppercase tracking-widest text-white/30">
           Navigation
         </p>
-        {(role === "brand" ? BRAND_NAV : CREATOR_NAV).map((link) => {
+        {/* While we're still resolving the role, show a skeleton so we don't
+            render creator nav to a brand (or vice-versa) and then swap. */}
+        {roleLoading && !dbRole ? (
+          <div className="flex flex-col gap-1 animate-pulse">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-10 rounded-xl bg-white/5"
+              />
+            ))}
+          </div>
+        ) : null}
+        {(roleLoading && !dbRole ? [] : role === "brand" ? BRAND_NAV : CREATOR_NAV).map((link) => {
           const Icon = link.icon;
           const active = isActive(pathname, link.href);
           return (
@@ -154,7 +170,9 @@ function SidebarContent({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-600 text-white/90">{displayName}</p>
-                <p className="text-[11px] capitalize text-white/30">{role}</p>
+                <p className="text-[11px] capitalize text-white/30">
+                  {roleLoading && !dbRole ? "…" : role}
+                </p>
               </div>
               <button
                 onClick={() => setConfirmLogout(true)}

@@ -153,10 +153,25 @@ export const runPipeline = inngest.createFunction(
           { input }
         );
 
-        const urls = output as string[];
+        // Replicate SDK v1.x returns FileOutput[] — objects with a .url()
+        // method — not URL strings. Normalise both shapes here.
+        const outputs = Array.isArray(output) ? output : [output];
+        const first = outputs[0] as unknown;
+        let resolved: string | null = null;
+        if (typeof first === "string") {
+          resolved = first;
+        } else if (
+          first &&
+          typeof first === "object" &&
+          "url" in first &&
+          typeof (first as { url: unknown }).url === "function"
+        ) {
+          const u = (first as { url: () => URL | string }).url();
+          resolved = u instanceof URL ? u.toString() : u;
+        }
+
         imageUrl =
-          urls[0] ??
-          `https://picsum.photos/seed/${generation_id}/768/768`;
+          resolved ?? `https://picsum.photos/seed/${generation_id}/768/768`;
         predictionId = `rep_${generation_id}`;
 
         console.log(`[pipeline] Image generated via Replicate LoRA`);
@@ -285,7 +300,23 @@ export const handleApproval = inngest.createFunction(
         throw new Error("Creator or brand user not found");
       }
 
-      // Creator credit (earning)
+      // Helper — read latest balance from wallet_transactions.
+      // Running balance is stored denormalised on each row so the wallet page
+      // can read it with a single query. We MUST read-then-write here or the
+      // balance displayed to the user will reset to ₹0 after every approval.
+      const latestBalance = async (userId: string): Promise<number> => {
+        const { data } = await admin
+          .from("wallet_transactions")
+          .select("balance_after_paise")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        return data?.balance_after_paise ?? 0;
+      };
+
+      // Creator credit (earning) — balance grows
+      const creatorBalance = await latestBalance(creatorRow.user_id);
       await admin.from("wallet_transactions").insert({
         user_id: creatorRow.user_id,
         type: "generation_earning",
@@ -293,11 +324,12 @@ export const handleApproval = inngest.createFunction(
         direction: "credit" as const,
         reference_id: generation_id,
         reference_type: "generation",
-        balance_after_paise: 0, // TODO: compute from current balance
+        balance_after_paise: creatorBalance + costPaise,
         description: `Earning for generation ${generation_id}`,
       });
 
-      // Brand debit (spend)
+      // Brand debit (spend) — balance shrinks
+      const brandBalance = await latestBalance(brandRow.user_id);
       await admin.from("wallet_transactions").insert({
         user_id: brandRow.user_id,
         type: "generation_spend",
@@ -305,7 +337,7 @@ export const handleApproval = inngest.createFunction(
         direction: "debit" as const,
         reference_id: generation_id,
         reference_type: "generation",
-        balance_after_paise: 0, // TODO: compute from current balance
+        balance_after_paise: Math.max(0, brandBalance - costPaise),
         description: `Spend for generation ${generation_id}`,
       });
 

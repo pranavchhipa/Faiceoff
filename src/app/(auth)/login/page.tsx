@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, Mail, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,20 +24,28 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/sign-in", {
+      const res = await fetch("/api/auth/sign-in-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
 
-      if (data.error) {
-        setError(data.error);
+      if (!res.ok || data.error) {
+        // Supabase returns "Invalid login credentials" for both "no user" and
+        // "wrong password". Give the user a hint about reset in case they're
+        // an older account that was created via OTP-only (no password set).
+        setError(
+          data.error === "Invalid login credentials"
+            ? "Email or password is incorrect. If you signed up before we added passwords, use 'Forgot password?' below to set one."
+            : data.error ?? "Sign in failed."
+        );
         setLoading(false);
         return;
       }
 
-      router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -54,7 +63,7 @@ export default function LoginPage() {
           Welcome back
         </h1>
         <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
-          Sign in with your email to continue
+          Sign in to your Faiceoff account
         </p>
       </div>
 
@@ -70,6 +79,32 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
+              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-xs font-500 text-[var(--color-gold)] hover:text-[var(--color-gold-hover)] transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+            <Input
+              id="password"
+              type="password"
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
               className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
             />
           </div>
@@ -87,13 +122,13 @@ export default function LoginPage() {
 
         <Button
           type="submit"
-          disabled={loading || !email}
+          disabled={loading || !email || !password}
           className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
         >
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Send OTP"
+            "Sign in"
           )}
         </Button>
       </form>

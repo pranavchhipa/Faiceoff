@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail, Building2, Globe } from "lucide-react";
+import { Loader2, Mail, Building2, Globe, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ export default function BrandSignupPage() {
     email: "",
     companyName: "",
     website: "",
+    password: "",
+    confirmPassword: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,16 @@ export default function BrandSignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (formState.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (formState.password !== formState.confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -36,6 +48,7 @@ export default function BrandSignupPage() {
         body: JSON.stringify({
           email: formState.email,
           displayName: formState.companyName,
+          password: formState.password,
           role: "brand",
         }),
       });
@@ -108,6 +121,40 @@ export default function BrandSignupPage() {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+            <Input
+              id="password"
+              type="password"
+              placeholder="At least 8 characters"
+              value={formState.password}
+              onChange={(e) => updateField("password", e.target.value)}
+              required
+              minLength={8}
+              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Re-enter password"
+              value={formState.confirmPassword}
+              onChange={(e) => updateField("confirmPassword", e.target.value)}
+              required
+              minLength={8}
+              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="website">
             Website{" "}
             <span className="text-[var(--color-neutral-400)] font-400">
@@ -139,7 +186,12 @@ export default function BrandSignupPage() {
 
         <Button
           type="submit"
-          disabled={loading || !formState.email || !formState.companyName}
+          disabled={
+            loading ||
+            !formState.email ||
+            !formState.companyName ||
+            !formState.password
+          }
           className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
         >
           {loading ? (
@@ -148,6 +200,10 @@ export default function BrandSignupPage() {
             "Create brand account"
           )}
         </Button>
+
+        <p className="text-xs text-center text-[var(--color-neutral-400)]">
+          We'll send a verification code to your email to confirm it's yours.
+        </p>
       </form>
 
       <p className="mt-6 text-center text-sm text-[var(--color-neutral-500)]">

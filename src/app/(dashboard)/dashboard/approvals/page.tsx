@@ -100,86 +100,48 @@ const cardVariants = {
    ================================================================ */
 
 export default function ApprovalsPage() {
-  const { user, supabase, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creatorId, setCreatorId] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
 
-  /* -- Fetch creator ID -- */
-  const fetchCreatorId = useCallback(async () => {
-    if (!user) return null;
-    const { data } = await supabase
-      .from("creators")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-    return data?.id ?? null;
-  }, [user, supabase]);
-
-  /* -- Fetch approvals -- */
-  const fetchApprovals = useCallback(
-    async (cId: string) => {
-      setLoading(true);
-
-      const { data } = await supabase
-        .from("approvals")
-        .select(
-          `id, status, feedback, expires_at, created_at,
-         generation:generations!approvals_generation_id_fkey(id, assembled_prompt, image_url, structured_brief),
-         campaign:generations!approvals_generation_id_fkey(campaign:campaigns!generations_campaign_id_fkey(id, name))`
-        )
-        .eq("creator_id", cId)
-        .eq("status", "pending")
-        .order("expires_at", { ascending: true });
-
-      if (data) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const items: ApprovalItem[] = data.map((row: any) => ({
-          id: row.id,
-          status: row.status,
-          feedback: row.feedback,
-          expires_at: row.expires_at,
-          created_at: row.created_at,
-          generation: row.generation
-            ? {
-                id: row.generation.id,
-                assembled_prompt: row.generation.assembled_prompt,
-                image_url: row.generation.image_url,
-                structured_brief: row.generation.structured_brief ?? null,
-              }
-            : null,
-          campaign: row.campaign?.campaign
-            ? {
-                id: row.campaign.campaign.id,
-                name: row.campaign.campaign.name,
-              }
-            : null,
-        }));
-        setApprovals(items);
+  /* -- Fetch approvals via RLS-bypass API route --
+   *
+   * We used to read `creators` + `approvals` directly from the browser, but
+   * Supabase RLS was silently returning empty arrays for valid creators. The
+   * server route uses the admin client and returns everything the page needs
+   * in one shot. Same pattern as /dashboard/likeness → /api/creator/likeness-data.
+   */
+  const fetchApprovals = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/creator/approvals", {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setApprovals([]);
+        return;
       }
-
+      const payload = (await res.json()) as {
+        isCreator: boolean;
+        approvals: ApprovalItem[];
+      };
+      setApprovals(payload.approvals ?? []);
+    } catch (err) {
+      console.error("[approvals] fetch failed", err);
+      setApprovals([]);
+    } finally {
       setLoading(false);
-    },
-    [supabase]
-  );
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-
-    (async () => {
-      const cId = await fetchCreatorId();
-      setCreatorId(cId);
-      if (cId) {
-        await fetchApprovals(cId);
-      } else {
-        setLoading(false);
-      }
-    })();
-  }, [user, fetchCreatorId, fetchApprovals]);
+    void fetchApprovals();
+  }, [user, fetchApprovals]);
 
   /* -- Handle approve / reject -- */
   async function handleAction(

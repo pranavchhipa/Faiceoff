@@ -125,7 +125,7 @@ function getStatusBadge(status: string | null | undefined) {
 }
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role: dbRole, roleLoading } = useAuth();
 
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
@@ -146,7 +146,10 @@ export default function DashboardPage() {
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const role = user?.user_metadata?.role ?? "creator";
+  // DB-backed role (authoritative). While it's resolving the page shows the
+  // loading spinner (see below), so this fallback is only used after.
+  const role: "creator" | "brand" =
+    dbRole ?? (user?.user_metadata?.role === "brand" ? "brand" : "creator");
   const displayName =
     user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "User";
   const firstName = displayName.split(" ")[0];
@@ -211,7 +214,9 @@ export default function DashboardPage() {
     router.refresh();
   }
 
-  if (isLoading || profileLoading) {
+  // Wait on: session, profile fetch, AND role resolution. Skipping roleLoading
+  // caused the "creator → brand" flash for brand accounts on first render.
+  if (isLoading || profileLoading || (roleLoading && !dbRole)) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="flex flex-col items-center gap-3">

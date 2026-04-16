@@ -127,6 +127,31 @@ export async function POST(request: Request) {
     );
   }
 
+  // --- Check brand's wallet balance ---
+  // Campaign budget is a cap on what this campaign can spend, but it doesn't
+  // guarantee the brand actually has the funds in their wallet. Check the
+  // running balance so we don't accept generations the brand can't pay for.
+  const { data: lastBrandTx } = await admin
+    .from("wallet_transactions")
+    .select("balance_after_paise")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const brandBalance = lastBrandTx?.balance_after_paise ?? 0;
+
+  if (brandBalance < creatorCategory.price_per_generation_paise) {
+    return NextResponse.json(
+      {
+        error: "Insufficient wallet balance. Please top up your wallet.",
+        required_paise: creatorCategory.price_per_generation_paise,
+        balance_paise: brandBalance,
+      },
+      { status: 402 },
+    );
+  }
+
   // --- Create generation row ---
   const { data: generation, error: genError } = await admin
     .from("generations")
