@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -10,51 +10,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Single stable client — must NOT be recreated inside the component or
-// it becomes a new reference every render and loops the useEffect.
-const supabase = createClient();
-
-/**
- * /reset-password
- *
- * Landing page for the password recovery email link. Supabase exchanges the
- * recovery token from the URL hash into a session client-side. The
- * onAuthStateChange PASSWORD_RECOVERY event fires once that exchange completes,
- * at which point we show the form to set a new password.
- */
 export default function ResetPasswordPage() {
   const router = useRouter();
+  // Lazy ref — client created only once, only on the browser
+  const supabaseRef = useRef<SupabaseClient | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Session check — confirm the user actually landed here from a recovery link
   const [checkingSession, setCheckingSession] = useState(true);
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function check() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (cancelled) return;
-      setHasSession(!!session);
+    // ── 1. Check hash for an error BEFORE touching Supabase ──
+    // When the link is expired/invalid Supabase puts:
+    //   #error=access_denied&error_code=otp_expired&...
+    // in the redirect URL. We detect this and show the graceful UI
+    // instead of letting the client try to process a bad token.
+    const hash = window.location.hash;
+    if (hash.includes("error=")) {
+      setHasSession(false);
       setCheckingSession(false);
+      return;
     }
 
-    check();
+    // ── 2. Create client lazily (browser-only) ──
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient() as SupabaseClient;
+    }
+    const supabase = supabaseRef.current;
 
-    // Listen for PASSWORD_RECOVERY event — fires when Supabase finishes
-    // exchanging the hash token into a live session.
+    let cancelled = false;
+
+    // ── 3. Listen for PASSWORD_RECOVERY event ──
+    // Supabase fires this after it exchanges the hash token into a session.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setHasSession(!!session);
+        setCheckingSession(false);
+      }
+    });
+
+    // ── 4. Also check if a session already exists ──
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session) {
+        setHasSession(true);
         setCheckingSession(false);
       }
     });
@@ -67,14 +74,14 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setFormError("Password must be at least 8 characters.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setFormError("Passwords do not match.");
       return;
     }
 
@@ -88,7 +95,7 @@ export default function ResetPasswordPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error ?? "Could not update password.");
+        setFormError(data.error ?? "Could not update password.");
         setLoading(false);
         return;
       }
@@ -96,18 +103,17 @@ export default function ResetPasswordPage() {
       setDone(true);
       setLoading(false);
 
-      // After a short delay, send them into the app — they're already signed
-      // in thanks to the recovery session.
       setTimeout(() => {
         router.push("/dashboard");
         router.refresh();
       }, 1500);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setFormError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
 
+  // ── Loading state ──
   if (checkingSession) {
     return (
       <div className="flex justify-center py-10">
@@ -116,6 +122,7 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // ── Expired / invalid link ──
   if (!hasSession) {
     return (
       <motion.div
@@ -128,10 +135,9 @@ export default function ResetPasswordPage() {
           Link expired or invalid
         </h1>
         <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
-          This reset link may have expired or already been used. Request a new
-          one to continue.
+          This reset link has expired or already been used. Request a new one.
         </p>
-        <div className="mt-6 flex flex-col gap-2">
+        <div className="mt-6 flex flex-col gap-3">
           <Button
             asChild
             className="h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
@@ -140,7 +146,7 @@ export default function ResetPasswordPage() {
           </Button>
           <Link
             href="/login"
-            className="mt-1 inline-flex items-center justify-center gap-1 text-sm text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors"
+            className="inline-flex items-center justify-center gap-1 text-sm text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors"
           >
             <ArrowLeft className="size-3" />
             Back to login
@@ -150,6 +156,7 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // ── Success state ──
   if (done) {
     return (
       <motion.div
@@ -171,6 +178,7 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // ── Set new password form ──
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -223,13 +231,13 @@ export default function ResetPasswordPage() {
           </div>
         </div>
 
-        {error && (
+        {formError && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2"
           >
-            {error}
+            {formError}
           </motion.p>
         )}
 
