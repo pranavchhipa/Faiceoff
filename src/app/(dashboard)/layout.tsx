@@ -30,13 +30,13 @@ interface NavLink {
 }
 
 const CREATOR_NAV: NavLink[] = [
-  { href: "/dashboard",           label: "Dashboard",   icon: LayoutDashboard },
-  { href: "/dashboard/likeness",  label: "My Likeness", icon: ScanFace },
-  { href: "/dashboard/campaigns", label: "Campaigns",   icon: Megaphone },
-  { href: "/dashboard/approvals", label: "Approvals",   icon: ClipboardCheck },
-  { href: "/dashboard/wallet",    label: "Earnings",    icon: IndianRupee },
-  { href: "/dashboard/analytics", label: "Analytics",   icon: BarChart3 },
-  { href: "/dashboard/settings",  label: "Settings",    icon: Settings },
+  { href: "/dashboard",           label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/dashboard/likeness",  label: "My Likeness",    icon: ScanFace },
+  { href: "/dashboard/campaigns", label: "Collaborations", icon: Megaphone },
+  { href: "/dashboard/approvals", label: "Approvals",      icon: ClipboardCheck },
+  { href: "/dashboard/wallet",    label: "Earnings",       icon: IndianRupee },
+  { href: "/dashboard/analytics", label: "Analytics",      icon: BarChart3 },
+  { href: "/dashboard/settings",  label: "Settings",       icon: Settings },
 ];
 
 const BRAND_NAV: NavLink[] = [

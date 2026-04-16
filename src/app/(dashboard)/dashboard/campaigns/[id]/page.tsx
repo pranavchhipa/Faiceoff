@@ -203,7 +203,9 @@ export default function CampaignDetailPage() {
   }, [generations, fetchData]);
 
   /* ── Loading ── */
-  if (authLoading || loading) {
+  // Also wait for role to resolve — some UI strings/cards depend on it, and
+  // we don't want a brand seeing creator framing for a frame.
+  if (authLoading || loading || !role) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
@@ -275,7 +277,7 @@ export default function CampaignDetailPage() {
         className="inline-flex items-center gap-1.5 text-sm font-500 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] mb-6 transition-colors no-underline"
       >
         <ArrowLeft className="size-4" />
-        Back to Campaigns
+        {role === "creator" ? "Back to Collaborations" : "Back to Campaigns"}
       </Link>
 
       {/* Dev mode banner */}
@@ -330,29 +332,37 @@ export default function CampaignDetailPage() {
 
       {/* ── Stats row ── */}
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
-        {/* Budget */}
+        {/* Earnings / Budget */}
         <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex size-9 items-center justify-center rounded-[var(--radius-input)] bg-[var(--color-mint)]/40">
               <IndianRupee className="size-4 text-[var(--color-neutral-600)]" />
             </div>
             <h3 className="text-sm font-600 text-[var(--color-ink)]">
-              Budget Used
+              {role === "creator" ? "Earned" : "Budget Used"}
             </h3>
           </div>
           <p className="text-2xl font-700 text-[var(--color-ink)]">
             {formatINR(campaign.spent_paise)}
-            <span className="text-base font-500 text-[var(--color-neutral-400)]">
-              {" "}
-              / {formatINR(campaign.budget_paise)}
-            </span>
+            {role === "brand" && (
+              <span className="text-base font-500 text-[var(--color-neutral-400)]">
+                {" "}
+                / {formatINR(campaign.budget_paise)}
+              </span>
+            )}
           </p>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-neutral-100)]">
-            <div
-              className="h-full rounded-full bg-[var(--color-gold)] transition-all"
-              style={{ width: `${budgetPercent}%` }}
-            />
-          </div>
+          {role === "brand" ? (
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-neutral-100)]">
+              <div
+                className="h-full rounded-full bg-[var(--color-gold)] transition-all"
+                style={{ width: `${budgetPercent}%` }}
+              />
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-[var(--color-neutral-400)]">
+              From approved generations in this collaboration.
+            </p>
+          )}
         </div>
 
         {/* Generations */}
@@ -362,7 +372,7 @@ export default function CampaignDetailPage() {
               <ImageIcon className="size-4 text-[var(--color-neutral-600)]" />
             </div>
             <h3 className="text-sm font-600 text-[var(--color-ink)]">
-              Generations
+              {role === "creator" ? "Generations of You" : "Generations"}
             </h3>
           </div>
           <p className="text-2xl font-700 text-[var(--color-ink)]">

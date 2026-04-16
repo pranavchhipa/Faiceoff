@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ImageIcon,
   IndianRupee,
+  Handshake,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -54,11 +55,13 @@ const statusColors: Record<string, string> = {
 /* ── Component ── */
 
 export default function CampaignsListPage() {
-  const { user, supabase, isLoading } = useAuth();
+  const { user, supabase, isLoading, role: dbRole } = useAuth();
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const role = user?.user_metadata?.role ?? "creator";
+  // Trust DB-backed role, not stale user_metadata. Treat null as still
+  // loading so we render the spinner instead of a "creator" fallback.
+  const role = dbRole;
 
   useEffect(() => {
     if (!user) return;
@@ -83,7 +86,7 @@ export default function CampaignsListPage() {
   }, [user, role, supabase]);
 
   /* ── Loading state ── */
-  if (isLoading || loading) {
+  if (isLoading || loading || !role) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-surface-container-high)] border-t-[var(--color-primary)]" />
@@ -102,12 +105,12 @@ export default function CampaignsListPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
-            Campaigns
+            {role === "brand" ? "Campaigns" : "Collaborations"}
           </h1>
           <p className="mt-1 text-[var(--color-outline)]">
             {role === "brand"
               ? "Manage your AI content campaigns with creators."
-              : "View campaigns you are assigned to."}
+              : "Brands using your licensed likeness. Approvals happen in the Approvals tab."}
           </p>
         </div>
         {role === "brand" && (
@@ -124,15 +127,19 @@ export default function CampaignsListPage() {
       {campaigns.length === 0 && (
         <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] p-12 text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[var(--color-surface-container-low)]">
-            <Megaphone className="size-6 text-[var(--color-on-surface-variant)]" />
+            {role === "brand" ? (
+              <Megaphone className="size-6 text-[var(--color-on-surface-variant)]" />
+            ) : (
+              <Handshake className="size-6 text-[var(--color-on-surface-variant)]" />
+            )}
           </div>
           <h2 className="text-xl font-700 text-[var(--color-on-surface)] mb-2">
-            No campaigns yet
+            {role === "brand" ? "No campaigns yet" : "No collaborations yet"}
           </h2>
           <p className="text-sm text-[var(--color-outline)] max-w-sm mx-auto mb-6">
             {role === "brand"
               ? "Create your first campaign to start generating AI content with a creator."
-              : "When brands assign you to campaigns, they will appear here."}
+              : "When a brand starts a campaign with your likeness, it will appear here."}
           </p>
           {role === "brand" && (
             <Link href="/dashboard/campaigns/new">
@@ -205,11 +212,13 @@ export default function CampaignsListPage() {
                     <span className="inline-flex items-center gap-1.5">
                       <ImageIcon className="size-3.5" />
                       {campaign.generation_count}/{campaign.max_generations}
+                      {role === "creator" ? " of you" : ""}
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-[var(--color-accent-gold)]">
                       <IndianRupee className="size-3.5" />
-                      {formatINR(campaign.spent_paise)} /{" "}
-                      {formatINR(campaign.budget_paise)}
+                      {role === "brand"
+                        ? `${formatINR(campaign.spent_paise)} / ${formatINR(campaign.budget_paise)}`
+                        : `${formatINR(campaign.spent_paise)} earned`}
                     </span>
                   </div>
                 </Link>
