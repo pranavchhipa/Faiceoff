@@ -266,22 +266,44 @@ export const handleApproval = inngest.createFunction(
 
       const costPaise = gen.cost_paise ?? 0;
 
-      // Update campaign spend + generation count
-      const { data: campaign } = await admin
-        .from("campaigns")
-        .select("spent_paise, generation_count")
-        .eq("id", gen.campaign_id)
-        .single();
+      // ── Idempotency check ────────────────────────────────────────
+      // Inngest retries the entire step on failure. Without a guard the
+      // campaign counter and wallet balances would double-count on each
+      // retry. We check for BOTH the creator credit and the brand debit
+      // separately so a retry after a partial success (creator inserted,
+      // brand didn't) can still complete the other side instead of
+      // bailing out with half-finished state. The unique index from
+      // migration 00015 backs this up at the DB level.
+      const [
+        { data: existingCreditRow },
+        { data: existingDebitRow },
+      ] = await Promise.all([
+        admin
+          .from("wallet_transactions")
+          .select("id")
+          .eq("reference_id", generation_id)
+          .eq("reference_type", "generation")
+          .eq("type", "generation_earning")
+          .maybeSingle(),
+        admin
+          .from("wallet_transactions")
+          .select("id")
+          .eq("reference_id", generation_id)
+          .eq("reference_type", "generation")
+          .eq("type", "generation_spend")
+          .maybeSingle(),
+      ]);
 
-      if (!campaign) throw new Error("Campaign not found");
+      const creatorAlreadySettled = !!existingCreditRow;
+      const brandAlreadySettled = !!existingDebitRow;
+      const fullySettled = creatorAlreadySettled && brandAlreadySettled;
 
-      await admin
-        .from("campaigns")
-        .update({
-          spent_paise: campaign.spent_paise + costPaise,
-          generation_count: campaign.generation_count + 1,
-        })
-        .eq("id", gen.campaign_id);
+      if (fullySettled) {
+        console.log(
+          `[pipeline] Generation ${generation_id} already settled, skipping.`
+        );
+        return;
+      }
 
       // Get user IDs for wallet transactions
       const { data: creatorRow } = await admin
@@ -315,31 +337,72 @@ export const handleApproval = inngest.createFunction(
         return data?.balance_after_paise ?? 0;
       };
 
-      // Creator credit (earning) — balance grows
-      const creatorBalance = await latestBalance(creatorRow.user_id);
-      await admin.from("wallet_transactions").insert({
-        user_id: creatorRow.user_id,
-        type: "generation_earning",
-        amount_paise: costPaise,
-        direction: "credit" as const,
-        reference_id: generation_id,
-        reference_type: "generation",
-        balance_after_paise: creatorBalance + costPaise,
-        description: `Earning for generation ${generation_id}`,
-      });
+      // Creator credit (earning) — balance grows.
+      // Skip if this side was already inserted on a prior attempt.
+      if (!creatorAlreadySettled) {
+        const creatorBalance = await latestBalance(creatorRow.user_id);
+        const { error: creatorTxErr } = await admin
+          .from("wallet_transactions")
+          .insert({
+            user_id: creatorRow.user_id,
+            type: "generation_earning",
+            amount_paise: costPaise,
+            direction: "credit" as const,
+            reference_id: generation_id,
+            reference_type: "generation",
+            balance_after_paise: creatorBalance + costPaise,
+            description: `Earning for generation ${generation_id}`,
+          });
+        if (creatorTxErr) {
+          throw new Error(
+            `Creator wallet insert failed: ${creatorTxErr.message}`
+          );
+        }
+      }
 
       // Brand debit (spend) — balance shrinks
-      const brandBalance = await latestBalance(brandRow.user_id);
-      await admin.from("wallet_transactions").insert({
-        user_id: brandRow.user_id,
-        type: "generation_spend",
-        amount_paise: costPaise,
-        direction: "debit" as const,
-        reference_id: generation_id,
-        reference_type: "generation",
-        balance_after_paise: Math.max(0, brandBalance - costPaise),
-        description: `Spend for generation ${generation_id}`,
-      });
+      if (!brandAlreadySettled) {
+        const brandBalance = await latestBalance(brandRow.user_id);
+        const { error: brandTxErr } = await admin
+          .from("wallet_transactions")
+          .insert({
+            user_id: brandRow.user_id,
+            type: "generation_spend",
+            amount_paise: costPaise,
+            direction: "debit" as const,
+            reference_id: generation_id,
+            reference_type: "generation",
+            balance_after_paise: Math.max(0, brandBalance - costPaise),
+            description: `Spend for generation ${generation_id}`,
+          });
+        if (brandTxErr) {
+          throw new Error(
+            `Brand wallet insert failed: ${brandTxErr.message}`
+          );
+        }
+      }
+
+      // Update campaign spend + generation count. Only on first-time
+      // settlement — if we got here via a retry that completed the missing
+      // wallet side, the campaign row was already bumped on the prior
+      // attempt and we must NOT double-count it.
+      if (!creatorAlreadySettled && !brandAlreadySettled) {
+        const { data: campaign } = await admin
+          .from("campaigns")
+          .select("spent_paise, generation_count")
+          .eq("id", gen.campaign_id)
+          .single();
+
+        if (!campaign) throw new Error("Campaign not found");
+
+        await admin
+          .from("campaigns")
+          .update({
+            spent_paise: campaign.spent_paise + costPaise,
+            generation_count: campaign.generation_count + 1,
+          })
+          .eq("id", gen.campaign_id);
+      }
 
       // Set delivery URL (in production: upload to R2 CDN first)
       await admin
