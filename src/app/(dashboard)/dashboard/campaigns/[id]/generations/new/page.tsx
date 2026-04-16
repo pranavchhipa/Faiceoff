@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/components/providers/auth-provider";
 
 /* ================================================================
    Types
@@ -160,6 +161,15 @@ export default function NewGenerationPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params?.id;
   const router = useRouter();
+  const { role } = useAuth();
+
+  // Only brands can open the new-generation form. If a creator lands here
+  // (bookmark / hand-typed URL), bounce them back to the campaign page.
+  useEffect(() => {
+    if (role === "creator") {
+      router.replace(`/dashboard/campaigns/${campaignId}`);
+    }
+  }, [role, router, campaignId]);
 
   /* Loading / data */
   const [loading, setLoading] = useState(true);

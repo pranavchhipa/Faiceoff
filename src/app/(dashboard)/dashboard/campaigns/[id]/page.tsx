@@ -147,7 +147,7 @@ function hasInProgressGenerations(gens: Generation[]): boolean {
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, role } = useAuth();
 
   const [campaign, setCampaign] = useState<CampaignData | null>(null);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -234,7 +234,11 @@ export default function CampaignDetailPage() {
     );
   }
 
+  // Only brands can start new generations — creators are the face, not the
+  // ones running the campaign. They can only approve/reject via the approvals
+  // flow.
   const canAddGeneration =
+    role === "brand" &&
     campaign.status === "active" &&
     campaign.generation_count < campaign.max_generations;
   const budgetPercent =
@@ -301,7 +305,9 @@ export default function CampaignDetailPage() {
             </span>
           </div>
           <p className="text-sm text-[var(--color-neutral-500)]">
-            Creator: {campaign.creator_display_name}
+            {role === "creator"
+              ? `Brand: ${campaign.brand_display_name}`
+              : `Creator: ${campaign.creator_display_name}`}
           </p>
           {campaign.description && (
             <p className="text-sm text-[var(--color-neutral-500)] mt-1">
