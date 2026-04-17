@@ -2,11 +2,14 @@
 // Source: C:/Users/Pranav/Downloads/Faiceoff white.png
 //
 // Outputs:
-//   src/app/icon.png           — 512×512  (served at /icon)
-//   src/app/apple-icon.png     — 180×180  (served at /apple-icon)
-//   src/app/opengraph-image.png — 1200×630 (served at /opengraph-image)
-//   public/logo-mark.png       — 512×512  (for in-app use)
-//   src/app/favicon.ico        — multi-res ico (16/32/48)
+//   src/app/icon.png               — 512×512  (served at /icon)
+//   src/app/apple-icon.png         — 180×180  (served at /apple-icon)
+//   src/app/opengraph-image.png    — 1200×630 (served at /opengraph-image)
+//   src/app/twitter-image.png      — 1200×630 (served at /twitter-image, for X cards)
+//   src/app/opengraph-image.alt.txt — alt text for og:image:alt
+//   src/app/twitter-image.alt.txt  — alt text for twitter:image:alt
+//   public/logo-mark.png           — 512×512  (for in-app use)
+//   src/app/favicon.ico            — multi-res ico (16/32/48)
 
 import fs from "node:fs";
 import path from "node:path";
@@ -73,8 +76,15 @@ async function main() {
   // 180×180 Apple touch
   fs.writeFileSync(path.join(APP, "apple-icon.png"), await makeIcon(180));
 
-  // 1200×630 OG
-  fs.writeFileSync(path.join(APP, "opengraph-image.png"), await makeOG());
+  // 1200×630 OG + Twitter (same image, two file conventions)
+  const og = await makeOG();
+  fs.writeFileSync(path.join(APP, "opengraph-image.png"), og);
+  fs.writeFileSync(path.join(APP, "twitter-image.png"), og);
+
+  // alt text for social previews (screen readers + WhatsApp accessibility)
+  const ALT = "Faiceoff — A House for Licensed Likeness";
+  fs.writeFileSync(path.join(APP, "opengraph-image.alt.txt"), ALT);
+  fs.writeFileSync(path.join(APP, "twitter-image.alt.txt"), ALT);
 
   // favicon.ico fallback — generate from a 32×32 PNG via png-to-ico if available,
   // otherwise save a 32×32 PNG as .ico is no-go, so use alt path: rely on icon.png.
@@ -94,7 +104,9 @@ async function main() {
     );
   }
 
-  console.log("wrote icon.png (512), apple-icon.png (180), opengraph-image.png (1200×630), public/logo-mark.png (512)");
+  console.log(
+    "wrote icon.png (512), apple-icon.png (180), opengraph-image.png + twitter-image.png (1200×630), alt .txt files, public/logo-mark.png (512)"
+  );
 }
 
 main().catch((e) => {

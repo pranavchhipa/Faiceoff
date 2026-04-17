@@ -43,18 +43,48 @@ const manrope = Manrope({
 
 /* ── Metadata ── */
 
+// In production NEXT_PUBLIC_APP_URL should be set to https://faiceoff.com.
+// Fall back to the live domain (not localhost) so OG image URLs sent to
+// WhatsApp / iMessage / Twitter / LinkedIn are absolute & resolvable even
+// when the env var is missing. Icons and og:image tags are auto-generated
+// by Next.js from the file conventions in src/app/.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  (process.env.NODE_ENV === "production"
+    ? "https://faiceoff.com"
+    : "http://localhost:3000");
+
+const SITE_TITLE = "Faiceoff — A House for Licensed Likeness";
+const SITE_DESC =
+  "The marketplace where creators license their likeness and brands generate authentic, consented AI content. Fair face, fair deal.";
+
 export const metadata: Metadata = {
-  title: "Faiceoff — A House for Licensed Likeness",
-  description:
-    "The marketplace where creators license their likeness and brands generate authentic, consented AI content. Fair face, fair deal.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-  ),
+  title: SITE_TITLE,
+  description: SITE_DESC,
+  metadataBase: new URL(SITE_URL),
+  applicationName: "Faiceoff",
+  keywords: [
+    "AI likeness licensing",
+    "creator marketplace India",
+    "influencer AI",
+    "brand UGC",
+    "consent-first AI",
+    "DPDP compliant",
+    "Razorpay payouts",
+  ],
+  alternates: { canonical: "/" },
   openGraph: {
-    title: "Faiceoff — A House for Licensed Likeness",
-    description:
-      "The marketplace where creators license their likeness and brands generate authentic, consented AI content.",
+    title: SITE_TITLE,
+    description: SITE_DESC,
     type: "website",
+    url: SITE_URL,
+    siteName: "Faiceoff",
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESC,
   },
 };
 
