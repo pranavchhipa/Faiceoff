@@ -164,10 +164,15 @@ export async function generateWithNanoBanana(
       throw err; // propagate so router can fall back to v3
     }
     const msg = err instanceof Error ? err.message : String(err);
+    // Fall back to Flash Image when Pro is:
+    //  - not available on this key (404/permission)
+    //  - quota-exhausted (429/RESOURCE_EXHAUSTED) — Pro has a much tighter
+    //    free-tier quota than Flash, so Flash often still works.
     const isAvailabilityIssue =
       /404|NOT_FOUND|PERMISSION_DENIED|UNAUTHENTICATED|model.+not.+found/i.test(msg);
-    if (!isAvailabilityIssue) throw err;
-    // Try fallback (2.5 Flash Image) if Pro isn't enabled on this key
+    const isQuotaIssue =
+      /429|RESOURCE_EXHAUSTED|quota|rate.?limit|exceeded/i.test(msg);
+    if (!isAvailabilityIssue && !isQuotaIssue) throw err;
     return tryModel(MODELS.nanoBananaFallback);
   }
 }
