@@ -4,6 +4,7 @@ import {
   getReplicateUsername,
   creatorModelName,
 } from "@/lib/ai/lora-training";
+import { inngest } from "@/inngest/client";
 
 /**
  * POST /api/lora/webhook
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
           training_completed_at: new Date().toISOString(),
         })
         .eq("id", lora.id);
+
+      await inngest.send({
+        name: "creator/lora-training-completed",
+        data: { creator_id: lora.creator_id },
+      });
 
       console.log(
         `[lora/webhook] Training ${trainingId} succeeded → model ${modelId}`

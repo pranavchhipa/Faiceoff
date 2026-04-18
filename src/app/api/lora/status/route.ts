@@ -6,6 +6,7 @@ import {
   getReplicateUsername,
   creatorModelName,
 } from "@/lib/ai/lora-training";
+import { inngest } from "@/inngest/client";
 
 /**
  * GET /api/lora/status
@@ -97,6 +98,11 @@ export async function GET() {
           training_completed_at: new Date().toISOString(),
         })
         .eq("id", lora.id);
+
+      await inngest.send({
+        name: "creator/lora-training-completed",
+        data: { creator_id: creator.id },
+      });
 
       return NextResponse.json({
         status: "completed",
