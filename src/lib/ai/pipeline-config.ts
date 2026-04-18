@@ -11,10 +11,10 @@ export const DEFAULT_PIPELINE_VERSION: PipelineVersion =
 export const MAX_RETRIES: number = Number(process.env.GENERATION_MAX_RETRIES ?? 2);
 
 export const MODELS = {
-  // v2 primary
-  nanoBanana: process.env.NANO_BANANA_MODEL ?? "gemini-3.0-pro-image",
+  // v2 primary — routed via OpenRouter so we use OR credits instead of Google billing
+  nanoBanana: process.env.NANO_BANANA_MODEL ?? "google/gemini-3-pro-image-preview",
   nanoBananaFallback:
-    process.env.NANO_BANANA_FALLBACK_MODEL ?? "gemini-2.5-flash-image",
+    process.env.NANO_BANANA_FALLBACK_MODEL ?? "google/gemini-2.5-flash-image-preview",
   // v3 fallback
   kontext: process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max",
   // Stage 3 + Stage 2 support models (all Replicate)
@@ -34,12 +34,15 @@ export function resolvePipelineVersion(
   return overrideFromBrief ?? DEFAULT_PIPELINE_VERSION;
 }
 
-export function requireGoogleAiKey(): string {
-  const key = process.env.GOOGLE_AI_API_KEY;
+export function requireOpenRouterKey(): string {
+  const key = process.env.OPENROUTER_API_KEY;
   if (!key) {
     throw new Error(
-      "GOOGLE_AI_API_KEY is required for v2 pipeline (Nano Banana Pro). Get one from https://aistudio.google.com/app/apikey"
+      "OPENROUTER_API_KEY is required for v2 pipeline (Nano Banana Pro via OpenRouter). Get one from https://openrouter.ai/keys"
     );
   }
   return key;
 }
+
+/** @deprecated v2 now routes through OpenRouter; kept as alias in case other callers imported it. */
+export const requireGoogleAiKey = requireOpenRouterKey;
