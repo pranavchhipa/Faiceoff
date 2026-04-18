@@ -4,6 +4,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { inngest } from "@/inngest/client";
 import type { Json } from "@/types/supabase";
 
+/**
+ * Aspect ratios supported by the v2 pipeline (Nano Banana Pro / Kontext Max).
+ * Kept in sync with src/domains/generation/types.ts#AspectRatio.
+ */
+const ALLOWED_ASPECT_RATIOS = ["1:1", "9:16", "16:9", "4:5", "3:2"] as const;
+type AllowedAspectRatio = (typeof ALLOWED_ASPECT_RATIOS)[number];
+
+function normalizeAspectRatio(input: unknown): AllowedAspectRatio {
+  return typeof input === "string" &&
+    (ALLOWED_ASPECT_RATIOS as readonly string[]).includes(input)
+    ? (input as AllowedAspectRatio)
+    : "1:1";
+}
+
 export async function POST(request: Request) {
   // --- Auth ---
   const supabase = await createClient();
@@ -46,6 +60,16 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // Normalize aspect_ratio on the brief before it's persisted. The pipeline
+  // reads brief.aspect_ratio and defaults to "1:1" if missing — this is
+  // defense-in-depth so only known values can flow through.
+  const normalizedBrief: Record<string, unknown> = {
+    ...structured_brief,
+    aspect_ratio: normalizeAspectRatio(
+      (structured_brief as Record<string, unknown>).aspect_ratio,
+    ),
+  };
 
   const admin = createAdminClient();
 
@@ -94,7 +118,7 @@ export async function POST(request: Request) {
 
   // --- Check budget against creator price ---
   // Try to match the category from structured_brief, fall back to first active category
-  const briefCategory = structured_brief.category as string | undefined;
+  const briefCategory = normalizedBrief.category as string | undefined;
 
   let categoryQuery = admin
     .from("creator_categories")
@@ -159,7 +183,7 @@ export async function POST(request: Request) {
       campaign_id: campaign.id,
       brand_id: brand.id,
       creator_id: campaign.creator_id,
-      structured_brief: structured_brief as unknown as Json,
+      structured_brief: normalizedBrief as unknown as Json,
       status: "draft",
       cost_paise: creatorCategory.price_per_generation_paise,
     })
