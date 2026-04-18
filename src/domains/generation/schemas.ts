@@ -47,6 +47,8 @@ export const submitBriefSchema = z.object({
     .trim()
     .nullable()
     .optional(),
+  aspect_ratio: z.enum(["1:1", "16:9", "9:16", "4:5", "3:2"]).default("1:1"),
+  pipeline_version: z.enum(["v1", "v2", "v3"]).optional(),
 })
 
 export type SubmitBriefInput = z.infer<typeof submitBriefSchema>
