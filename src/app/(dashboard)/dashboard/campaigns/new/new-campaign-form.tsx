@@ -33,6 +33,8 @@ interface CreatorOption {
   categories: { category: string; price_per_generation_paise: number }[];
 }
 
+type AspectRatioValue = "1:1" | "9:16" | "16:9" | "4:5" | "3:2";
+
 interface PromptBrief {
   setting: string;
   settingCustom: string;
@@ -47,7 +49,20 @@ interface PromptBrief {
   productName: string;
   productDescription: string;
   productImageUrl: string;
+  aspectRatio: AspectRatioValue;
 }
+
+/**
+ * Aspect ratios supported by the v2 pipeline (Nano Banana Pro).
+ * The label is shown in the pill alongside the ratio for quick orientation.
+ */
+const ASPECT_RATIOS: { value: AspectRatioValue; label: string }[] = [
+  { value: "1:1", label: "Square" },
+  { value: "9:16", label: "Reel" },
+  { value: "16:9", label: "Wide" },
+  { value: "4:5", label: "Portrait" },
+  { value: "3:2", label: "Classic" },
+];
 
 /* ================================================================
    Constants
@@ -257,8 +272,16 @@ export function NewCampaignForm() {
   );
 
   // Step 2: Prompt builder
-  const [brief, setBrief] = useState<PromptBrief>(
-    initialDraft?.brief ?? {
+  const [brief, setBrief] = useState<PromptBrief>(() => {
+    // If a saved draft exists but predates the aspectRatio field, default it in.
+    const saved = initialDraft?.brief;
+    if (saved) {
+      return {
+        ...saved,
+        aspectRatio: saved.aspectRatio ?? "1:1",
+      };
+    }
+    return {
       setting: "",
       settingCustom: "",
       pose: "",
@@ -272,8 +295,9 @@ export function NewCampaignForm() {
       productName: "",
       productDescription: "",
       productImageUrl: "",
-    }
-  );
+      aspectRatio: "1:1",
+    };
+  });
 
   // Autosave draft whenever any tracked field changes.
   // Runs on every render after state change — cheap JSON.stringify of small
@@ -502,6 +526,7 @@ export function NewCampaignForm() {
         product_name: brief.productName || null,
         product_description: brief.productDescription || null,
         product_image_url: brief.productImageUrl || null,
+        aspect_ratio: brief.aspectRatio ?? "1:1",
       };
 
       const genRes = await fetch("/api/generations/create", {
@@ -1008,6 +1033,51 @@ export function NewCampaignForm() {
                   rows={2}
                   className="w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
+              </div>
+
+              {/* ── Output aspect ratio selector ──
+               *
+               * Lives in Step 2 alongside the other creative controls. The
+               * value flows into structured_brief.aspect_ratio, which the v2
+               * pipeline router passes through to Nano Banana Pro / Kontext.
+               */}
+              <div className="flex flex-col gap-2 mt-5">
+                <Label className="text-sm font-600 text-[var(--color-ink)]">
+                  Output aspect ratio
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {ASPECT_RATIOS.map(({ value, label }) => {
+                    const active = brief.aspectRatio === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() =>
+                          setBrief((b) => ({ ...b, aspectRatio: value }))
+                        }
+                        className={`inline-flex items-center gap-2 rounded-[var(--radius-button)] border px-3 py-1.5 text-sm font-600 transition-colors ${
+                          active
+                            ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white"
+                            : "border-[var(--color-neutral-200)] bg-white text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-50)]"
+                        }`}
+                      >
+                        <span>{value}</span>
+                        <span
+                          className={`text-xs font-500 ${
+                            active
+                              ? "text-white/80"
+                              : "text-[var(--color-neutral-400)]"
+                          }`}
+                        >
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-[var(--color-neutral-400)]">
+                  Pick the shape you want the generated image in.
+                </p>
               </div>
 
               <Separator className="my-6" />
