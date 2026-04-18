@@ -10,34 +10,35 @@ import { chatCompletion } from "./openrouter-client";
  * Uses a fast, cheap LLM via OpenRouter (Google Gemini Flash).
  */
 
-const SYSTEM_PROMPT = `You are a world-class AI prompt engineer specialising in commercial product photography and influencer marketing content.
+const SYSTEM_PROMPT = `You are a commercial photography art director writing prompts for Nano Banana Pro (Google Gemini Image), a multi-reference photorealistic generator.
 
-Your job is to take a structured brief and produce a single, highly detailed image-generation prompt that will create stunning, photorealistic marketing content.
+Given a structured brief (JSON with product info, scene, composition, aspect_ratio), output ONE prompt string in this exact structure:
 
-RULES:
-1. Output ONLY the final prompt — no explanations, no quotes, no markdown
-2. The prompt must be a single paragraph, 40-80 words
-3. Always include the subject name exactly as given (this is the LoRA trigger word)
-4. Use professional photography terminology: lighting styles, lens effects, composition techniques
-5. If a product is mentioned, describe the subject naturally interacting with it (holding, wearing, using, showcasing)
-6. Include quality markers: "8K", "commercial photography", "sharp focus", "professional lighting"
-7. NEVER include negative prompts, NEVER use brackets/parentheses for emphasis
-8. Make it feel natural — like a real photoshoot brief from a creative director
-9. If product description is given, weave specific product details (color, material, shape) into the scene naturally
-10. Always end with technical quality descriptors
+"A candid photograph of a person [interaction verb: holding / wearing / using] [product_name]. [scene_description in one sentence].
 
-EXAMPLE INPUT:
-subject: Pranav
-setting: Cafe
-pose: Sitting
-expression: Laughing
-style: Photorealistic
-outfit: pink tshirt
-product_name: boAt Rockerz 450
-product_description: Matte black over-ear wireless headphones with red accents
+Technical: shot on Sony A7IV with 85mm f/1.4 prime, natural window light from camera left, golden hour, shallow depth of field, subsurface scattering on skin, visible pores, 35mm film grain, slight chromatic aberration, unretouched, Kodak Portra 400 color palette.
 
-EXAMPLE OUTPUT:
-Professional lifestyle photograph of Pranav sitting at a sunlit cafe table, laughing naturally while wearing boAt Rockerz 450 matte black over-ear headphones with red accents around his neck, dressed in a casual pink tshirt, warm golden-hour window light creating soft highlights, shallow depth of field with subject in sharp focus, blurred cafe background with bokeh, commercial product photography, 8K resolution, photorealistic`;
+Composition: [composition_hint from brief]. Aspect: [aspect_ratio from brief].
+
+CRITICAL: Preserve the exact product from the product reference image — its shape, colour, label typography, and any text on the pack must remain pixel-faithful. Preserve the exact person identity from the face reference pack — same facial structure, skin tone, and hair.
+
+Avoid: plastic skin, waxy finish, cgi look, 3d render, airbrushing, over-smooth skin, glossy artificial highlights, uncanny eyes, distorted anatomy, extra fingers, malformed hands, blurry focus, jpeg artifacts, watermarks, text overlays, fabricated logos, product text distortion."
+
+Rules:
+- No LoRA trigger words (Nano Banana is not LoRA — do NOT include "TOK" or similar; the face pack handles identity)
+- No stylistic adjectives like "beautiful", "stunning", "amazing" — they flatten realism
+- Use product_name exactly as given — do not rename or paraphrase
+- Keep under 900 characters total
+- Output prompt text only, no prose, no markdown, no quotes`;
+
+/**
+ * Negative guidance for v3 (Kontext Max) pipeline which accepts a structured
+ * negative_prompt parameter. v2 (Nano Banana Pro) has the same text merged
+ * inline into the user prompt via the system prompt above, since Gemini
+ * Image has no separate negative parameter.
+ */
+export const NEGATIVE_PROMPT =
+  "plastic skin, waxy, cgi, 3d render, airbrushed, over-smooth, smooth skin, perfect skin, glossy, artificial, uncanny, distorted anatomy, extra fingers, six fingers, malformed hands, blurry, low quality, jpeg artifacts, watermark, text overlay, logo mismatch, product text distortion";
 
 interface StructuredBrief {
   subject?: string;
