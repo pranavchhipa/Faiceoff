@@ -1,22 +1,7 @@
-import { MODELS, requireOpenRouterKey } from "./pipeline-config";
+import { GoogleGenAI } from "@google/genai";
+import { MODELS, requireGoogleAiKey } from "./pipeline-config";
 import type { AspectRatio } from "@/domains/generation/types";
 import { ASPECT_RATIO_DIMENSIONS } from "@/domains/generation/types";
-
-/**
- * Nano Banana Pro (Gemini 3 Pro Image / Gemini 2.5 Flash Image) client —
- * routed through OpenRouter's OpenAI-compatible chat completions API.
- *
- * We use OpenRouter (not Google AI Studio directly) because:
- *   1. OpenRouter credits are pre-paid, so no Google billing account hassles.
- *   2. Same model weights, same quality — just a proxy.
- *   3. One auth surface for all LLM + image calls in this codebase.
- *
- * OpenRouter exposes Gemini image generation via chat/completions with
- * `modalities: ["image", "text"]` and returns the generated image in
- * `choices[0].message.images[0].image_url.url` as a data: URL (base64).
- */
-
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 export interface NanoBananaGenerateInput {
   /** LLM-assembled cinematic prompt (negative guidance merged inline — see prompt-assembler) */
@@ -27,23 +12,23 @@ export interface NanoBananaGenerateInput {
   productImageUrl: string;
   /** Target aspect ratio */
   aspectRatio: AspectRatio;
-  /** Seed for reproducibility / retry variance */
+  /** Seed for reproducibility / retry variance (Gemini "seed" in generationConfig) */
   seed?: number;
 }
 
 export interface NanoBananaGenerateResult {
-  /** Generated image URL (data: URL; caller re-uploads to R2) */
+  /** Generated image URL (temporary; caller re-uploads to R2) */
   imageUrl: string;
   /** Provider operation / response ID for audit */
   predictionId: string;
-  /** Actual dimensions produced (from ASPECT_RATIO_DIMENSIONS lookup) */
+  /** Actual dimensions produced (from response metadata, else ASPECT_RATIO_DIMENSIONS lookup) */
   width: number;
   height: number;
   /** Model slug actually used (resolves Pro vs fallback) */
   modelUsed: string;
 }
 
-/** Recognized safety block — worth falling back to v3 Kontext Max for same generation. */
+/** Recognized Gemini safety block — worth falling back to v3 Kontext Max for same generation. */
 export class NanoBananaSafetyBlockedError extends Error {
   constructor(public readonly raw: unknown) {
     super("Nano Banana Pro refused prompt for safety reasons");
@@ -52,161 +37,115 @@ export class NanoBananaSafetyBlockedError extends Error {
 }
 
 /**
- * Fetch a remote image URL and return it as a data: URL ready for the
- * OpenAI-compatible `image_url` content part. OpenRouter accepts either a
- * remote https URL or an inline base64 data URL; we inline so we don't rely
- * on the signed Supabase URL still being valid when OR fetches it.
+ * Fetch a remote image URL and return a Buffer + MIME type for inline payload.
+ * Gemini's image-input API takes base64-encoded inline data OR fileData refs;
+ * we use inline data so we don't need to maintain a Google Cloud Storage bucket.
  */
-async function fetchAsDataUrl(url: string): Promise<string> {
+async function fetchAsInlineData(
+  url: string
+): Promise<{ data: string; mimeType: string }> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch reference image ${url}: HTTP ${res.status}`);
   }
   const mimeType = res.headers.get("content-type") ?? "image/png";
   const bytes = new Uint8Array(await res.arrayBuffer());
-  const base64 = Buffer.from(bytes).toString("base64");
-  return `data:${mimeType};base64,${base64}`;
-}
-
-/** OpenRouter response shape for image generation (strict subset of OpenAI's). */
-interface OpenRouterImageResponse {
-  id?: string;
-  choices?: Array<{
-    finish_reason?: string | null;
-    native_finish_reason?: string | null;
-    message?: {
-      role?: string;
-      content?: string | null;
-      images?: Array<{
-        type?: string;
-        image_url?: { url?: string };
-      }>;
-    };
-    error?: { message?: string; code?: string | number };
-  }>;
-  error?: { message?: string; code?: string | number };
+  // Node-friendly base64 encode (works in Next.js server runtime)
+  const data = Buffer.from(bytes).toString("base64");
+  return { data, mimeType };
 }
 
 /**
- * Call Nano Banana (via OpenRouter) with:
+ * Call Nano Banana Pro (Gemini 3 Pro Image or 2.5 Flash Image) with:
  *   - a cinematic text prompt (includes negative guidance inline)
  *   - a product reference photo (to preserve)
  *   - a face anchor pack (3-5 images to preserve identity)
  *
- * On primary-model failure (availability OR quota), we retry once on the
- * fallback model (Flash Image).
+ * Gemini image models accept a multi-part `contents` array where each part
+ * is either text or inlineData (base64-encoded image). We assemble:
+ *   [text prompt, product image, ...face anchors]
+ *
+ * If the primary "Pro" model throws NOT_FOUND or PERMISSION_DENIED (some API
+ * keys don't have Pro access), we retry once on the fallback model.
+ *
+ * Note: Gemini SDK surface evolves — verify the latest call shape against
+ *   https://ai.google.dev/gemini-api/docs/image-generation
+ * at integration time. The shape below is accurate for @google/genai >= 0.3.x
+ * as of 2026-04.
  */
 export async function generateWithNanoBanana(
   input: NanoBananaGenerateInput
 ): Promise<NanoBananaGenerateResult> {
-  const apiKey = requireOpenRouterKey();
+  const ai = new GoogleGenAI({ apiKey: requireGoogleAiKey() });
   const dims = ASPECT_RATIO_DIMENSIONS[input.aspectRatio];
 
-  // Inline product + up to 5 face anchors as data URLs.
-  const [productDataUrl, ...anchorDataUrls] = await Promise.all([
-    fetchAsDataUrl(input.productImageUrl),
-    ...input.faceAnchorPack.slice(0, 5).map(fetchAsDataUrl),
+  // Assemble multi-part contents: prompt + product image + face anchors (first 5)
+  const [productInline, ...anchorInlines] = await Promise.all([
+    fetchAsInlineData(input.productImageUrl),
+    ...input.faceAnchorPack.slice(0, 5).map(fetchAsInlineData),
   ]);
 
   const promptWithAspect = `${input.prompt}\n\nTarget aspect ratio: ${input.aspectRatio}.`;
 
-  // OpenAI-compatible multimodal content parts: text + product + face anchors.
-  const content: Array<
-    | { type: "text"; text: string }
-    | { type: "image_url"; image_url: { url: string } }
-  > = [
-    { type: "text", text: promptWithAspect },
-    { type: "image_url", image_url: { url: productDataUrl } },
-    ...anchorDataUrls.map((url) => ({
-      type: "image_url" as const,
-      image_url: { url },
-    })),
+  const parts = [
+    { text: promptWithAspect },
+    { inlineData: productInline },
+    ...anchorInlines.map((a) => ({ inlineData: a })),
   ];
 
-  async function tryModel(modelName: string): Promise<NanoBananaGenerateResult> {
-    const body: Record<string, unknown> = {
-      model: modelName,
-      // Ask for an image back, not just text.
-      modalities: ["image", "text"],
-      messages: [{ role: "user", content }],
-      temperature: 0.9,
-    };
-    if (typeof input.seed === "number") {
-      body.seed = input.seed;
-    }
+  const generationConfig: Record<string, unknown> = {
+    responseModalities: ["IMAGE"],
+    temperature: 0.9,
+  };
+  if (typeof input.seed === "number") {
+    generationConfig.seed = input.seed;
+  }
 
-    const res = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-        "X-Title": "Faiceoff",
-      },
-      body: JSON.stringify(body),
+  async function tryModel(modelName: string): Promise<NanoBananaGenerateResult> {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts }],
+      config: generationConfig,
     });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      // OpenRouter returns 4xx for safety blocks from upstream providers —
-      // the body usually contains "moderation", "safety", or "content_policy".
-      if (
-        res.status === 400 &&
-        /moderat|safety|content[_\s-]?polic|prohibited/i.test(errBody)
-      ) {
-        throw new NanoBananaSafetyBlockedError(errBody);
-      }
-      throw new Error(
-        `OpenRouter API error (${res.status}) on ${modelName}: ${errBody}`
-      );
+    // Safety block detection
+    const candidate = response.candidates?.[0];
+    if (!candidate) {
+      throw new NanoBananaSafetyBlockedError(response);
     }
-
-    const json = (await res.json()) as OpenRouterImageResponse;
-
-    // Upstream-level errors surface either at top level or per-choice even on 200.
-    if (json.error) {
-      const msg = json.error.message ?? JSON.stringify(json.error);
-      if (/moderat|safety|content[_\s-]?polic|prohibited/i.test(msg)) {
-        throw new NanoBananaSafetyBlockedError(json.error);
-      }
-      throw new Error(`OpenRouter error on ${modelName}: ${msg}`);
-    }
-
-    const choice = json.choices?.[0];
-    if (!choice) {
-      throw new Error(
-        `OpenRouter returned no choices on ${modelName} (response id=${json.id ?? "?"})`
-      );
-    }
-
-    // Safety-block detection: OpenRouter maps Gemini's SAFETY/PROHIBITED to
-    // finish_reason "content_filter" (OpenAI convention). The
-    // native_finish_reason preserves the provider's original label.
-    const finish = choice.finish_reason ?? choice.native_finish_reason ?? "";
     if (
-      /content_filter|safety|prohibited|blocklist/i.test(finish)
+      candidate.finishReason === "SAFETY" ||
+      candidate.finishReason === "PROHIBITED_CONTENT" ||
+      candidate.finishReason === "BLOCKLIST"
     ) {
-      throw new NanoBananaSafetyBlockedError(choice);
-    }
-    if (choice.error) {
-      const msg = choice.error.message ?? JSON.stringify(choice.error);
-      if (/moderat|safety|content[_\s-]?polic|prohibited/i.test(msg)) {
-        throw new NanoBananaSafetyBlockedError(choice.error);
-      }
-      throw new Error(`OpenRouter choice error on ${modelName}: ${msg}`);
+      throw new NanoBananaSafetyBlockedError(candidate);
     }
 
-    // Extract generated image from message.images[0].image_url.url (data URL).
-    const image = choice.message?.images?.[0];
-    const imageUrl = image?.image_url?.url;
-    if (!imageUrl) {
+    // Extract inline image bytes from first image part
+    const imagePart = candidate.content?.parts?.find(
+      (p: unknown): p is { inlineData: { data: string; mimeType: string } } =>
+        typeof p === "object" &&
+        p !== null &&
+        "inlineData" in p &&
+        typeof (p as { inlineData: { data?: unknown } }).inlineData?.data ===
+          "string"
+    );
+    if (!imagePart) {
       throw new Error(
-        `OpenRouter returned no image on ${modelName} (finish_reason=${finish || "unknown"})`
+        `Nano Banana returned no image part (finishReason=${candidate.finishReason ?? "unknown"})`
       );
     }
+
+    const base64 = imagePart.inlineData.data;
+    const mime = imagePart.inlineData.mimeType ?? "image/png";
+
+    // Upload to a short-lived data URL; downstream code re-uploads to R2.
+    // We return a data: URL so the pipeline's existing "fetch + upload to R2"
+    // pattern works without branching on provider.
+    const imageUrl = `data:${mime};base64,${base64}`;
 
     const predictionId =
-      json.id ??
+      response.responseId ??
       `nano_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
     return {
@@ -227,14 +166,12 @@ export async function generateWithNanoBanana(
     const msg = err instanceof Error ? err.message : String(err);
     // Fall back to Flash Image when Pro is:
     //  - not available on this key (404/permission)
-    //  - quota-exhausted (429/RESOURCE_EXHAUSTED) — Pro has tighter rate
-    //    limits than Flash on OpenRouter, so Flash often still works.
+    //  - quota-exhausted (429/RESOURCE_EXHAUSTED) — Pro has a much tighter
+    //    free-tier quota than Flash, so Flash often still works.
     const isAvailabilityIssue =
-      /404|NOT_FOUND|PERMISSION_DENIED|UNAUTHENTICATED|model.+not.+found|no.+endpoints/i.test(
-        msg
-      );
+      /404|NOT_FOUND|PERMISSION_DENIED|UNAUTHENTICATED|model.+not.+found/i.test(msg);
     const isQuotaIssue =
-      /429|RESOURCE_EXHAUSTED|quota|rate.?limit|exceeded|insufficient/i.test(msg);
+      /429|RESOURCE_EXHAUSTED|quota|rate.?limit|exceeded/i.test(msg);
     if (!isAvailabilityIssue && !isQuotaIssue) throw err;
     return tryModel(MODELS.nanoBananaFallback);
   }
