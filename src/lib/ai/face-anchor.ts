@@ -136,25 +136,29 @@ export async function generateAndCacheFaceAnchorPack(
   const admin = createAdminClient();
   const runId = Date.now().toString(36);
 
-  const raw = await Promise.all(
-    ANCHOR_PROMPTS.map((p) =>
-      runOneAnchor({
-        loraModelId: input.loraModelId,
-        triggerWord: input.triggerWord,
-        prompt: p.prompt,
-      })
-    )
-  );
+  // Sequential instead of Promise.all: Replicate throttles free-tier / low-
+  // credit accounts to "burst of 1" concurrent prediction, so firing 4 LoRA
+  // calls in parallel produces 3 immediate 429s. Sequential adds ~45s to a
+  // once-per-creator operation — acceptable tradeoff for reliability.
+  const raw: string[] = [];
+  for (const p of ANCHOR_PROMPTS) {
+    const url = await runOneAnchor({
+      loraModelId: input.loraModelId,
+      triggerWord: input.triggerWord,
+      prompt: p.prompt,
+    });
+    raw.push(url);
+  }
 
-  const uploadedPaths = await Promise.all(
-    raw.map((sourceUrl, i) =>
-      fetchAndUpload({
-        admin,
-        sourceUrl,
-        storagePath: `${R2_FACE_ANCHORS_PREFIX}${input.creatorId}/${runId}-${ANCHOR_PROMPTS[i].slot}.png`,
-      })
-    )
-  );
+  const uploadedPaths: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const path = await fetchAndUpload({
+      admin,
+      sourceUrl: raw[i],
+      storagePath: `${R2_FACE_ANCHORS_PREFIX}${input.creatorId}/${runId}-${ANCHOR_PROMPTS[i].slot}.png`,
+    });
+    uploadedPaths.push(path);
+  }
 
   // Cast needed: migration 00016 added face_anchor_pack/face_anchor_generated_at;
   // src/types/supabase.ts hasn't been regenerated yet.
