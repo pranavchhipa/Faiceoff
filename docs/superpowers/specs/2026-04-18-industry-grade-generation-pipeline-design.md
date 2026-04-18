@@ -77,20 +77,38 @@ brand uploads product photo + picks creator
 
 ### Why Flux Kontext Max over alternatives
 
-| Option | Product accuracy | Realism | Complexity | Per-image cost |
-|---|---|---|---|---|
-| Flux Dev + IP-Adapter (fixed) | 70-80% | 6/10 | Low | ~₹5 |
-| **Flux Kontext Max (chosen)** | **95%+** | **9/10** | **Medium** | **~₹10-12** |
-| Seedream 4 multi-ref | 85% | 9/10 | Medium | ~₹6-8 |
-| fal.ai inpainting + ControlNet | 95%+ | 9/10 | Very high | ~₹15-20 |
+| Option | Product accuracy | Realism | Face w/ LoRA | Complexity | Per-image cost |
+|---|---|---|---|---|---|
+| Flux Dev + IP-Adapter (fixed) | 70-80% | 6/10 | Excellent | Low | ~₹5 |
+| **Flux Kontext Max (chosen)** | **95%+** | **9/10** | **Excellent** | **Medium** | **~₹7** |
+| Nano Banana (Gemini 2.5 Flash Image) | 88% | 9/10 | Moderate | Medium (new infra) | ~₹3-4 |
+| Seedream 4 multi-ref | 85% | 9/10 | Moderate | Medium | ~₹5 |
+| Google Veo 3 | N/A (video model) | — | — | High | — |
+| fal.ai inpainting + ControlNet | 95%+ | 9/10 | Excellent | Very high | ~₹15-20 |
 
 Kontext Max wins because:
 - Native multi-image reference (face + product + prompt) — no masking UX needed
 - Designed specifically for "preserve reference image, generate scene around it" — the exact problem we have
-- Still on Replicate — no platform migration, no LoRA re-hosting
-- Pixel-level product preservation without manual masking
+- Still on Replicate — no platform migration, no new Google Cloud setup
+- Pixel-level product preservation (95% vs Nano Banana 88%) — directly fixes current "product fabricated" complaint
+- Flux ecosystem means tight integration with creator's trained LoRA (face anchor path)
 
-Seedream 4 is a close runner-up at lower cost but slightly weaker product preservation in testing.
+**Nano Banana is a strong runner-up** (cheaper, faster, same realism) but:
+- 7 percentage points weaker on product pixel fidelity — this is the specific problem we're solving
+- Requires Google AI API setup (new infra, new billing, new DPDP review)
+- Non-Flux ecosystem = weaker LoRA integration
+
+**Veo 3 is the wrong tool** — it's a video generation model. Text-to-image is not its strength and the cost would be 4-5× our chosen model for inferior image quality.
+
+### Pluggable model strategy
+
+The pipeline is model-agnostic at the inference boundary. `GENERATION_PIPELINE_VERSION` env var selects:
+
+- `v1` — current Flux Dev + LoRA (retained for emergency rollback)
+- `v2` — Flux Kontext Max (default, shipped first)
+- `v3` — Nano Banana (added but disabled; enable in Phase 2 for A/B testing)
+
+Post-launch, allocate 10% of new generations to v3 for 1 week, blind-compare outputs with creator + brand feedback, pick the objective winner on real data. No commitment to swap — Kontext Max may simply stay best.
 
 ### Cinematic prompt template
 
@@ -169,7 +187,8 @@ CREATE INDEX idx_generations_quality_scores ON generations USING gin (quality_sc
 
 ### New files
 
-- `src/lib/ai/kontext-client.ts` — Kontext Max inference wrapper
+- `src/lib/ai/kontext-client.ts` — Kontext Max inference wrapper (v2, default)
+- `src/lib/ai/nano-banana-client.ts` — Nano Banana / Gemini 2.5 Flash Image wrapper (v3, scaffolded but disabled on launch)
 - `src/lib/ai/upscaler.ts` — Clarity Upscaler wrapper
 - `src/lib/ai/quality-gate.ts` — CLIP + face + aesthetic checks
 - `src/lib/ai/face-anchor.ts` — Stage 0 face anchor generation and caching
@@ -184,14 +203,24 @@ CREATE INDEX idx_generations_quality_scores ON generations USING gin (quality_sc
 
 ### Fallback / feature flag
 
-- `GENERATION_PIPELINE_VERSION` env var: `"v1"` (current Flux Dev path) | `"v2"` (new Kontext path). Default v2 in prod, v1 retained for rollback.
-- Per-generation override via `structured_brief.pipeline_version` so we can A/B test on specific campaigns.
+`GENERATION_PIPELINE_VERSION` env var selects the Stage 1 inference model:
+
+- `v1` — current Flux Dev + LoRA (kept for emergency rollback only)
+- `v2` — Flux Kontext Max (default, primary launch target)
+- `v3` — Nano Banana via Google AI API (scaffolded but disabled on launch; enable in Phase 2 for 10% A/B test against v2)
+
+Per-generation override via `structured_brief.pipeline_version` so specific campaigns can pin a model for A/B testing or creator preference.
+
+### Resolved decisions
+
+1. **Face consistency approach:** LoRA-driven face anchor (Stage 0). The creator has already paid for LoRA training; we use it to generate a canonical headshot once, then pass that anchor as a reference image to Kontext Max on every inference. This gives tighter identity consistency than Kontext's raw multi-reference mode (2-3 photos) and preserves the "trained model = creator's IP" product story.
+2. **Aspect ratios:** Support all five — `1:1`, `16:9`, `9:16`, `4:5`, `3:2`. Brand selects at generation time.
+3. **Retry policy:** Max 2 auto-retries if quality gate fails, then surface to creator with explanation. No charge to brand if all 3 attempts fail.
 
 ### Open questions (to resolve during implementation)
 
-1. **Kontext Max + creator LoRA interaction.** Kontext is not a LoRA-stacked model. The design uses LoRA once (Stage 0) to generate a face anchor, then Kontext uses the anchor as a reference image. Validate during implementation whether this 2-stage face consistency is adequate, or whether Kontext's native multi-reference mode (passing 2-3 raw creator photos) is sufficient without LoRA at all.
-2. **Aspect ratios.** Currently `1:1` only. Kontext Max supports `1:1`, `16:9`, `9:16`, `4:5`, `3:2`. Add all five — brands want Instagram Story (9:16) and Reel (9:16) formats urgently.
-3. **Retry cost attribution.** Retries eat platform margin, not brand charge. If retry rate exceeds 40%, revisit thresholds or fallback to Seedream 4 for that gen.
+1. **Retry cost attribution.** Retries eat platform margin, not brand charge. If observed retry rate exceeds 40% in first week, revisit gate thresholds or swap specific generations to Nano Banana (v3) via feature flag.
+2. **Nano Banana A/B rollout timing.** Decide post-launch whether to enable `v3` for 10% of traffic after 2 weeks of v2 data. Defer decision to post-launch telemetry review.
 
 ## Success criteria
 
