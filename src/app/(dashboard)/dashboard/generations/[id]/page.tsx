@@ -26,6 +26,14 @@ import {
    Types
    ================================================================ */
 
+interface QualityScoresJSON {
+  clip?: number;
+  face?: number;
+  aesthetic?: number;
+  passed?: boolean;
+  failedOn?: Array<"clip" | "face" | "aesthetic"> | null;
+}
+
 interface GenerationDetail {
   id: string;
   campaign_id: string;
@@ -42,6 +50,13 @@ interface GenerationDetail {
     id: string;
     name: string;
   } | null;
+  // v2 pipeline fields (migration 00016)
+  base_image_url: string | null;
+  upscaled_url: string | null;
+  quality_scores: QualityScoresJSON | null;
+  generation_attempts: number | null;
+  pipeline_version: string | null;
+  provider_prediction_id: string | null;
 }
 
 interface ApprovalRecord {
@@ -280,6 +295,12 @@ export default function GenerationDetailPage({
         created_at: d.created_at,
         updated_at: d.updated_at,
         campaign: d.campaign ?? null,
+        base_image_url: d.base_image_url ?? null,
+        upscaled_url: d.upscaled_url ?? null,
+        quality_scores: (d.quality_scores as QualityScoresJSON | null) ?? null,
+        generation_attempts: d.generation_attempts ?? null,
+        pipeline_version: d.pipeline_version ?? null,
+        provider_prediction_id: d.provider_prediction_id ?? null,
       };
 
       setGeneration(gen);
@@ -524,6 +545,104 @@ export default function GenerationDetailPage({
             )}
           </div>
         </div>
+
+        {/* ── Quality Scores (v2/v3 pipelines only) ──
+         *
+         * Renders the CLIP / face / aesthetic scores from Stage 2 quality
+         * gate. Thresholds mirror QUALITY_GATE_THRESHOLDS in
+         * src/domains/generation/types.ts so the colors match what the
+         * pipeline actually uses to pass/fail an attempt.
+         */}
+        {generation.pipeline_version &&
+          generation.pipeline_version !== "v1" &&
+          generation.quality_scores && (
+            <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-paper)] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-[var(--color-gold)]" />
+                  <h3 className="text-sm font-700 text-[var(--color-ink)]">
+                    Quality scores
+                  </h3>
+                </div>
+                <span className="text-xs font-600 text-[var(--color-neutral-500)] uppercase tracking-wider">
+                  {generation.pipeline_version === "v2"
+                    ? "Nano Banana Pro"
+                    : generation.pipeline_version === "v3"
+                      ? "Kontext Max"
+                      : generation.pipeline_version}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {(
+                  [
+                    {
+                      label: "Product match",
+                      key: "clip",
+                      max: 1,
+                      threshold: 0.82,
+                    },
+                    {
+                      label: "Face identity",
+                      key: "face",
+                      max: 1,
+                      threshold: 0.75,
+                    },
+                    {
+                      label: "Aesthetic",
+                      key: "aesthetic",
+                      max: 10,
+                      threshold: 6.5,
+                    },
+                  ] as const
+                ).map(({ label, key, max, threshold }) => {
+                  const raw = generation.quality_scores?.[key];
+                  if (typeof raw !== "number") return null;
+                  const pct = Math.min(100, (raw / max) * 100);
+                  const passed = raw >= threshold;
+                  return (
+                    <div key={key}>
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <span className="text-xs font-500 text-[var(--color-neutral-500)]">
+                          {label}
+                        </span>
+                        <span
+                          className={`text-sm font-mono font-700 ${
+                            passed
+                              ? "text-[var(--color-gold-hover)]"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {raw.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-neutral-100)]">
+                        <div
+                          className={`h-full transition-all ${
+                            passed
+                              ? "bg-[var(--color-gold)]"
+                              : "bg-red-400"
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {typeof generation.generation_attempts === "number" && (
+                <p className="mt-4 text-xs text-[var(--color-neutral-500)]">
+                  {generation.generation_attempts > 1
+                    ? `Generated after ${generation.generation_attempts} attempt${
+                        generation.generation_attempts === 1 ? "" : "s"
+                      }.`
+                    : "Passed on first attempt."}
+                  {generation.upscaled_url ? " Upscaled 2×." : ""}
+                </p>
+              )}
+            </div>
+          )}
 
         {/* ── Approval Feedback (if rejected) ── */}
         {approval?.feedback && approval.status === "rejected" && (

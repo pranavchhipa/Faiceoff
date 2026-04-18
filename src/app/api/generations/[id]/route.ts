@@ -22,14 +22,42 @@ export async function GET(
   const admin = createAdminClient();
 
   // --- Fetch generation ---
-  const { data: gen, error: genError } = await admin
+  // Note: base_image_url, upscaled_url, quality_scores, generation_attempts,
+  // provider_prediction_id, and pipeline_version are from migration 00016
+  // (v2 pipeline). src/types/supabase.ts is stale until we regenerate, so we
+  // cast the row shape at the boundary — runtime select accepts these names.
+  const { data: genRaw, error: genError } = await admin
     .from("generations")
     .select(
       `id, campaign_id, creator_id, brand_id, status, assembled_prompt,
-       structured_brief, image_url, cost_paise, created_at, updated_at`,
+       structured_brief, image_url, cost_paise, created_at, updated_at,
+       base_image_url, upscaled_url, quality_scores, generation_attempts,
+       provider_prediction_id, pipeline_version`,
     )
     .eq("id", id)
     .single();
+
+  const gen = genRaw as unknown as
+    | {
+        id: string;
+        campaign_id: string | null;
+        creator_id: string;
+        brand_id: string;
+        status: string;
+        assembled_prompt: string | null;
+        structured_brief: Record<string, unknown> | null;
+        image_url: string | null;
+        cost_paise: number | null;
+        created_at: string;
+        updated_at: string;
+        base_image_url: string | null;
+        upscaled_url: string | null;
+        quality_scores: Record<string, unknown> | null;
+        generation_attempts: number | null;
+        provider_prediction_id: string | null;
+        pipeline_version: string | null;
+      }
+    | null;
 
   if (genError || !gen) {
     return NextResponse.json(
