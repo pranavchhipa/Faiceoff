@@ -1,5 +1,24 @@
 import { inngest } from "@/inngest/client";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { NEGATIVE_PROMPT } from "@/lib/ai/prompt-assembler";
+import { runPipelineInference } from "@/lib/ai/pipeline-router";
+import { runQualityGate } from "@/lib/ai/quality-gate";
+import { upscale, getLongEdge } from "@/lib/ai/upscaler";
+import {
+  getValidFaceAnchorPack,
+  generateAndCacheFaceAnchorPack,
+  resolveFaceAnchorUrls,
+} from "@/lib/ai/face-anchor";
+import {
+  MAX_RETRIES,
+  resolvePipelineVersion,
+} from "@/lib/ai/pipeline-config";
+import {
+  UPSCALE_MIN_EDGE,
+  type AspectRatio,
+  type PipelineVersion,
+  type QualityScores,
+} from "@/domains/generation/types";
 
 // ---------------------------------------------------------------------------
 // Function 1: Run the full generation pipeline
@@ -81,120 +100,198 @@ export const runPipeline = inngest.createFunction(
       return prompt;
     });
 
-    // ── Step 3: Image Generation ──────────────────────────────────────────
-    // If creator has a trained LoRA model → call Replicate FLUX with LoRA.
-    // If structured_brief has a product_image_url → also pass it as an
-    // IP-Adapter reference so the product appears in the generated image.
-    // If not → dev mode with placeholder image from picsum.photos.
+    // ── Step 3: Multi-Stage Image Generation (v2 pipeline) ────────────────
+    // 3a. Route by pipeline version (env or brief override)
+    // 3b. Ensure face anchor pack cached (Stage 0 fallback if missing)
+    // 3c. Nano Banana Pro multi-reference inference (Stage 1) with retries
+    // 3d. Quality gate per attempt (Stage 2)
+    // 3e. Upscale winning attempt IF below UPSCALE_MIN_EDGE (Stage 3)
     await step.run("generate-image", async () => {
       const { data: gen } = await admin
         .from("generations")
-        .select("creator_id, cost_paise, assembled_prompt, structured_brief")
+        .select(
+          "creator_id, cost_paise, assembled_prompt, structured_brief"
+        )
         .eq("id", generation_id)
         .single();
 
       if (!gen) throw new Error("Generation not found");
 
-      // Extract product image URL from structured brief (for IP-Adapter)
       const brief = (gen.structured_brief ?? {}) as Record<string, unknown>;
       const productImageUrl =
         typeof brief.product_image_url === "string"
           ? (brief.product_image_url as string)
           : null;
+      const aspectRatio: AspectRatio =
+        (brief.aspect_ratio as AspectRatio | undefined) ?? "1:1";
+      const versionOverride = brief.pipeline_version as
+        | PipelineVersion
+        | undefined;
+      const version = resolvePipelineVersion(versionOverride);
 
-      // Check if creator has a trained LoRA model
-      const { data: loraModel } = await admin
-        .from("creator_lora_models")
-        .select("replicate_model_id, training_status, trigger_word")
-        .eq("creator_id", gen.creator_id)
-        .eq("training_status", "completed")
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // v1 legacy fallback — keep existing behavior inline
+      if (version === "v1") {
+        await generateV1Legacy({
+          admin,
+          generation_id,
+          creatorId: gen.creator_id,
+          prompt: gen.assembled_prompt ?? assembledPrompt,
+          productImageUrl,
+        });
+        return;
+      }
 
-      let imageUrl: string;
-      let predictionId: string;
+      // v2/v3 require face anchor pack + product image
+      if (!productImageUrl) {
+        throw new Error(
+          `Pipeline ${version} requires product_image_url on structured_brief; none provided for generation ${generation_id}`
+        );
+      }
 
-      if (loraModel?.replicate_model_id) {
-        // ─── Production Path: FLUX.1 Dev + Creator LoRA (+ optional IP-Adapter) ───
-        const { replicate } = await import("@/lib/ai/replicate-client");
-
-        // Prepend the LoRA trigger word so the trained face fires on this prompt
-        const triggerWord = loraModel.trigger_word ?? "TOK";
-        const rawPrompt = gen.assembled_prompt ?? assembledPrompt;
-        const promptWithTrigger = rawPrompt.toUpperCase().includes(triggerWord)
-          ? rawPrompt
-          : `a photo of ${triggerWord} person, ${rawPrompt}`;
-
-        // Base input — LoRA for face consistency (unchanged)
-        const input: Record<string, unknown> = {
-          prompt: promptWithTrigger,
-          num_outputs: 1,
-          guidance_scale: 7.5,
-          num_inference_steps: 50,
-          output_format: "png",
-          aspect_ratio: "1:1",
-        };
-
-        // IP-Adapter: inject product image as visual reference so the
-        // actual product (not just a described one) appears in the output.
-        // FLUX IP-Adapter models on Replicate commonly accept `image_prompt`
-        // with an optional `image_prompt_strength` (0–1) control.
-        if (productImageUrl) {
-          input.image_prompt = productImageUrl;
-          input.image_prompt_strength = 0.6;
-          console.log(
-            `[pipeline] IP-Adapter enabled with product image: ${productImageUrl}`
+      // Ensure face anchor pack is cached (Stage 0). getValidFaceAnchorPack
+      // returns storage PATHS (not URLs) — bucket is private.
+      let faceAnchorPackPaths = await getValidFaceAnchorPack(gen.creator_id);
+      if (faceAnchorPackPaths.length === 0) {
+        // Fallback: generate on demand. Rare — usually the post-training
+        // Inngest fn has already cached this.
+        const { data: lora } = await admin
+          .from("creator_lora_models")
+          .select("replicate_model_id, trigger_word")
+          .eq("creator_id", gen.creator_id)
+          .eq("training_status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!lora?.replicate_model_id) {
+          throw new Error(
+            `Creator ${gen.creator_id} has no trained LoRA — cannot run ${version} pipeline`
           );
         }
+        const { anchorPaths } = await generateAndCacheFaceAnchorPack({
+          creatorId: gen.creator_id,
+          loraModelId: lora.replicate_model_id,
+          triggerWord: lora.trigger_word ?? "TOK",
+        });
+        faceAnchorPackPaths = anchorPaths;
+      }
 
-        const output = await replicate.run(
-          loraModel.replicate_model_id as `${string}/${string}`,
-          { input }
-        );
+      // Resolve paths to 1-hour signed URLs right before passing to external
+      // APIs (Nano Banana / Kontext) and the quality gate (CLIP).
+      const faceAnchorPack = await resolveFaceAnchorUrls(faceAnchorPackPaths);
 
-        // Replicate SDK v1.x returns FileOutput[] — objects with a .url()
-        // method — not URL strings. Normalise both shapes here.
-        const outputs = Array.isArray(output) ? output : [output];
-        const first = outputs[0] as unknown;
-        let resolved: string | null = null;
-        if (typeof first === "string") {
-          resolved = first;
-        } else if (
-          first &&
-          typeof first === "object" &&
-          "url" in first &&
-          typeof (first as { url: unknown }).url === "function"
-        ) {
-          const u = (first as { url: () => URL | string }).url();
-          resolved = u instanceof URL ? u.toString() : u;
+      // Creator reference photos for face gate (use the anchor pack itself —
+      // they're the ground truth identity snapshots)
+      const creatorReferenceUrls = faceAnchorPack;
+
+      const basePrompt = gen.assembled_prompt ?? assembledPrompt;
+
+      // Stage 1 + Stage 2 with retry budget
+      let attempt = 0;
+      let bestImageUrl: string | null = null;
+      let bestPredictionId: string | null = null;
+      let bestModelUsed: string | null = null;
+      let bestScores: QualityScores | null = null;
+      let lastScores: QualityScores | null = null;
+
+      const maxAttempts = MAX_RETRIES + 1;
+      while (attempt < maxAttempts) {
+        attempt += 1;
+        const seed =
+          attempt === 1
+            ? undefined
+            : Math.floor(Math.random() * 2 ** 31);
+
+        const inference = await runPipelineInference({
+          version,
+          prompt: basePrompt,
+          negativePrompt: NEGATIVE_PROMPT,
+          faceAnchorPack,
+          productImageUrl,
+          aspectRatio,
+          seed,
+        });
+
+        // Re-host to R2 (private bucket with signed URLs) before quality
+        // gate / delivery so we have a stable, shareable URL.
+        const hostedUrl = await rehostToR2({
+          admin,
+          sourceUrl: inference.imageUrl,
+          storagePath: `generations/${generation_id}/attempt-${attempt}.png`,
+        });
+
+        const scores = await runQualityGate({
+          outputImageUrl: hostedUrl,
+          productReferenceUrl: productImageUrl,
+          creatorReferenceUrls,
+        });
+
+        lastScores = scores;
+
+        if (scores.passed) {
+          bestImageUrl = hostedUrl;
+          bestPredictionId = inference.predictionId;
+          bestModelUsed = inference.modelUsed;
+          bestScores = scores;
+          break;
         }
+        // Keep the highest-aesthetic attempt as fallback if all fail
+        if (
+          !bestImageUrl ||
+          scores.aesthetic > (bestScores?.aesthetic ?? 0)
+        ) {
+          bestImageUrl = hostedUrl;
+          bestPredictionId = inference.predictionId;
+          bestModelUsed = inference.modelUsed;
+          bestScores = scores;
+        }
+      }
 
-        imageUrl =
-          resolved ?? `https://picsum.photos/seed/${generation_id}/768/768`;
-        predictionId = `rep_${generation_id}`;
+      if (!bestImageUrl || !bestPredictionId) {
+        throw new Error(
+          `${version} pipeline produced no usable output after ${attempt} attempts for ${generation_id}`
+        );
+      }
 
-        console.log(`[pipeline] Image generated via Replicate LoRA`);
-      } else {
-        // ─── Dev Mode: No LoRA trained yet ───
-        const seed = generation_id.replace(/-/g, "").slice(0, 12);
-        imageUrl = `https://picsum.photos/seed/${seed}/768/768`;
-        predictionId = `dev_${generation_id}`;
-
-        console.log(
-          `[DEV MODE] No trained LoRA for creator ${gen.creator_id}. Using placeholder.`
+      // Stage 3: Upscale CONDITIONAL — skip if native resolution is already
+      // high enough (Nano Banana Pro typically produces 2048+ natively).
+      let deliveryUrl = bestImageUrl;
+      let upscaledUrl: string | null = null;
+      try {
+        const longEdge = await getLongEdge(bestImageUrl);
+        if (longEdge < UPSCALE_MIN_EDGE) {
+          const res = await upscale({ imageUrl: bestImageUrl, scale: 2 });
+          upscaledUrl = res.upscaledUrl;
+          deliveryUrl = upscaledUrl;
+        }
+      } catch (err) {
+        // Upscale is "nice to have" — don't fail the generation if it errors.
+        console.warn(
+          `Upscaler failed for ${generation_id}; delivering base image`,
+          err instanceof Error ? err.message : err
         );
       }
 
       await admin
         .from("generations")
         .update({
-          image_url: imageUrl,
-          cost_paise: gen.cost_paise ?? 500,
-          replicate_prediction_id: predictionId,
+          base_image_url: bestImageUrl,
+          image_url: deliveryUrl,
+          upscaled_url: upscaledUrl,
+          quality_scores: bestScores ?? lastScores ?? null,
+          generation_attempts: attempt,
+          provider_prediction_id: bestPredictionId,
+          replicate_prediction_id: bestPredictionId, // keep legacy in sync
+          pipeline_version: version,
+          cost_paise: gen.cost_paise ?? 800, // ≈₹8 typical v2 cost
           status: "output_check",
-        })
+        } as never)
         .eq("id", generation_id);
+
+      console.log(
+        `[gen/${generation_id}] v=${version} model=${bestModelUsed} attempts=${attempt} scores=${JSON.stringify(
+          bestScores ?? lastScores
+        )}`
+      );
     });
 
     // ── Step 4: Output Safety Check ───────────────────────────────────────
@@ -457,3 +554,134 @@ export const handleRejection = inngest.createFunction(
     return { generation_id, status: "rejected" };
   }
 );
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * v1 (legacy) Flux Dev + LoRA path. Kept for emergency rollback. Mirrors the
+ * original pre-v2 implementation exactly — no quality gate, no upscale.
+ */
+async function generateV1Legacy(args: {
+  admin: ReturnType<typeof createAdminClient>;
+  generation_id: string;
+  creatorId: string;
+  prompt: string;
+  productImageUrl: string | null;
+}): Promise<void> {
+  const { admin, generation_id, creatorId, prompt, productImageUrl } = args;
+
+  const { data: loraModel } = await admin
+    .from("creator_lora_models")
+    .select("replicate_model_id, trigger_word, training_status")
+    .eq("creator_id", creatorId)
+    .eq("training_status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let imageUrl: string;
+  let predictionId: string;
+
+  if (loraModel?.replicate_model_id) {
+    const { replicate } = await import("@/lib/ai/replicate-client");
+    const triggerWord = loraModel.trigger_word ?? "TOK";
+    const promptWithTrigger = prompt.toUpperCase().includes(triggerWord)
+      ? prompt
+      : `a photo of ${triggerWord} person, ${prompt}`;
+
+    const input: Record<string, unknown> = {
+      prompt: promptWithTrigger,
+      num_outputs: 1,
+      guidance_scale: 7.5,
+      num_inference_steps: 50,
+      output_format: "png",
+      aspect_ratio: "1:1",
+    };
+    if (productImageUrl) {
+      input.image_prompt = productImageUrl;
+      input.image_prompt_strength = 0.6;
+    }
+
+    const output = await replicate.run(
+      loraModel.replicate_model_id as `${string}/${string}`,
+      { input }
+    );
+
+    const outputs = Array.isArray(output) ? output : [output];
+    const first = outputs[0] as unknown;
+    let resolved: string | null = null;
+    if (typeof first === "string") resolved = first;
+    else if (
+      first &&
+      typeof first === "object" &&
+      "url" in first &&
+      typeof (first as { url: unknown }).url === "function"
+    ) {
+      const u = (first as { url: () => URL | string }).url();
+      resolved = u instanceof URL ? u.toString() : u;
+    }
+
+    imageUrl =
+      resolved ?? `https://picsum.photos/seed/${generation_id}/768/768`;
+    predictionId = `rep_${generation_id}`;
+  } else {
+    const seed = generation_id.replace(/-/g, "").slice(0, 12);
+    imageUrl = `https://picsum.photos/seed/${seed}/768/768`;
+    predictionId = `dev_${generation_id}`;
+  }
+
+  await admin
+    .from("generations")
+    .update({
+      image_url: imageUrl,
+      cost_paise: 500,
+      replicate_prediction_id: predictionId,
+      provider_prediction_id: predictionId,
+      pipeline_version: "v1",
+      generation_attempts: 1,
+      status: "output_check",
+    } as never)
+    .eq("id", generation_id);
+}
+
+/**
+ * Persist a generated image (data: URL from Nano Banana base64, or http URL
+ * from Replicate) to the reference-photos bucket and return a 1-year signed
+ * URL. Private bucket pattern — getPublicUrl won't work.
+ */
+async function rehostToR2(args: {
+  admin: ReturnType<typeof createAdminClient>;
+  sourceUrl: string;
+  storagePath: string;
+}): Promise<string> {
+  let bytes: Uint8Array;
+  let contentType = "image/png";
+  if (args.sourceUrl.startsWith("data:")) {
+    const semi = args.sourceUrl.indexOf(";");
+    const comma = args.sourceUrl.indexOf(",");
+    contentType = args.sourceUrl.slice(5, semi) || "image/png";
+    bytes = Uint8Array.from(
+      Buffer.from(args.sourceUrl.slice(comma + 1), "base64")
+    );
+  } else {
+    const res = await fetch(args.sourceUrl);
+    if (!res.ok) throw new Error(`rehostToR2 fetch failed: ${res.status}`);
+    bytes = new Uint8Array(await res.arrayBuffer());
+    contentType = res.headers.get("content-type") ?? "image/png";
+  }
+  const { error: uploadErr } = await args.admin.storage
+    .from("reference-photos")
+    .upload(args.storagePath, bytes, { contentType, upsert: true });
+  if (uploadErr) {
+    throw new Error(`rehostToR2 upload failed: ${uploadErr.message}`);
+  }
+  const { data: signed, error: signErr } = await args.admin.storage
+    .from("reference-photos")
+    .createSignedUrl(args.storagePath, 60 * 60 * 24 * 365); // 1 year
+  if (signErr || !signed?.signedUrl) {
+    throw new Error(`rehostToR2 sign failed: ${signErr?.message ?? "no URL"}`);
+  }
+  return signed.signedUrl;
+}
