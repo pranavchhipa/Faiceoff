@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+/**
+ * POST /api/auth/verify-otp
+ *
+ * Body: { email, token }
+ *
+ * Verifies the 8-digit OTP the user received via email and establishes a
+ * session by setting auth cookies. Also makes sure the matching
+ * `public.users` + role-specific (creators / brands) row exists — uses
+ * upserts so this is idempotent across retries.
+ *
+ * Historical bug: if the profile inserts silently failed (network blip,
+ * RLS misconfig, duplicate key race), the user ended up authenticated
+ * with NO DB rows — which then stalled onboarding with an infinite
+ * spinner on /dashboard/onboarding. We now upsert instead of insert
+ * and return 500 if the profile rows truly can't be persisted.
+ */
 export async function POST(request: Request) {
   const { email, token } = await request.json();
 
@@ -40,49 +56,88 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // Create public.users + role-specific row using admin client (bypasses RLS)
+  // Create / upsert public.users + role-specific row using admin client
+  // (bypasses RLS). This block is idempotent — safe to hit on retries.
   if (data.user) {
     const admin = createAdminClient();
-    const meta = data.user.user_metadata;
-    const role = meta?.role ?? "creator";
+    const meta = data.user.user_metadata ?? {};
+    const authUserId = data.user.id;
+    const authUserEmail = data.user.email ?? email;
 
-    // ── Check if user already exists in public.users ──
+    // Determine role. If the row already exists we respect its stored role
+    // (prevents multi-role overwrite vuln); otherwise fall back to metadata.
     const { data: existingUser } = await admin
       .from("users")
       .select("id, role")
-      .eq("id", data.user.id)
+      .eq("id", authUserId)
       .maybeSingle();
 
-    if (existingUser) {
-      // User exists — do NOT overwrite role, just update last login info
-      // This prevents the multi-role overwrite vulnerability
-    } else {
-      // New user — insert profile + role-specific row
-      const { error: insertError } = await admin.from("users").insert({
-        id: data.user.id,
-        email: data.user.email!,
+    const role: "creator" | "brand" =
+      existingUser?.role === "brand" || existingUser?.role === "creator"
+        ? (existingUser.role as "creator" | "brand")
+        : meta?.role === "brand"
+          ? "brand"
+          : "creator";
+
+    // Upsert public.users — always safe to run
+    const { error: userUpsertErr } = await admin.from("users").upsert(
+      {
+        id: authUserId,
+        email: authUserEmail,
         role,
-        display_name: meta?.display_name ?? data.user.email!.split("@")[0],
+        display_name:
+          meta?.display_name ?? authUserEmail.split("@")[0] ?? "User",
         phone: meta?.phone ?? null,
-      });
+      },
+      { onConflict: "id" },
+    );
 
-      if (insertError) {
-        console.error("Failed to insert user profile:", insertError.message);
-      }
+    if (userUpsertErr) {
+      console.error(
+        "[verify-otp] public.users upsert failed:",
+        userUpsertErr.message,
+      );
+      // This is critical — if the profile row can't be created we'll get an
+      // infinite spinner on onboarding. Fail loudly so the client shows the
+      // error and the user can retry (OTP usually still valid for a minute).
+      return NextResponse.json(
+        { error: "Couldn't set up your profile. Please try again." },
+        { status: 500 },
+      );
+    }
 
-      // Create role-specific row
-      if (role === "creator") {
-        await admin.from("creators").upsert(
-          { user_id: data.user.id },
-          { onConflict: "user_id" }
+    // Upsert role-specific row
+    if (role === "creator") {
+      const { error: creatorUpsertErr } = await admin.from("creators").upsert(
+        { user_id: authUserId },
+        { onConflict: "user_id" },
+      );
+      if (creatorUpsertErr) {
+        console.error(
+          "[verify-otp] creators upsert failed:",
+          creatorUpsertErr.message,
         );
-      } else if (role === "brand") {
-        await admin.from("brands").upsert(
-          {
-            user_id: data.user.id,
-            company_name: meta?.display_name ?? "Unnamed Brand",
-          },
-          { onConflict: "user_id" }
+        return NextResponse.json(
+          { error: "Couldn't set up your creator profile. Please try again." },
+          { status: 500 },
+        );
+      }
+    } else {
+      const { error: brandUpsertErr } = await admin.from("brands").upsert(
+        {
+          user_id: authUserId,
+          company_name: meta?.display_name ?? "Unnamed Brand",
+        },
+        { onConflict: "user_id" },
+      );
+      if (brandUpsertErr) {
+        console.error(
+          "[verify-otp] brands upsert failed:",
+          brandUpsertErr.message,
+        );
+        return NextResponse.json(
+          { error: "Couldn't set up your brand profile. Please try again." },
+          { status: 500 },
         );
       }
     }
