@@ -174,6 +174,18 @@ export async function GET() {
     }
   }
 
+  // Actual generation count per campaign — the campaigns.generation_count
+  // column isn't incremented anywhere, so derive it from the rows we just
+  // pulled. Without this, "New Generation" buttons show even after slots
+  // are full.
+  const genCountByCampaign = new Map<string, number>();
+  for (const gen of genRows ?? []) {
+    genCountByCampaign.set(
+      gen.campaign_id,
+      (genCountByCampaign.get(gen.campaign_id) ?? 0) + 1
+    );
+  }
+
   // ── Assemble response ────────────────────────────────────────────
   const enriched = campaigns.map((c) => {
     const creatorUserId = creatorUserIdById.get(c.creator_id);
@@ -181,6 +193,7 @@ export async function GET() {
 
     return {
       ...c,
+      generation_count: genCountByCampaign.get(c.id) ?? 0,
       creator_display_name:
         (creatorUserId && nameByUserId.get(creatorUserId)) ?? "Creator",
       brand_display_name:

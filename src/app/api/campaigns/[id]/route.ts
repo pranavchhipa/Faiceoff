@@ -131,6 +131,7 @@ export async function GET(
   return NextResponse.json({
     campaign: {
       ...campaign,
+      generation_count: generations?.length ?? 0,
       creator_display_name: creatorUser?.display_name ?? "Creator",
       brand_display_name: brandUser?.display_name ?? "Brand",
       earnings_paise: earningsPaise,
