@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { compressImageForUpload } from "@/lib/utils/image-compression";
 
 const PHOTO_DOS = [
   "Clear face visibility — no sunglasses, masks, or heavy makeup",
@@ -105,15 +106,31 @@ export default function PhotosPage() {
     setError(null);
 
     try {
-      // Upload each photo one-by-one through our API (admin client, no RLS)
+      // Upload each photo one-by-one through our API (admin client, no RLS).
+      // We compress client-side first because Vercel's serverless body
+      // limit (4.5 MB) is smaller than a typical phone photo (6-12 MB) —
+      // uncompressed uploads get a 413 before the function even runs.
       const uploadedPaths: string[] = [];
 
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         setUploadProgress(i + 1);
 
+        let uploadFile: File = photo.file;
+        try {
+          uploadFile = await compressImageForUpload(photo.file);
+        } catch (compressErr) {
+          // Compression failed (e.g. HEIC on a browser that can't decode).
+          // Fall back to the original — if it's too big the server will
+          // return a specific 413 message below.
+          console.warn(
+            "[photos] client-side compression failed, uploading original:",
+            compressErr,
+          );
+        }
+
         const form = new FormData();
-        form.append("photo", photo.file);
+        form.append("photo", uploadFile);
 
         const res = await fetch("/api/onboarding/upload-photo", {
           method: "POST",
@@ -121,6 +138,11 @@ export default function PhotosPage() {
         });
 
         if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error(
+              `Photo ${i + 1} is too large even after compression. Please pick a smaller image (under 10 MB).`,
+            );
+          }
           let msg = "Upload failed";
           try {
             const body = await res.json();
