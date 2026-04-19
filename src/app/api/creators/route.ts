@@ -49,7 +49,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Shape the response
+  // Shape the base response
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const creators = (data ?? []).map((c: any) => ({
     id: c.id,
@@ -68,5 +68,74 @@ export async function GET() {
       })),
   }));
 
-  return NextResponse.json({ creators });
+  const creatorIds: string[] = creators.map((c) => c.id);
+
+  // 1. Hero photo: first primary (or earliest) reference photo per creator
+  const heroByCreator = new Map<string, string>();
+  if (creatorIds.length > 0) {
+    const { data: photos } = await admin
+      .from("creator_reference_photos")
+      .select("creator_id, storage_path, is_primary")
+      .in("creator_id", creatorIds)
+      .order("is_primary", { ascending: false }); // primary rows sort first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const p of (photos ?? []) as any[]) {
+      if (!heroByCreator.has(p.creator_id)) {
+        const base = process.env.R2_PUBLIC_URL ?? "";
+        heroByCreator.set(
+          p.creator_id,
+          base ? `${base}/${p.storage_path}` : p.storage_path
+        );
+      }
+    }
+  }
+
+  // 2. Campaign counts (last 30 days)
+  const thirtyDaysAgo = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const campaignsLast30d = new Map<string, number>();
+  if (creatorIds.length > 0) {
+    const { data: campaignRows } = await admin
+      .from("campaigns")
+      .select("creator_id, created_at")
+      .in("creator_id", creatorIds)
+      .gte("created_at", thirtyDaysAgo);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const c of (campaignRows ?? []) as any[]) {
+      campaignsLast30d.set(
+        c.creator_id,
+        (campaignsLast30d.get(c.creator_id) ?? 0) + 1
+      );
+    }
+  }
+
+  // 3. Approval counts: approved generations keyed by creator_id
+  const approvalsByCreator = new Map<string, number>();
+  if (creatorIds.length > 0) {
+    const { data: approvedGens } = await admin
+      .from("generations")
+      .select("creator_id")
+      .in("creator_id", creatorIds)
+      .eq("status", "approved");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const g of (approvedGens ?? []) as any[]) {
+      approvalsByCreator.set(
+        g.creator_id,
+        (approvalsByCreator.get(g.creator_id) ?? 0) + 1
+      );
+    }
+  }
+
+  // Merge enrichment fields onto each creator
+  const enrichedCreators = creators.map((c) => ({
+    ...c,
+    hero_photo_url: heroByCreator.get(c.id) ?? c.avatar_url,
+    approval_count: approvalsByCreator.get(c.id) ?? 0,
+    campaigns_last_30d: campaignsLast30d.get(c.id) ?? 0,
+    rating: null as number | null,
+    avg_approval_hours: null as number | null,
+  }));
+
+  return NextResponse.json({ creators: enrichedCreators });
 }
