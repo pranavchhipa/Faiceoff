@@ -16,7 +16,7 @@ const VALID_STEPS = [
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { step, kyc_document_url, kyc_status } = body;
+  const { step, kyc_document_url, kyc_status, gender } = body;
 
   if (!step || !VALID_STEPS.includes(step)) {
     return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     onboarding_step: string;
     kyc_document_url?: string;
     kyc_status?: "not_started" | "pending" | "approved" | "rejected";
+    gender?: "male" | "female" | "non_binary" | "prefer_not_to_say";
   } = { onboarding_step: step };
 
   // Add KYC fields if provided (from identity step)
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
   }
   if (kyc_status && ["not_started", "pending", "approved", "rejected"].includes(kyc_status)) {
     updatePayload.kyc_status = kyc_status as "not_started" | "pending" | "approved" | "rejected";
+  }
+  if (gender && ["male", "female", "non_binary", "prefer_not_to_say"].includes(gender)) {
+    updatePayload.gender = gender as "male" | "female" | "non_binary" | "prefer_not_to_say";
   }
 
   // Use admin client to bypass RLS for the update

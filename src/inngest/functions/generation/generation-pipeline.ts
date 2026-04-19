@@ -153,13 +153,27 @@ export const runPipeline = inngest.createFunction(
     const assembledPrompt = await step.run("assemble-prompt", async () => {
       const { data: gen } = await admin
         .from("generations")
-        .select("structured_brief")
+        .select("creator_id, structured_brief")
         .eq("id", generation_id)
         .single();
 
       if (!gen) throw new Error("Generation not found");
 
-      const brief = gen.structured_brief as Record<string, unknown>;
+      const brief = {
+        ...(gen.structured_brief as Record<string, unknown>),
+      };
+
+      // Inject creator gender so the prompt assembler can render
+      // "a [gender] person" instead of the gender-neutral "a person",
+      // which Nano Banana Pro otherwise tends to hallucinate as female.
+      const { data: creatorRow } = await admin
+        .from("creators")
+        .select("gender")
+        .eq("id", gen.creator_id)
+        .maybeSingle();
+      if (creatorRow?.gender && !brief.subject_gender) {
+        brief.subject_gender = creatorRow.gender;
+      }
 
       // Use LLM for high-quality prompt assembly
       const { assemblePromptWithLLM } = await import(

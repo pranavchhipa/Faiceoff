@@ -74,10 +74,21 @@ function pillValueToLabel(field: string, value: string): string {
  * Free-text user fields are sanitized and wrapped in [USER_INPUT: <<< ... >>>] delimiters.
  * Preset enum keys are trusted (whitelisted) — no delimiter needed.
  */
+const GENDER_LABEL: Record<string, string> = {
+  male: "male",
+  female: "female",
+  non_binary: "non-binary",
+  prefer_not_to_say: "",
+};
+
 export function briefToAssemblerLines(
   brief: Record<string, unknown>
 ): string[] {
   const lines: string[] = [];
+  if (typeof brief.subject_gender === "string" && brief.subject_gender) {
+    const label = GENDER_LABEL[brief.subject_gender] ?? "";
+    if (label) lines.push(`subject_gender: ${label}`);
+  }
   if (typeof brief.product_name === "string" && brief.product_name) {
     const sanitized = sanitizeUserText(brief.product_name, 200);
     lines.push(`product_name: ${userInput(sanitized)}`);
@@ -116,9 +127,9 @@ const PROMPT_LLM_MODEL =
 
 const SYSTEM_PROMPT = `You are a senior commercial photography art director writing prompts for a modern multi-reference photorealistic image generator. The generator takes (a) a person's face reference pack, (b) a brand's product reference photo, and (c) your text prompt, then composes them into one photograph.
 
-Given a structured brief (JSON with product info, scene, composition, aspect_ratio), output ONE prompt string in this exact structure:
+Given a structured brief (JSON with product info, scene, composition, aspect_ratio, subject_gender), output ONE prompt string in this exact structure:
 
-"A candid photograph of a person [interaction verb: holding / wearing / using / applying / drinking / eating / showing] [product_name]. [scene_description in one vivid sentence].
+"A candid photograph of a [subject_gender: man / woman / non-binary person] [interaction verb: holding / wearing / using / applying / drinking / eating / showing] [product_name]. [scene_description in one vivid sentence].
 
 Technical: shot on Sony A7IV with 85mm f/1.4 prime, natural window light from camera left, golden hour, shallow depth of field, subsurface scattering on skin, visible pores, 35mm film grain, slight chromatic aberration, unretouched, Kodak Portra 400 color palette.
 
@@ -126,7 +137,7 @@ Composition: [composition_hint from brief]. Aspect: [aspect_ratio from brief].
 
 CRITICAL PRESERVATION RULES:
 - Product: match the reference photo pixel-for-pixel — exact shape, colour, label typography, brand mark, every character of on-pack text. Do NOT redesign the packaging, do NOT invent additional branding, do NOT translate or transliterate the brand name. If the pack says "Harpic", the output must say "Harpic" — never "Chanel", "Dove", or any Western lookalike.
-- Identity: match the face reference pack exactly — same facial structure, skin tone, hair, age. Do NOT substitute a generic stock-photo face.
+- Identity: match the face reference pack exactly — same facial structure, skin tone, hair, age, AND gender as given in subject_gender. Do NOT substitute a generic stock-photo face. If subject_gender says "male", the person in the output MUST be male; if "female", female. Never flip gender.
 - Indian context: product names from Indian brands (Harpic, Dabur, Boat, Patanjali, Amul, MDH, Fogg, Parle, Britannia, etc.) stay as-is in their original English spelling. Devanagari / regional-script text on the pack must be preserved character-for-character.
 
 Avoid: plastic skin, waxy finish, cgi look, 3d render, airbrushing, over-smooth skin, glossy artificial highlights, uncanny eyes, distorted anatomy, extra fingers, malformed hands, blurry focus, jpeg artifacts, watermarks, text overlays, fabricated logos, substituted brand names, Western brand lookalikes replacing the actual product, product text distortion."

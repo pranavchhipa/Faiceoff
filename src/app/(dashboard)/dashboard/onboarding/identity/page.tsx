@@ -21,6 +21,7 @@ export default function IdentityPage() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("");
+  const [gender, setGender] = useState<string>("");
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
   const [dobYear, setDobYear] = useState("");
@@ -51,6 +52,11 @@ export default function IdentityPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+
+    if (!gender) {
+      setError("Please select your gender — it's required for accurate likeness generation.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -94,6 +100,7 @@ export default function IdentityPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           step: "instagram",
+          gender,
           kyc_document_url: kycDocPath,
           kyc_status: idFile ? "pending" : "not_started",
         }),
@@ -156,6 +163,38 @@ export default function IdentityPage() {
               className="pl-10 rounded-[var(--radius-input)]"
             />
           </div>
+        </div>
+
+        {/* Gender — pill picker */}
+        <div className="space-y-2">
+          <Label>Gender</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "male", label: "Male" },
+              { value: "female", label: "Female" },
+              { value: "non_binary", label: "Non-binary" },
+              { value: "prefer_not_to_say", label: "Prefer not to say" },
+            ].map((opt) => {
+              const selected = gender === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGender(opt.value)}
+                  className={`rounded-[var(--radius-pill)] px-4 py-2 text-sm font-600 transition-colors ${
+                    selected
+                      ? "bg-[var(--color-gold)] text-white"
+                      : "bg-[var(--color-neutral-100)] text-[var(--color-ink)] hover:bg-[var(--color-neutral-200)]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-[var(--color-neutral-400)]">
+            Used so AI-generated images match your actual appearance. Required for accurate likeness.
+          </p>
         </div>
 
         {/* DOB — 3 dropdowns */}
