@@ -577,6 +577,12 @@ export default function CampaignDetailPage() {
                           src={gen.image_url}
                           alt="Generated"
                           className="size-full object-cover"
+                          onError={(e) => {
+                            // Hide the broken image and show the icon
+                            // placeholder via the sibling fallback.
+                            (e.currentTarget as HTMLImageElement).style.display =
+                              "none";
+                          }}
                         />
                       ) : isInProgress ? (
                         <Loader2 className="size-6 text-[var(--color-ocean)] animate-spin" />

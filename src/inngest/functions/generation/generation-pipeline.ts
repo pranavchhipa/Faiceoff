@@ -349,14 +349,24 @@ export const runPipeline = inngest.createFunction(
 
       // Stage 3: Upscale CONDITIONAL — skip if native resolution is already
       // high enough (Nano Banana Pro typically produces 2048+ natively).
+      //
+      // CRITICAL: the upscaler returns a Replicate CDN URL that EXPIRES in
+      // ~24h. We must re-host it to Supabase Storage before persisting so
+      // the delivered image_url stays valid long-term. Skipping this step
+      // caused approved generations to render as broken images the next day.
       let deliveryUrl = bestImageUrl;
       let upscaledUrl: string | null = null;
       try {
         const longEdge = await getLongEdge(bestImageUrl);
         if (longEdge < UPSCALE_MIN_EDGE) {
           const res = await upscale({ imageUrl: bestImageUrl, scale: 2 });
-          upscaledUrl = res.upscaledUrl;
-          deliveryUrl = upscaledUrl;
+          const rehostedUpscaled = await rehostToR2({
+            admin,
+            sourceUrl: res.upscaledUrl,
+            storagePath: `generations/${generation_id}/upscaled.png`,
+          });
+          upscaledUrl = rehostedUpscaled;
+          deliveryUrl = rehostedUpscaled;
         }
       } catch (err) {
         // Upscale is "nice to have" — don't fail the generation if it errors.

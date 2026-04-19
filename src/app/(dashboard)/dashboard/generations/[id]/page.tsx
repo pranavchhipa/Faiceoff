@@ -265,6 +265,9 @@ export default function GenerationDetailPage({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [actionDone, setActionDone] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  const [isRehosting, setIsRehosting] = useState(false);
+  const [rehostError, setRehostError] = useState<string | null>(null);
 
   /* ── Fetch data via API route (bypasses RLS) ── */
   const fetchData = useCallback(async () => {
@@ -524,12 +527,69 @@ export default function GenerationDetailPage({
             Generated Image
           </h3>
           <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)]">
-            {generation.image_url ? (
+            {generation.image_url && !imageLoadFailed ? (
               <img
                 src={generation.image_url}
                 alt="AI-generated content"
                 className="w-full max-h-[32rem] object-contain"
+                onError={() => setImageLoadFailed(true)}
               />
+            ) : generation.image_url && imageLoadFailed ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 px-6 text-center">
+                <ImageIcon className="size-12 text-[var(--color-neutral-300)]" />
+                <div>
+                  <p className="text-sm font-600 text-[var(--color-ink)]">
+                    Image URL expired
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--color-neutral-500)] max-w-sm">
+                    This generation was made with an older pipeline that
+                    stored a temporary CDN link. Click to re-host from the
+                    backup source to a permanent URL.
+                  </p>
+                  {rehostError && (
+                    <p className="mt-2 text-xs text-red-600">{rehostError}</p>
+                  )}
+                </div>
+                <Button
+                  disabled={isRehosting}
+                  onClick={async () => {
+                    if (!generation) return;
+                    setIsRehosting(true);
+                    setRehostError(null);
+                    try {
+                      const res = await fetch(
+                        `/api/generations/${generation.id}/rehost-image`,
+                        { method: "POST" },
+                      );
+                      const body = await res.json();
+                      if (!res.ok) {
+                        throw new Error(body.error ?? `HTTP ${res.status}`);
+                      }
+                      setGeneration({
+                        ...generation,
+                        image_url: body.image_url as string,
+                      });
+                      setImageLoadFailed(false);
+                    } catch (err) {
+                      setRehostError(
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to rehost image",
+                      );
+                    } finally {
+                      setIsRehosting(false);
+                    }
+                  }}
+                  className="rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)]"
+                >
+                  {isRehosting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  {isRehosting ? "Re-hosting…" : "Re-host image"}
+                </Button>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16">
                 <ImageIcon className="size-12 text-[var(--color-neutral-300)] mb-3" />
