@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+if (!process.env.R2_PUBLIC_URL && process.env.NODE_ENV !== "test") {
+  console.warn("[creators] R2_PUBLIC_URL not set — hero photo URLs will be relative and may not render");
+}
+
 /**
  * GET /api/creators
  *
