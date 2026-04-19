@@ -18,9 +18,45 @@ function pillField(group: readonly { key: string }[]) {
   return z.union([preset, custom]).nullable().optional();
 }
 
+/**
+ * SSRF protection for product_image_url.
+ *
+ * When NEXT_PUBLIC_SUPABASE_URL is set (production / staging), only URLs on
+ * the Supabase Storage host are accepted — prevents brands from passing
+ * arbitrary URLs (e.g. IMDS endpoints) that may be fetched downstream.
+ *
+ * Fallback (tests / local without env): any https URL is accepted provided it
+ * has no userinfo (user:pass@), uses the default port, and uses https.
+ */
+const ALLOWED_IMAGE_HOST = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
+      : null;
+  } catch {
+    return null;
+  }
+})();
+
+const safeImageUrl = z.string().url().refine(
+  (u) => {
+    try {
+      const url = new URL(u);
+      if (url.protocol !== "https:") return false;
+      if (url.username || url.password) return false;
+      if (url.port && url.port !== "443") return false;
+      if (ALLOWED_IMAGE_HOST && url.host !== ALLOWED_IMAGE_HOST) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "product_image_url must be an https URL on the Supabase Storage host" }
+);
+
 export const StructuredBriefSchema = z.object({
   product_name: z.string().min(1).max(200),
-  product_image_url: z.string().url(),
+  product_image_url: safeImageUrl,
   setting: pillField(SETTING_OPTIONS),
   time_lighting: pillField(TIME_LIGHTING_OPTIONS),
   mood_palette: pillField(MOOD_PALETTE_OPTIONS),
