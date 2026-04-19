@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   SETTING_OPTIONS,
@@ -37,35 +37,160 @@ function formatINR(paise: number): string {
   }).format(paise / 100);
 }
 
+const DRAFT_VERSION = 1;
+type Draft = {
+  v: number;
+  campaignName: string;
+  categoryId: string;
+  productUrl: string | null;
+  productName: string;
+  setting: string | null;
+  timeLighting: string | null;
+  moodPalette: string | null;
+  interaction: string | null;
+  poseEnergy: string | null;
+  expression: string | null;
+  outfitStyle: string | null;
+  cameraFraming: string | null;
+  aspectRatio: string;
+  count: number;
+  customNotes: string;
+};
+
+function draftKey(creatorId: string) {
+  return `faiceoff:campaign-draft:${creatorId}`;
+}
+
 export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   const router = useRouter();
+  const storageKey = draftKey(creator.id);
 
-  const [campaignName, setCampaignName] = useState("");
-  const [categoryId, setCategoryId] = useState<string>(creator.categories[0]?.id ?? "");
+  // Load draft synchronously on first render so inputs hydrate in-place.
+  const initial = useRef<Partial<Draft>>({});
+  if (initial.current && Object.keys(initial.current).length === 0 && typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Draft;
+        if (parsed?.v === DRAFT_VERSION) initial.current = parsed;
+      }
+    } catch {
+      // ignore corrupted draft
+    }
+  }
+  const d = initial.current;
+
+  const [campaignName, setCampaignName] = useState(d.campaignName ?? "");
+  const [categoryId, setCategoryId] = useState<string>(
+    d.categoryId ?? creator.categories[0]?.id ?? "",
+  );
   const selectedCategory = creator.categories.find((c) => c.id === categoryId) ?? creator.categories[0];
   const pricePaise = selectedCategory?.price_per_generation_paise ?? minPrice ?? 0;
 
   const [productFile, setProductFile] = useState<File | null>(null);
-  const [productUrl, setProductUrl] = useState<string | null>(null);
-  const [productName, setProductName] = useState("");
+  const [productUrl, setProductUrl] = useState<string | null>(d.productUrl ?? null);
+  const [productName, setProductName] = useState(d.productName ?? "");
 
-  const [setting, setSetting] = useState<string | null>(null);
-  const [timeLighting, setTimeLighting] = useState<string | null>(null);
-  const [moodPalette, setMoodPalette] = useState<string | null>(null);
-  const [interaction, setInteraction] = useState<string | null>(null);
-  const [poseEnergy, setPoseEnergy] = useState<string | null>(null);
-  const [expression, setExpression] = useState<string | null>(null);
-  const [outfitStyle, setOutfitStyle] = useState<string | null>(null);
-  const [cameraFraming, setCameraFraming] = useState<string | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<string>("1:1");
-  const [count, setCount] = useState(5);
-  const [customNotes, setCustomNotes] = useState("");
+  const [setting, setSetting] = useState<string | null>(d.setting ?? null);
+  const [timeLighting, setTimeLighting] = useState<string | null>(d.timeLighting ?? null);
+  const [moodPalette, setMoodPalette] = useState<string | null>(d.moodPalette ?? null);
+  const [interaction, setInteraction] = useState<string | null>(d.interaction ?? null);
+  const [poseEnergy, setPoseEnergy] = useState<string | null>(d.poseEnergy ?? null);
+  const [expression, setExpression] = useState<string | null>(d.expression ?? null);
+  const [outfitStyle, setOutfitStyle] = useState<string | null>(d.outfitStyle ?? null);
+  const [cameraFraming, setCameraFraming] = useState<string | null>(d.cameraFraming ?? null);
+  const [aspectRatio, setAspectRatio] = useState<string>(d.aspectRatio ?? "1:1");
+  const [count, setCount] = useState<number>(d.count ?? 5);
+  const [customNotes, setCustomNotes] = useState(d.customNotes ?? "");
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState<boolean>(
+    Object.keys(d).length > 0,
+  );
 
   const photo = creator.hero_photo_url ?? creator.avatar_url ?? "";
   const total = pricePaise * count;
+
+  // Autosave draft on any change (debounced via React's batching + effect).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const draft: Draft = {
+      v: DRAFT_VERSION,
+      campaignName,
+      categoryId,
+      productUrl,
+      productName,
+      setting,
+      timeLighting,
+      moodPalette,
+      interaction,
+      poseEnergy,
+      expression,
+      outfitStyle,
+      cameraFraming,
+      aspectRatio,
+      count,
+      customNotes,
+    };
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch {
+      // quota exceeded or private mode — safe to ignore
+    }
+  }, [
+    storageKey,
+    campaignName,
+    categoryId,
+    productUrl,
+    productName,
+    setting,
+    timeLighting,
+    moodPalette,
+    interaction,
+    poseEnergy,
+    expression,
+    outfitStyle,
+    cameraFraming,
+    aspectRatio,
+    count,
+    customNotes,
+  ]);
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+  }
+
+  function hasUnsavedInput() {
+    return Boolean(
+      campaignName.trim() ||
+        productUrl ||
+        productName.trim() ||
+        setting ||
+        timeLighting ||
+        moodPalette ||
+        interaction ||
+        poseEnergy ||
+        expression ||
+        outfitStyle ||
+        cameraFraming ||
+        customNotes.trim(),
+    );
+  }
+
+  function attemptClose() {
+    if (hasUnsavedInput()) {
+      const ok = window.confirm(
+        "Close this campaign? Your inputs are saved as a draft and will be restored next time.",
+      );
+      if (!ok) return;
+    }
+    onClose();
+  }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (isUploading) return;
@@ -152,6 +277,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         throw new Error(`Campaign create failed (${res.status}): ${body}`);
       }
       const { campaign_id } = (await res.json()) as { campaign_id: string };
+      clearDraft();
       router.push(`/dashboard/campaigns/${campaign_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create campaign");
@@ -163,7 +289,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/40"
-      onClick={onClose}
+      onClick={attemptClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -188,7 +314,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={attemptClose}
             className="text-xl text-[var(--color-neutral-400)]"
             aria-label="Close"
           >
@@ -198,10 +324,45 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
 
         {/* BODY */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
+          {draftRestored && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-[var(--color-mint)] px-3.5 py-2.5 text-xs">
+              <div>
+                <strong>Draft restored.</strong> Your previous inputs were saved automatically.
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm("Discard the saved draft and start fresh?")) return;
+                  clearDraft();
+                  setCampaignName("");
+                  setCategoryId(creator.categories[0]?.id ?? "");
+                  setProductUrl(null);
+                  setProductName("");
+                  setSetting(null);
+                  setTimeLighting(null);
+                  setMoodPalette(null);
+                  setInteraction(null);
+                  setPoseEnergy(null);
+                  setExpression(null);
+                  setOutfitStyle(null);
+                  setCameraFraming(null);
+                  setAspectRatio("1:1");
+                  setCount(5);
+                  setCustomNotes("");
+                  setDraftRestored(false);
+                }}
+                className="shrink-0 rounded-full border border-[var(--color-ink)]/20 bg-white px-2.5 py-1 text-[11px] font-600 text-[var(--color-ink)]"
+              >
+                Discard
+              </button>
+            </div>
+          )}
+
           <div className="mb-5 flex items-start gap-2.5 rounded-xl bg-[var(--color-lilac)] px-3.5 py-3 text-xs">
             <span>✨</span>
             <div>
-              <strong>Click-based customization.</strong> Skip any pill to let the AI infer it from the creator&apos;s style.
+              <strong>Click-based customization.</strong> Skip any pill to let the AI infer it from the creator&apos;s style.{" "}
+              <span className="text-[var(--color-neutral-500)]">Inputs autosave — accidental close se nothing is lost.</span>
             </div>
           </div>
 
