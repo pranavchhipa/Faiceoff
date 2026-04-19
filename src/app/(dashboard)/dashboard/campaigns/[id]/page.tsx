@@ -164,6 +164,8 @@ export default function CampaignDetailPage() {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillError, setBackfillError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const campaignId = params.id;
@@ -198,6 +200,30 @@ export default function CampaignDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleBackfill = useCallback(async () => {
+    if (!campaignId || isBackfilling) return;
+    setIsBackfilling(true);
+    setBackfillError(null);
+    try {
+      const res = await fetch(
+        `/api/campaigns/${campaignId}/backfill-generations`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      // Refresh immediately; polling will take over from here.
+      await fetchData(true);
+    } catch (err) {
+      setBackfillError(
+        err instanceof Error ? err.message : "Failed to start backfill",
+      );
+    } finally {
+      setIsBackfilling(false);
+    }
+  }, [campaignId, isBackfilling, fetchData]);
 
   // Auto-refresh when generations are in-progress
   useEffect(() => {
@@ -369,6 +395,44 @@ export default function CampaignDetailPage() {
           </span>
         </Link>
       )}
+
+      {/* ── Backfill banner: brand paid for N but only M rows exist ── */}
+      {role === "brand" &&
+        campaign.status === "active" &&
+        generations.length > 0 &&
+        generations.length < campaign.max_generations && (
+          <div className="mb-6 flex flex-col gap-3 rounded-[var(--radius-card)] border border-amber-300 bg-amber-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-700 text-amber-900">
+                {campaign.max_generations - generations.length} missing image
+                {campaign.max_generations - generations.length === 1 ? "" : "s"}
+              </p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                You paid for {campaign.max_generations} images but only{" "}
+                {generations.length} were queued. Click below to generate the
+                remaining {campaign.max_generations - generations.length} using
+                the same brief — no extra charge, escrow already covers it.
+              </p>
+              {backfillError && (
+                <p className="text-xs text-red-700 mt-1">{backfillError}</p>
+              )}
+            </div>
+            <Button
+              onClick={handleBackfill}
+              disabled={isBackfilling}
+              className="shrink-0 rounded-[var(--radius-button)] bg-amber-600 font-600 text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              {isBackfilling ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {isBackfilling
+                ? "Starting…"
+                : `Generate remaining ${campaign.max_generations - generations.length}`}
+            </Button>
+          </div>
+        )}
 
       {/* ── Stats row ── */}
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
