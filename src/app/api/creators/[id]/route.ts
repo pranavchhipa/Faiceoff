@@ -83,5 +83,74 @@ export async function GET(
       })),
   };
 
-  return NextResponse.json({ creator });
+  // Hero photo
+  const { data: heroPhoto } = await admin
+    .from("creator_reference_photos")
+    .select("storage_path")
+    .eq("creator_id", id)
+    .order("is_primary", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const base = process.env.R2_PUBLIC_URL ?? "";
+  const heroPhotoUrl = heroPhoto?.storage_path
+    ? base
+      ? `${base}/${heroPhoto.storage_path}`
+      : heroPhoto.storage_path
+    : (creator.avatar_url ?? null);
+
+  // Gallery: up to 8 most recent approved generations for this creator
+  const { data: gens } = await admin
+    .from("generations")
+    .select("id, delivery_url, status, created_at")
+    .eq("creator_id", id)
+    .eq("status", "approved")
+    .not("delivery_url", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const gallery = (gens ?? [])
+    .map((g: { delivery_url: string | null }) => g.delivery_url)
+    .filter((u): u is string => typeof u === "string" && u.length > 0);
+
+  const approvalCount = gens?.length ?? 0;
+
+  // Average approval duration (hours): from approvals table
+  let avgApprovalMs: number | null = null;
+  if (approvalCount > 0) {
+    const genIds = (gens ?? []).map((g) => g.id);
+    const { data: approvals } = await admin
+      .from("approvals")
+      .select("generation_id, status, decided_at, created_at")
+      .in("generation_id", genIds)
+      .eq("status", "approved");
+    const durations: number[] = [];
+    for (const a of approvals ?? []) {
+      if (!a.decided_at) continue;
+      const d =
+        new Date(a.decided_at).getTime() - new Date(a.created_at).getTime();
+      if (d >= 0 && Number.isFinite(d)) durations.push(d);
+    }
+    if (durations.length > 0) {
+      avgApprovalMs =
+        durations.reduce((s, x) => s + x, 0) / durations.length;
+    }
+  }
+
+  const stats = {
+    followers: creator.instagram_followers ?? null,
+    approval_count: approvalCount,
+    avg_approval_hours:
+      avgApprovalMs !== null
+        ? Math.round(avgApprovalMs / (1000 * 60 * 60))
+        : null,
+    approval_rate: null as number | null,
+    rating: null as number | null,
+  };
+
+  return NextResponse.json({
+    creator: { ...creator, hero_photo_url: heroPhotoUrl },
+    gallery,
+    stats,
+  });
 }
