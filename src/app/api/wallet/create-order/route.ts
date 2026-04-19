@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -96,8 +97,17 @@ export async function POST(req: Request) {
 
     const order = await rzpRes.json();
 
-    // Store order reference for verification
-    await supabase.from("audit_log").insert({
+    // Store order reference for verification.
+    //
+    // Must use admin client: migration 00012 intentionally ships no
+    // client-side insert policy on audit_log ("Insert is handled via
+    // service role (server-side only)"), so a user-scoped insert
+    // silently fails under RLS. verify-payment already uses the admin
+    // client for its audit_log write; this keeps the pair consistent
+    // and ensures the topup_initiated → topup_completed trail is
+    // actually recorded for DPDP compliance.
+    const admin = createAdminClient();
+    await admin.from("audit_log").insert({
       actor_id: user.id,
       actor_type: "user" as const,
       action: "wallet_topup_initiated",
