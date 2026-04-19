@@ -476,7 +476,26 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_campaign_with_escrow: {
+        Args: {
+          p_brand_id: string;
+          p_user_id: string;
+          p_creator_id: string;
+          p_name: string;
+          p_description: string;
+          p_budget_paise: number;
+          p_max_generations: number;
+          p_price_per_generation_paise: number;
+          p_structured_brief: Json;
+        };
+        Returns: {
+          campaign_id: string;
+          generation_ids: string[];
+          balance_after_paise: number;
+        };
+      };
+    };
     Enums: Record<string, never>;
   };
 };

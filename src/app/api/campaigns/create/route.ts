@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { inngest } from "@/inngest/client";
@@ -59,6 +60,15 @@ export async function POST(request: Request) {
     );
   }
   const brief = parsedBrief.data;
+
+  // --- Require _meta.category (prevents non-deterministic category lookup) ---
+  if (!brief._meta?.category) {
+    return NextResponse.json(
+      { error: "structured_brief._meta.category is required" },
+      { status: 400 },
+    );
+  }
+  const category = brief._meta.category;
 
   // --- Validate count ---
   if (
@@ -125,18 +135,14 @@ export async function POST(request: Request) {
 
   const creatorName = creatorUser?.display_name ?? "creator";
 
-  // --- Verify creator's category pricing ---
-  let categoryQuery = admin
+  // --- Verify creator's category pricing (deterministic: requires _meta.category) ---
+  const { data: creatorCategory } = await admin
     .from("creator_categories")
     .select("price_per_generation_paise, category")
     .eq("creator_id", creator.id)
-    .eq("is_active", true);
-
-  if (brief._meta?.category) {
-    categoryQuery = categoryQuery.eq("category", brief._meta.category);
-  }
-
-  const { data: creatorCategory } = await categoryQuery.limit(1).maybeSingle();
+    .eq("category", category)
+    .eq("is_active", true)
+    .maybeSingle();
 
   if (!creatorCategory) {
     return NextResponse.json(
@@ -158,100 +164,62 @@ export async function POST(request: Request) {
 
   // --- Compute campaign fields ---
   const budget_paise = price_per_generation_paise * count;
-  const max_generations = count;
   const dateStr = new Date().toISOString().slice(0, 10);
   const name = `${brief.product_name} × ${creatorName} — ${dateStr}`;
   const aspectLabel = brief.aspect_ratio;
   const description = `${brief.product_name} shoot with ${creatorName}. ${aspectLabel} format, ${count} images.`;
 
-  // --- Wallet balance check ---
-  const { data: lastBrandTx } = await admin
-    .from("wallet_transactions")
-    .select("balance_after_paise")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // --- Atomically create campaign + escrow via RPC ---
+  const { data: rpcData, error: rpcError } = await admin.rpc(
+    "create_campaign_with_escrow",
+    {
+      p_brand_id: brand.id,
+      p_user_id: user.id,
+      p_creator_id: creator.id,
+      p_name: name,
+      p_description: description,
+      p_budget_paise: budget_paise,
+      p_max_generations: count,
+      p_price_per_generation_paise: price_per_generation_paise,
+      p_structured_brief: brief as unknown as Json,
+    },
+  );
 
-  const brandBalance = lastBrandTx?.balance_after_paise ?? 0;
-
-  if (brandBalance < budget_paise) {
+  if (rpcError) {
+    // Match "insufficient_balance:" prefix to return 402 instead of 500.
+    if (rpcError.message?.startsWith("insufficient_balance:")) {
+      return NextResponse.json(
+        {
+          error: "Insufficient wallet balance. Please top up your wallet.",
+          required_paise: budget_paise,
+        },
+        { status: 402 },
+      );
+    }
+    Sentry.captureException(rpcError, {
+      tags: { route: "campaigns/create" },
+      extra: { brand_id: brand.id, creator_id: creator.id },
+    });
     return NextResponse.json(
-      {
-        error: "Insufficient wallet balance. Please top up your wallet.",
-        required_paise: budget_paise,
-        balance_paise: brandBalance,
-      },
-      { status: 402 },
-    );
-  }
-
-  // --- Insert campaign ---
-  const { data: campaign, error: campError } = await admin
-    .from("campaigns")
-    .insert({
-      brand_id: brand.id,
-      creator_id: creator.id,
-      name: name.trim(),
-      description,
-      budget_paise,
-      max_generations,
-      status: "active" as const,
-    })
-    .select("id")
-    .single();
-
-  if (campError || !campaign) {
-    return NextResponse.json(
-      { error: campError?.message ?? "Failed to create campaign" },
+      { error: "Failed to create campaign" },
       { status: 500 },
     );
   }
 
-  // --- Insert generation rows ---
-  const generationRows = Array.from({ length: count }, () => ({
-    campaign_id: campaign.id,
-    brand_id: brand.id,
-    creator_id: creator.id,
-    structured_brief: brief as unknown as Json,
-    status: "draft" as const,
-    cost_paise: price_per_generation_paise,
-  }));
+  const { campaign_id, generation_ids } = rpcData as {
+    campaign_id: string;
+    generation_ids: string[];
+    balance_after_paise: number;
+  };
 
-  const { data: insertedGenerations, error: genError } = await admin
-    .from("generations")
-    .insert(generationRows)
-    .select("id");
-
-  if (genError || !insertedGenerations) {
-    console.error(
-      "[campaigns/create] Failed to insert generations for campaign",
-      campaign.id,
-      genError,
-    );
-    return NextResponse.json(
-      {
-        error:
-          "Campaign created but generation rows could not be inserted. Contact support.",
-        campaign_id: campaign.id,
-      },
-      { status: 500 },
-    );
-  }
-
-  // --- Dispatch Inngest events ---
+  // Dispatch Inngest events — one per generation. Done OUTSIDE the RPC so a
+  // failed send doesn't roll back the campaign. Use batch form.
   await inngest.send(
-    insertedGenerations.map((g) => ({
+    generation_ids.map((id) => ({
       name: "generation/created" as const,
-      data: { generation_id: g.id },
+      data: { generation_id: id },
     })),
   );
 
-  return NextResponse.json(
-    {
-      campaign_id: campaign.id,
-      generation_ids: insertedGenerations.map((g) => g.id),
-    },
-    { status: 201 },
-  );
+  return NextResponse.json({ campaign_id, generation_ids }, { status: 201 });
 }
