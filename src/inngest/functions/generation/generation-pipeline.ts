@@ -29,7 +29,86 @@ import {
 export const runPipeline = inngest.createFunction(
   {
     id: "generation/run-pipeline",
+    // Serialize all generation pipelines to one-at-a-time. Replicate's
+    // flux-kontext-max hits 429 rate limits when 2+ predictions fire in
+    // parallel from the same account. Queueing them here avoids that
+    // entirely — adds latency but guarantees delivery. When the account
+    // concurrency limit is raised, bump this number to match.
+    concurrency: { limit: 1 },
     triggers: [{ event: "generation/created" }],
+    // If every step in the pipeline exhausts retries, flip the generation
+    // to 'failed', release the escrowed funds back to the brand wallet,
+    // and log to audit. Without this, the row stays stuck on 'generating'
+    // and the escrow is frozen.
+    onFailure: async ({ event, error }) => {
+      const admin = createAdminClient();
+      // Inngest wraps the original event at event.data.event
+      const original = (event.data as { event?: { data?: { generation_id?: string } } })
+        .event;
+      const generation_id = original?.data?.generation_id;
+      if (!generation_id) return;
+
+      const { data: gen } = await admin
+        .from("generations")
+        .select("id, brand_id, cost_paise, status")
+        .eq("id", generation_id)
+        .maybeSingle();
+      if (!gen) return;
+
+      // Idempotency: if already failed AND refunded, skip.
+      const { data: existingRefund } = await admin
+        .from("wallet_transactions")
+        .select("id")
+        .eq("reference_id", generation_id)
+        .eq("reference_type", "generation")
+        .eq("type", "escrow_release")
+        .maybeSingle();
+
+      await admin
+        .from("generations")
+        .update({ status: "failed" })
+        .eq("id", generation_id);
+
+      if (!existingRefund && gen.brand_id && gen.cost_paise) {
+        const { data: brandRow } = await admin
+          .from("brands")
+          .select("user_id")
+          .eq("id", gen.brand_id)
+          .maybeSingle();
+        if (brandRow?.user_id) {
+          const { data: lastTx } = await admin
+            .from("wallet_transactions")
+            .select("balance_after_paise")
+            .eq("user_id", brandRow.user_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const currentBalance = lastTx?.balance_after_paise ?? 0;
+          await admin.from("wallet_transactions").insert({
+            user_id: brandRow.user_id,
+            type: "escrow_release",
+            amount_paise: gen.cost_paise,
+            direction: "credit" as const,
+            reference_id: generation_id,
+            reference_type: "generation",
+            balance_after_paise: currentBalance + gen.cost_paise,
+            description: `Refund for failed generation ${generation_id}`,
+          });
+        }
+      }
+
+      await admin.from("audit_log").insert({
+        actor_type: "system" as const,
+        action: "generation_failed",
+        resource_type: "generation",
+        resource_id: generation_id,
+        metadata: {
+          error_message:
+            error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
+          refunded: !existingRefund,
+        },
+      });
+    },
   },
   async ({ event, step }) => {
     const { generation_id } = event.data as { generation_id: string };

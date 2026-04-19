@@ -51,10 +51,10 @@ export async function generateWithKontext(
     modelInput.seed = input.seed;
   }
 
-  const output = await replicate.run(
-    MODELS.kontext as `${string}/${string}`,
-    { input: modelInput }
-  );
+  // 429-aware retry with exponential backoff. Replicate's flux-kontext-max
+  // returns 429 under account-level concurrency/burst limits. The SDK does
+  // its own retrying but not enough — wrap with a longer backoff here.
+  const output = await runKontextWithBackoff(modelInput);
 
   const outputs = Array.isArray(output) ? output : [output];
   const first = outputs[0] as unknown;
@@ -86,4 +86,26 @@ export async function generateWithKontext(
     width: dims.width,
     height: dims.height,
   };
+}
+
+async function runKontextWithBackoff(
+  modelInput: Record<string, unknown>,
+): Promise<unknown> {
+  const waits = [5_000, 20_000, 45_000]; // 5s, 20s, 45s before retries 2,3,4
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= waits.length; attempt++) {
+    try {
+      return await replicate.run(
+        MODELS.kontext as `${string}/${string}`,
+        { input: modelInput },
+      );
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = /status\s*429|too many requests/i.test(msg);
+      if (!isRateLimit || attempt === waits.length) throw err;
+      await new Promise((r) => setTimeout(r, waits[attempt]));
+    }
+  }
+  throw lastErr;
 }
