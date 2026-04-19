@@ -166,11 +166,13 @@ export const runPipeline = inngest.createFunction(
       // Inject creator gender so the prompt assembler can render
       // "a [gender] person" instead of the gender-neutral "a person",
       // which Nano Banana Pro otherwise tends to hallucinate as female.
-      const { data: creatorRow } = await admin
+      // Cast: `gender` column added in migration 00018, types stale until
+      // Supabase type regen runs.
+      const { data: creatorRow } = (await admin
         .from("creators")
         .select("gender")
         .eq("id", gen.creator_id)
-        .maybeSingle();
+        .maybeSingle()) as { data: { gender: string | null } | null };
       if (creatorRow?.gender && !brief.subject_gender) {
         brief.subject_gender = creatorRow.gender;
       }

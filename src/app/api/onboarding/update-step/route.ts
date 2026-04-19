@@ -57,9 +57,12 @@ export async function POST(request: Request) {
 
   // Use admin client to bypass RLS for the update
   const admin = createAdminClient();
+  // Cast: the `gender` column was added in migration 00018 but types
+  // haven't been regenerated yet. Safe because update-step is the only
+  // writer and we've validated the enum above.
   const { error: updateError } = await admin
     .from("creators")
-    .update(updatePayload)
+    .update(updatePayload as never)
     .eq("user_id", user.id);
 
   if (updateError) {
