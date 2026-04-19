@@ -205,10 +205,13 @@ export async function assemblePromptWithLLM(
       // description the brand writes; the assembler's job is to wrap it in
       // the anti-AI technical recipe consistently.
       temperature: 0.4,
-      // Pro model outputs a bit more narrative than Flash. The template is
-      // ~500 tokens rendered; 600 gives headroom without letting the model
-      // ramble.
-      max_tokens: 600,
+      // Gemini 2.5 Pro is a reasoning model — internal thinking tokens
+      // count against max_tokens. A 600-token cap was being almost entirely
+      // consumed by reasoning, leaving ~80 chars of actual output. 4000
+      // gives the model enough budget for its reasoning PLUS a full
+      // rendered template (Technical + Composition sections + preservation
+      // rules).
+      max_tokens: 4000,
     });
 
     const llmPrompt = response.choices?.[0]?.message?.content?.trim();
