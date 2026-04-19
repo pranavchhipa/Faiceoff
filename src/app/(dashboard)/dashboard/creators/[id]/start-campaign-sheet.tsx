@@ -64,6 +64,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   const total = pricePaise * count;
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isUploading) return;
     const file = e.target.files?.[0];
     if (!file) return;
     setProductFile(file);
@@ -90,6 +91,10 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   }
 
   async function onGenerate() {
+    if (pricePaise <= 0) {
+      setError("This creator has no active pricing — cannot start campaign");
+      return;
+    }
     if (!productUrl) {
       setError("Upload a product image first");
       return;
@@ -217,7 +222,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
                   {isUploading ? "Uploading…" : productUrl ? "✓ Uploaded" : "PNG / JPG, up to 5MB"}
                 </p>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={onUpload} />
+              <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={onUpload} />
             </label>
             <input
               type="text"
