@@ -87,9 +87,32 @@ export async function generateWithNanoBanana(
 
   const promptWithAspect = `${input.prompt}\n\nTarget aspect ratio: ${input.aspectRatio}.`;
 
+  // Label each image block explicitly. Gemini 3 Pro Image otherwise treats the
+  // image stream as undifferentiated references — the 5 face anchors overwhelm
+  // the single product image and Gemini substitutes a generic pack format
+  // (e.g., tetra-pak where the reference shows a PET bottle). A short text
+  // marker before each block tells the model which is which and reliably
+  // preserves the product's pack format + size.
   const parts = [
     { text: promptWithAspect },
+    {
+      text:
+        "--- REFERENCE 1: PRODUCT ---\n" +
+        "The next image is the EXACT product being featured. Preserve its pack " +
+        "format, shape, size proportions, colour, label typography, brand mark, " +
+        "and every character of on-pack text pixel-for-pixel. Do NOT substitute " +
+        "a different pack format (e.g., if this is a PET bottle, do not render " +
+        "a tetra-pak, can, or carton instead).",
+    },
     { inlineData: productInline },
+    {
+      text:
+        "--- REFERENCES 2-6: SUBJECT'S FACE ---\n" +
+        "The next images are photos of the SAME person from different angles. " +
+        "Preserve their facial identity, skin tone, bone structure, hair, and age " +
+        "exactly. Use these as identity reference only — do not blend them with " +
+        "the product image.",
+    },
     ...anchorInlines.map((a) => ({ inlineData: a })),
   ];
 
