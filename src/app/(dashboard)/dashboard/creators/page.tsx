@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Search, Users, ArrowRight, AtSign } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Input } from "@/components/ui/input";
 
@@ -16,10 +16,11 @@ interface CreatorWithDetails {
   instagram_followers: number | null;
   display_name: string;
   avatar_url: string | null;
-  categories: {
-    category: string;
-    price_per_generation_paise: number;
-  }[];
+  hero_photo_url: string | null;
+  approval_count: number;
+  campaigns_last_30d: number;
+  rating: number | null;
+  categories: { category: string; price_per_generation_paise: number }[];
 }
 
 /* ── Constants ── */
@@ -57,27 +58,10 @@ function formatINR(paise: number): string {
   }).format(inr);
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function getAvatarColor(name: string): string {
-  const colors = [
-    "var(--color-blush-deep)",
-    "var(--color-ocean-deep)",
-    "var(--color-lilac-deep)",
-    "var(--color-mint-deep)",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
+function formatFollowersShort(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
 }
 
 /* ── Animation variants ── */
@@ -275,88 +259,71 @@ export default function CreatorCatalogPage() {
         >
           {filteredCreators.map((creator) => {
             const minPrice = getMinPrice(creator);
+            const isTop10 = creator.approval_count >= 50;
+            const isTrending = creator.campaigns_last_30d >= 5;
+            const photo =
+              creator.hero_photo_url ??
+              creator.avatar_url ??
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                creator.display_name
+              )}&background=c9a96e&color=fff&size=600`;
 
             return (
               <motion.div
                 key={creator.id}
                 variants={cardVariants}
-                className="group flex flex-col rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-elevated)]"
+                className="group relative overflow-hidden rounded-[var(--radius-card)] shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-elevated)]"
               >
-                {/* Header: Avatar + Name */}
-                <div className="flex items-center gap-4">
-                  <div
-                    className="flex size-14 shrink-0 items-center justify-center rounded-full"
-                    style={{ backgroundColor: getAvatarColor(creator.display_name) }}
-                  >
-                    <span className="text-base font-700 text-[var(--color-ink)]">
-                      {getInitials(creator.display_name)}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-700 text-[var(--color-ink)]">
-                      {creator.display_name}
-                    </h3>
-                    {creator.instagram_handle && (
-                      <p className="flex items-center gap-1 text-sm text-[var(--color-neutral-500)]">
-                        <AtSign className="size-3.5" />
-                        @{creator.instagram_handle}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bio */}
-                {creator.bio && (
-                  <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--color-neutral-600)]">
-                    {creator.bio}
-                  </p>
-                )}
-
-                {/* Category Badges */}
-                {creator.categories.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {creator.categories.map((cat, idx) => {
-                      const colorSet = MIST_COLORS[idx % MIST_COLORS.length];
-                      return (
-                        <span
-                          key={cat.category}
-                          className="rounded-[var(--radius-pill)] px-3 py-1 text-xs font-500"
-                          style={{
-                            backgroundColor: colorSet.bg,
-                            color: colorSet.text,
-                          }}
-                        >
-                          {cat.category}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Price + CTA */}
-                <div className="mt-auto flex items-center justify-between pt-5">
-                  {minPrice !== null ? (
-                    <p className="text-sm font-600 text-[var(--color-ink)]">
-                      From{" "}
-                      <span className="text-[var(--color-gold)]">
-                        {formatINR(minPrice)}
+                <Link
+                  href={`/dashboard/creators/${creator.id}`}
+                  className="block no-underline"
+                >
+                  <div className="relative h-[480px] w-full">
+                    {(isTop10 || isTrending) && (
+                      <span className="absolute left-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-ink)] shadow-sm">
+                        {isTop10 ? "⭐ Top 10" : "🔥 Trending"}
                       </span>
-                      /generation
-                    </p>
-                  ) : (
-                    <p className="text-sm text-[var(--color-neutral-400)]">
-                      Pricing unavailable
-                    </p>
-                  )}
-
-                  <Link
-                    href={`/dashboard/creators/${creator.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-gold)] px-4 py-2 text-sm font-600 text-white no-underline transition-colors hover:bg-[var(--color-gold-hover)] hover:text-white"
-                  >
-                    View Profile
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
+                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo}
+                      alt={creator.display_name}
+                      className="h-full w-full object-cover object-top"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                      <h3 className="text-[17px] font-700 leading-tight">
+                        {creator.display_name}
+                      </h3>
+                      <p className="mt-0.5 text-[11px] opacity-90">
+                        {creator.instagram_handle && `@${creator.instagram_handle} • `}
+                        {creator.instagram_followers
+                          ? `${formatFollowersShort(creator.instagram_followers)} • `
+                          : ""}
+                        {creator.rating ? `${creator.rating.toFixed(1)}★` : "New"}
+                      </p>
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {creator.categories.slice(0, 2).map((cat, idx) => {
+                          const c = MIST_COLORS[idx % MIST_COLORS.length];
+                          return (
+                            <span
+                              key={cat.category}
+                              className="rounded-full px-2.5 py-0.5 text-[10px] font-500"
+                              style={{ backgroundColor: c.bg, color: c.text }}
+                            >
+                              {cat.category}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {minPrice !== null && (
+                        <p className="mt-2.5 text-[13px] font-600">
+                          From {formatINR(minPrice)}/image
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
               </motion.div>
             );
           })}
