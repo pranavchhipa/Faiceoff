@@ -44,12 +44,26 @@ export async function POST() {
 
     console.log("[complete] creator:", creator.id, "current step:", creator.onboarding_step);
 
-    // Mark onboarding as complete
+    // Mark onboarding as complete and make the creator discoverable.
+    //
+    // Historic bug: this route used to set `is_active: false` because the
+    // old pipeline required a creator-approved LoRA model before they
+    // could be licensed by brands. With the pipeline now using reference
+    // photos as face anchors directly (see lib/ai/pipeline-router.ts),
+    // there's no "wait for training" gate — completing onboarding means
+    // the creator is ready. Leaving this as `false` silently black-holed
+    // every new signup: they'd never appear in /api/creators, brands
+    // couldn't build campaigns against them, and generations would fail
+    // the `is_active = true` filter in /api/generations/create.
+    //
+    // (save-categories already sets is_active=true earlier in the flow,
+    // but we re-assert it here so a creator who re-completes onboarding
+    // — e.g. via force-complete — ends up active.)
     const { error: updateErr } = await admin
       .from("creators")
       .update({
         onboarding_step: "complete",
-        is_active: false,
+        is_active: true,
       })
       .eq("id", creator.id);
 

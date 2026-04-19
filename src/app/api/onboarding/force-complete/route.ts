@@ -47,10 +47,13 @@ export async function GET() {
       is_active: creator.is_active,
     };
 
-    // Force update to complete
+    // Force update to complete. Same fix as /api/onboarding/complete —
+    // is_active must be true so the creator is actually discoverable
+    // by brands. (Old LoRA-era code set this to false until training
+    // finished; that gate is gone with the face-anchor pipeline.)
     const { error: updateErr } = await admin
       .from("creators")
-      .update({ onboarding_step: "complete", is_active: false })
+      .update({ onboarding_step: "complete", is_active: true })
       .eq("id", creator.id);
 
     if (updateErr) {
