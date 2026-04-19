@@ -161,7 +161,7 @@ export default function CampaignsListPage() {
 
       {/* ── Campaign grid ── */}
       {campaigns.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {campaigns.map((campaign, i) => {
             const creatorName = campaign.creator_display_name ?? "Creator";
             const brandName = campaign.brand_display_name ?? "Brand";

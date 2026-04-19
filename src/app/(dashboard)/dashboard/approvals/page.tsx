@@ -242,10 +242,10 @@ export default function ApprovalsPage() {
               layout
               className="mb-4 overflow-hidden rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-card)]"
             >
-              <div className="p-5">
-                <div className="flex items-start gap-4">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-start gap-3 sm:gap-4">
                   {/* Image thumbnail or placeholder */}
-                  <div className="shrink-0 size-20 rounded-xl bg-[var(--color-lilac)] flex items-center justify-center overflow-hidden">
+                  <div className="shrink-0 size-14 sm:size-20 rounded-xl bg-[var(--color-lilac)] flex items-center justify-center overflow-hidden">
                     {gen?.image_url ? (
                       <img
                         src={gen.image_url}

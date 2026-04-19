@@ -193,7 +193,7 @@ export default function CreatorProfilePage({
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-7 text-white sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-800 tracking-tight">{creator.display_name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-800 tracking-tight">{creator.display_name}</h1>
               {creator.instagram_handle && (
                 <p className="mt-1 flex items-center gap-1 text-sm opacity-90">
                   <AtSign className="size-3.5" />
@@ -226,7 +226,7 @@ export default function CreatorProfilePage({
         </div>
 
         {/* STATS STRIP */}
-        <div className="grid grid-cols-2 gap-6 border-b border-[var(--color-neutral-100)] px-7 py-6 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 border-b border-[var(--color-neutral-100)] px-5 sm:px-7 py-5 sm:py-6 md:grid-cols-4">
           <Stat big={stats.followers ? formatFollowersShort(stats.followers) : "—"} small="followers" />
           <Stat
             big={stats.rating ? `${stats.rating.toFixed(1)}★` : "—"}
@@ -242,7 +242,7 @@ export default function CreatorProfilePage({
           />
         </div>
 
-        <div className="space-y-8 p-7">
+        <div className="space-y-8 p-5 sm:p-7">
           {creator.bio && (
             <section>
               <h3 className="mb-2 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">About</h3>
@@ -273,7 +273,7 @@ export default function CreatorProfilePage({
           {creator.categories.length > 0 && (
             <section>
               <h3 className="mb-3 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">Pricing</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {creator.categories.map((cat) => (
                   <div
                     key={cat.id}
@@ -302,7 +302,7 @@ export default function CreatorProfilePage({
                 <h3 className="mb-3 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">
                   Recent AI-Generated Work
                 </h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {validGallery.map((url, idx) => (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img

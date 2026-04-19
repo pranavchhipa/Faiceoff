@@ -164,7 +164,7 @@ export default function CreatorCatalogPage() {
     <div className="max-w-6xl">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)] lg:text-4xl">
+        <h1 className="text-2xl font-800 tracking-tight text-[var(--color-ink)] sm:text-3xl lg:text-4xl">
           Discover Creators
         </h1>
         <p className="mt-2 text-base text-[var(--color-neutral-500)]">
@@ -206,7 +206,7 @@ export default function CreatorCatalogPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
