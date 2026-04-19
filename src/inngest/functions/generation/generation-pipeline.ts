@@ -8,6 +8,7 @@ import {
   getValidFaceAnchorPack,
   generateAndCacheFaceAnchorPack,
   resolveFaceAnchorUrls,
+  getRealReferencePhotoUrls,
 } from "@/lib/ai/face-anchor";
 import {
   MAX_RETRIES,
@@ -243,39 +244,68 @@ export const runPipeline = inngest.createFunction(
         );
       }
 
-      // Ensure face anchor pack is cached (Stage 0). getValidFaceAnchorPack
-      // returns storage PATHS (not URLs) — bucket is private.
-      let faceAnchorPackPaths = await getValidFaceAnchorPack(gen.creator_id);
-      if (faceAnchorPackPaths.length === 0) {
-        // Fallback: generate on demand. Rare — usually the post-training
-        // Inngest fn has already cached this.
-        const { data: lora } = await admin
-          .from("creator_lora_models")
-          .select("replicate_model_id, trigger_word")
-          .eq("creator_id", gen.creator_id)
-          .eq("training_status", "completed")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!lora?.replicate_model_id) {
-          throw new Error(
-            `Creator ${gen.creator_id} has no trained LoRA — cannot run ${version} pipeline`
-          );
+      // Face anchors for Nano Banana Pro / Gemini 3 Pro Image multi-reference.
+      //
+      // Priority order:
+      //   1. Real onboarding selfies from creator_reference_photos (ground truth).
+      //      These are unambiguous identity anchors — original skin texture,
+      //      real pores, actual bone structure. Preferred whenever ≥3 exist.
+      //   2. LoRA-generated synthetic anchor pack (fallback).
+      //      Only used if the creator uploaded fewer than 3 real photos.
+      //      Synthetic anchors already bake in LoRA averaging → visible
+      //      identity drift in final output. Avoid when we can.
+      //
+      // Why 3: Gemini 3 Pro needs multiple angles to lock identity. A single
+      // frontal selfie collapses to a generic average. 3+ real photos from
+      // different angles / expressions gives a strong enough signal.
+      const MIN_REAL_PHOTOS_FOR_PRIMARY = 3;
+      const realReferenceUrls = await getRealReferencePhotoUrls(gen.creator_id, 5);
+
+      let faceAnchorPack: string[];
+      let faceAnchorSource: "real_photos" | "synthetic_anchors";
+
+      if (realReferenceUrls.length >= MIN_REAL_PHOTOS_FOR_PRIMARY) {
+        faceAnchorPack = realReferenceUrls;
+        faceAnchorSource = "real_photos";
+      } else {
+        // Fallback path — synthetic LoRA-generated anchor pack.
+        let faceAnchorPackPaths = await getValidFaceAnchorPack(gen.creator_id);
+        if (faceAnchorPackPaths.length === 0) {
+          // Second fallback: generate on demand. Rare — usually the post-
+          // training Inngest fn has already cached this.
+          const { data: lora } = await admin
+            .from("creator_lora_models")
+            .select("replicate_model_id, trigger_word")
+            .eq("creator_id", gen.creator_id)
+            .eq("training_status", "completed")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (!lora?.replicate_model_id) {
+            throw new Error(
+              `Creator ${gen.creator_id} has no trained LoRA and no real reference photos — cannot run ${version} pipeline`
+            );
+          }
+          const { anchorPaths } = await generateAndCacheFaceAnchorPack({
+            creatorId: gen.creator_id,
+            loraModelId: lora.replicate_model_id,
+            triggerWord: lora.trigger_word ?? "TOK",
+          });
+          faceAnchorPackPaths = anchorPaths;
         }
-        const { anchorPaths } = await generateAndCacheFaceAnchorPack({
-          creatorId: gen.creator_id,
-          loraModelId: lora.replicate_model_id,
-          triggerWord: lora.trigger_word ?? "TOK",
-        });
-        faceAnchorPackPaths = anchorPaths;
+        // Resolve paths to 1-hour signed URLs right before passing to external
+        // APIs (Nano Banana / Kontext) and the quality gate (CLIP).
+        faceAnchorPack = await resolveFaceAnchorUrls(faceAnchorPackPaths);
+        faceAnchorSource = "synthetic_anchors";
       }
 
-      // Resolve paths to 1-hour signed URLs right before passing to external
-      // APIs (Nano Banana / Kontext) and the quality gate (CLIP).
-      const faceAnchorPack = await resolveFaceAnchorUrls(faceAnchorPackPaths);
+      console.log(
+        `[generation:${generation_id}] face_anchor_source=${faceAnchorSource} count=${faceAnchorPack.length}`,
+      );
 
-      // Creator reference photos for face gate (use the anchor pack itself —
-      // they're the ground truth identity snapshots)
+      // Creator reference for face gate (CLIP similarity check). Use the same
+      // pack we fed to the generator — this way the gate measures identity
+      // against the exact reference the model was given.
       const creatorReferenceUrls = faceAnchorPack;
 
       const basePrompt = gen.assembled_prompt ?? assembledPrompt;

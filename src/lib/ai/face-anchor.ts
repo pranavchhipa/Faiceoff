@@ -245,3 +245,52 @@ export async function resolveFaceAnchorUrls(
   );
   return signed;
 }
+
+/**
+ * Fetch the creator's REAL onboarding selfies as signed 1-hour URLs, primary
+ * photo first (up to `limit`, default 5).
+ *
+ * Preferred over LoRA-generated synthetic anchors when feeding Nano Banana Pro
+ * / Gemini 3 Pro Image. The synthetic anchors are already a "generation" of
+ * the creator — using them as identity reference bakes in LoRA artifacts
+ * (over-smoothed skin, averaged features) and produces visibly different
+ * faces in outputs. Real selfies give Gemini 3 Pro unambiguous ground truth.
+ *
+ * Returns [] if the creator has zero reference photos saved. Caller decides
+ * whether to fall back to the synthetic anchor pack.
+ */
+export async function getRealReferencePhotoUrls(
+  creatorId: string,
+  limit = 5,
+): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data: photos, error } = await admin
+    .from("creator_reference_photos")
+    .select("storage_path, is_primary, uploaded_at")
+    .eq("creator_id", creatorId)
+    .order("is_primary", { ascending: false })
+    .order("uploaded_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !photos || photos.length === 0) return [];
+
+  const paths = photos
+    .map((p) => p.storage_path)
+    .filter((p): p is string => typeof p === "string" && p.length > 0);
+
+  if (paths.length === 0) return [];
+
+  const signed = await Promise.all(
+    paths.map(async (path) => {
+      const { data, error: signErr } = await admin.storage
+        .from(BUCKET)
+        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+      if (signErr || !data?.signedUrl) {
+        return null;
+      }
+      return data.signedUrl;
+    }),
+  );
+
+  return signed.filter((u): u is string => typeof u === "string");
+}
