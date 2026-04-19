@@ -1,4 +1,16 @@
 import { chatCompletion } from "./openrouter-client";
+import {
+  SETTING_OPTIONS,
+  TIME_LIGHTING_OPTIONS,
+  MOOD_PALETTE_OPTIONS,
+  INTERACTION_OPTIONS,
+  POSE_ENERGY_OPTIONS,
+  EXPRESSION_OPTIONS,
+  OUTFIT_STYLE_OPTIONS,
+  CAMERA_FRAMING_OPTIONS,
+  labelFor,
+  type PillOption,
+} from "@/config/campaign-options";
 
 /**
  * LLM-powered prompt assembler.
@@ -13,6 +25,46 @@ import { chatCompletion } from "./openrouter-client";
  * so the Pro-tier cost is pennies per generation and pays for itself in
  * output quality.
  */
+
+const PILL_FIELD_GROUPS: Record<string, readonly PillOption[]> = {
+  setting: SETTING_OPTIONS,
+  time_lighting: TIME_LIGHTING_OPTIONS,
+  mood_palette: MOOD_PALETTE_OPTIONS,
+  interaction: INTERACTION_OPTIONS,
+  pose_energy: POSE_ENERGY_OPTIONS,
+  expression: EXPRESSION_OPTIONS,
+  outfit_style: OUTFIT_STYLE_OPTIONS,
+  camera_framing: CAMERA_FRAMING_OPTIONS,
+};
+
+function pillValueToLabel(field: string, value: string): string {
+  if (value.startsWith("custom:")) return value.slice("custom:".length);
+  const group = PILL_FIELD_GROUPS[field];
+  return group ? labelFor(value, group) : value;
+}
+
+/**
+ * Convert a structured brief into the ordered line-list the LLM assembler expects.
+ * Pill fields with null/undefined values are omitted — the LLM infers from creator style.
+ */
+export function briefToAssemblerLines(
+  brief: Record<string, unknown>
+): string[] {
+  const lines: string[] = [];
+  if (typeof brief.product_name === "string" && brief.product_name)
+    lines.push(`product_name: ${brief.product_name}`);
+  for (const field of Object.keys(PILL_FIELD_GROUPS)) {
+    const v = brief[field];
+    if (typeof v === "string" && v.length > 0) {
+      lines.push(`${field}: ${pillValueToLabel(field, v)}`);
+    }
+  }
+  if (typeof brief.aspect_ratio === "string")
+    lines.push(`aspect_ratio: ${brief.aspect_ratio}`);
+  if (typeof brief.custom_notes === "string" && brief.custom_notes)
+    lines.push(`custom_notes: ${brief.custom_notes}`);
+  return lines;
+}
 
 /**
  * LLM used for the prompt-assembly step. Overridable via env var for
@@ -79,21 +131,14 @@ export async function assemblePromptWithLLM(
   brief: StructuredBrief
 ): Promise<{ prompt: string; method: "llm" | "fallback" }> {
   // Build the user message from brief fields
-  const briefLines: string[] = [];
-  if (brief.subject) briefLines.push(`subject: ${brief.subject}`);
-  if (brief.setting) briefLines.push(`setting: ${brief.setting}`);
-  if (brief.pose) briefLines.push(`pose: ${brief.pose}`);
-  if (brief.expression) briefLines.push(`expression: ${brief.expression}`);
-  if (brief.style) briefLines.push(`style: ${brief.style}`);
-  if (brief.outfit) briefLines.push(`outfit: ${brief.outfit}`);
-  if (brief.product_name)
-    briefLines.push(`product_name: ${brief.product_name}`);
-  if (brief.product_description)
-    briefLines.push(`product_description: ${brief.product_description}`);
-  if (brief.props) briefLines.push(`props: ${brief.props}`);
-  if (brief.category) briefLines.push(`category: ${brief.category}`);
-  if (brief.notes) briefLines.push(`additional_notes: ${brief.notes}`);
-
+  const briefLines = briefToAssemblerLines(brief as Record<string, unknown>);
+  // Back-compat: if caller still passes loose v1 fields, merge those too.
+  for (const k of ["subject", "setting", "pose", "expression", "style", "outfit", "props", "category", "product_description", "notes"] as const) {
+    const v = (brief as Record<string, unknown>)[k];
+    if (typeof v === "string" && v && !briefLines.some((l) => l.startsWith(`${k}:`))) {
+      briefLines.push(`${k}: ${v}`);
+    }
+  }
   const userMessage = briefLines.join("\n");
 
   try {
