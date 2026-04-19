@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-if (!process.env.R2_PUBLIC_URL && process.env.NODE_ENV !== "test") {
-  console.warn("[creators] R2_PUBLIC_URL not set — hero photo URLs will be relative and may not render");
-}
-
 /**
  * GET /api/creators
  *
@@ -81,15 +77,30 @@ export async function GET() {
       .from("creator_reference_photos")
       .select("creator_id, storage_path, is_primary")
       .in("creator_id", creatorIds)
-      .order("is_primary", { ascending: false }); // primary rows sort first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const p of (photos ?? []) as any[]) {
-      if (!heroByCreator.has(p.creator_id)) {
-        const base = process.env.R2_PUBLIC_URL ?? "";
-        heroByCreator.set(
-          p.creator_id,
-          base ? `${base}/${p.storage_path}` : p.storage_path
-        );
+      .order("is_primary", { ascending: false });
+
+    // Pick one primary path per creator first, then sign them in a single batch.
+    const primaryPath = new Map<string, string>();
+    for (const p of (photos ?? []) as Array<{ creator_id: string; storage_path: string; is_primary: boolean }>) {
+      if (!primaryPath.has(p.creator_id)) {
+        primaryPath.set(p.creator_id, p.storage_path);
+      }
+    }
+
+    if (primaryPath.size > 0) {
+      const paths = Array.from(primaryPath.values());
+      const { data: signed } = await admin.storage
+        .from("reference-photos")
+        .createSignedUrls(paths, 60 * 60); // 1 hour
+
+      const urlByPath = new Map<string, string>();
+      for (const s of signed ?? []) {
+        if (s.signedUrl && s.path) urlByPath.set(s.path, s.signedUrl);
+      }
+
+      for (const [creatorId, path] of primaryPath) {
+        const url = urlByPath.get(path);
+        if (url) heroByCreator.set(creatorId, url);
       }
     }
   }

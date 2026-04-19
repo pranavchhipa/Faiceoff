@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-if (!process.env.R2_PUBLIC_URL && process.env.NODE_ENV !== "test") {
-  console.warn("[creators] R2_PUBLIC_URL not set — hero photo URLs will be relative and may not render");
-}
-
 /**
  * GET /api/creators/:id
  *
@@ -87,8 +83,8 @@ export async function GET(
       })),
   };
 
-  // Hero photo
-  const { data: heroPhoto } = await admin
+  // Hero photo — use signed URL (bucket is private)
+  const { data: primaryPhoto } = await admin
     .from("creator_reference_photos")
     .select("storage_path")
     .eq("creator_id", id)
@@ -96,12 +92,14 @@ export async function GET(
     .limit(1)
     .maybeSingle();
 
-  const base = process.env.R2_PUBLIC_URL ?? "";
-  const heroPhotoUrl = heroPhoto?.storage_path
-    ? base
-      ? `${base}/${heroPhoto.storage_path}`
-      : heroPhoto.storage_path
-    : (creator.avatar_url ?? null);
+  let heroPhotoUrl: string | null = null;
+  if (primaryPhoto?.storage_path) {
+    const { data: signed } = await admin.storage
+      .from("reference-photos")
+      .createSignedUrl(primaryPhoto.storage_path, 60 * 60);
+    heroPhotoUrl = signed?.signedUrl ?? null;
+  }
+  if (!heroPhotoUrl) heroPhotoUrl = creator.avatar_url ?? null;
 
   // Gallery: up to 8 most recent approved generations for this creator
   const { data: gens } = await admin

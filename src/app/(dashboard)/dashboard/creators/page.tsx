@@ -268,6 +268,14 @@ export default function CreatorCatalogPage() {
                 creator.display_name
               )}&background=c9a96e&color=fff&size=600`;
 
+            const hasPhoto = Boolean(creator.hero_photo_url ?? creator.avatar_url);
+            const initials = creator.display_name
+              .split(" ")
+              .map((w) => w[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase();
+
             return (
               <motion.div
                 key={creator.id}
@@ -278,18 +286,26 @@ export default function CreatorCatalogPage() {
                   href={`/dashboard/creators/${creator.id}`}
                   className="block no-underline"
                 >
-                  <div className="relative h-[480px] w-full">
+                  <div className="relative aspect-[3/4] min-h-[360px] max-h-[440px] w-full">
                     {(isTop10 || isTrending) && (
                       <span className="absolute left-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-ink)] shadow-sm">
                         {isTop10 ? "⭐ Top 10" : "🔥 Trending"}
                       </span>
                     )}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo}
-                      alt={creator.display_name}
-                      className="h-full w-full object-cover object-top"
-                    />
+                    {hasPhoto ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photo}
+                        alt={creator.display_name}
+                        className="h-full w-full object-cover object-top"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--color-blush)] to-[var(--color-ocean)]">
+                        <span className="font-['Outfit'] text-5xl font-800 text-[var(--color-ink)]/70">
+                          {initials}
+                        </span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 p-4 text-white">
                       <h3 className="text-[17px] font-700 leading-tight">
