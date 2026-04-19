@@ -506,10 +506,24 @@ export default function DashboardPage() {
                      </span>
                    </div>
                    <div className="relative z-10 mt-5 min-w-0">
-                     <p className="text-[16px] font-600 text-[#9d365d] truncate">
-                       {creatorProfile?.instagram_handle ? `@${creatorProfile.instagram_handle}` : "@pranav_chhipa01"}
-                     </p>
-                     <p className="text-[11px] font-500 text-[#9d365d] opacity-80 underline decoration-[#9d365d]/40 underline-offset-2 mt-0.5">Linked Account</p>
+                     {creatorProfile?.instagram_handle ? (
+                       <>
+                         <p className="text-[16px] font-600 text-[#9d365d] truncate">
+                           @{creatorProfile.instagram_handle}
+                         </p>
+                         <p className="text-[11px] font-500 text-[#9d365d] opacity-80 underline decoration-[#9d365d]/40 underline-offset-2 mt-0.5">Linked Account</p>
+                       </>
+                     ) : (
+                       <>
+                         <p className="text-[16px] font-600 text-[#9d365d] truncate opacity-80">Not linked</p>
+                         <Link
+                           href="/dashboard/settings"
+                           className="text-[11px] font-500 text-[#9d365d] underline decoration-[#9d365d]/40 underline-offset-2 mt-0.5 no-underline hover:underline"
+                         >
+                           Add your handle
+                         </Link>
+                       </>
+                     )}
                    </div>
                 </div>
 
@@ -525,7 +539,9 @@ export default function DashboardPage() {
                      </span>
                    </div>
                    <div className="relative z-10 mt-5 min-w-0">
-                     <p className="text-[16px] font-600 text-[#1a6b3c] truncate">{photoCount || 7} uploaded</p>
+                     <p className="text-[16px] font-600 text-[#1a6b3c] truncate">
+                       {photoCount > 0 ? `${photoCount} uploaded` : "No photos yet"}
+                     </p>
                      <p className="text-[11px] font-500 text-[#1a6b3c] opacity-80 mt-0.5">Training Data</p>
                    </div>
                 </div>

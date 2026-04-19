@@ -17,14 +17,18 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Get creator record
+  // Get creator record. maybeSingle() so a missing row returns null
+  // instead of throwing — consistent with the self-healing routes.
   const { data: creator, error: creatorErr } = await admin
     .from("creators")
     .select("id")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (creatorErr || !creator) {
+  if (creatorErr) {
+    return NextResponse.json({ error: creatorErr.message }, { status: 500 });
+  }
+  if (!creator) {
     return NextResponse.json(
       { error: "Creator profile not found" },
       { status: 404 },
