@@ -1,0 +1,62 @@
+<h2>"+ Custom" Pill Pattern</h2>
+<p class="subtitle">Har section (setting, lighting, mood, interaction, pose, expression, outfit, camera) me last pill <b>+ Custom</b>. Click → inline text input neeche khulta hai. Aspect ratio me nahi (sizing break ho jaati hai).</p>
+
+<style>
+  .cp-sec { max-width: 680px; margin: 0 auto 18px; background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(26,21,19,.06); }
+  .cp-label { font-size: 11px; font-weight: 700; color: #1a1513; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cp-label .icon { width: 20px; height: 20px; background: #f6dfe0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+  .cp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cp-pill { padding: 7px 12px; border: 1px solid #ece5dc; border-radius: 999px; background: #fff; font-size: 12px; color: #5a524c; cursor: pointer; white-space: nowrap; }
+  .cp-pill.active { background: #1a1513; border-color: #1a1513; color: #fff; font-weight: 600; }
+  .cp-pill.custom { border-style: dashed; color: #c9a96e; border-color: #c9a96e; font-weight: 600; }
+  .cp-pill.custom.active { background: #c9a96e; color: #fff; border-style: solid; }
+  .cp-custom-input { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+  .cp-custom-input input { flex: 1; padding: 8px 12px; border: 1px solid #c9a96e; border-radius: 8px; font-size: 13px; background: #fdf6e7; color: #1a1513; font-family: inherit; box-sizing: border-box; }
+  .cp-custom-input .count { font-size: 11px; color: #8a8178; }
+  .cp-note { font-size: 11px; color: #8a8178; margin-top: 6px; }
+</style>
+
+<div class="cp-sec">
+  <div class="cp-label"><span class="icon">🏠</span> Setting — preset selected</div>
+  <div class="cp-pills">
+    <span class="cp-pill active">Home kitchen</span>
+    <span class="cp-pill">Living room</span>
+    <span class="cp-pill">Cafe</span>
+    <span class="cp-pill">Beach</span>
+    <span class="cp-pill">Rooftop</span>
+    <span class="cp-pill custom">+ Custom</span>
+  </div>
+</div>
+
+<div class="cp-sec">
+  <div class="cp-label"><span class="icon">🏠</span> Setting — Custom clicked (input revealed)</div>
+  <div class="cp-pills">
+    <span class="cp-pill">Home kitchen</span>
+    <span class="cp-pill">Living room</span>
+    <span class="cp-pill">Cafe</span>
+    <span class="cp-pill">Beach</span>
+    <span class="cp-pill">Rooftop</span>
+    <span class="cp-pill custom active">+ Custom</span>
+  </div>
+  <div class="cp-custom-input">
+    <input type="text" value="Rooftop infinity pool at dawn, Bandra skyline in background" />
+    <span class="count">59 / 80</span>
+  </div>
+  <p class="cp-note">Jo text tu likhega voh prompt me as-is jaayega — AI creator style me render karega.</p>
+</div>
+
+<div class="cp-sec">
+  <div class="cp-label"><span class="icon">🎨</span> Mood & palette — Custom example</div>
+  <div class="cp-pills">
+    <span class="cp-pill">Warm earthy</span>
+    <span class="cp-pill">Cool minimal</span>
+    <span class="cp-pill">Moody / dark</span>
+    <span class="cp-pill custom active">+ Custom</span>
+  </div>
+  <div class="cp-custom-input">
+    <input type="text" value="Wes Anderson symmetric pastel, muted green-pink" />
+    <span class="count">46 / 80</span>
+  </div>
+</div>
+
+<p class="subtitle" style="text-align:center;margin-top:24px">Pattern har section me same — dashed gold border, click pe solid gold + input row.</p>

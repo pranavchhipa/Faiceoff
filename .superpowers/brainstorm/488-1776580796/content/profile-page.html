@@ -1,0 +1,140 @@
+<h2>Creator Profile Page</h2>
+<p class="subtitle">Click a creator card → lands here → "Start Campaign" button launches the simplified campaign flow.</p>
+
+<style>
+  .pp { max-width: 1000px; margin: 0 auto; background: #fdfbf7; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(26,21,19,.08); }
+  .pp-hero { position: relative; height: 340px; background: linear-gradient(135deg, #f6dfe0 0%, #e2dcef 100%); }
+  .pp-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+  .pp-hero-gradient { position: absolute; inset: 0; background: linear-gradient(to top, rgba(26,21,19,.75) 0%, transparent 55%); }
+  .pp-hero-content { position: absolute; bottom: 24px; left: 28px; right: 28px; color: #fff; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
+  .pp-hero-left h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.01em; }
+  .pp-hero-left .handle { margin: 4px 0 0; font-size: 14px; opacity: .9; }
+  .pp-badges { display: flex; gap: 8px; margin-top: 12px; }
+  .pp-badges .b { background: rgba(255,255,255,.18); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.3); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .pp-cta { display: flex; gap: 10px; }
+  .pp-cta-primary { background: #c9a96e; color: #fff; padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(201,169,110,.35); }
+  .pp-cta-secondary { background: rgba(255,255,255,.95); color: #1a1513; padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+
+  .pp-stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 24px 28px; background: #fff; border-bottom: 1px solid #ece5dc; }
+  .pp-stat { text-align: left; }
+  .pp-stat b { display: block; font-size: 22px; font-weight: 800; color: #1a1513; }
+  .pp-stat span { font-size: 12px; color: #8a8178; margin-top: 2px; display: block; }
+
+  .pp-body { padding: 24px 28px; background: #fff; }
+  .pp-section { margin-bottom: 28px; }
+  .pp-section h3 { margin: 0 0 12px; font-size: 16px; font-weight: 700; color: #1a1513; }
+  .pp-bio { font-size: 14px; line-height: 1.6; color: #5a524c; }
+
+  .pp-cats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pp-cat { background: #f6dfe0; color: #1a1513; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+
+  .pp-pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .pp-price-card { background: #fdfbf7; border: 1px solid #ece5dc; border-radius: 12px; padding: 14px; }
+  .pp-price-card .cat { font-size: 12px; color: #8a8178; font-weight: 500; }
+  .pp-price-card .val { font-size: 18px; font-weight: 700; color: #1a1513; margin-top: 2px; }
+  .pp-price-card .unit { font-size: 11px; color: #8a8178; }
+
+  .pp-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .pp-gallery img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; display: block; }
+
+  .pp-trust { display: flex; gap: 14px; padding: 14px 16px; background: #daece0; border-radius: 12px; font-size: 13px; color: #1a1513; align-items: center; }
+  .pp-trust strong { font-weight: 700; }
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: /dashboard/creators/[id]</div>
+  <div class="mockup-body" style="padding: 20px; background: #f0ebe3;">
+    <div class="pp">
+
+      <!-- HERO -->
+      <div class="pp-hero">
+        <img class="pp-hero-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1400&q=85" />
+        <div class="pp-hero-gradient"></div>
+        <div class="pp-hero-content">
+          <div class="pp-hero-left">
+            <h1>Priya Sharma</h1>
+            <p class="handle">@priyasharma • Mumbai, IN</p>
+            <div class="pp-badges">
+              <span class="b">⭐ Top 10 Creator</span>
+              <span class="b">✓ KYC Verified</span>
+              <span class="b">🔒 DPDP Consent</span>
+            </div>
+          </div>
+          <div class="pp-cta">
+            <button class="pp-cta-secondary">♡ Save</button>
+            <button class="pp-cta-primary">Start Campaign →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="pp-stats">
+        <div class="pp-stat"><b>245K</b><span>Instagram followers</span></div>
+        <div class="pp-stat"><b>4.9★</b><span>from 38 campaigns</span></div>
+        <div class="pp-stat"><b>12h</b><span>avg approval time</span></div>
+        <div class="pp-stat"><b>98%</b><span>approval rate</span></div>
+      </div>
+
+      <!-- BODY -->
+      <div class="pp-body">
+
+        <div class="pp-section">
+          <h3>About</h3>
+          <p class="pp-bio">Fashion and lifestyle creator from Mumbai. 5 years creating authentic content for Indian D2C brands — Mamaearth, Nykaa, Forest Essentials. Face-licensed for fashion, beauty, and home lifestyle categories.</p>
+        </div>
+
+        <div class="pp-section">
+          <h3>Categories</h3>
+          <div class="pp-cats">
+            <span class="pp-cat">Fashion</span>
+            <span class="pp-cat" style="background:#d9e5f0">Lifestyle</span>
+            <span class="pp-cat" style="background:#e2dcef">Beauty</span>
+            <span class="pp-cat" style="background:#daece0">Home</span>
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <h3>Pricing</h3>
+          <div class="pp-pricing">
+            <div class="pp-price-card">
+              <p class="cat">Fashion</p>
+              <p class="val">₹1,200 <span class="unit">/image</span></p>
+            </div>
+            <div class="pp-price-card">
+              <p class="cat">Beauty</p>
+              <p class="val">₹1,500 <span class="unit">/image</span></p>
+            </div>
+            <div class="pp-price-card">
+              <p class="cat">Lifestyle</p>
+              <p class="val">₹1,000 <span class="unit">/image</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <h3>Recent AI-Generated Work</h3>
+          <div class="pp-gallery">
+            <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1517365830460-955ce3ccd263?w=400&q=80" />
+            <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80" />
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-trust">
+            <span style="font-size:20px">🛡️</span>
+            <div><strong>Consent-first licensing</strong> — Priya reviews every generation within 48h before it reaches you. Rejected generations get a full refund.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:24px;text-align:center">Changes you want on this page? Terminal me bata — sections add/remove/reorder kar sakte hain.</p>

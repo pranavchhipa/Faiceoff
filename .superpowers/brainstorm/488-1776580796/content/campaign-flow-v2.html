@@ -1,0 +1,289 @@
+<h2>Campaign Creation — Industry-Grade Customization</h2>
+<p class="subtitle">Sab pill-based clicks, minimal typing. Ek free-text "Custom notes" neeche hai edge cases ke liye. Har section LLM prompt-assembler ko structured signal deta hai.</p>
+
+<style>
+  .ccf { max-width: 760px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(26,21,19,.12); overflow: hidden; }
+  .ccf-head { background: #fdfbf7; padding: 18px 24px; border-bottom: 1px solid #ece5dc; display: flex; align-items: center; gap: 14px; }
+  .ccf-head img { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; object-position: center top; }
+  .ccf-head .title { font-weight: 700; color: #1a1513; font-size: 15px; margin: 0; }
+  .ccf-head .sub { font-size: 12px; color: #8a8178; margin: 2px 0 0; }
+
+  .ccf-body { padding: 22px 24px; max-height: 640px; overflow-y: auto; }
+  .ccf-sec { margin-bottom: 22px; }
+  .ccf-label { font-size: 11px; font-weight: 700; color: #1a1513; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ccf-label .opt { font-size: 10px; color: #8a8178; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .ccf-label .icon { width: 20px; height: 20px; background: #f6dfe0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+
+  .ccf-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ccf-pill { padding: 7px 12px; border: 1px solid #ece5dc; border-radius: 999px; background: #fff; font-size: 12px; color: #5a524c; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .ccf-pill:hover { border-color: #c9a96e; color: #1a1513; }
+  .ccf-pill.active { background: #1a1513; border-color: #1a1513; color: #fff; font-weight: 600; }
+
+  .ccf-input, .ccf-textarea { width: 100%; padding: 10px 12px; border: 1px solid #ece5dc; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; color: #1a1513; box-sizing: border-box; }
+  .ccf-textarea { resize: vertical; min-height: 68px; }
+
+  .ccf-upload { display: flex; gap: 12px; align-items: center; padding: 10px; border: 2px dashed #ece5dc; border-radius: 10px; background: #fdfbf7; }
+  .ccf-upload-preview { width: 56px; height: 56px; border-radius: 8px; background: #f0ebe3 url('https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=200&q=80') center/cover; flex-shrink: 0; }
+  .ccf-upload-meta { flex: 1; font-size: 13px; color: #1a1513; }
+  .ccf-upload-meta b { display: block; }
+  .ccf-upload-meta span { color: #8a8178; font-size: 11px; }
+
+  .ccf-aspects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .ccf-aspect { padding: 10px 6px; border: 1px solid #ece5dc; border-radius: 8px; text-align: center; cursor: pointer; font-size: 12px; color: #5a524c; }
+  .ccf-aspect.active { border-color: #c9a96e; background: #fdf6e7; color: #1a1513; font-weight: 600; }
+  .ccf-aspect .box { display: block; margin: 0 auto 4px; background: #c9a96e; border-radius: 2px; }
+  .ccf-aspect b { display: block; font-size: 12px; }
+  .ccf-aspect span { font-size: 10px; color: #8a8178; }
+
+  .ccf-counter { display: flex; align-items: center; gap: 14px; padding: 10px 14px; background: #fdfbf7; border-radius: 10px; border: 1px solid #ece5dc; }
+  .ccf-counter button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #ece5dc; background: #fff; font-size: 15px; font-weight: 700; cursor: pointer; color: #1a1513; }
+  .ccf-counter .val { font-size: 20px; font-weight: 700; color: #1a1513; min-width: 36px; text-align: center; }
+  .ccf-counter .cost { flex: 1; text-align: right; font-size: 12px; color: #8a8178; }
+  .ccf-counter .cost b { display: block; font-size: 15px; color: #1a1513; font-weight: 700; }
+
+  .ccf-foot { padding: 16px 24px; background: #fdfbf7; border-top: 1px solid #ece5dc; display: flex; justify-content: space-between; align-items: center; position: sticky; bottom: 0; }
+  .ccf-total { font-size: 13px; color: #5a524c; }
+  .ccf-total b { display: block; font-size: 18px; color: #1a1513; font-weight: 800; }
+  .ccf-submit { background: #c9a96e; color: #fff; border: none; padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(201,169,110,.35); }
+
+  .ccf-smart { background: #e2dcef; border-radius: 10px; padding: 11px 14px; font-size: 12px; color: #1a1513; margin-bottom: 18px; display: flex; gap: 10px; align-items: flex-start; }
+
+  .ccf-divider { height: 1px; background: #ece5dc; margin: 22px 0 18px; }
+  .ccf-divider-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #8a8178; font-weight: 700; margin-bottom: 14px; }
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Campaign customization sheet</div>
+  <div class="mockup-body" style="padding: 30px; background: #f0ebe3;">
+    <div class="ccf">
+
+      <div class="ccf-head">
+        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=85" />
+        <div style="flex:1">
+          <p class="title">New Campaign with Priya Sharma</p>
+          <p class="sub">Fashion • ₹1,200 per image</p>
+        </div>
+        <span style="font-size:20px;color:#8a8178;cursor:pointer">✕</span>
+      </div>
+
+      <div class="ccf-body">
+
+        <div class="ccf-smart">
+          <span style="font-size:14px">✨</span>
+          <div><strong>Click-based customization.</strong> Sab fields pills me hain — zyada typing nahi. Jo fields skip karega voh AI creator ke past style se auto-pick karega.</div>
+        </div>
+
+        <!-- 1. PRODUCT -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">📦</span> Product <span class="opt">• Required</span></div>
+          <div class="ccf-upload">
+            <div class="ccf-upload-preview"></div>
+            <div class="ccf-upload-meta">
+              <b>pourfect-coffee.png</b>
+              <span>800 × 800 • Replace</span>
+            </div>
+            <button style="background:#fff;border:1px solid #ece5dc;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:#1a1513">Change</button>
+          </div>
+          <input class="ccf-input" style="margin-top:8px" value="Pourfect Coffee" placeholder="Exact product name (as printed on pack)" />
+        </div>
+
+        <div class="ccf-divider-label">Scene & environment</div>
+
+        <!-- 2. SETTING -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">🏠</span> Setting</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill active">Home kitchen</span>
+            <span class="ccf-pill">Living room</span>
+            <span class="ccf-pill">Bedroom</span>
+            <span class="ccf-pill">Bathroom</span>
+            <span class="ccf-pill">Balcony</span>
+            <span class="ccf-pill">Cafe</span>
+            <span class="ccf-pill">Restaurant</span>
+            <span class="ccf-pill">Office</span>
+            <span class="ccf-pill">Studio (white)</span>
+            <span class="ccf-pill">Studio (colored)</span>
+            <span class="ccf-pill">Outdoor street</span>
+            <span class="ccf-pill">Garden / park</span>
+            <span class="ccf-pill">Beach</span>
+            <span class="ccf-pill">Rooftop</span>
+            <span class="ccf-pill">Car interior</span>
+          </div>
+        </div>
+
+        <!-- 3. TIME / LIGHTING -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">☀️</span> Time & lighting</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill">Early morning</span>
+            <span class="ccf-pill active">Soft daylight</span>
+            <span class="ccf-pill">Golden hour</span>
+            <span class="ccf-pill">Overcast</span>
+            <span class="ccf-pill">Blue hour</span>
+            <span class="ccf-pill">Night (ambient)</span>
+            <span class="ccf-pill">Studio strobe</span>
+            <span class="ccf-pill">Window light</span>
+            <span class="ccf-pill">Candle / warm</span>
+          </div>
+        </div>
+
+        <!-- 4. MOOD / PALETTE -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">🎨</span> Mood & palette</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill active">Warm earthy</span>
+            <span class="ccf-pill">Cool minimal</span>
+            <span class="ccf-pill">Pastel dreamy</span>
+            <span class="ccf-pill">Vibrant pop</span>
+            <span class="ccf-pill">Monochrome</span>
+            <span class="ccf-pill">Moody / dark</span>
+            <span class="ccf-pill">Sunwashed</span>
+            <span class="ccf-pill">Cinematic teal-orange</span>
+            <span class="ccf-pill">Editorial neutral</span>
+          </div>
+        </div>
+
+        <div class="ccf-divider-label" style="margin-top:26px">Subject & pose</div>
+
+        <!-- 5. INTERACTION WITH PRODUCT -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">🤲</span> Interaction with product</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill active">Holding</span>
+            <span class="ccf-pill">Using</span>
+            <span class="ccf-pill">Applying</span>
+            <span class="ccf-pill">Drinking / eating</span>
+            <span class="ccf-pill">Wearing</span>
+            <span class="ccf-pill">Showing to camera</span>
+            <span class="ccf-pill">Pouring</span>
+            <span class="ccf-pill">Opening / unboxing</span>
+            <span class="ccf-pill">Product beside (flat-lay)</span>
+          </div>
+        </div>
+
+        <!-- 6. POSE / ENERGY -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">💃</span> Pose & energy</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill active">Candid</span>
+            <span class="ccf-pill">Editorial</span>
+            <span class="ccf-pill">Seated relaxed</span>
+            <span class="ccf-pill">Standing confident</span>
+            <span class="ccf-pill">Walking</span>
+            <span class="ccf-pill">Mid-action</span>
+            <span class="ccf-pill">Over-shoulder</span>
+            <span class="ccf-pill">POV (first-person)</span>
+          </div>
+        </div>
+
+        <!-- 7. EXPRESSION -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">😊</span> Expression</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill active">Warm smile</span>
+            <span class="ccf-pill">Laughing</span>
+            <span class="ccf-pill">Subtle smirk</span>
+            <span class="ccf-pill">Contemplative</span>
+            <span class="ccf-pill">Confident neutral</span>
+            <span class="ccf-pill">Surprise</span>
+            <span class="ccf-pill">Looking away</span>
+            <span class="ccf-pill">Eyes closed / serene</span>
+          </div>
+        </div>
+
+        <!-- 8. OUTFIT -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">👗</span> Outfit style</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill">Casual Indian</span>
+            <span class="ccf-pill active">Western casual</span>
+            <span class="ccf-pill">Ethnic (saree / kurta)</span>
+            <span class="ccf-pill">Athleisure</span>
+            <span class="ccf-pill">Formal / blazer</span>
+            <span class="ccf-pill">Sleepwear / loungewear</span>
+            <span class="ccf-pill">Party / glam</span>
+            <span class="ccf-pill">Streetwear</span>
+          </div>
+        </div>
+
+        <div class="ccf-divider-label" style="margin-top:26px">Camera & output</div>
+
+        <!-- 9. CAMERA / COMPOSITION -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">📷</span> Camera & framing</div>
+          <div class="ccf-pills">
+            <span class="ccf-pill">Close-up face</span>
+            <span class="ccf-pill">Shoulders up</span>
+            <span class="ccf-pill active">Half-body</span>
+            <span class="ccf-pill">Full-body</span>
+            <span class="ccf-pill">Wide environmental</span>
+            <span class="ccf-pill">Low angle</span>
+            <span class="ccf-pill">High angle</span>
+            <span class="ccf-pill">Dutch tilt</span>
+          </div>
+        </div>
+
+        <!-- 10. ASPECT -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">📐</span> Platform & aspect</div>
+          <div class="ccf-aspects">
+            <div class="ccf-aspect">
+              <span class="box" style="width:20px;height:28px"></span>
+              <b>9:16</b>
+              <span>Reels / Story</span>
+            </div>
+            <div class="ccf-aspect active">
+              <span class="box" style="width:28px;height:28px"></span>
+              <b>1:1</b>
+              <span>IG Post</span>
+            </div>
+            <div class="ccf-aspect">
+              <span class="box" style="width:22px;height:28px"></span>
+              <b>4:5</b>
+              <span>IG Feed</span>
+            </div>
+            <div class="ccf-aspect">
+              <span class="box" style="width:32px;height:20px"></span>
+              <b>16:9</b>
+              <span>YT / Web</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11. COUNT -->
+        <div class="ccf-sec">
+          <div class="ccf-label"><span class="icon">🔢</span> How many images?</div>
+          <div class="ccf-counter">
+            <button>−</button>
+            <span class="val">5</span>
+            <button>+</button>
+            <div class="cost">
+              ₹1,200 × 5<br>
+              <b>₹6,000</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="ccf-divider"></div>
+
+        <!-- 12. CUSTOM NOTES -->
+        <div class="ccf-sec" style="margin-bottom:6px">
+          <div class="ccf-label"><span class="icon">✍️</span> Custom notes <span class="opt">• Optional — edge cases, brand refs, do-not-do</span></div>
+          <textarea class="ccf-textarea" placeholder="Anything specific? e.g. 'No sunglasses', 'Make sure pack label is visible', 'Shoot in our Mumbai store aesthetic'"></textarea>
+        </div>
+
+      </div>
+
+      <div class="ccf-foot">
+        <div class="ccf-total">
+          Total<br>
+          <b>₹6,000</b>
+        </div>
+        <button class="ccf-submit">Generate Images →</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:24px;text-align:center">12 structured sections, saare pill-based. Brand sirf tabs click kare. Jo skip karega — AI creator ke style se infer karega. LLM ko ye structured JSON jaata hai → reliable, reproducible prompts.</p>

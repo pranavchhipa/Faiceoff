@@ -1,0 +1,146 @@
+<h2>Simplified Campaign Creation — Single Screen</h2>
+<p class="subtitle">Creator profile se "Start Campaign" click → ye sheet khule side se. Purana 3-step wizard → 1 screen, 4 sections. Kyunki creator already selected hai, inputs kaafi kam ho gaye.</p>
+
+<style>
+  .ccf { max-width: 640px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(26,21,19,.12); overflow: hidden; }
+  .ccf-head { background: #fdfbf7; padding: 20px 24px; border-bottom: 1px solid #ece5dc; display: flex; align-items: center; gap: 14px; }
+  .ccf-head img { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; object-position: center top; }
+  .ccf-head .title { font-weight: 700; color: #1a1513; font-size: 15px; margin: 0; }
+  .ccf-head .sub { font-size: 12px; color: #8a8178; margin: 2px 0 0; }
+
+  .ccf-body { padding: 24px; }
+  .ccf-sec { margin-bottom: 22px; }
+  .ccf-sec label { display: block; font-size: 12px; font-weight: 600; color: #1a1513; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+  .ccf-hint { font-size: 11px; color: #8a8178; font-weight: 400; text-transform: none; letter-spacing: 0; margin-top: 2px; }
+
+  .ccf-input, .ccf-textarea { width: 100%; padding: 10px 12px; border: 1px solid #ece5dc; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; color: #1a1513; box-sizing: border-box; }
+  .ccf-textarea { resize: vertical; min-height: 70px; }
+
+  .ccf-upload { display: flex; gap: 12px; align-items: center; padding: 12px; border: 2px dashed #ece5dc; border-radius: 10px; background: #fdfbf7; }
+  .ccf-upload-preview { width: 64px; height: 64px; border-radius: 8px; background: #f0ebe3 url('https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=200&q=80') center/cover; flex-shrink: 0; }
+  .ccf-upload-meta { flex: 1; font-size: 13px; color: #1a1513; }
+  .ccf-upload-meta b { display: block; }
+  .ccf-upload-meta span { color: #8a8178; font-size: 11px; }
+
+  .ccf-aspects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .ccf-aspect { padding: 10px; border: 1px solid #ece5dc; border-radius: 8px; text-align: center; cursor: pointer; font-size: 12px; color: #5a524c; }
+  .ccf-aspect.active { border-color: #c9a96e; background: #fdf6e7; color: #1a1513; font-weight: 600; }
+  .ccf-aspect .box { display: block; margin: 0 auto 4px; background: #c9a96e; border-radius: 2px; }
+  .ccf-aspect b { display: block; font-size: 12px; }
+  .ccf-aspect span { font-size: 10px; color: #8a8178; }
+
+  .ccf-counter { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #fdfbf7; border-radius: 10px; border: 1px solid #ece5dc; }
+  .ccf-counter button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #ece5dc; background: #fff; font-size: 16px; font-weight: 700; cursor: pointer; color: #1a1513; }
+  .ccf-counter .val { font-size: 20px; font-weight: 700; color: #1a1513; min-width: 40px; text-align: center; }
+  .ccf-counter .cost { flex: 1; text-align: right; font-size: 12px; color: #8a8178; }
+  .ccf-counter .cost b { display: block; font-size: 15px; color: #1a1513; font-weight: 700; }
+
+  .ccf-foot { padding: 18px 24px; background: #fdfbf7; border-top: 1px solid #ece5dc; display: flex; justify-content: space-between; align-items: center; }
+  .ccf-total { font-size: 13px; color: #5a524c; }
+  .ccf-total b { display: block; font-size: 18px; color: #1a1513; font-weight: 800; }
+  .ccf-submit { background: #c9a96e; color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(201,169,110,.35); }
+
+  .ccf-smart { background: #e2dcef; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #1a1513; margin-bottom: 22px; display: flex; gap: 10px; align-items: flex-start; }
+  .ccf-smart strong { font-weight: 700; }
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Start Campaign sheet (opens from profile page)</div>
+  <div class="mockup-body" style="padding: 30px; background: #f0ebe3;">
+    <div class="ccf">
+
+      <!-- HEADER -->
+      <div class="ccf-head">
+        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=85" />
+        <div style="flex:1">
+          <p class="title">New Campaign with Priya Sharma</p>
+          <p class="sub">Fashion • ₹1,200 per image</p>
+        </div>
+        <span style="font-size:20px;color:#8a8178;cursor:pointer">✕</span>
+      </div>
+
+      <div class="ccf-body">
+
+        <!-- SMART SUGGESTION -->
+        <div class="ccf-smart">
+          <span style="font-size:14px">✨</span>
+          <div><strong>Smart prompt</strong> — Tu sirf product aur scene de, humara AI baaki details (lighting, pose, style) creator ke past work se auto-pick karega.</div>
+        </div>
+
+        <!-- SECTION 1: PRODUCT -->
+        <div class="ccf-sec">
+          <label>Your Product <span class="ccf-hint">Upload image + name</span></label>
+          <div class="ccf-upload">
+            <div class="ccf-upload-preview"></div>
+            <div class="ccf-upload-meta">
+              <b>pourfect-coffee.png</b>
+              <span>800 × 800 • Replace</span>
+            </div>
+            <button style="background:#fff;border:1px solid #ece5dc;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:#1a1513">Change</button>
+          </div>
+          <input class="ccf-input" style="margin-top:10px" value="Pourfect Coffee" placeholder="Product name (exact, as on pack)" />
+        </div>
+
+        <!-- SECTION 2: SCENE -->
+        <div class="ccf-sec">
+          <label>Scene <span class="ccf-hint">Ek line me bata — AI baaki handle karega</span></label>
+          <textarea class="ccf-textarea" placeholder="e.g. Morning routine in a sunlit kitchen, holding the bottle">Morning routine in a sunlit Mumbai kitchen, Priya holding the Pourfect Coffee bottle and smiling at camera</textarea>
+        </div>
+
+        <!-- SECTION 3: ASPECT -->
+        <div class="ccf-sec">
+          <label>Aspect Ratio</label>
+          <div class="ccf-aspects">
+            <div class="ccf-aspect">
+              <span class="box" style="width:20px;height:28px"></span>
+              <b>9:16</b>
+              <span>Reels</span>
+            </div>
+            <div class="ccf-aspect active">
+              <span class="box" style="width:28px;height:28px"></span>
+              <b>1:1</b>
+              <span>Post</span>
+            </div>
+            <div class="ccf-aspect">
+              <span class="box" style="width:22px;height:28px"></span>
+              <b>4:5</b>
+              <span>Feed</span>
+            </div>
+            <div class="ccf-aspect">
+              <span class="box" style="width:32px;height:20px"></span>
+              <b>16:9</b>
+              <span>Landscape</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 4: COUNT -->
+        <div class="ccf-sec">
+          <label>How many images?</label>
+          <div class="ccf-counter">
+            <button>−</button>
+            <span class="val">5</span>
+            <button>+</button>
+            <div class="cost">
+              ₹1,200 × 5<br>
+              <b>₹6,000</b>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="ccf-foot">
+        <div class="ccf-total">
+          Total<br>
+          <b>₹6,000</b>
+        </div>
+        <button class="ccf-submit">Generate Images →</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:24px;text-align:center"><strong>Comparison:</strong> Purana wizard = 15+ inputs across 3 steps. Naya = 4 inputs on 1 screen (product, scene, aspect, count). Creator + category + pricing profile se auto-filled.</p>

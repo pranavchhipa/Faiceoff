@@ -1,0 +1,190 @@
+<h2>Discover Creators — Card Layout</h2>
+<p class="subtitle">Click the one you like. Photo size, stats placement, and density differ.</p>
+
+<style>
+  .cc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 12px; }
+  .cc-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(26,21,19,.06); overflow: hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; display: flex; flex-direction: column; }
+  .cc-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,21,19,.10); }
+  .cc-photo { width: 100%; background-size: cover; background-position: center; position: relative; }
+  .cc-body { padding: 14px 16px 16px; }
+  .cc-name { font-weight: 700; color: #1a1513; font-size: 15px; margin: 0; }
+  .cc-handle { font-size: 12px; color: #8a8178; margin: 2px 0 0; }
+  .cc-stats { display: flex; gap: 12px; margin-top: 10px; font-size: 12px; color: #5a524c; }
+  .cc-stat b { color: #1a1513; font-weight: 700; }
+  .cc-cats { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .cc-pill { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 999px; background: #f6dfe0; color: #1a1513; }
+  .cc-price { font-size: 12px; color: #1a1513; font-weight: 600; margin-top: 10px; }
+  .cc-price span { color: #c9a96e; }
+  .cc-badge { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,.95); color: #1a1513; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
+  .cc-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.65), transparent 50%); display: flex; flex-direction: column; justify-content: flex-end; padding: 14px; color: #fff; }
+  .cc-overlay h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .cc-overlay p { margin: 2px 0 0; font-size: 11px; opacity: .85; }
+  .variant-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8a8178; margin: 28px 0 10px; font-weight: 600; }
+</style>
+
+<div class="options" style="flex-direction:column;gap:6px">
+
+<p class="variant-label">Variant A — Big Photo + Separate Info Panel</p>
+<div class="option" data-choice="a" onclick="toggleSelect(this)" style="padding:0;overflow:hidden">
+  <div class="cc-grid">
+    <div class="cc-card">
+      <div class="cc-photo" style="height:260px;background-image:url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80')">
+        <span class="cc-badge">⭐ Top 10</span>
+      </div>
+      <div class="cc-body">
+        <p class="cc-name">Priya Sharma</p>
+        <p class="cc-handle">@priyasharma • Mumbai</p>
+        <div class="cc-stats">
+          <span class="cc-stat"><b>245K</b> followers</span>
+          <span class="cc-stat"><b>4.9</b>★ rating</span>
+        </div>
+        <div class="cc-cats">
+          <span class="cc-pill">Fashion</span>
+          <span class="cc-pill" style="background:#d9e5f0">Lifestyle</span>
+        </div>
+        <p class="cc-price">From <span>₹1,200</span>/image</p>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:260px;background-image:url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80')"></div>
+      <div class="cc-body">
+        <p class="cc-name">Arjun Mehta</p>
+        <p class="cc-handle">@arjunm • Bangalore</p>
+        <div class="cc-stats">
+          <span class="cc-stat"><b>128K</b> followers</span>
+          <span class="cc-stat"><b>4.8</b>★ rating</span>
+        </div>
+        <div class="cc-cats">
+          <span class="cc-pill" style="background:#e2dcef">Tech</span>
+          <span class="cc-pill" style="background:#daece0">Fitness</span>
+        </div>
+        <p class="cc-price">From <span>₹900</span>/image</p>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:260px;background-image:url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=80')">
+        <span class="cc-badge">🔥 Trending</span>
+      </div>
+      <div class="cc-body">
+        <p class="cc-name">Ananya Kapoor</p>
+        <p class="cc-handle">@ananyak • Delhi</p>
+        <div class="cc-stats">
+          <span class="cc-stat"><b>512K</b> followers</span>
+          <span class="cc-stat"><b>5.0</b>★ rating</span>
+        </div>
+        <div class="cc-cats">
+          <span class="cc-pill">Beauty</span>
+          <span class="cc-pill" style="background:#d9e5f0">Travel</span>
+        </div>
+        <p class="cc-price">From <span>₹2,000</span>/image</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="variant-label">Variant B — Full-Photo Card + Overlay (Instagram feel)</p>
+<div class="option" data-choice="b" onclick="toggleSelect(this)" style="padding:0;overflow:hidden">
+  <div class="cc-grid">
+    <div class="cc-card">
+      <div class="cc-photo" style="height:380px;background-image:url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80')">
+        <span class="cc-badge">⭐ Top 10</span>
+        <div class="cc-overlay">
+          <h3>Priya Sharma</h3>
+          <p>@priyasharma • 245K • 4.9★</p>
+          <div style="display:flex;gap:5px;margin-top:8px">
+            <span class="cc-pill">Fashion</span>
+            <span class="cc-pill" style="background:#d9e5f0">Lifestyle</span>
+          </div>
+          <p style="font-size:12px;font-weight:600;margin-top:8px">From ₹1,200/image</p>
+        </div>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:380px;background-image:url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80')">
+        <div class="cc-overlay">
+          <h3>Arjun Mehta</h3>
+          <p>@arjunm • 128K • 4.8★</p>
+          <div style="display:flex;gap:5px;margin-top:8px">
+            <span class="cc-pill" style="background:#e2dcef">Tech</span>
+            <span class="cc-pill" style="background:#daece0">Fitness</span>
+          </div>
+          <p style="font-size:12px;font-weight:600;margin-top:8px">From ₹900/image</p>
+        </div>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:380px;background-image:url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=80')">
+        <span class="cc-badge">🔥 Trending</span>
+        <div class="cc-overlay">
+          <h3>Ananya Kapoor</h3>
+          <p>@ananyak • 512K • 5.0★</p>
+          <div style="display:flex;gap:5px;margin-top:8px">
+            <span class="cc-pill">Beauty</span>
+            <span class="cc-pill" style="background:#d9e5f0">Travel</span>
+          </div>
+          <p style="font-size:12px;font-weight:600;margin-top:8px">From ₹2,000/image</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="variant-label">Variant C — Photo + Recent Work Strip (shows what AI can generate)</p>
+<div class="option" data-choice="c" onclick="toggleSelect(this)" style="padding:0;overflow:hidden">
+  <div class="cc-grid">
+    <div class="cc-card">
+      <div class="cc-photo" style="height:220px;background-image:url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80')">
+        <span class="cc-badge">⭐ Top 10</span>
+      </div>
+      <div style="display:flex;gap:2px;padding:2px">
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=200&q=80') center/cover"></div>
+      </div>
+      <div class="cc-body">
+        <p class="cc-name">Priya Sharma <span style="font-weight:500;color:#8a8178;font-size:11px">• 245K • 4.9★</span></p>
+        <div class="cc-cats">
+          <span class="cc-pill">Fashion</span>
+          <span class="cc-pill" style="background:#d9e5f0">Lifestyle</span>
+        </div>
+        <p class="cc-price">From <span>₹1,200</span>/image</p>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:220px;background-image:url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80')"></div>
+      <div style="display:flex;gap:2px;padding:2px">
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1517433670267-08bbd4be890f?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=200&q=80') center/cover"></div>
+      </div>
+      <div class="cc-body">
+        <p class="cc-name">Arjun Mehta <span style="font-weight:500;color:#8a8178;font-size:11px">• 128K • 4.8★</span></p>
+        <div class="cc-cats">
+          <span class="cc-pill" style="background:#e2dcef">Tech</span>
+          <span class="cc-pill" style="background:#daece0">Fitness</span>
+        </div>
+        <p class="cc-price">From <span>₹900</span>/image</p>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-photo" style="height:220px;background-image:url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=80')">
+        <span class="cc-badge">🔥 Trending</span>
+      </div>
+      <div style="display:flex;gap:2px;padding:2px">
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=200&q=80') center/cover"></div>
+        <div style="flex:1;height:60px;background:url('https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=200&q=80') center/cover"></div>
+      </div>
+      <div class="cc-body">
+        <p class="cc-name">Ananya Kapoor <span style="font-weight:500;color:#8a8178;font-size:11px">• 512K • 5.0★</span></p>
+        <div class="cc-cats">
+          <span class="cc-pill">Beauty</span>
+          <span class="cc-pill" style="background:#d9e5f0">Travel</span>
+        </div>
+        <p class="cc-price">From <span>₹2,000</span>/image</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>

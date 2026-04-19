@@ -141,7 +141,14 @@ const IN_PROGRESS_STATUSES = [
 ];
 
 function hasInProgressGenerations(gens: Generation[]): boolean {
-  return gens.some((g) => IN_PROGRESS_STATUSES.includes(g.status));
+  // Poll while any generation is still running OR has no image yet.
+  // Covers race: status transitions to ready_for_approval but image_url
+  // write is still in flight, or pipeline stalled mid-step.
+  return gens.some(
+    (g) =>
+      IN_PROGRESS_STATUSES.includes(g.status) ||
+      (g.status !== "rejected" && g.status !== "failed" && !g.image_url),
+  );
 }
 
 /* ================================================================
@@ -167,7 +174,9 @@ export default function CampaignDetailPage() {
       if (!silent) setLoading(true);
 
       try {
-        const res = await fetch(`/api/campaigns/${campaignId}`);
+        const res = await fetch(`/api/campaigns/${campaignId}`, {
+          cache: "no-store",
+        });
         if (!res.ok) {
           setNotFound(true);
           setLoading(false);
@@ -444,6 +453,20 @@ export default function CampaignDetailPage() {
         </p>
       </div>
 
+      {isPolling && generations.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-ocean)]/40 bg-[var(--color-ocean)]/20 px-4 py-3">
+          <Loader2 className="size-4 animate-spin text-[var(--color-ocean-deep)]" />
+          <div className="flex-1 text-sm">
+            <p className="font-600 text-[var(--color-ink)]">
+              Generating your images…
+            </p>
+            <p className="text-xs text-[var(--color-neutral-500)]">
+              {generations.filter((g) => g.image_url).length} of {generations.length} ready · auto-refreshing every 4s
+            </p>
+          </div>
+        </div>
+      )}
+
       {generations.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-10 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
@@ -461,7 +484,11 @@ export default function CampaignDetailPage() {
           {generations.map((gen, i) => {
             const cfg = genStatusConfig[gen.status] ?? genStatusConfig.draft;
             const StatusIcon = cfg.icon;
-            const isInProgress = IN_PROGRESS_STATUSES.includes(gen.status);
+            const isInProgress =
+              IN_PROGRESS_STATUSES.includes(gen.status) ||
+              (!gen.image_url &&
+                gen.status !== "rejected" &&
+                gen.status !== "failed");
             const isDevImage = gen.replicate_prediction_id?.startsWith("dev_");
 
             return (
