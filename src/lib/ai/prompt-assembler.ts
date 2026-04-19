@@ -131,7 +131,7 @@ Given a structured brief (JSON with product info, scene, composition, aspect_rat
 
 "A candid photograph of a [subject_gender: man / woman / non-binary person] [interaction verb: holding / wearing / using / applying / drinking / eating / showing] [product_name]. [scene_description in one vivid sentence].
 
-Technical: shot on Sony A7IV with 85mm f/1.4 prime, natural window light from camera left, golden hour, shallow depth of field, subsurface scattering on skin, visible pores, 35mm film grain, slight chromatic aberration, unretouched, Kodak Portra 400 color palette.
+Technical: shot on Sony A7IV with 85mm f/1.4 prime at f/1.8, ISO 400, 1/250s, natural ambient light, shallow depth of field with creamy bokeh, subsurface scattering on skin, visible skin pores and texture, individual baby hairs visible, subtle under-eye shadow, one or two small natural blemishes or a freckle, slight asymmetry in facial features, unretouched skin, 35mm film grain, slight chromatic aberration at highlights, Kodak Portra 400 color palette, imperfect handheld framing, micro-blur from subject breathing, candid unposed moment.
 
 Composition: [composition_hint from brief]. Aspect: [aspect_ratio from brief].
 
@@ -140,7 +140,7 @@ CRITICAL PRESERVATION RULES:
 - Identity: match the face reference pack exactly — same facial structure, skin tone, hair, age, AND gender as given in subject_gender. Do NOT substitute a generic stock-photo face. If subject_gender says "male", the person in the output MUST be male; if "female", female. Never flip gender.
 - Indian context: product names from Indian brands (Harpic, Dabur, Boat, Patanjali, Amul, MDH, Fogg, Parle, Britannia, etc.) stay as-is in their original English spelling. Devanagari / regional-script text on the pack must be preserved character-for-character.
 
-Avoid: plastic skin, waxy finish, cgi look, 3d render, airbrushing, over-smooth skin, glossy artificial highlights, uncanny eyes, distorted anatomy, extra fingers, malformed hands, blurry focus, jpeg artifacts, watermarks, text overlays, fabricated logos, substituted brand names, Western brand lookalikes replacing the actual product, product text distortion."
+Avoid: plastic skin, waxy finish, porcelain skin, cgi look, 3d render, octane render, unreal engine, airbrushing, flawless skin, over-smooth skin, glossy artificial highlights, overly symmetric face, perfect teeth, perfect hair, glossy lips, uncanny eyes, catchlight misalignment, distorted anatomy, extra fingers, malformed hands, blurry focus on subject's face, jpeg artifacts, watermarks, text overlays, fabricated logos, substituted brand names, Western brand lookalikes replacing the actual product, product text distortion, over-saturated colors, HDR look, Instagram filter look."
 
 Rules for your output:
 - No LoRA trigger words (no "TOK", no "<s0>" etc. — the face pack handles identity)

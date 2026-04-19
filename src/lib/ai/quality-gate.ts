@@ -119,6 +119,20 @@ export async function runQualityGate(
 
   // If a model failed, fail-safe to 0 so gate fails and we retry.
   // We don't want to silently pass a generation when a check errored.
+  // Log rejection reasons so silent failures surface in Inngest logs —
+  // scores of 0.00 across the board usually mean the Replicate model
+  // slug is wrong, unversioned, or rate-limited, not that the image
+  // is bad.
+  if (clipRes.status === "rejected") {
+    console.error("[quality-gate] CLIP similarity failed:", clipRes.reason);
+  }
+  if (faceRes.status === "rejected") {
+    console.error("[quality-gate] Face similarity failed:", faceRes.reason);
+  }
+  if (aestheticRes.status === "rejected") {
+    console.error("[quality-gate] Aesthetic score failed:", aestheticRes.reason);
+  }
+
   const clip = clipRes.status === "fulfilled" ? clipRes.value : 0;
   const face = faceRes.status === "fulfilled" ? faceRes.value : 0;
   const aesthetic = aestheticRes.status === "fulfilled" ? aestheticRes.value : 0;
