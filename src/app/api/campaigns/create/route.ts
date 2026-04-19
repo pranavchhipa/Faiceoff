@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   // --- Parse body ---
   let body: {
     creator_id?: unknown;
+    campaign_name?: unknown;
     count?: unknown;
     price_per_generation_paise?: unknown;
     structured_brief?: unknown;
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { creator_id, count, price_per_generation_paise, structured_brief } =
+  const { creator_id, campaign_name, count, price_per_generation_paise, structured_brief } =
     body;
 
   if (
@@ -165,7 +166,9 @@ export async function POST(request: Request) {
   // --- Compute campaign fields ---
   const budget_paise = price_per_generation_paise * count;
   const dateStr = new Date().toISOString().slice(0, 10);
-  const name = `${brief.product_name} × ${creatorName} — ${dateStr}`;
+  const providedName =
+    typeof campaign_name === "string" ? campaign_name.trim().slice(0, 80) : "";
+  const name = providedName || `${brief.product_name} × ${creatorName} — ${dateStr}`;
   const aspectLabel = brief.aspect_ratio;
   const description = `${brief.product_name} shoot with ${creatorName}. ${aspectLabel} format, ${count} images.`;
 

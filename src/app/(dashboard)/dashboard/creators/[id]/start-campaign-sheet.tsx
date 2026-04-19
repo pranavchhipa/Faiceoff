@@ -39,7 +39,11 @@ function formatINR(paise: number): string {
 
 export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   const router = useRouter();
-  const pricePaise = minPrice ?? 0;
+
+  const [campaignName, setCampaignName] = useState("");
+  const [categoryId, setCategoryId] = useState<string>(creator.categories[0]?.id ?? "");
+  const selectedCategory = creator.categories.find((c) => c.id === categoryId) ?? creator.categories[0];
+  const pricePaise = selectedCategory?.price_per_generation_paise ?? minPrice ?? 0;
 
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productUrl, setProductUrl] = useState<string | null>(null);
@@ -103,6 +107,14 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
       setError("Enter the exact product name");
       return;
     }
+    if (!campaignName.trim()) {
+      setError("Enter a campaign name");
+      return;
+    }
+    if (!selectedCategory) {
+      setError("Select a category");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -121,7 +133,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         custom_notes: customNotes.trim() || null,
         _meta: {
           creator_id: creator.id,
-          category: creator.categories[0]?.category ?? "general",
+          category: selectedCategory.category,
         },
       };
       const res = await fetch("/api/campaigns/create", {
@@ -129,6 +141,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           creator_id: creator.id,
+          campaign_name: campaignName.trim(),
           count,
           price_per_generation_paise: pricePaise,
           structured_brief: brief,
@@ -188,9 +201,66 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
           <div className="mb-5 flex items-start gap-2.5 rounded-xl bg-[var(--color-lilac)] px-3.5 py-3 text-xs">
             <span>✨</span>
             <div>
-              <strong>Click-based customization.</strong> Pills skip karega → AI creator ke style se infer karega.
+              <strong>Click-based customization.</strong> Skip any pill to let the AI infer it from the creator&apos;s style.
             </div>
           </div>
+
+          {/* CAMPAIGN NAME */}
+          <div className="mb-5">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-700 uppercase tracking-wider text-[var(--color-ink)]">
+              <span className="flex size-5 items-center justify-center rounded-md bg-[var(--color-blush)]">
+                🏷️
+              </span>
+              Campaign name{" "}
+              <span className="text-[10px] font-500 normal-case tracking-normal text-[var(--color-neutral-400)]">
+                • Required
+              </span>
+            </div>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value.slice(0, 80))}
+              placeholder="e.g. boAt Rockerz 255 — Rooftop Session"
+              className="w-full rounded-lg border border-[var(--color-neutral-100)] px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          {/* CATEGORY */}
+          {creator.categories.length > 0 && (
+            <div className="mb-5">
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-700 uppercase tracking-wider text-[var(--color-ink)]">
+                <span className="flex size-5 items-center justify-center rounded-md bg-[var(--color-blush)]">
+                  🧩
+                </span>
+                Category{" "}
+                <span className="text-[10px] font-500 normal-case tracking-normal text-[var(--color-neutral-400)]">
+                  • Required — sets per-image price
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {creator.categories.map((c) => {
+                  const active = c.id === categoryId;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCategoryId(c.id)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-600 ${
+                        active
+                          ? "border-[var(--color-gold)] bg-[#fdf6e7] text-[var(--color-ink)]"
+                          : "border-[var(--color-neutral-100)] text-[var(--color-neutral-600)]"
+                      }`}
+                    >
+                      {c.category}
+                      <span className="ml-1.5 text-[10px] font-400 text-[var(--color-neutral-400)]">
+                        {formatINR(c.price_per_generation_paise)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* PRODUCT */}
           <div className="mb-5">
