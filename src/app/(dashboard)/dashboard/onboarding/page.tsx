@@ -12,6 +12,9 @@ const STEP_ROUTES: Record<string, string> = {
   compliance: "/dashboard/onboarding/compliance",
   consent: "/dashboard/onboarding/consent",
   photos: "/dashboard/onboarding/photos",
+  // Backward compat: legacy creators whose DB row still says `lora_review`
+  // land on the lora-review page which then auto-advances them to pricing.
+  // New sign-ups skip this step entirely — save-photos now writes "pricing".
   lora_review: "/dashboard/onboarding/lora-review",
   pricing: "/dashboard/onboarding/pricing",
   complete: "/dashboard/onboarding/complete",

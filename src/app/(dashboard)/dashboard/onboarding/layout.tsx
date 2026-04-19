@@ -4,6 +4,11 @@ import { usePathname } from "next/navigation";
 import { Check } from "lucide-react";
 import { type ReactNode } from "react";
 
+// The old flow had a 7th `lora_review` step where we queued a Replicate
+// training run. The current generation pipeline uses reference photos as
+// face anchors directly (no per-creator training), so that step is gone.
+// The `/dashboard/onboarding/lora-review` route still exists as a redirect
+// shim for any legacy creator whose `onboarding_step` is still `lora_review`.
 const STEPS = [
   { key: "identity", label: "Identity", path: "/dashboard/onboarding/identity" },
   { key: "instagram", label: "Instagram", path: "/dashboard/onboarding/instagram" },
@@ -11,7 +16,6 @@ const STEPS = [
   { key: "compliance", label: "Compliance", path: "/dashboard/onboarding/compliance" },
   { key: "consent", label: "Consent", path: "/dashboard/onboarding/consent" },
   { key: "photos", label: "Photos", path: "/dashboard/onboarding/photos" },
-  { key: "lora_review", label: "LoRA Review", path: "/dashboard/onboarding/lora-review" },
   { key: "pricing", label: "Pricing", path: "/dashboard/onboarding/pricing" },
 ] as const;
 

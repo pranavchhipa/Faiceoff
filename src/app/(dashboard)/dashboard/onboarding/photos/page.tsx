@@ -175,7 +175,10 @@ export default function PhotosPage() {
         throw new Error(msg);
       }
 
-      router.push("/dashboard/onboarding/lora-review");
+      // save-photos now advances onboarding_step straight to "pricing"
+      // (the old lora_review step is gone — current pipeline uses reference
+      // photos as face anchors, no per-creator training needed).
+      router.push("/dashboard/onboarding/pricing");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

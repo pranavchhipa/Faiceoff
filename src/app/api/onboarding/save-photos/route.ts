@@ -24,14 +24,19 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Get creator record
+  // Get creator record. maybeSingle() so a missing row returns null instead
+  // of throwing — consistent with the rest of the self-healing onboarding
+  // routes.
   const { data: creator, error: creatorErr } = await admin
     .from("creators")
     .select("id")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (creatorErr || !creator) {
+  if (creatorErr) {
+    return NextResponse.json({ error: creatorErr.message }, { status: 500 });
+  }
+  if (!creator) {
     return NextResponse.json(
       { error: "Creator profile not found" },
       { status: 404 },
@@ -59,10 +64,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  // Advance onboarding step
+  // Advance onboarding step directly to pricing. The old `lora_review` step
+  // kicked off a LoRA training job, but the current generation pipeline
+  // (Nano Banana Pro / Gemini 3 Pro Image / Kontext Max) uses the reference
+  // photos as face anchors at generation time — no per-creator training
+  // needed. The lora_review page/route is kept as a redirect shim for any
+  // creator whose DB row still says "lora_review".
   await admin
     .from("creators")
-    .update({ onboarding_step: "lora_review" })
+    .update({ onboarding_step: "pricing" })
     .eq("user_id", user.id);
 
   return NextResponse.json({ success: true });

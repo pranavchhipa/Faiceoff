@@ -13,7 +13,7 @@ const CONSENT_ITEMS = [
   {
     title: "Biometric Data Collection",
     description:
-      "We collect and process your facial biometric data (reference photos) to train a personalised AI model (LoRA) that generates content featuring your likeness.",
+      "We collect and process your facial biometric data (reference photos) to use as face references when generating content featuring your likeness. Photos are only used for campaigns you have explicitly approved.",
   },
   {
     title: "Usage Rights",
@@ -28,7 +28,7 @@ const CONSENT_ITEMS = [
   {
     title: "30-Day Deletion SLA",
     description:
-      "Upon request for data deletion, all your biometric data, reference photos, and trained models will be permanently removed within 30 calendar days.",
+      "Upon request for data deletion, all your biometric data and reference photos will be permanently removed within 30 calendar days, and no further content can be generated using your likeness.",
   },
 ];
 
