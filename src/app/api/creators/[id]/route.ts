@@ -113,11 +113,18 @@ export async function GET(
     .map((g: { delivery_url: string | null }) => g.delivery_url)
     .filter((u): u is string => typeof u === "string" && u.length > 0);
 
-  const approvalCount = gens?.length ?? 0;
+  // Exact approval count — independent of the 8-row gallery slice so the
+  // stat reflects the creator's full history, not just the loaded thumbnails.
+  const { count: approvalCount } = await admin
+    .from("generations")
+    .select("id", { count: "exact", head: true })
+    .eq("creator_id", id)
+    .eq("status", "approved");
 
   // Average approval duration (hours): from approvals table
+  // Uses the gallery slice (8 rows) for a quick estimate — sufficient for display.
   let avgApprovalMs: number | null = null;
-  if (approvalCount > 0) {
+  if ((approvalCount ?? 0) > 0) {
     const genIds = (gens ?? []).map((g) => g.id);
     const { data: approvals } = await admin
       .from("approvals")
@@ -139,7 +146,7 @@ export async function GET(
 
   const stats = {
     followers: creator.instagram_followers ?? null,
-    approval_count: approvalCount,
+    approval_count: approvalCount ?? 0,
     avg_approval_hours:
       avgApprovalMs !== null
         ? Math.round(avgApprovalMs / (1000 * 60 * 60))
