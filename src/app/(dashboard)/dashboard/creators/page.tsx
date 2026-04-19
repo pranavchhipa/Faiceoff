@@ -255,7 +255,7 @@ export default function CreatorCatalogPage() {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
           {filteredCreators.map((creator) => {
             const minPrice = getMinPrice(creator);
@@ -286,7 +286,7 @@ export default function CreatorCatalogPage() {
                   href={`/dashboard/creators/${creator.id}`}
                   className="block no-underline"
                 >
-                  <div className="relative aspect-[3/4] min-h-[360px] max-h-[440px] w-full">
+                  <div className="relative aspect-[4/5] w-full">
                     {(isTop10 || isTrending) && (
                       <span className="absolute left-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-ink)] shadow-sm">
                         {isTop10 ? "⭐ Top 10" : "🔥 Trending"}

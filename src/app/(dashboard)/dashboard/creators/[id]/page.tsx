@@ -118,7 +118,7 @@ export default function CreatorProfilePage({
       <div className="max-w-5xl">
         <div className="mb-6 h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         <div className="animate-pulse rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]">
-          <div className="h-[340px] rounded-xl bg-[var(--color-neutral-200)]" />
+          <div className="h-[280px] rounded-xl bg-[var(--color-neutral-200)]" />
         </div>
       </div>
     );
@@ -182,12 +182,13 @@ export default function CreatorProfilePage({
         className="overflow-hidden rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)]"
       >
         {/* HERO */}
-        <div className="relative h-[340px]">
+        <div className="relative h-[240px] sm:h-[280px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={heroPhoto}
             alt={creator.display_name}
-            className="absolute inset-0 h-full w-full object-cover object-top"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: "center 30%" }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-7 text-white sm:flex-row sm:items-end sm:justify-between">
@@ -291,24 +292,34 @@ export default function CreatorProfilePage({
             </section>
           )}
 
-          {gallery.length > 0 && (
-            <section>
-              <h3 className="mb-3 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">
-                Recent AI-Generated Work
-              </h3>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {gallery.map((url, idx) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={idx}
-                    src={url}
-                    alt=""
-                    className="h-[140px] w-full rounded-[10px] object-cover"
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+          {(() => {
+            const validGallery = gallery.filter(
+              (u) => typeof u === "string" && /^https?:\/\//.test(u),
+            );
+            if (validGallery.length === 0) return null;
+            return (
+              <section>
+                <h3 className="mb-3 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">
+                  Recent AI-Generated Work
+                </h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {validGallery.map((url, idx) => (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      key={idx}
+                      src={url}
+                      alt=""
+                      loading="lazy"
+                      className="h-[140px] w-full rounded-[10px] object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
 
           <section className="flex items-start gap-3 rounded-xl bg-[var(--color-mint)] p-4 text-sm text-[var(--color-ink)]">
             <span className="text-xl">🛡️</span>
