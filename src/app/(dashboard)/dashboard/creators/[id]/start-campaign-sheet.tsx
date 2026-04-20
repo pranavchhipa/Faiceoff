@@ -11,6 +11,7 @@ import {
   EXPRESSION_OPTIONS,
   OUTFIT_STYLE_OPTIONS,
   CAMERA_FRAMING_OPTIONS,
+  CAMERA_TYPE_OPTIONS,
   ASPECT_RATIO_OPTIONS,
 } from "@/config/campaign-options";
 import { PillSection } from "./pill-section";
@@ -52,6 +53,7 @@ type Draft = {
   expression: string | null;
   outfitStyle: string | null;
   cameraFraming: string | null;
+  cameraType: string | null;
   aspectRatio: string;
   count: number;
   customNotes: string;
@@ -99,6 +101,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
   const [expression, setExpression] = useState<string | null>(d.expression ?? null);
   const [outfitStyle, setOutfitStyle] = useState<string | null>(d.outfitStyle ?? null);
   const [cameraFraming, setCameraFraming] = useState<string | null>(d.cameraFraming ?? null);
+  const [cameraType, setCameraType] = useState<string | null>(d.cameraType ?? null);
   const [aspectRatio, setAspectRatio] = useState<string>(d.aspectRatio ?? "1:1");
   const [count, setCount] = useState<number>(d.count ?? 5);
   const [customNotes, setCustomNotes] = useState(d.customNotes ?? "");
@@ -129,6 +132,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
       expression,
       outfitStyle,
       cameraFraming,
+      cameraType,
       aspectRatio,
       count,
       customNotes,
@@ -152,6 +156,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
     expression,
     outfitStyle,
     cameraFraming,
+    cameraType,
     aspectRatio,
     count,
     customNotes,
@@ -178,6 +183,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         expression ||
         outfitStyle ||
         cameraFraming ||
+        cameraType ||
         customNotes.trim(),
     );
   }
@@ -254,6 +260,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         expression,
         outfit_style: outfitStyle,
         camera_framing: cameraFraming,
+        camera_type: cameraType,
         aspect_ratio: aspectRatio,
         custom_notes: customNotes.trim() || null,
         _meta: {
@@ -346,6 +353,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
                   setExpression(null);
                   setOutfitStyle(null);
                   setCameraFraming(null);
+                  setCameraType(null);
                   setAspectRatio("1:1");
                   setCount(5);
                   setCustomNotes("");
@@ -482,7 +490,8 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
           <p className="mb-3 mt-6 text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)]">
             Camera & output
           </p>
-          <PillSection icon="📷" label="Camera & framing" options={CAMERA_FRAMING_OPTIONS} value={cameraFraming} onChange={setCameraFraming} />
+          <PillSection icon="📱" label="Camera device" options={CAMERA_TYPE_OPTIONS} value={cameraType} onChange={setCameraType} />
+          <PillSection icon="📷" label="Camera framing" options={CAMERA_FRAMING_OPTIONS} value={cameraFraming} onChange={setCameraFraming} />
 
           {/* ASPECT — no custom */}
           <div className="mb-5">

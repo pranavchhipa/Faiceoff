@@ -8,6 +8,7 @@ import {
   EXPRESSION_OPTIONS,
   OUTFIT_STYLE_OPTIONS,
   CAMERA_FRAMING_OPTIONS,
+  CAMERA_TYPE_OPTIONS,
   ASPECT_RATIO_OPTIONS,
 } from "@/config/campaign-options";
 
@@ -65,6 +66,7 @@ export const StructuredBriefSchema = z.object({
   expression: pillField(EXPRESSION_OPTIONS),
   outfit_style: pillField(OUTFIT_STYLE_OPTIONS),
   camera_framing: pillField(CAMERA_FRAMING_OPTIONS),
+  camera_type: pillField(CAMERA_TYPE_OPTIONS),
   aspect_ratio: z.enum(
     ASPECT_RATIO_OPTIONS.map((o) => o.key) as [string, ...string[]]
   ),

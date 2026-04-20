@@ -109,6 +109,25 @@ export const CAMERA_FRAMING_OPTIONS = [
   { key: "dutch_tilt", label: "Dutch tilt" },
 ] as const satisfies readonly PillOption[];
 
+/**
+ * Camera device / capture medium — drives the "Technical:" paragraph of the
+ * assembled prompt. Before this existed, the prompt assembler hardcoded
+ * "iPhone 15 Pro main camera" for every generation, which flattened output
+ * variety and locked brands into a single aesthetic. See prompt-assembler's
+ * CAMERA MAP for the per-device technical description sent to Gemini 3 Pro.
+ */
+export const CAMERA_TYPE_OPTIONS = [
+  { key: "iphone_15_pro", label: "iPhone 15 Pro" },
+  { key: "iphone_15", label: "iPhone 15 (standard)" },
+  { key: "samsung_s24_ultra", label: "Samsung Galaxy S24 Ultra" },
+  { key: "pixel_8_pro", label: "Google Pixel 8 Pro" },
+  { key: "generic_smartphone", label: "Generic smartphone (casual)" },
+  { key: "canon_r5", label: "Canon EOS R5 (pro DSLR)" },
+  { key: "sony_a7r5", label: "Sony A7R V (editorial mirrorless)" },
+  { key: "fuji_xt5", label: "Fujifilm X-T5 (film-sim retro)" },
+  { key: "shot_on_film", label: "Shot on 35mm film" },
+] as const satisfies readonly PillOption[];
+
 export const ASPECT_RATIO_OPTIONS = [
   { key: "9:16", label: "9:16 Reels / Story" },
   { key: "1:1", label: "1:1 IG Post" },
@@ -125,6 +144,7 @@ export const ALL_PILL_ENUM_KEYS: ReadonlySet<string> = new Set([
   ...EXPRESSION_OPTIONS.map((o) => o.key),
   ...OUTFIT_STYLE_OPTIONS.map((o) => o.key),
   ...CAMERA_FRAMING_OPTIONS.map((o) => o.key),
+  ...CAMERA_TYPE_OPTIONS.map((o) => o.key),
 ]);
 
 const CUSTOM_RE = /^custom:[\s\S]{1,80}$/;

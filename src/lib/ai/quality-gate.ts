@@ -7,18 +7,50 @@ import {
 
 /**
  * Run Replicate CLIP features model for one image, return an embedding vector.
- * If the chosen CLIP model has a different output shape, adapt this parser.
+ *
+ * `andreasjansson/clip-features` — the default model — returns:
+ *   [{ input: "url", embedding: [0.012, -0.031, ...] }]
+ * The previous parser naively flattened the array and checked for a numeric
+ * first element, which failed on the object-wrapped shape. That silent throw
+ * was swallowed by `Promise.allSettled` in runQualityGate() and every score
+ * fell back to 0 — exactly the "all zeros" symptom reported by ops.
+ *
+ * We now handle three shapes defensively:
+ *   1. [{input, embedding: [float, ...]}]   — andreasjansson/clip-features
+ *   2. [[float, ...]]                         — alternate CLIP models
+ *   3. [float, ...]                           — direct vector (rare)
  */
 async function clipEmbed(imageUrl: string): Promise<number[]> {
   const output = await replicate.run(MODELS.clip as `${string}/${string}`, {
     input: { inputs: imageUrl },
   });
 
-  const flat = Array.isArray(output) ? (output as unknown[]).flat() : output;
-  if (!Array.isArray(flat) || typeof flat[0] !== "number") {
-    throw new Error("CLIP output not a numeric vector");
+  let vector: unknown[] | null = null;
+
+  if (Array.isArray(output) && output.length > 0) {
+    const first = output[0];
+    if (
+      first &&
+      typeof first === "object" &&
+      "embedding" in first &&
+      Array.isArray((first as { embedding: unknown }).embedding)
+    ) {
+      vector = (first as { embedding: unknown[] }).embedding;
+    } else if (Array.isArray(first)) {
+      vector = first;
+    } else if (typeof first === "number") {
+      vector = output;
+    }
   }
-  return flat as number[];
+
+  if (!vector || vector.length === 0 || typeof vector[0] !== "number") {
+    throw new Error(
+      `CLIP output shape not recognized. Model=${MODELS.clip}. ` +
+        `Got: ${JSON.stringify(output).slice(0, 200)}`
+    );
+  }
+
+  return vector as number[];
 }
 
 function cosine(a: number[], b: number[]): number {

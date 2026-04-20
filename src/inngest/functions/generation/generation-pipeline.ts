@@ -15,6 +15,7 @@ import {
   resolvePipelineVersion,
 } from "@/lib/ai/pipeline-config";
 import {
+  QUALITY_GATE_THRESHOLDS,
   UPSCALE_MIN_EDGE,
   type AspectRatio,
   type PipelineVersion,
@@ -303,10 +304,21 @@ export const runPipeline = inngest.createFunction(
         `[generation:${generation_id}] face_anchor_source=${faceAnchorSource} count=${faceAnchorPack.length}`,
       );
 
-      // Creator reference for face gate (CLIP similarity check). Use the same
-      // pack we fed to the generator — this way the gate measures identity
-      // against the exact reference the model was given.
-      const creatorReferenceUrls = faceAnchorPack;
+      // Creator reference set for the face-similarity gate.
+      //
+      // CRITICAL: the gate compares output → reference, so the reference
+      // MUST be ground-truth identity. If we fed Gemini synthetic LoRA
+      // anchors (because the creator had <3 real onboarding photos), those
+      // anchors have already drifted from the real person — using them as
+      // the gate reference would "pass" a generation that looks like the
+      // averaged LoRA output instead of the real creator.
+      //
+      // So: always prefer real onboarding photos for the gate, regardless
+      // of how many exist. If even one real photo is available, use it.
+      // Fall back to the faceAnchorPack (whatever was fed to Gemini) only
+      // when the creator has zero real photos on file.
+      const creatorReferenceUrls =
+        realReferenceUrls.length > 0 ? realReferenceUrls : faceAnchorPack;
 
       const basePrompt = gen.assembled_prompt ?? assembledPrompt;
 
@@ -396,6 +408,69 @@ export const runPipeline = inngest.createFunction(
         throw new Error(
           `${version} pipeline produced no usable output after ${attempt} attempts for ${generation_id}`
         );
+      }
+
+      // ── Hard gate: refuse to deliver if identity or product failed ─────
+      //
+      // The retry loop above keeps the "best aesthetic" attempt as a
+      // fallback even when the quality gate failed. That was silently
+      // delivering face=0.00 / clip=0.00 generations to brands. Not
+      // acceptable — the whole product promise is that the delivered
+      // image is THE creator holding THE brand's product. If either of
+      // those is broken, throwing here lets the Inngest onFailure
+      // handler refund the brand's wallet instead of charging them for
+      // an unusable output.
+      //
+      // Aesthetic failure is intentionally advisory: a gritty / grainy /
+      // casual photo may legitimately score below the aesthetic model's
+      // editorial benchmark but still be exactly what the brand asked
+      // for. Identity and product fidelity are not optional.
+      const finalScores = bestScores ?? lastScores;
+      if (finalScores) {
+        if (finalScores.face < QUALITY_GATE_THRESHOLDS.face) {
+          // Persist the failing scores on the generation row BEFORE we
+          // throw so the admin UI can see WHY it failed — the
+          // onFailure handler flips status to 'failed' but won't
+          // overwrite these diagnostic fields.
+          await admin
+            .from("generations")
+            .update({
+              quality_scores: finalScores,
+              generation_attempts: attempt,
+              provider_prediction_id: bestPredictionId,
+              pipeline_version: version,
+            } as never)
+            .eq("id", generation_id);
+          throw new Error(
+            `Identity check failed after ${attempt} attempt(s). ` +
+              `Face similarity ${finalScores.face.toFixed(2)} < threshold ${QUALITY_GATE_THRESHOLDS.face}. ` +
+              `Refusing to deliver — the generated face does not match the creator's reference photos. ` +
+              `Brand wallet will be refunded.`
+          );
+        }
+        if (finalScores.clip < QUALITY_GATE_THRESHOLDS.clip) {
+          await admin
+            .from("generations")
+            .update({
+              quality_scores: finalScores,
+              generation_attempts: attempt,
+              provider_prediction_id: bestPredictionId,
+              pipeline_version: version,
+            } as never)
+            .eq("id", generation_id);
+          throw new Error(
+            `Product check failed after ${attempt} attempt(s). ` +
+              `Product similarity ${finalScores.clip.toFixed(2)} < threshold ${QUALITY_GATE_THRESHOLDS.clip}. ` +
+              `Refusing to deliver — the generated image does not match the product reference. ` +
+              `Brand wallet will be refunded.`
+          );
+        }
+        if (finalScores.aesthetic < QUALITY_GATE_THRESHOLDS.aesthetic) {
+          console.warn(
+            `[gen/${generation_id}] Aesthetic ${finalScores.aesthetic.toFixed(2)} ` +
+              `< threshold ${QUALITY_GATE_THRESHOLDS.aesthetic} but identity+product passed; delivering.`,
+          );
+        }
       }
 
       // Stage 3: Upscale CONDITIONAL — skip if native resolution is already
