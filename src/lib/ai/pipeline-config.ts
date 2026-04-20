@@ -11,10 +11,22 @@ export const DEFAULT_PIPELINE_VERSION: PipelineVersion =
 export const MAX_RETRIES: number = Number(process.env.GENERATION_MAX_RETRIES ?? 2);
 
 export const MODELS = {
-  // v2 primary
-  nanoBanana: process.env.NANO_BANANA_MODEL ?? "gemini-3.0-pro-image",
+  // v2 primary — Nano Banana Pro.
+  //
+  // The Google-facing model ID is `gemini-3-pro-image-preview` (verify with
+  // `GET https://generativelanguage.googleapis.com/v1beta/models` on your
+  // key — Google rotates preview suffixes). An earlier iteration used
+  // `gemini-3.0-pro-image` which does NOT exist; every call 404'd and
+  // silently fell through to the fallback (see tryModel catch below), so
+  // the rate-limit dashboard showed 0 Pro hits and 100% Flash hits. Env
+  // var override lets ops swap without a deploy when Google renames.
+  nanoBanana: process.env.NANO_BANANA_MODEL ?? "gemini-3-pro-image-preview",
+  // Fallback tier — Nano Banana 2 (Gemini 3.1 Flash Image). Higher quota
+  // than Pro (100 RPM / 1K RPD vs 20 / 250) and newer than 2.5 Flash, so
+  // if Pro is quota-exhausted we degrade gracefully without dropping to
+  // the generation-old 2.5 tier.
   nanoBananaFallback:
-    process.env.NANO_BANANA_FALLBACK_MODEL ?? "gemini-2.5-flash-image",
+    process.env.NANO_BANANA_FALLBACK_MODEL ?? "gemini-3.1-flash-image-preview",
   // v3 fallback
   kontext: process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max",
   // Stage 3 + Stage 2 support models (all Replicate)

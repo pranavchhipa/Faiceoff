@@ -14,8 +14,8 @@ Max) as per-campaign fallback and v1 (Flux Dev + LoRA) as emergency rollback.
   - `GENERATION_PIPELINE_VERSION=v2`
   - `GOOGLE_AI_API_KEY` (Nano Banana Pro; rotate from the key that was
     committed to `.env.local` during development)
-  - `NANO_BANANA_MODEL=gemini-3.0-pro-image`
-  - `NANO_BANANA_FALLBACK_MODEL=gemini-2.5-flash-image`
+  - `NANO_BANANA_MODEL=gemini-3-pro-image-preview`
+  - `NANO_BANANA_FALLBACK_MODEL=gemini-3.1-flash-image-preview`
   - `REPLICATE_KONTEXT_MODEL=black-forest-labs/flux-kontext-max` (v3
     fallback)
   - `REPLICATE_UPSCALER_MODEL=philz1337x/clarity-upscaler`
