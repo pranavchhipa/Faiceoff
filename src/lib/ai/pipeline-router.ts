@@ -17,6 +17,14 @@ export interface PipelineInferenceResult {
   modelUsed: string;
   /** Which pipeline version actually produced the image (may differ from requested if safety-fallback fired) */
   effectiveVersion: PipelineVersion;
+  /**
+   * Non-null when v2 Pro silently degraded to its Flash fallback (404 /
+   * quota / permission). The pipeline persists this onto the generation
+   * row + audit_log so Pro misconfigurations are visible instead of
+   * producing quietly-worse output. `null` on a clean Pro success or on
+   * v3 (Kontext has no internal Pro→Flash fallback).
+   */
+  fallbackReason: string | null;
 }
 
 export interface PipelineInferenceInput {
@@ -48,6 +56,7 @@ export async function runPipelineInference(
           predictionId: r.predictionId,
           modelUsed: r.modelUsed,
           effectiveVersion: "v2",
+          fallbackReason: r.fallbackReason,
         };
       } catch (err) {
         // Safety block: auto-fallback to v3 for THIS generation only
@@ -67,6 +76,7 @@ export async function runPipelineInference(
             predictionId: r.predictionId,
             modelUsed: "flux-kontext-max (v2-safety-fallback)",
             effectiveVersion: "v3",
+            fallbackReason: "v2 safety block → v3 Kontext",
           };
         }
         throw err;
@@ -90,6 +100,7 @@ export async function runPipelineInference(
         predictionId: r.predictionId,
         modelUsed: "flux-kontext-max",
         effectiveVersion: "v3",
+        fallbackReason: null,
       };
     }
     case "v1":

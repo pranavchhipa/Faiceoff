@@ -55,3 +55,30 @@ export function requireGoogleAiKey(): string {
   }
   return key;
 }
+
+// ─── Model ID sanity check ──────────────────────────────────────────────────
+//
+// Google's Gemini preview models rotate suffixes (e.g. `-preview` → stable,
+// or `gemini-3.0-pro-image` → `gemini-3-pro-image-preview`). A stale env var
+// 404s and the client's catch block silently falls through to Flash — users
+// pay for Pro quality and get Flash. We can't stop the deployment mid-flight,
+// but we can scream at boot so misconfigurations are visible in logs.
+//
+// Known-bad IDs are ones we've actually seen 404 in the wild. Add to the set
+// whenever Google deprecates a slug.
+const KNOWN_BAD_MODEL_IDS = new Set<string>([
+  "gemini-3.0-pro-image", // never existed — initial config typo, always 404s
+]);
+
+function warnIfSuspiciousModel(envName: string, value: string): void {
+  if (KNOWN_BAD_MODEL_IDS.has(value)) {
+    console.warn(
+      `[pipeline-config] ${envName}="${value}" is a known-bad Gemini model ID — ` +
+        "every call will 404 and silently fall back to the secondary tier. " +
+        "Update your environment to a currently-valid ID (verify via " +
+        "GET https://generativelanguage.googleapis.com/v1beta/models).",
+    );
+  }
+}
+warnIfSuspiciousModel("NANO_BANANA_MODEL", MODELS.nanoBanana);
+warnIfSuspiciousModel("NANO_BANANA_FALLBACK_MODEL", MODELS.nanoBananaFallback);

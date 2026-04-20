@@ -26,6 +26,15 @@ export interface NanoBananaGenerateResult {
   height: number;
   /** Model slug actually used (resolves Pro vs fallback) */
   modelUsed: string;
+  /**
+   * If the primary Pro model failed and we fell back to Flash, the raw
+   * error message (truncated). `null` on a clean Pro success. Surfaced so
+   * the pipeline can persist it to audit_log + generation row — otherwise
+   * the degradation is only visible in Vercel function logs and ops has
+   * no way to know Pro is silently broken (e.g. misconfigured Vercel env
+   * var, Google rotating preview suffixes).
+   */
+  fallbackReason: string | null;
 }
 
 /** Recognized Gemini safety block — worth falling back to v3 Kontext Max for same generation. */
@@ -124,7 +133,10 @@ export async function generateWithNanoBanana(
     generationConfig.seed = input.seed;
   }
 
-  async function tryModel(modelName: string): Promise<NanoBananaGenerateResult> {
+  async function tryModel(
+    modelName: string,
+    fallbackReason: string | null,
+  ): Promise<NanoBananaGenerateResult> {
     const response = await ai.models.generateContent({
       model: modelName,
       contents: [{ role: "user", parts }],
@@ -177,11 +189,12 @@ export async function generateWithNanoBanana(
       width: dims.width,
       height: dims.height,
       modelUsed: modelName,
+      fallbackReason,
     };
   }
 
   try {
-    return await tryModel(MODELS.nanoBanana);
+    return await tryModel(MODELS.nanoBanana, null);
   } catch (err) {
     if (err instanceof NanoBananaSafetyBlockedError) {
       throw err; // propagate so router can fall back to v3
@@ -196,6 +209,17 @@ export async function generateWithNanoBanana(
     const isQuotaIssue =
       /429|RESOURCE_EXHAUSTED|quota|rate.?limit|exceeded/i.test(msg);
     if (!isAvailabilityIssue && !isQuotaIssue) throw err;
-    return tryModel(MODELS.nanoBananaFallback);
+
+    // Loud warning — this is the exact failure mode where ops silently loses
+    // Pro quality. Logs go to Vercel function logs AND the caller persists
+    // `fallbackReason` onto the generation row so it surfaces in the UI /
+    // admin dashboard, not just in ephemeral server logs.
+    const reason = `${MODELS.nanoBanana} failed (${
+      isAvailabilityIssue ? "availability" : "quota"
+    }): ${msg.slice(0, 180)}`;
+    console.warn(
+      `[nano-banana] Primary model failed, falling back to ${MODELS.nanoBananaFallback}. Reason: ${reason}`,
+    );
+    return tryModel(MODELS.nanoBananaFallback, reason);
   }
 }

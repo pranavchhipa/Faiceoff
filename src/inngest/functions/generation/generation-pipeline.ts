@@ -336,6 +336,27 @@ export const runPipeline = inngest.createFunction(
           seed,
         });
 
+        // Persist fallback reason to audit_log the moment Pro → Flash
+        // fires. Without this the degradation only shows up in ephemeral
+        // Vercel function logs — ops/admins have no way to tell if a
+        // run-of-the-mill "meh" generation was 3 Pro doing its best or
+        // 2.5 Flash hallucinating product text because the env var is
+        // misconfigured. One audit row per occurrence is intentional:
+        // we want the signal, not one row per attempt in a retry loop.
+        if (inference.fallbackReason) {
+          await admin.from("audit_log").insert({
+            actor_type: "system" as const,
+            action: "nano_banana_pro_fallback",
+            resource_type: "generation",
+            resource_id: generation_id,
+            metadata: {
+              attempt,
+              model_used: inference.modelUsed,
+              reason: inference.fallbackReason,
+            },
+          });
+        }
+
         // Re-host to R2 (private bucket with signed URLs) before quality
         // gate / delivery so we have a stable, shareable URL.
         const hostedUrl = await rehostToR2({
