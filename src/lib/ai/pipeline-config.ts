@@ -8,7 +8,17 @@ import type { PipelineVersion } from "@/domains/generation/types";
 export const DEFAULT_PIPELINE_VERSION: PipelineVersion =
   (process.env.GENERATION_PIPELINE_VERSION as PipelineVersion | undefined) ?? "v2";
 
-export const MAX_RETRIES: number = Number(process.env.GENERATION_MAX_RETRIES ?? 2);
+// In-loop retry budget for the image-generation stage.
+//
+// Default 0 = ONE attempt per generation. Previously 2 (→ 3 attempts), which
+// compounded with Inngest's default 3-retry policy on step.run, the Pro→Flash
+// silent fallback in nano-banana-client, and the v2→v3 safety fallback in
+// pipeline-router — worst case: 3 × 4 × 2 = 24 billable Gemini calls per
+// generation. That's how a ₹300-capped AI Studio account burned through to
+// ₹378 overnight (see issue tracker 2026-04-21). If we ever want quality-gate
+// retries back, set GENERATION_MAX_RETRIES=1 or 2 in Vercel env — but pair it
+// with conservative NANO_BANANA and Kontext quotas.
+export const MAX_RETRIES: number = Number(process.env.GENERATION_MAX_RETRIES ?? 0);
 
 export const MODELS = {
   // v2 primary — Nano Banana Pro.

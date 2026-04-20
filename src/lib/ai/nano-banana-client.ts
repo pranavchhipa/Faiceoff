@@ -193,33 +193,46 @@ export async function generateWithNanoBanana(
     };
   }
 
+  // NO silent Pro→Flash fallback.
+  //
+  // The old behavior was: on 404/PERMISSION_DENIED or 429/RESOURCE_EXHAUSTED
+  // from Pro, retry the same generation on Flash automatically. That doubled
+  // the Google AI bill on every Pro failure (brand still charged for a Pro
+  // generation, we billed Pro + Flash) AND masked broken Pro config — a stale
+  // model ID would silently route 100% of traffic to Flash without anyone
+  // noticing the quality regression.
+  //
+  // New behavior: Pro call runs exactly once. On error, throw. The Inngest
+  // `onFailure` handler in generation-pipeline.ts flips the generation to
+  // 'failed' and refunds the brand's escrow. Loud failure > silent double-
+  // billing. If ops want to bring Flash-as-fallback back, set
+  // NANO_BANANA_MODEL to the Flash model directly — that routes 100% of
+  // traffic to Flash from the start rather than mixing both tiers.
   try {
     return await tryModel(MODELS.nanoBanana, null);
   } catch (err) {
     if (err instanceof NanoBananaSafetyBlockedError) {
-      throw err; // propagate so router can fall back to v3
+      throw err; // propagate so router can decide (see pipeline-router.ts)
     }
+    // Tag availability/quota errors clearly so the failure audit_log entry
+    // tells ops exactly why the generation failed — easier to triage than a
+    // raw stack trace, and it surfaces "your Pro quota is exhausted" without
+    // requiring someone to go read Google AI Studio.
     const msg = err instanceof Error ? err.message : String(err);
-    // Fall back to Flash Image when Pro is:
-    //  - not available on this key (404/permission)
-    //  - quota-exhausted (429/RESOURCE_EXHAUSTED) — Pro has a much tighter
-    //    free-tier quota than Flash, so Flash often still works.
     const isAvailabilityIssue =
       /404|NOT_FOUND|PERMISSION_DENIED|UNAUTHENTICATED|model.+not.+found/i.test(msg);
     const isQuotaIssue =
       /429|RESOURCE_EXHAUSTED|quota|rate.?limit|exceeded/i.test(msg);
-    if (!isAvailabilityIssue && !isQuotaIssue) throw err;
-
-    // Loud warning — this is the exact failure mode where ops silently loses
-    // Pro quality. Logs go to Vercel function logs AND the caller persists
-    // `fallbackReason` onto the generation row so it surfaces in the UI /
-    // admin dashboard, not just in ephemeral server logs.
-    const reason = `${MODELS.nanoBanana} failed (${
-      isAvailabilityIssue ? "availability" : "quota"
-    }): ${msg.slice(0, 180)}`;
-    console.warn(
-      `[nano-banana] Primary model failed, falling back to ${MODELS.nanoBananaFallback}. Reason: ${reason}`,
-    );
-    return tryModel(MODELS.nanoBananaFallback, reason);
+    if (isAvailabilityIssue || isQuotaIssue) {
+      const reason = isAvailabilityIssue ? "availability" : "quota";
+      throw new Error(
+        `Nano Banana Pro (${MODELS.nanoBanana}) failed [${reason}]: ${msg.slice(0, 200)}. ` +
+          `No automatic Flash fallback — brand will be refunded. ` +
+          `If this is a quota issue, wait for reset or raise the Google AI Studio cap. ` +
+          `If it's an availability issue, verify NANO_BANANA_MODEL against ` +
+          `GET https://generativelanguage.googleapis.com/v1beta/models.`,
+      );
+    }
+    throw err;
   }
 }

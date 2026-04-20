@@ -37,6 +37,20 @@ export const runPipeline = inngest.createFunction(
     // entirely — adds latency but guarantees delivery. When the account
     // concurrency limit is raised, bump this number to match.
     concurrency: { limit: 1 },
+    // Single-attempt mode (2026-04-21).
+    //
+    // Inngest's default retries=3 means every step.run() is retried up to
+    // 3 extra times on throw. For `generate-image` that's 3 extra Gemini +
+    // Replicate calls per failure — multiplied by the in-loop retry
+    // budget it gave worst-case 24 billed Gemini calls for one generation.
+    //
+    // retries=0 = one attempt total per step. If any step throws, the
+    // onFailure handler below flips the row to 'failed' and refunds the
+    // brand's escrow immediately. The only downside is that a transient
+    // Inngest/network blip now fails the generation instead of recovering
+    // silently — acceptable trade because we'd rather refund and let the
+    // brand re-request than pay Google AI Studio twice.
+    retries: 0,
     triggers: [{ event: "generation/created" }],
     // If every step in the pipeline exhausts retries, flip the generation
     // to 'failed', release the escrowed funds back to the brand wallet,
@@ -200,7 +214,7 @@ export const runPipeline = inngest.createFunction(
     // ── Step 3: Multi-Stage Image Generation (v2 pipeline) ────────────────
     // 3a. Route by pipeline version (env or brief override)
     // 3b. Ensure face anchor pack cached (Stage 0 fallback if missing)
-    // 3c. Nano Banana Pro multi-reference inference (Stage 1) with retries
+    // 3c. Nano Banana Pro multi-reference inference (Stage 1), single attempt by default
     // 3d. Quality gate per attempt (Stage 2)
     // 3e. Upscale winning attempt IF below UPSCALE_MIN_EDGE (Stage 3)
     await step.run("generate-image", async () => {
@@ -322,7 +336,8 @@ export const runPipeline = inngest.createFunction(
 
       const basePrompt = gen.assembled_prompt ?? assembledPrompt;
 
-      // Stage 1 + Stage 2 with retry budget
+      // Stage 1 + Stage 2. Retry budget is opt-in via GENERATION_MAX_RETRIES
+      // (default 0 = one attempt). See pipeline-config.ts for the rationale.
       let attempt = 0;
       let bestImageUrl: string | null = null;
       let bestPredictionId: string | null = null;

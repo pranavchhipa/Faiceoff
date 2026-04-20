@@ -38,6 +38,19 @@ export interface PipelineInferenceInput {
   seed?: number;
 }
 
+/**
+ * Optional: on a v2 Gemini safety block, retry ONCE on v3 Kontext Max.
+ *
+ * Default off. This was a useful recovery path when Gemini's safety net was
+ * aggressive, but every enabled fallback is an extra billed Replicate call
+ * per affected generation — and we explicitly want single-attempt billing
+ * after the 2026-04-21 AI Studio bill incident. Ops can set
+ * `ENABLE_V2_SAFETY_FALLBACK=true` if they'd rather retry on Kontext than
+ * refund the brand on every safety-blocked prompt.
+ */
+const ENABLE_V2_SAFETY_FALLBACK =
+  process.env.ENABLE_V2_SAFETY_FALLBACK === "true";
+
 export async function runPipelineInference(
   input: PipelineInferenceInput
 ): Promise<PipelineInferenceResult> {
@@ -59,8 +72,9 @@ export async function runPipelineInference(
           fallbackReason: r.fallbackReason,
         };
       } catch (err) {
-        // Safety block: auto-fallback to v3 for THIS generation only
+        // Safety block: fallback to v3 only if explicitly enabled.
         if (err instanceof NanoBananaSafetyBlockedError) {
+          if (!ENABLE_V2_SAFETY_FALLBACK) throw err;
           const anchor = input.faceAnchorPack[0];
           if (!anchor) throw err;
           const r = await generateWithKontext({
