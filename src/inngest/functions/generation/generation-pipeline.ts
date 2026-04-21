@@ -457,13 +457,25 @@ export const runPipeline = inngest.createFunction(
       const finalScores = bestScores ?? lastScores;
       if (finalScores) {
         if (finalScores.face < QUALITY_GATE_THRESHOLDS.face) {
-          // Persist the failing scores on the generation row BEFORE we
-          // throw so the admin UI can see WHY it failed — the
-          // onFailure handler flips status to 'failed' but won't
-          // overwrite these diagnostic fields.
+          // Persist the image + failing scores BEFORE we throw.
+          //
+          // We intentionally save `image_url` and `base_image_url` on the
+          // failure path (2026-04-21 update) so admins/ops can visually
+          // inspect what the model actually produced even when the quality
+          // gate rejected it. Without this, `image_url` stayed NULL on
+          // every failed generation and debugging Nano Banana's
+          // face-conditioning was impossible without digging into
+          // Supabase Storage directly.
+          //
+          // The `onFailure` handler flips status to 'failed' and issues
+          // the refund — that's unchanged. The image_url field persists
+          // through that status flip because onFailure only touches
+          // `status`, not the URL columns.
           await admin
             .from("generations")
             .update({
+              image_url: bestImageUrl,
+              base_image_url: bestImageUrl,
               quality_scores: finalScores,
               generation_attempts: attempt,
               provider_prediction_id: bestPredictionId,
@@ -474,13 +486,17 @@ export const runPipeline = inngest.createFunction(
             `Identity check failed after ${attempt} attempt(s). ` +
               `Face similarity ${finalScores.face.toFixed(2)} < threshold ${QUALITY_GATE_THRESHOLDS.face}. ` +
               `Refusing to deliver — the generated face does not match the creator's reference photos. ` +
-              `Brand wallet will be refunded.`
+              `Brand wallet will be refunded. Image saved for review.`
           );
         }
         if (finalScores.clip < QUALITY_GATE_THRESHOLDS.clip) {
+          // Same rationale as the face-fail path above — save image_url
+          // so the rejected output is inspectable in the admin UI.
           await admin
             .from("generations")
             .update({
+              image_url: bestImageUrl,
+              base_image_url: bestImageUrl,
               quality_scores: finalScores,
               generation_attempts: attempt,
               provider_prediction_id: bestPredictionId,
@@ -491,7 +507,7 @@ export const runPipeline = inngest.createFunction(
             `Product check failed after ${attempt} attempt(s). ` +
               `Product similarity ${finalScores.clip.toFixed(2)} < threshold ${QUALITY_GATE_THRESHOLDS.clip}. ` +
               `Refusing to deliver — the generated image does not match the product reference. ` +
-              `Brand wallet will be refunded.`
+              `Brand wallet will be refunded. Image saved for review.`
           );
         }
         if (finalScores.aesthetic < QUALITY_GATE_THRESHOLDS.aesthetic) {
