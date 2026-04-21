@@ -6,6 +6,57 @@ import {
 } from "@/domains/generation/types";
 
 /**
+ * Retry wrapper for Replicate predictions.
+ *
+ * Why: a single run of the quality gate fires up to ~11 concurrent CLIP /
+ * aesthetic calls against one Replicate account:
+ *   - 1 output embed (clipSimilarity)
+ *   - 1 product embed (clipSimilarity)
+ *   - up to 8 creator-reference embeds (faceSimilarity)
+ *   - 1 aesthetic call
+ *
+ * Replicate throttles low-credit accounts to "burst of 1" concurrent
+ * prediction — meaning 10 of those 11 calls 429 immediately. The rejections
+ * were previously caught by `Promise.allSettled` in runQualityGate() and
+ * defaulted to score=0, producing the "Face similarity 0.00" failures
+ * observed in prod (2026-04-21). This is the same throttling behavior that
+ * face-anchor.ts already documents and sidesteps by running LoRA calls
+ * sequentially; we apply the same pattern here.
+ *
+ * Backoff: 500ms → 1s → 2s → 4s (4 retries by default). On any non-429
+ * error, throws immediately (no silent swallow).
+ */
+async function replicateRunWithRetry<T = unknown>(
+  modelRef: `${string}/${string}`,
+  input: Record<string, unknown>,
+  opName: string,
+  maxRetries = 4,
+): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return (await replicate.run(modelRef, { input })) as T;
+    } catch (err) {
+      attempt += 1;
+      const msg = err instanceof Error ? err.message : String(err);
+      const is429 =
+        /\b429\b|rate.?limit|too many|concurrency|RESOURCE_EXHAUSTED/i.test(msg);
+      if (!is429 || attempt > maxRetries) {
+        console.error(
+          `[quality-gate:${opName}] ${is429 ? "429 after max retries" : "non-429 error"} — giving up after ${attempt} attempt(s): ${msg.slice(0, 200)}`,
+        );
+        throw err;
+      }
+      const delayMs = 500 * Math.pow(2, attempt - 1);
+      console.warn(
+        `[quality-gate:${opName}] 429 on attempt ${attempt}, backing off ${delayMs}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
+/**
  * Run Replicate CLIP features model for one image, return an embedding vector.
  *
  * `andreasjansson/clip-features` — the default model — returns:
@@ -21,9 +72,11 @@ import {
  *   3. [float, ...]                           — direct vector (rare)
  */
 async function clipEmbed(imageUrl: string): Promise<number[]> {
-  const output = await replicate.run(MODELS.clip as `${string}/${string}`, {
-    input: { inputs: imageUrl },
-  });
+  const output = await replicateRunWithRetry<unknown>(
+    MODELS.clip as `${string}/${string}`,
+    { inputs: imageUrl },
+    "clip-embed",
+  );
 
   let vector: unknown[] | null = null;
 
@@ -46,7 +99,8 @@ async function clipEmbed(imageUrl: string): Promise<number[]> {
   if (!vector || vector.length === 0 || typeof vector[0] !== "number") {
     throw new Error(
       `CLIP output shape not recognized. Model=${MODELS.clip}. ` +
-        `Got: ${JSON.stringify(output).slice(0, 200)}`
+        `URL=${imageUrl.slice(0, 100)}. ` +
+        `Got: ${JSON.stringify(output).slice(0, 200)}`,
     );
   }
 
@@ -70,15 +124,18 @@ function cosine(a: number[], b: number[]): number {
 /**
  * CLIP similarity between output image and product reference image.
  * Higher = output preserved product better.
+ *
+ * Sequential (not Promise.all) because Replicate throttles low-credit accounts
+ * to "burst of 1" — firing both embeds in parallel immediately 429s one of
+ * them. The retry wrapper in clipEmbed handles transient 429s but we avoid
+ * creating them in the first place by not fanning out.
  */
 export async function clipSimilarity(
   outputImageUrl: string,
   referenceImageUrl: string
 ): Promise<number> {
-  const [a, b] = await Promise.all([
-    clipEmbed(outputImageUrl),
-    clipEmbed(referenceImageUrl),
-  ]);
+  const a = await clipEmbed(outputImageUrl);
+  const b = await clipEmbed(referenceImageUrl);
   return cosine(a, b);
 }
 
@@ -87,6 +144,21 @@ export async function clipSimilarity(
  * reference photos (we use the anchor pack + original reference photos).
  * CLIP is a pragmatic face proxy; swap for a dedicated face embedder later
  * without changing the interface.
+ *
+ * Two changes from the previous implementation — both targeting the
+ * "face similarity 0.00" failures observed in prod (2026-04-21):
+ *
+ * 1. Sequential ref embeds instead of Promise.all: Replicate's burst-of-1
+ *    concurrency limit 429s all-but-one of the parallel calls, and the
+ *    previous caller (`Promise.allSettled` in runQualityGate) swallowed
+ *    those rejections and defaulted face=0. Same pattern already proven
+ *    in face-anchor.ts (4 LoRA calls sequential). Adds latency but
+ *    reliability > speed on a step we run at most 1–2× per generation.
+ *
+ * 2. Per-ref try/catch so one bad URL (expired signed URL, 404, corrupt
+ *    image) doesn't kill the whole face score. We only throw if ZERO
+ *    refs succeeded — an all-refs-failed case is a real problem worth
+ *    surfacing, but a single bad ref should just be skipped.
  */
 export async function faceSimilarity(
   outputImageUrl: string,
@@ -94,26 +166,58 @@ export async function faceSimilarity(
 ): Promise<number> {
   if (creatorReferenceUrls.length === 0) return 0;
 
+  // outEmbed failure IS fatal — no point continuing without it. Caller
+  // (runQualityGate) converts this to face=0 and fails the gate, which is
+  // the correct behavior: we genuinely can't measure similarity.
   const outEmbed = await clipEmbed(outputImageUrl);
-  const refs = await Promise.all(
-    creatorReferenceUrls.slice(0, 8).map(clipEmbed)
-  );
 
+  const refUrls = creatorReferenceUrls.slice(0, 8);
   let best = 0;
-  for (const r of refs) {
-    const s = cosine(outEmbed, r);
-    if (s > best) best = s;
+  let succeeded = 0;
+  const failures: string[] = [];
+
+  for (let i = 0; i < refUrls.length; i++) {
+    const url = refUrls[i];
+    try {
+      const r = await clipEmbed(url);
+      const s = cosine(outEmbed, r);
+      if (s > best) best = s;
+      succeeded += 1;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      failures.push(`ref[${i}]: ${msg.slice(0, 120)}`);
+      console.warn(
+        `[quality-gate:face-ref] ref ${i + 1}/${refUrls.length} failed — ${msg.slice(0, 200)}. URL=${url.slice(0, 100)}`,
+      );
+    }
   }
+
+  if (succeeded === 0) {
+    throw new Error(
+      `Face similarity: all ${refUrls.length} reference embeds failed. ` +
+        `Failures: ${failures.join(" | ")}`,
+    );
+  }
+
+  console.log(
+    `[quality-gate:face] ${succeeded}/${refUrls.length} ref embeds succeeded, best=${best.toFixed(3)}`,
+  );
   return best;
 }
 
 /**
  * Aesthetic score via improved-aesthetic-predictor (0-10 scale).
+ *
+ * Uses replicateRunWithRetry to survive transient 429s from the shared
+ * Replicate concurrency budget — the aesthetic call fires at the same time
+ * as CLIP embeds in runQualityGate() (via Promise.allSettled), so it's
+ * competing for the same burst-of-1 slot and needs the same backoff.
  */
 export async function aestheticScore(imageUrl: string): Promise<number> {
-  const output = await replicate.run(
+  const output = await replicateRunWithRetry<unknown>(
     MODELS.aesthetic as `${string}/${string}`,
-    { input: { image: imageUrl } }
+    { image: imageUrl },
+    "aesthetic",
   );
   if (typeof output === "number") return output;
   if (
@@ -126,7 +230,10 @@ export async function aestheticScore(imageUrl: string): Promise<number> {
   }
   const first = Array.isArray(output) ? output[0] : output;
   if (typeof first === "number") return first;
-  throw new Error("Aesthetic predictor returned unexpected shape");
+  throw new Error(
+    `Aesthetic predictor returned unexpected shape. Model=${MODELS.aesthetic}. ` +
+      `Got: ${JSON.stringify(output).slice(0, 200)}`,
+  );
 }
 
 export interface QualityGateInput {
