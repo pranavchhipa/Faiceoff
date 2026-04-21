@@ -1,3 +1,4 @@
+import { NonRetriableError } from "inngest";
 import { inngest } from "@/inngest/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NEGATIVE_PROMPT } from "@/lib/ai/prompt-assembler";
@@ -217,7 +218,20 @@ export const runPipeline = inngest.createFunction(
     // 3c. Nano Banana Pro multi-reference inference (Stage 1), single attempt by default
     // 3d. Quality gate per attempt (Stage 2)
     // 3e. Upscale winning attempt IF below UPSCALE_MIN_EDGE (Stage 3)
+    //
+    // BILLING SAFETY NET: the step body is wrapped in a try/catch that
+    // converts ANY thrown error into a NonRetriableError. The function-level
+    // `retries: 0` above is supposed to prevent retries, but Inngest caches
+    // function registrations server-side — after a deploy that changes the
+    // retries config, Inngest may keep using the old config until the next
+    // /api/inngest handshake (observed 2026-04-21 on prod: "2 retries" badge
+    // despite retries: 0 in code → 3× Gemini Pro calls per failed generation).
+    // NonRetriableError bypasses the cached config entirely: Inngest sees it
+    // and stops execution immediately regardless of retry budget. This is
+    // belt-and-suspenders — worst-case cost per generation stays capped at
+    // exactly 1 Gemini call, no matter what Inngest's cached config says.
     await step.run("generate-image", async () => {
+     try {
       const { data: gen } = await admin
         .from("generations")
         .select(
@@ -538,6 +552,17 @@ export const runPipeline = inngest.createFunction(
           bestScores ?? lastScores
         )}`
       );
+     } catch (err) {
+      // See "BILLING SAFETY NET" comment above step.run. Convert every error
+      // into a NonRetriableError so Inngest's retry machinery never re-runs
+      // the Gemini Pro call. Preserve the original error as `cause` so the
+      // onFailure handler and Inngest UI still show the real root cause.
+      if (err instanceof NonRetriableError) throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new NonRetriableError(`[generate-image] ${msg}`, {
+        cause: err instanceof Error ? err : new Error(msg),
+      });
+     }
     });
 
     // ── Step 4: Output Safety Check ───────────────────────────────────────
