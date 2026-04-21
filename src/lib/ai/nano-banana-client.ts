@@ -49,16 +49,52 @@ export class NanoBananaSafetyBlockedError extends Error {
  * Fetch a remote image URL and return a Buffer + MIME type for inline payload.
  * Gemini's image-input API takes base64-encoded inline data OR fileData refs;
  * we use inline data so we don't need to maintain a Google Cloud Storage bucket.
+ *
+ * Hardened against signed-URL failure modes observed in prod (2026-04-21):
+ *   - Expired signed URLs sometimes return 200 with an HTML error page body.
+ *     Our old code would base64 the HTML and hand it to Gemini, which would
+ *     burn through a ~₹100 Pro Image call producing nothing useful.
+ *   - "Not Found" JSON responses from Supabase Storage similarly come back
+ *     200 with application/json — same failure mode.
+ *
+ * We now validate content-type + size BEFORE handing bytes to Gemini. Any
+ * anomaly throws a descriptive error that short-circuits the Gemini call
+ * entirely — saving the billed-but-useless call.
  */
+const MIN_VALID_IMAGE_BYTES = 1024; // <1KB is almost certainly an error page
+const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024; // Gemini caps at ~20MB; stay conservative
+
 async function fetchAsInlineData(
   url: string
 ): Promise<{ data: string; mimeType: string }> {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to fetch reference image ${url}: HTTP ${res.status}`);
+    throw new Error(
+      `Reference image fetch failed: HTTP ${res.status} for ${url.slice(0, 120)}`,
+    );
   }
-  const mimeType = res.headers.get("content-type") ?? "image/png";
+  const mimeType = res.headers.get("content-type") ?? "";
+  if (!mimeType.startsWith("image/")) {
+    throw new Error(
+      `Reference URL returned non-image content-type "${mimeType}" ` +
+        `(URL=${url.slice(0, 120)}). Likely an expired signed URL, auth redirect, ` +
+        `or JSON error body. Refusing to send to Gemini — would burn the Pro call budget ` +
+        `on garbage input.`,
+    );
+  }
   const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.length < MIN_VALID_IMAGE_BYTES) {
+    throw new Error(
+      `Reference image suspiciously small: ${bytes.length} bytes ` +
+        `(URL=${url.slice(0, 120)}). Likely a stub or error page.`,
+    );
+  }
+  if (bytes.length > MAX_INLINE_IMAGE_BYTES) {
+    throw new Error(
+      `Reference image too large for inline payload: ${bytes.length} bytes ` +
+        `(URL=${url.slice(0, 120)}). Cap is ${MAX_INLINE_IMAGE_BYTES}.`,
+    );
+  }
   // Node-friendly base64 encode (works in Next.js server runtime)
   const data = Buffer.from(bytes).toString("base64");
   return { data, mimeType };
@@ -85,14 +121,50 @@ async function fetchAsInlineData(
 export async function generateWithNanoBanana(
   input: NanoBananaGenerateInput
 ): Promise<NanoBananaGenerateResult> {
+  // ── Pre-flight input validation ─────────────────────────────────────────
+  // Every one of these checks MUST run before the Gemini call. Each Pro
+  // Image call bills at ~₹100 (Tier 1 preview pricing), so any input
+  // problem we can catch here saves the exact amount of a wasted call.
+  if (!input.prompt || input.prompt.trim().length === 0) {
+    throw new Error("Nano Banana pre-flight: prompt is empty");
+  }
+  if (input.prompt.length > 32_000) {
+    throw new Error(
+      `Nano Banana pre-flight: prompt is ${input.prompt.length} chars, above Gemini's safe limit (~32k)`,
+    );
+  }
+  if (!input.productImageUrl) {
+    throw new Error("Nano Banana pre-flight: productImageUrl is required");
+  }
+  if (!input.faceAnchorPack || input.faceAnchorPack.length === 0) {
+    throw new Error(
+      "Nano Banana pre-flight: faceAnchorPack is empty — cannot lock identity",
+    );
+  }
+  if (!MODELS.nanoBanana || MODELS.nanoBanana.trim().length === 0) {
+    throw new Error(
+      "Nano Banana pre-flight: NANO_BANANA_MODEL env var is empty — " +
+        "would hit Gemini's default routing and get 404'd",
+    );
+  }
+
   const ai = new GoogleGenAI({ apiKey: requireGoogleAiKey() });
   const dims = ASPECT_RATIO_DIMENSIONS[input.aspectRatio];
 
   // Assemble multi-part contents: prompt + product image + face anchors (first 5)
+  // All fetches happen BEFORE the Gemini call — any URL problem throws here
+  // and short-circuits the billing. fetchAsInlineData validates content-type
+  // + size, so expired signed URLs / HTML error pages are caught too.
   const [productInline, ...anchorInlines] = await Promise.all([
     fetchAsInlineData(input.productImageUrl),
     ...input.faceAnchorPack.slice(0, 5).map(fetchAsInlineData),
   ]);
+
+  console.log(
+    `[nano-banana] pre-flight ok: model=${MODELS.nanoBanana} ` +
+      `product=${productInline.mimeType}/${productInline.data.length}b64 ` +
+      `anchors=${anchorInlines.length} prompt=${input.prompt.length}chars`,
+  );
 
   const promptWithAspect = `${input.prompt}\n\nTarget aspect ratio: ${input.aspectRatio}.`;
 
@@ -137,11 +209,35 @@ export async function generateWithNanoBanana(
     modelName: string,
     fallbackReason: string | null,
   ): Promise<NanoBananaGenerateResult> {
+    const t0 = Date.now();
     const response = await ai.models.generateContent({
       model: modelName,
       contents: [{ role: "user", parts }],
       config: generationConfig,
     });
+    const elapsedMs = Date.now() - t0;
+
+    // Log response metadata on EVERY call (success or failure). This is the
+    // only way to diagnose "billed ₹100, no image" failures — without this,
+    // the Gemini response is a black box and we can't tell if the issue was
+    // safety, empty response, wrong shape, or parser bug.
+    const usage = (
+      response as unknown as {
+        usageMetadata?: {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
+      }
+    ).usageMetadata;
+    console.log(
+      `[nano-banana:${modelName}] response in ${elapsedMs}ms ` +
+        `candidates=${response.candidates?.length ?? 0} ` +
+        `finishReason=${response.candidates?.[0]?.finishReason ?? "?"} ` +
+        `tokens=${usage?.totalTokenCount ?? "?"} ` +
+        `(prompt=${usage?.promptTokenCount ?? "?"}, ` +
+        `cand=${usage?.candidatesTokenCount ?? "?"})`,
+    );
 
     // Safety block detection
     const candidate = response.candidates?.[0];
@@ -156,23 +252,70 @@ export async function generateWithNanoBanana(
       throw new NanoBananaSafetyBlockedError(candidate);
     }
 
-    // Extract inline image bytes from first image part
-    const imagePart = candidate.content?.parts?.find(
-      (p: unknown): p is { inlineData: { data: string; mimeType: string } } =>
-        typeof p === "object" &&
-        p !== null &&
-        "inlineData" in p &&
-        typeof (p as { inlineData: { data?: unknown } }).inlineData?.data ===
-          "string"
-    );
-    if (!imagePart) {
-      throw new Error(
-        `Nano Banana returned no image part (finishReason=${candidate.finishReason ?? "unknown"})`
-      );
+    // Extract image from candidate parts. Gemini may return the image as
+    // either `inlineData` (base64 inline bytes — preferred, what we ask for)
+    // or `fileData` (a URI to fetch from Google's CDN — rarer for image-out
+    // but possible with certain model variants). Handle both so we don't
+    // burn a ₹100 call because we only checked one shape.
+    const allParts = (candidate.content?.parts ?? []) as unknown[];
+    let base64: string | null = null;
+    let mime = "image/png";
+    let extractedFrom: "inlineData" | "fileData" | null = null;
+
+    for (const p of allParts) {
+      if (!p || typeof p !== "object") continue;
+
+      const inline = (p as { inlineData?: { data?: unknown; mimeType?: unknown } })
+        .inlineData;
+      if (
+        inline &&
+        typeof inline.data === "string" &&
+        inline.data.length > 0
+      ) {
+        base64 = inline.data;
+        if (typeof inline.mimeType === "string") mime = inline.mimeType;
+        extractedFrom = "inlineData";
+        break;
+      }
+
+      const fileRef = (p as { fileData?: { fileUri?: unknown; mimeType?: unknown } })
+        .fileData;
+      if (
+        fileRef &&
+        typeof fileRef.fileUri === "string" &&
+        fileRef.fileUri.length > 0
+      ) {
+        const fetchRes = await fetch(fileRef.fileUri);
+        if (fetchRes.ok) {
+          const bytes = new Uint8Array(await fetchRes.arrayBuffer());
+          base64 = Buffer.from(bytes).toString("base64");
+          if (typeof fileRef.mimeType === "string") mime = fileRef.mimeType;
+          extractedFrom = "fileData";
+          break;
+        }
+      }
     }
 
-    const base64 = imagePart.inlineData.data;
-    const mime = imagePart.inlineData.mimeType ?? "image/png";
+    if (!base64) {
+      // Log full parts shape (truncated) so we can see exactly what Gemini
+      // returned. Without this, "returned no image part" is undiagnosable
+      // in prod — you don't know if it was text-only, an empty array, or a
+      // shape we haven't seen before.
+      const partsSummary = allParts.map((p) => {
+        if (!p || typeof p !== "object") return typeof p;
+        const keys = Object.keys(p as Record<string, unknown>);
+        return keys.join("+") || "{}";
+      });
+      throw new Error(
+        `Nano Banana returned no usable image part. ` +
+          `model=${modelName} finishReason=${candidate.finishReason ?? "?"} ` +
+          `partsCount=${allParts.length} partShapes=[${partsSummary.join(",")}]. ` +
+          `Raw response snippet: ${JSON.stringify(response).slice(0, 400)}`,
+      );
+    }
+    console.log(
+      `[nano-banana:${modelName}] extracted image via ${extractedFrom}, mime=${mime}, b64Len=${base64.length}`,
+    );
 
     // Upload to a short-lived data URL; downstream code re-uploads to R2.
     // We return a data: URL so the pipeline's existing "fetch + upload to R2"
