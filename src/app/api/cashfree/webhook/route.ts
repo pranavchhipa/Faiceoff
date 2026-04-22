@@ -42,10 +42,10 @@ function isUniqueViolation(error: { message: string; code?: string } | null): bo
   return /duplicate key|unique constraint/i.test(error.message);
 }
 
-// Route-local augmentation: the webhook_events row carries extra methods not
-// on the shared AdminUntyped (`insert().select().single()`). Kept here rather
-// than in handlers.ts because only the route does the initial insert.
-type AdminWithWebhookInsert = AdminUntyped & {
+// Route-local shape: wraps webhook_events insert + the subset of
+// operations routeWebhookEvent uses. Kept separate from handlers.ts's
+// AdminUntyped so the insert-path typing stays local to the route.
+type AdminWithWebhookInsert = {
   from(table: string): {
     insert(row: Record<string, unknown>): {
       select(): {
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
 
   // ── 3. Route on event type ─────────────────────────────────────────────────
   try {
-    await routeWebhookEvent(admin, event);
+    await routeWebhookEvent(admin as unknown as AdminUntyped, event);
 
     // Mark event processed.
     if (webhookEventId) {

@@ -5,6 +5,7 @@ import {
 } from './functions/generation/generation-pipeline'
 import { faceAnchorGeneration } from './functions/creator/face-anchor-generation'
 import { expireLicenses } from './functions/license/expire-licenses'
+import { cashfreeReconcile } from './functions/reconcile/cashfree-reconcile'
 
 // All Inngest functions registered with the serve handler
 export const functions = [
@@ -13,4 +14,5 @@ export const functions = [
   handleRejection,
   faceAnchorGeneration,
   expireLicenses,
+  cashfreeReconcile,
 ]

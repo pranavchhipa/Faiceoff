@@ -25,15 +25,17 @@ function makeStep(): MinimalStep {
   };
 }
 
+type LoggerFn = (msg: string, meta?: unknown) => void;
+
 function makeLogger(): MinimalLogger & {
   info: ReturnType<typeof vi.fn>;
   warn: ReturnType<typeof vi.fn>;
   error: ReturnType<typeof vi.fn>;
 } {
   return {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: vi.fn<LoggerFn>(),
+    warn: vi.fn<LoggerFn>(),
+    error: vi.fn<LoggerFn>(),
   };
 }
 
