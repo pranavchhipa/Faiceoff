@@ -25,10 +25,13 @@ const getUserMock = vi.fn();
 type Thenable = { data: unknown; error: unknown };
 
 // Per-table terminal handlers — tests set these via adminMocks.
+// We type listingsQuery as a callable mock so TS knows it can be invoked inside
+// the chain builder (vi.fn()'s generic ReturnType erases the callable sig here).
 interface AdminMocks {
   creatorProfile: ReturnType<typeof vi.fn>;
   brandProfile: ReturnType<typeof vi.fn>;
-  listingsQuery: ReturnType<typeof vi.fn>; // returns array for list queries
+  listingsQuery: ReturnType<typeof vi.fn> &
+    ((filters: Record<string, unknown>) => Promise<Thenable>);
   listingInsert: ReturnType<typeof vi.fn>;
 }
 

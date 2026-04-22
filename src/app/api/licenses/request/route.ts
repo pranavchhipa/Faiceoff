@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
   // ── 9. Return the row + checkout ───────────────────────────────────────────
   return NextResponse.json(
     {
-      license_request: insertedRow as LicenseRequestRow,
+      license_request: insertedRow as unknown as LicenseRequestRow,
       checkout_breakdown: {
         base_paise: checkout.base_paise,
         commission_paise: checkout.commission_paise,
