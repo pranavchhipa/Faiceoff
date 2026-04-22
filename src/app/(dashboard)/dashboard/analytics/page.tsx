@@ -72,8 +72,29 @@ export default function AnalyticsPage() {
     }
 
     const [txRes, campaignRes, genRes] = await Promise.all([
-      supabase
-        .from("wallet_transactions")
+      // Reads wallet_transactions_archive (renamed in migration 00027).
+      // Chunk D will rebuild analytics against escrow_ledger +
+      // platform_revenue_ledger; until then the archive gives us historical
+      // earnings charts without regressing the current UX.
+      (supabase as unknown as {
+        from(t: string): {
+          select(c: string): {
+            eq(col: string, v: string): {
+              order(col: string, opts: { ascending: boolean }): Promise<{
+                data: Array<{
+                  id: string;
+                  type: string;
+                  amount_paise: number;
+                  direction: "credit" | "debit";
+                  created_at: string;
+                }> | null;
+                count?: number;
+              }>;
+            };
+          };
+        };
+      })
+        .from("wallet_transactions_archive")
         .select("id, type, amount_paise, direction, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),

@@ -151,19 +151,39 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Check brand's wallet balance ---
+  // --- Check brand's credit balance ---
   // Campaign budget is a cap on what this campaign can spend, but it doesn't
-  // guarantee the brand actually has the funds in their wallet. Check the
-  // running balance so we don't accept generations the brand can't pay for.
-  const { data: lastBrandTx } = await admin
-    .from("wallet_transactions")
-    .select("balance_after_paise")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
+  // guarantee the brand actually has the funds. Post Chunk C, the running
+  // balance lives on `brands.credits_balance_paise` (see migration 00020).
+  // `credits_reserved_paise` is the escrow hold on in-flight generations;
+  // spendable = balance - reserved, clamped to zero.
+  //
+  // Supabase types in src/types/supabase.ts don't yet know about the new
+  // credit columns — use a loose-typed handle. Types will self-fix on next
+  // regen.
+  const adminAny = admin as unknown as {
+    from(table: string): {
+      select(cols: string): {
+        eq(col: string, val: string): {
+          maybeSingle(): Promise<{
+            data: Record<string, number | string | null> | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+  };
+  const { data: brandCreditRow } = await adminAny
+    .from("brands")
+    .select("credits_balance_paise, credits_reserved_paise")
+    .eq("id", brand.id)
     .maybeSingle();
 
-  const brandBalance = lastBrandTx?.balance_after_paise ?? 0;
+  const creditsBalance =
+    (brandCreditRow?.credits_balance_paise as number | undefined) ?? 0;
+  const creditsReserved =
+    (brandCreditRow?.credits_reserved_paise as number | undefined) ?? 0;
+  const brandBalance = Math.max(0, creditsBalance - creditsReserved);
 
   if (brandBalance < creatorCategory.price_per_generation_paise) {
     return NextResponse.json(

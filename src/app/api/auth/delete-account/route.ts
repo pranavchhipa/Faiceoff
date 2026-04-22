@@ -69,11 +69,11 @@ export async function DELETE() {
       }
     }
 
-    // Delete wallet transactions
-    await admin
-      .from("wallet_transactions")
-      .delete()
-      .eq("user_id", user.id);
+    // Historical wallet_transactions_archive rows are immutable per migration
+    // 00027 (no delete policy). DPDP-compliant purge of archived ledger data
+    // is handled by an admin-only job (Chunk D). Leave the rows in place on
+    // account self-deletion — they're legally required retention for
+    // financial reconciliation anyway.
 
     // Delete user row from public.users
     await admin

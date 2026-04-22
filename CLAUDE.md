@@ -3,13 +3,13 @@
 # Faiceoff — AI Likeness Licensing Marketplace (India)
 
 ## What is Faiceoff?
-Two-sided marketplace where **creators/influencers license their face** and **brands generate AI content** using that licensed likeness. Every generation is tracked, consented, and paid fairly. Built for India (INR, DPDP Act compliance, Razorpay payments).
+Two-sided marketplace where **creators/influencers license their face** and **brands generate AI content** using that licensed likeness. Every generation is tracked, consented, and paid fairly. Built for India (INR, DPDP Act compliance, Cashfree credits + payouts).
 
 ## Tech Stack
 - **Framework**: Next.js 16 App Router (React 19)
 - **Database**: Supabase PostgreSQL + pgvector (1536-dim embeddings)
 - **Auth**: Supabase Auth with email OTP (8-digit, via Resend SMTP)
-- **Payments**: Razorpay (INR, test mode)
+- **Payments**: Cashfree (Collect for brand credit top-ups, Payouts for creator settlements, INR)
 - **AI Pipeline**: Replicate (LoRA training + image gen), OpenRouter (LLM prompt assembly), Hive (content moderation)
 - **Storage**: Cloudflare R2 (S3-compatible CDN)
 - **Task Orchestration**: Inngest v4 (event-driven pipeline)
@@ -46,11 +46,13 @@ src/
 │   │       ├── wallet/       # Balance, top-up, transactions
 │   │       └── brand-setup/  # Brand verification
 │   ├── (marketing)/      # Landing page, public pages
-│   └── api/              # 22 API routes
+│   └── api/              # API routes
 │       ├── auth/         # sign-up, sign-in, verify-otp, sign-out
+│       ├── credits/      # top-up (Cashfree Collect), balance
+│       ├── cashfree/     # webhook receiver
 │       ├── generations/  # create, [id]/approve
 │       ├── onboarding/   # 8 routes (save-*, get-*, update-step, complete)
-│       ├── wallet/       # create-order, verify-payment
+│       ├── wallet/       # transactions (historical archive reader)
 │       ├── health/       # Health check
 │       └── inngest/      # Inngest webhook handler
 ├── components/
@@ -71,7 +73,7 @@ src/
 │   └── functions/generation/generation-pipeline.ts  # 3 functions
 ├── lib/
 │   ├── ai/               # replicate, openrouter, hive clients
-│   ├── payments/         # razorpay client, webhook verifier
+│   ├── payments/         # cashfree/ (client, collect, payouts, kyc, nodal, webhook)
 │   ├── storage/          # Cloudflare R2 client
 │   ├── redis/            # Upstash client, rate limiter
 │   ├── supabase/         # client.ts, server.ts, admin.ts, middleware.ts
@@ -95,8 +97,17 @@ scripts/                  # Migration runner
 8. `campaigns` — brand_id, creator_id, budget_paise, spent_paise, status
 9. `generations` — campaign_id, structured_brief (JSONB), status (7 states), image_url, delivery_url
 10. `approvals` — generation_id, status, feedback, expires_at (48h)
-11. `wallet_transactions` — user_id, type (topup/escrow/payout/etc), amount_paise, balance_after_paise
+11. `wallet_transactions_archive` — legacy ledger (renamed + sealed in migration 00027). Read-only historical data.
 12. `disputes` — generation_id, raised_by, status, resolution_notes
+
+**New money ledgers (post Chunk C, migrations 00020-00023):**
+- `credit_top_ups` — Cashfree top-up order lifecycle (initiated/processing/success/failed)
+- `credit_transactions` — brand credit movements (topup/escrow_lock/escrow_release/refund)
+- `brands.credits_balance_paise` + `credits_reserved_paise` — running brand credit balance
+- `escrow_ledger` — creator-held escrow pending payout
+- `platform_revenue_ledger` — commission + GST recognition
+- `gst_output_ledger` / `tcs_ledger` / `tds_ledger` — statutory tax ledgers
+- `webhook_events` — idempotent Cashfree webhook audit log
 
 ## Generation Pipeline (Inngest)
 `generation/created` event triggers 5-step pipeline:
@@ -126,7 +137,8 @@ scripts/                  # Migration runner
 ## Environment Variables
 See `.env.example` for full list. Key ones:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
+- `CASHFREE_MODE`, `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_WEBHOOK_SECRET`, `CASHFREE_NODAL_ACCOUNT_ID`
+- `KYC_ENCRYPTION_KEY` (hex-encoded 32-byte key for PAN/Aadhaar/bank account encryption)
 - `REPLICATE_API_TOKEN`, `OPENROUTER_API_KEY`, `HIVE_API_KEY`
 - `R2_*` (Cloudflare), `UPSTASH_REDIS_*`, `RESEND_API_KEY`
 - `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_*`

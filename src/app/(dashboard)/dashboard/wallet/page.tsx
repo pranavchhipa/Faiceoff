@@ -68,7 +68,7 @@ function txTypeLabel(type: string): string {
 
 /* ── Component ── */
 //
-// PHASE 9 STUB (2026-04-22) — Razorpay retired, Cashfree live.
+// PHASE 9 STUB (2026-04-22) — legacy gateway retired, Cashfree live.
 //
 // Top-up flow moved to /api/credits/top-up (Cashfree Collect + Drop-in). The
 // full brand credits UI is being rebuilt in Chunk B at /brand/credits — this
@@ -166,7 +166,7 @@ export default function WalletPage() {
               </p>
               <p className="text-xs text-[var(--color-outline-variant)] leading-relaxed mb-3">
                 {role === "brand"
-                  ? "We've retired Razorpay and are rolling out a Cashfree-powered credits system with better pricing, instant top-ups, and live balance. The new brand credits dashboard will launch soon — your historical transactions are preserved below."
+                  ? "We're rolling out a Cashfree-powered credits system with better pricing, instant top-ups, and live balance. The new brand credits dashboard will launch soon — your historical transactions are preserved below."
                   : "Creator payouts are moving to Cashfree for faster settlements and better coverage across Indian banks. Until then, balance and earnings continue to display. For urgent payout requests, contact support."}
               </p>
               {role === "brand" && (

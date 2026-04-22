@@ -106,9 +106,27 @@ export async function GET(
   let pendingApprovalCount = 0;
 
   if (isCreator && generationIds.length > 0) {
+    // Reads archive (renamed in migration 00027). New earnings flow for
+    // Chunk D will live in escrow_ledger + platform_revenue_ledger.
+    const adminAny = admin as unknown as {
+      from(table: string): {
+        select(cols: string): {
+          eq(col: string, val: string): {
+            eq(col: string, val: string): {
+              eq(col: string, val: string): {
+                in(col: string, vals: string[]): Promise<{
+                  data: Array<{ amount_paise: number | null }> | null;
+                  error: { message: string } | null;
+                }>;
+              };
+            };
+          };
+        };
+      };
+    };
     const [{ data: earnings }, { count: pendingCount }] = await Promise.all([
-      admin
-        .from("wallet_transactions")
+      adminAny
+        .from("wallet_transactions_archive")
         .select("amount_paise")
         .eq("user_id", user.id)
         .eq("direction", "credit")

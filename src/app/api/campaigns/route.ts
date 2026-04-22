@@ -131,13 +131,36 @@ export async function GET() {
     );
 
     if (genIds.length > 0) {
+      // Reads from wallet_transactions_archive — new earnings flow is moving
+      // to escrow_ledger (Chunk D) but the archive still holds historical
+      // settlements for display. Cast because the Supabase generated types
+      // haven't been regenerated since migration 00027.
+      const adminAny = admin as unknown as {
+        from(table: string): {
+          select(cols: string): {
+            eq(col: string, val: string): {
+              eq(col: string, val: string): {
+                eq(col: string, val: string): {
+                  in(col: string, vals: string[]): Promise<{
+                    data: Array<{
+                      amount_paise: number | null;
+                      reference_id: string | null;
+                    }> | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
       const [{ data: earnings }, { data: pendingApprovals }] =
         await Promise.all([
           // Creator earnings: credits on this creator's wallet referencing
-          // these generations. `generation_earning` is what the pipeline
-          // writes on approval (see generation-pipeline.ts).
-          admin
-            .from("wallet_transactions")
+          // these generations. `generation_earning` is what the legacy
+          // pipeline wrote on approval. New writes go to escrow_ledger.
+          adminAny
+            .from("wallet_transactions_archive")
             .select("amount_paise, reference_id")
             .eq("user_id", user.id)
             .eq("direction", "credit")

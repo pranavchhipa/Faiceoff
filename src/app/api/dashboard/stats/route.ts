@@ -53,10 +53,31 @@ export async function GET() {
           .then(({ count }) => count ?? 0)
           .catch(() => 0),
 
-        // Wallet balance
+        // Wallet balance — reads wallet_transactions_archive
+        // (migration 00027). Cast because Supabase types don't yet know
+        // about the renamed table.
         Promise.resolve(
-          admin
-            .from("wallet_transactions")
+          (
+            admin as unknown as {
+              from(t: string): {
+                select(c: string): {
+                  eq(col: string, v: string): {
+                    order(
+                      col: string,
+                      opts: { ascending: boolean },
+                    ): {
+                      limit(n: number): {
+                        maybeSingle(): Promise<{
+                          data: { balance_after_paise: number | null } | null;
+                        }>;
+                      };
+                    };
+                  };
+                };
+              };
+            }
+          )
+            .from("wallet_transactions_archive")
             .select("balance_after_paise")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -170,9 +191,31 @@ export async function GET() {
           })
           .catch(() => ({ active: 0, total: 0, generations: 0 })),
 
+        // Brand wallet balance — reads wallet_transactions_archive
+        // (migration 00027). Cast because Supabase types don't yet know
+        // about the renamed table.
         Promise.resolve(
-          admin
-            .from("wallet_transactions")
+          (
+            admin as unknown as {
+              from(t: string): {
+                select(c: string): {
+                  eq(col: string, v: string): {
+                    order(
+                      col: string,
+                      opts: { ascending: boolean },
+                    ): {
+                      limit(n: number): {
+                        maybeSingle(): Promise<{
+                          data: { balance_after_paise: number | null } | null;
+                        }>;
+                      };
+                    };
+                  };
+                };
+              };
+            }
+          )
+            .from("wallet_transactions_archive")
             .select("balance_after_paise")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
