@@ -1,46 +1,78 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/credits/top-up — initiate a Cashfree Collect order for credits
-// Task E10 — Chunk E rewrite: uses new pack codes from credit_packs_catalog
+// POST /api/wallet/top-up — initiate a Cashfree Collect order for INR wallet
+// Task E10 — Chunk E new route
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Flow:
 //   1. Auth (user must be signed in as a brand)
-//   2. Parse + validate body: { pack: 'spark'|'flow'|'pro'|'studio'|'enterprise' }
-//   3. Resolve pack from credit_packs_catalog via getActivePacks()
+//   2. Parse + validate body: { amount_paise: number }
+//      min: 50_000 paise (₹500), max: 50_000_000 paise (₹5,00,000)
+//   3. Compute bonus tier (tiered %)
 //   4. Resolve brand by user.id → 404 if none
-//   5. Lookup user email + phone for Cashfree customer_details
-//   6. Insert credit_top_ups row status='initiated'
-//   7. Call createTopUpOrder — Cashfree Collect
+//   5. Lookup user email + phone
+//   6. Insert wallet_top_ups row status='initiated'
+//   7. Call createWalletTopUpOrder (Cashfree)
 //   8. Update row: cf_order_id + status='processing'
-//   9. Return { orderId, paymentSessionId, amount_paise, credits, bonus_credits }
+//   9. Return { orderId, paymentSessionId, amount_paise, bonus_paise }
 //
-// Failure modes:
-//   • 401 unauth, 404 no brand, 400 invalid/inactive pack, 502 Cashfree blow-up
-//   • On Cashfree failure, mark row status='failed' with failure_reason
+// Bonus tiers:
+//   ₹500-999:    0%
+//   ₹1000-4999:  5%
+//   ₹5000-9999:  10%
+//   ₹10000-49999: 15%
+//   ₹50000+:     20%
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createTopUpOrder } from "@/lib/payments/cashfree/collect";
-import { getActivePacks, getPackByCode, BillingError } from "@/lib/billing";
+import { createWalletTopUpOrder } from "@/lib/payments/cashfree/collect";
 
 // ── Inline Zod schema ─────────────────────────────────────────────────────────
 
-const PURCHASABLE_PACK_CODES = [
-  "spark",
-  "flow",
-  "pro",
-  "studio",
-  "enterprise",
-] as const;
-
-const TopUpRequestSchema = z.object({
-  pack: z.enum(PURCHASABLE_PACK_CODES),
+const WalletTopUpRequestSchema = z.object({
+  amount_paise: z
+    .number()
+    .int("amount_paise must be an integer")
+    .min(50_000, "minimum top-up is ₹500 (50000 paise)")
+    .max(50_000_000, "maximum top-up is ₹5,00,000 (50000000 paise)"),
 });
 
-// ── Admin client helper (avoids fighting stale Database types) ────────────────
+// ── Bonus computation ─────────────────────────────────────────────────────────
+
+/**
+ * Compute wallet top-up bonus based on INR tier.
+ * All paise in, bonus paise out (integer, Math.floor).
+ *
+ * Tiers (inclusive of lower bound, exclusive of upper):
+ *   ₹500   – ₹999:   0%
+ *   ₹1000  – ₹4999:  5%
+ *   ₹5000  – ₹9999:  10%
+ *   ₹10000 – ₹49999: 15%
+ *   ₹50000+:         20%
+ */
+function computeWalletBonus(amount_paise: number): number {
+  // Convert to rupees for tier comparison (still integer math with paise)
+  const rupees = Math.floor(amount_paise / 100);
+
+  let rate: number;
+  if (rupees >= 50_000) {
+    rate = 0.20;
+  } else if (rupees >= 10_000) {
+    rate = 0.15;
+  } else if (rupees >= 5_000) {
+    rate = 0.10;
+  } else if (rupees >= 1_000) {
+    rate = 0.05;
+  } else {
+    rate = 0;
+  }
+
+  return Math.floor(amount_paise * rate);
+}
+
+// ── Admin client type helper ──────────────────────────────────────────────────
 
 type AdminUntyped = {
   from(table: string): {
@@ -87,36 +119,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const parsed = TopUpRequestSchema.safeParse(rawBody);
+  const parsed = WalletTopUpRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "invalid_input", details: parsed.error.issues },
       { status: 400 },
     );
   }
-  const { pack: packCode } = parsed.data;
+  const { amount_paise } = parsed.data;
 
-  // ── 3. Resolve pack from catalog ───────────────────────────────────────────
-  let packConfig;
-  try {
-    packConfig = await getPackByCode(packCode);
-  } catch (err) {
-    if (err instanceof BillingError && err.code === "PACK_NOT_FOUND") {
-      return NextResponse.json(
-        { error: "pack_not_found", pack: packCode },
-        { status: 400 },
-      );
-    }
-    console.error("[credits/top-up] getPackByCode failed", err);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  if (!packConfig.is_active) {
-    return NextResponse.json(
-      { error: "pack_inactive", pack: packCode },
-      { status: 400 },
-    );
-  }
+  // ── 3. Compute bonus ───────────────────────────────────────────────────────
+  const bonus_paise = computeWalletBonus(amount_paise);
 
   // ── 4. Resolve brand profile ───────────────────────────────────────────────
   const admin = createAdminClient();
@@ -129,7 +142,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (brandError) {
-    console.error("[credits/top-up] brand lookup failed", brandError);
+    console.error("[wallet/top-up] brand lookup failed", brandError);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
@@ -141,12 +154,12 @@ export async function POST(req: NextRequest) {
   // ── 5. Lookup user email + phone for Cashfree ──────────────────────────────
   const { data: userProfile, error: userError } = await adminUntyped
     .from("users")
-    .select("id, email, phone, role")
+    .select("id, email, phone")
     .eq("id", user.id)
     .maybeSingle();
 
   if (userError || !userProfile) {
-    console.error("[credits/top-up] user lookup failed", userError);
+    console.error("[wallet/top-up] user lookup failed", userError);
     return NextResponse.json(
       { error: "user_profile_missing" },
       { status: 500 },
@@ -164,16 +177,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 6. Insert credit_top_ups row (status=initiated) ────────────────────────
+  // ── 6. Insert wallet_top_ups row (status=initiated) ────────────────────────
   const { data: topUpRow, error: insertError } = await adminUntyped
-    .from("credit_top_ups")
+    .from("wallet_top_ups")
     .insert({
       brand_id: brandId,
-      pack: packCode,
-      credits: packConfig.credits,
-      bonus_credits: packConfig.bonus_credits,
-      credits_granted: 0, // filled on webhook success
-      amount_paise: packConfig.price_paise,
+      amount_paise,
+      bonus_paise,
       status: "initiated",
     })
     .select()
@@ -181,7 +191,7 @@ export async function POST(req: NextRequest) {
 
   if (insertError || !topUpRow) {
     console.error(
-      "[credits/top-up] insert credit_top_ups failed",
+      "[wallet/top-up] insert wallet_top_ups failed",
       insertError,
     );
     return NextResponse.json({ error: "db_error" }, { status: 500 });
@@ -190,20 +200,17 @@ export async function POST(req: NextRequest) {
 
   // ── 7. Call Cashfree Collect ───────────────────────────────────────────────
   try {
-    const { orderId, paymentSessionId } = await createTopUpOrder({
+    const { orderId, paymentSessionId } = await createWalletTopUpOrder({
       brandId,
-      // New pack codes are not yet in the legacy collect.ts type union.
-      // Pass through as string — Cashfree only uses it in order_tags metadata.
-      pack: packCode as "small",
-      credits: packConfig.credits,
-      amountPaise: packConfig.price_paise,
+      walletTopUpId: topUpId,
+      amountPaise: amount_paise,
       customerEmail,
       customerPhone: customerPhone || "9999999999",
     });
 
     // ── 8. Update row → processing, persist cf_order_id ──────────────────────
     const { error: updateError } = await adminUntyped
-      .from("credit_top_ups")
+      .from("wallet_top_ups")
       .update({
         cf_order_id: orderId,
         status: "processing",
@@ -212,33 +219,31 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       console.error(
-        "[credits/top-up] post-order update failed (row will reconcile)",
+        "[wallet/top-up] post-order update failed (row will reconcile)",
         updateError,
       );
     }
 
-    // ── 9. Return ─────────────────────────────────────────────────────────────
     return NextResponse.json(
       {
         orderId,
         paymentSessionId,
-        amount_paise: packConfig.price_paise,
-        credits: packConfig.credits,
-        bonus_credits: packConfig.bonus_credits,
+        amount_paise,
+        bonus_paise,
       },
       { status: 200 },
     );
   } catch (err) {
     const reason = err instanceof Error ? err.message : "cashfree_error";
     await adminUntyped
-      .from("credit_top_ups")
+      .from("wallet_top_ups")
       .update({
         status: "failed",
         failure_reason: reason.slice(0, 500),
       })
       .eq("id", topUpId);
 
-    console.error("[credits/top-up] Cashfree createTopUpOrder failed", err);
+    console.error("[wallet/top-up] Cashfree createWalletTopUpOrder failed", err);
     return NextResponse.json(
       { error: "cashfree_unavailable", message: reason },
       { status: 502 },

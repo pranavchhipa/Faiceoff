@@ -36,6 +36,11 @@ interface AdminMocks {
   withdrawalMaybeSingle: ReturnType<typeof vi.fn>;
   // webhook_events.update(...).eq('id', x)
   webhookUpdate: ReturnType<typeof vi.fn>;
+  // wallet_top_ups.select('*').eq('cf_order_id', x).maybeSingle() — Chunk E
+  walletTopUpMaybeSingle: ReturnType<typeof vi.fn>;
+  // wallet_top_ups.update(...).eq('id', x) — Chunk E
+  walletTopUpUpdate: ReturnType<typeof vi.fn>;
+  // creator_payouts: not queried by these tests (payout fallback path)
 }
 
 let adminMocks: AdminMocks;
@@ -80,6 +85,23 @@ function buildAdminClient() {
           }),
         };
       }
+      // Chunk E: wallet_top_ups table support
+      if (table === "wallet_top_ups") {
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: adminMocks.walletTopUpMaybeSingle }),
+          }),
+          update: (patch: Record<string, unknown>) => ({
+            eq: (col: string, val: string) =>
+              (adminMocks.walletTopUpUpdate as (
+                p: Record<string, unknown>,
+                c: string,
+                v: string,
+              ) => Promise<{ error: unknown }>)(patch, col, val),
+          }),
+        };
+      }
+      // creator_payouts is accessed via @/lib/payouts which is mocked separately
       throw new Error(`Unexpected table in admin mock: ${table}`);
     },
   };
@@ -96,6 +118,20 @@ vi.mock("@/lib/ledger/commit", () => ({
   commitWithdrawalFailure: (...args: unknown[]) =>
     commitWithdrawalFailureMock(...args),
 }));
+
+// Chunk E: mock @/lib/payouts to avoid real DB calls in TRANSFER_* fallback path
+vi.mock("@/lib/payouts", () => ({
+  handlePayoutWebhook: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Chunk E: mock @/lib/billing addWallet used by handleWalletTopUpSuccess
+vi.mock("@/lib/billing", async () => {
+  const actual = await vi.importActual("@/lib/billing");
+  return {
+    ...actual,
+    addWallet: vi.fn().mockResolvedValue({ added: 0, newBalance: 0, idempotent: true }),
+  };
+});
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,6 +191,10 @@ function defaultMocks(): AdminMocks {
       error: null,
     }),
     webhookUpdate: vi.fn().mockResolvedValue({ error: null }),
+    // Chunk E: wallet_top_ups — default to no row found (existing tests use
+    // credit_top_ups, so wallet fallback should be a no-op for them)
+    walletTopUpMaybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    walletTopUpUpdate: vi.fn().mockResolvedValue({ error: null }),
   };
 }
 
@@ -233,7 +273,10 @@ describe("POST /api/cashfree/webhook", () => {
   });
 
   it("PAYMENT_SUCCESS: if row already status=success, no re-commit", async () => {
-    adminMocks.topUpMaybeSingle.mockResolvedValueOnce({
+    // Use mockResolvedValue (persistent) so all lookups in this test return
+    // status=success — both the routing lookup in routeWebhookEvent and the
+    // idempotency lookup inside handleTopUpSuccess.
+    adminMocks.topUpMaybeSingle.mockResolvedValue({
       data: {
         id: "topup-1",
         cf_order_id: "topup_brand-1_123",

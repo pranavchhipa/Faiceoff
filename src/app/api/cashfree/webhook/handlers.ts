@@ -19,6 +19,11 @@
 //
 // The `AdminUntyped` type mirrors `route.ts` — required because
 // types/supabase.ts has not been regenerated after 00020–00030 yet.
+//
+// Chunk E additions:
+//   • `handleWalletTopUpSuccess` / `handleWalletTopUpFailed` for wallet_top_ups
+//   • TRANSFER_* routing now also falls back to creator_payouts via
+//     `handlePayoutWebhook` from @/lib/payouts
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -61,6 +66,13 @@ interface WithdrawalRow {
   id: string;
   creator_id: string;
   cf_transfer_id: string;
+  status: string;
+}
+
+interface WalletTopUpRow {
+  id: string;
+  brand_id: string;
+  cf_order_id: string;
   status: string;
 }
 
@@ -132,6 +144,91 @@ export async function handleTopUpFailed(
       completed_at: new Date().toISOString(),
     })
     .eq("id", topUp.id);
+}
+
+// ── Wallet top-up handlers (Chunk E) ────────────────────────────────────────
+
+async function lookupWalletTopUp(
+  admin: AdminUntyped,
+  orderId: string,
+): Promise<WalletTopUpRow | null> {
+  const { data } = await admin
+    .from("wallet_top_ups")
+    .select("id, brand_id, cf_order_id, status")
+    .eq("cf_order_id", orderId)
+    .maybeSingle();
+  return (data as WalletTopUpRow | null) ?? null;
+}
+
+/**
+ * Cashfree `PAYMENT_SUCCESS_WEBHOOK` for wallet top-ups.
+ *
+ * Flips wallet_top_ups.status to 'success' and credits the brand's INR wallet.
+ * Idempotent: no-op if row not found or already success.
+ */
+export async function handleWalletTopUpSuccess(
+  admin: AdminUntyped,
+  params: { orderId: string; cfPaymentId?: string | null },
+): Promise<void> {
+  const row = await lookupWalletTopUp(admin, params.orderId);
+  if (!row) {
+    console.warn(
+      `[cashfree/handlers] handleWalletTopUpSuccess: no wallet_top_up for order ${params.orderId}`,
+    );
+    return;
+  }
+  if (row.status === "success") return;
+
+  // Fetch full wallet_top_up to get amount details
+  const { data: full } = await admin
+    .from("wallet_top_ups")
+    .select("amount_paise, bonus_paise, brand_id")
+    .eq("id", row.id)
+    .maybeSingle();
+
+  if (!full) return;
+
+  const fullRow = full as { amount_paise: number; bonus_paise: number; brand_id: string };
+
+  await admin
+    .from("wallet_top_ups")
+    .update({
+      status: "success",
+      cf_payment_id: params.cfPaymentId ?? null,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+
+  // Credit the wallet via the billing service
+  const { addWallet } = await import("@/lib/billing");
+  await addWallet({
+    brandId: fullRow.brand_id,
+    topUpId: row.id,
+  });
+}
+
+/**
+ * Cashfree `PAYMENT_FAILED_WEBHOOK` / `PAYMENT_USER_DROPPED_WEBHOOK` for
+ * wallet top-ups.
+ *
+ * Idempotent: no-op if row not found or already terminal.
+ */
+export async function handleWalletTopUpFailed(
+  admin: AdminUntyped,
+  params: { orderId: string; reason: string },
+): Promise<void> {
+  const row = await lookupWalletTopUp(admin, params.orderId);
+  if (!row) return;
+  if (row.status === "failed" || row.status === "success") return;
+
+  await admin
+    .from("wallet_top_ups")
+    .update({
+      status: "failed",
+      failure_reason: params.reason.slice(0, 500),
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
 }
 
 // ── Transfer handlers ───────────────────────────────────────────────────────
@@ -259,33 +356,60 @@ export async function routeWebhookEvent(
     case "PAYMENT_SUCCESS_WEBHOOK": {
       const orderId = extractOrderId(event);
       if (!orderId) return;
-      await handleTopUpSuccess(admin, {
-        orderId,
-        cfPaymentId: extractCfPaymentId(event),
-      });
+      const cfPaymentId = extractCfPaymentId(event);
+      // Route: check credit_top_ups first, then wallet_top_ups.
+      // lookupTopUp is the routing gate; handleTopUpSuccess re-uses the same
+      // lookup internally — this is intentional for idempotency isolation.
+      const creditRow = await lookupTopUp(admin, orderId);
+      if (creditRow) {
+        await handleTopUpSuccess(admin, { orderId, cfPaymentId });
+      } else {
+        await handleWalletTopUpSuccess(admin, { orderId, cfPaymentId });
+      }
       return;
     }
     case "PAYMENT_FAILED_WEBHOOK": {
       const orderId = extractOrderId(event);
       if (!orderId) return;
-      await handleTopUpFailed(admin, {
-        orderId,
-        reason: extractPaymentMessage(event),
-      });
+      const reason = extractPaymentMessage(event);
+      const creditRow = await lookupTopUp(admin, orderId);
+      if (creditRow) {
+        await handleTopUpFailed(admin, { orderId, reason });
+      } else {
+        await handleWalletTopUpFailed(admin, { orderId, reason });
+      }
       return;
     }
     case "PAYMENT_USER_DROPPED_WEBHOOK": {
       const orderId = extractOrderId(event);
       if (!orderId) return;
-      await handleTopUpFailed(admin, { orderId, reason: "user_dropped" });
+      const creditRow = await lookupTopUp(admin, orderId);
+      if (creditRow) {
+        await handleTopUpFailed(admin, { orderId, reason: "user_dropped" });
+      } else {
+        await handleWalletTopUpFailed(admin, { orderId, reason: "user_dropped" });
+      }
       return;
     }
     case "TRANSFER_SUCCESS": {
       const transferId = extractTransferId(event);
       if (!transferId) return;
-      await handleTransferSuccess(admin, {
-        transferId,
-        utr: extractTransferUtr(event),
+
+      // Try legacy withdrawal_requests first
+      const withdrawal = await lookupWithdrawal(admin, transferId);
+      if (withdrawal) {
+        await handleTransferSuccess(admin, {
+          transferId,
+          utr: extractTransferUtr(event),
+        });
+        return;
+      }
+
+      // Fall back to creator_payouts
+      const { handlePayoutWebhook } = await import("@/lib/payouts");
+      await handlePayoutWebhook({
+        cfTransferId: transferId,
+        type: "TRANSFER_SUCCESS",
       });
       return;
     }
@@ -293,9 +417,21 @@ export async function routeWebhookEvent(
     case "TRANSFER_REVERSED": {
       const transferId = extractTransferId(event);
       if (!transferId) return;
-      await handleTransferFailed(admin, {
-        transferId,
-        reason: extractTransferFailureReason(event),
+      const reason = extractTransferFailureReason(event);
+
+      // Try legacy withdrawal_requests first
+      const withdrawal = await lookupWithdrawal(admin, transferId);
+      if (withdrawal) {
+        await handleTransferFailed(admin, { transferId, reason });
+        return;
+      }
+
+      // Fall back to creator_payouts
+      const { handlePayoutWebhook } = await import("@/lib/payouts");
+      await handlePayoutWebhook({
+        cfTransferId: transferId,
+        type: event.type as "TRANSFER_FAILED" | "TRANSFER_REVERSED",
+        failureReason: reason,
       });
       return;
     }

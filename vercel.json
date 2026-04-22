@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/license-renewals",
+      "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/tds-quarterly-reminder",
+      "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/poll-replicate",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/process-rejections",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

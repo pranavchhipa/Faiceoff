@@ -97,3 +97,67 @@ export async function getOrderStatus(
     path: `/pg/orders/${encodeURIComponent(orderId)}`,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createWalletTopUpOrder — Cashfree order for INR wallet top-up (no pack code)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CreateWalletTopUpOrderParams {
+  brandId: string;
+  walletTopUpId: string;
+  amountPaise: number;
+  customerEmail: string;
+  customerPhone: string;
+  returnUrl?: string;
+  notifyUrl?: string;
+}
+
+export interface CreateWalletTopUpOrderResult {
+  orderId: string;
+  paymentSessionId: string;
+}
+
+/**
+ * Create a Cashfree order for a wallet INR top-up.
+ * Unlike `createTopUpOrder`, this carries no pack code in order_tags —
+ * it links back to `wallet_top_ups.id` so the webhook can find the row.
+ */
+export async function createWalletTopUpOrder(
+  params: CreateWalletTopUpOrderParams,
+): Promise<CreateWalletTopUpOrderResult> {
+  const client = new CashfreeClient();
+  const appUrl = resolveAppUrl();
+  const orderId = `walletup_${params.brandId}_${Date.now()}`;
+
+  const body: CashfreeCreateOrderRequest = {
+    order_id: orderId,
+    order_amount: params.amountPaise / 100,
+    order_currency: "INR",
+    customer_details: {
+      customer_id: params.brandId,
+      customer_email: params.customerEmail,
+      customer_phone: params.customerPhone,
+    },
+    order_meta: {
+      return_url:
+        params.returnUrl ?? `${appUrl}/brand/wallet?order_id={order_id}`,
+      notify_url: params.notifyUrl ?? `${appUrl}/api/cashfree/webhook`,
+    },
+    order_tags: {
+      type: "wallet_topup",
+      wallet_top_up_id: params.walletTopUpId,
+      brand_id: params.brandId,
+    },
+  };
+
+  const response = await client.request<CashfreeOrderResponse>({
+    method: "POST",
+    path: "/pg/orders",
+    body: body as unknown as Record<string, unknown>,
+  });
+
+  return {
+    orderId: response.order_id,
+    paymentSessionId: response.payment_session_id,
+  };
+}
