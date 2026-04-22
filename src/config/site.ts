@@ -1,3 +1,6 @@
+export { ROLE_HOME, getRoleHome } from "./routes";
+export type { Role } from "./routes";
+
 export const siteConfig = {
   name: 'Faiceoff',
   description: 'India\'s first consent-first AI likeness licensing marketplace',
