@@ -1,12 +1,23 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Building2 } from "lucide-react";
+import { ArrowRight, Building2, Gift } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="min-h-screen pt-20 sm:pt-24 pb-12 px-4 sm:px-6 lg:px-12 flex flex-col items-center justify-center bg-surface w-full">
       {/* Hero Header Area */}
       <header className="text-center max-w-3xl mb-10 sm:mb-16 space-y-4 sm:space-y-6">
+        {/* Free-credits pill — sits above the headline */}
+        <div className="flex justify-center">
+          <Link
+            href="/signup/brand"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 text-primary font-label text-xs font-bold tracking-widest uppercase no-underline hover:bg-primary/10 transition-colors"
+          >
+            <Gift className="w-3.5 h-3.5 flex-shrink-0" />
+            5 free credits on signup — no card required
+          </Link>
+        </div>
+
         <h1 className="text-[2.25rem] sm:text-[3rem] md:text-6xl leading-tight font-headline font-bold tracking-tight text-on-surface">
           The Digital <span className="text-primary">Atelier</span> for Creators & Brands.
         </h1>

@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -25,7 +24,6 @@
     "cmdk": "^1.1.1",
     "docx": "^9.6.1",
     "framer-motion": "^12.38.0",
-    "inngest": "^4.2.0",
     "input-otp": "^1.4.2",
     "jszip": "^3.10.1",
     "lucide-react": "^1.8.0",

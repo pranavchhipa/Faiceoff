@@ -223,7 +223,7 @@ describe("POST /api/credits/top-up", () => {
       const pack = PACK_FIXTURES[code];
       if (!pack) {
         const { BillingError } = await import("@/lib/billing");
-        throw new BillingError("PACK_NOT_FOUND", `Pack '${code}' not found`);
+        throw new BillingError(`Pack '${code}' not found`, "PACK_NOT_FOUND");
       }
       return pack;
     });

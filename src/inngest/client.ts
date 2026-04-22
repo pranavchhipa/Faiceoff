@@ -1,31 +1,52 @@
-import { Inngest } from 'inngest'
+// ─────────────────────────────────────────────────────────────────────────────
+// Inngest stub — Chunk E removed Inngest in favour of direct webhooks + cron.
+// This stub preserves the import surface for legacy callers
+// (`/api/legacy-licenses/*`, `/api/lora/*`, `/api/campaigns/*`, etc.)
+// without pulling the runtime dependency. All `inngest.send()` calls are
+// no-ops and return resolved promises.
+//
+// Migration path for any remaining callers:
+//   • LoRA training notifications  → handle inline in /api/lora/webhook
+//   • Campaign generation dispatch → call /api/generations/create directly
+//   • License accept side-effects  → handle inline in legacy route or migrate
+//                                    to the new licenses table workflow
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Event payload types for the Faiceoff generation pipeline.
- *
- * These types are used in inngest.send() calls and createFunction triggers
- * to provide consistent typing across the codebase.
- */
 export type GenerationCreatedEvent = {
-  name: 'generation/created'
-  data: { generation_id: string }
-}
+  name: "generation/created";
+  data: { generation_id: string };
+};
 
 export type GenerationApprovedEvent = {
-  name: 'generation/approved'
-  data: { generation_id: string }
-}
+  name: "generation/approved";
+  data: { generation_id: string };
+};
 
 export type GenerationRejectedEvent = {
-  name: 'generation/rejected'
-  data: { generation_id: string }
-}
+  name: "generation/rejected";
+  data: { generation_id: string };
+};
 
 export type FaiceoffEvent =
   | GenerationCreatedEvent
   | GenerationApprovedEvent
   | GenerationRejectedEvent
+  | { name: string; data?: Record<string, unknown> };
 
-export const inngest = new Inngest({
-  id: 'faiceoff',
-})
+interface InngestStub {
+  send(payload: FaiceoffEvent | FaiceoffEvent[]): Promise<{ ids: string[] }>;
+}
+
+export const inngest: InngestStub = {
+  async send(payload) {
+    if (process.env.NODE_ENV !== "test") {
+      const events = Array.isArray(payload) ? payload : [payload];
+      for (const evt of events) {
+        console.warn(
+          `[inngest-stub] Dropped event '${evt.name}' — Inngest removed in Chunk E.`,
+        );
+      }
+    }
+    return { ids: [] };
+  },
+};

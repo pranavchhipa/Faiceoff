@@ -44,6 +44,7 @@ export function isAdminPath(pathname: string): boolean {
 export function isPublicPath(pathname: string): boolean {
   if (MARKETING_PATHS.includes(pathname)) return true;
   if (pathname === "/u" || pathname.startsWith("/u/")) return true;
+  if (pathname === "/verify" || pathname.startsWith("/verify/")) return true;
   return false;
 }
 
