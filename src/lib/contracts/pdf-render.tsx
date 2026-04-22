@@ -189,12 +189,14 @@ function renderInlineTokens(
             {(t as Tokens.HTML).text.replace(/<[^>]+>/g, "")}
           </Text>
         );
-      default:
+      default: {
         // Unknown token — render raw text if present
-        if ("text" in t && typeof (t as { text?: unknown }).text === "string") {
-          return <Text key={key}>{(t as { text: string }).text}</Text>;
+        const fallback = t as unknown as { text?: unknown };
+        if (typeof fallback.text === "string") {
+          return <Text key={key}>{fallback.text}</Text>;
         }
         return null;
+      }
     }
   });
 }

@@ -35,7 +35,7 @@ describe("renderContractPdf", () => {
     const { markdown } = generateContract(SAMPLE_INPUT);
     const pdf = await renderContractPdf(markdown);
 
-    expect(Buffer.isBuffer(pdf) || pdf instanceof Uint8Array).toBe(true);
+    expect(Buffer.isBuffer(pdf)).toBe(true);
     expect(pdf.byteLength).toBeGreaterThan(1024); // at least 1KB
 
     // PDF magic bytes — first 5 bytes must be `%PDF-`
