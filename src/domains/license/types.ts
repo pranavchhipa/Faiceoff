@@ -16,7 +16,12 @@ import { type LicenseState } from "./workflow";
 import { LICENSE_TEMPLATE_KEYS, type LicenseTemplate } from "./templates";
 
 // Re-export so downstream can import the whole license surface from one module.
-export { LICENSE_STATES, canTransition, isTerminal } from "./workflow";
+export {
+  LICENSE_STATES,
+  canTransition,
+  assertTransition,
+  isTerminal,
+} from "./workflow";
 export type { LicenseState } from "./workflow";
 export { LICENSE_TEMPLATES, LICENSE_TEMPLATE_KEYS } from "./templates";
 export type { LicenseTemplate } from "./templates";
