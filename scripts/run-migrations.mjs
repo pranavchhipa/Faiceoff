@@ -34,11 +34,12 @@ if (!password) {
 }
 
 // Use Supabase connection pooler (session mode, port 5432) — direct DB host only has IPv6
+// Pooler moved to aws-1-ap-south-1 (Mumbai) infrastructure on 2026-04-23
 const client = new pg.Client({
-  host: "aws-0-ap-southeast-1.pooler.supabase.com",
+  host: process.env.SUPABASE_POOLER_HOST || "aws-1-ap-south-1.pooler.supabase.com",
   port: 5432,
   database: "postgres",
-  user: "postgres.jgmhronskdnzqkkimffp",
+  user: process.env.SUPABASE_POOLER_USER || "postgres.jgmhronskdnzqkkimffp",
   password,
   ssl: { rejectUnauthorized: false },
 });
