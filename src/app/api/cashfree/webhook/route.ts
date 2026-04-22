@@ -9,14 +9,10 @@
 //   3. Dedup: insert webhook_events row with idempotency_key =
 //      sha256(signature || timestamp). Unique violation → already processed →
 //      return 200.
-//   4. Route on event.type:
-//      - PAYMENT_SUCCESS_WEBHOOK    → flip credit_top_ups.status='success' +
-//                                      call commitTopUp(top_up_id)
-//      - PAYMENT_FAILED_WEBHOOK     → status='failed' with reason
-//      - PAYMENT_USER_DROPPED_WEBHOOK → status='failed' reason='user_dropped'
-//      - TRANSFER_SUCCESS           → commitWithdrawalSuccess({ id, cfUtr })
-//      - TRANSFER_FAILED            → commitWithdrawalFailure({ id, reason })
-//      - TRANSFER_REVERSED          → commitWithdrawalFailure (same path)
+//   4. Route on event.type via `routeWebhookEvent` in `./handlers.ts`. Same
+//      handler module is also imported by the reconciliation cron so a
+//      replayed event from webhook_events goes through the exact same code
+//      path as a fresh delivery.
 //   5. Always return { ok: true } / 200 if signature valid, even if the inner
 //      handler fails — we persist the error on webhook_events so the
 //      reconciliation cron can pick it up. Returning 500 would cause Cashfree
@@ -36,27 +32,7 @@ import {
   parseWebhook,
 } from "@/lib/payments/cashfree/webhook";
 import type { CashfreeWebhookEvent } from "@/lib/payments/cashfree/types";
-import {
-  commitTopUp,
-  commitWithdrawalFailure,
-  commitWithdrawalSuccess,
-} from "@/lib/ledger/commit";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface TopUpRow {
-  id: string;
-  brand_id: string;
-  cf_order_id: string;
-  status: string;
-}
-
-interface WithdrawalRow {
-  id: string;
-  creator_id: string;
-  cf_transfer_id: string;
-  status: string;
-}
+import { routeWebhookEvent, type AdminUntyped } from "./handlers";
 
 // The webhook-events unique violation looks the same on every Postgres
 // adapter: SQLSTATE 23505. We only care about "did the insert succeed".
@@ -66,9 +42,10 @@ function isUniqueViolation(error: { message: string; code?: string } | null): bo
   return /duplicate key|unique constraint/i.test(error.message);
 }
 
-// Narrow admin-client type because types/supabase.ts does not yet know about
-// the 20-30 migrations (credit_top_ups, withdrawal_requests, webhook_events).
-type AdminUntyped = {
+// Route-local augmentation: the webhook_events row carries extra methods not
+// on the shared AdminUntyped (`insert().select().single()`). Kept here rather
+// than in handlers.ts because only the route does the initial insert.
+type AdminWithWebhookInsert = AdminUntyped & {
   from(table: string): {
     insert(row: Record<string, unknown>): {
       select(): {
@@ -124,7 +101,7 @@ export async function POST(req: NextRequest) {
     .update(`${signature}|${timestamp}`)
     .digest("hex");
 
-  const admin = createAdminClient() as unknown as AdminUntyped;
+  const admin = createAdminClient() as unknown as AdminWithWebhookInsert;
 
   const { data: inserted, error: insertError } = await admin
     .from("webhook_events")
@@ -152,29 +129,7 @@ export async function POST(req: NextRequest) {
 
   // ── 3. Route on event type ─────────────────────────────────────────────────
   try {
-    switch (event.type) {
-      case "PAYMENT_SUCCESS_WEBHOOK":
-        await handlePaymentSuccess(admin, event);
-        break;
-      case "PAYMENT_FAILED_WEBHOOK":
-        await handlePaymentFailed(admin, event);
-        break;
-      case "PAYMENT_USER_DROPPED_WEBHOOK":
-        await handlePaymentDropped(admin, event);
-        break;
-      case "TRANSFER_SUCCESS":
-        await handleTransferSuccess(admin, event);
-        break;
-      case "TRANSFER_FAILED":
-      case "TRANSFER_REVERSED":
-        await handleTransferFailed(admin, event);
-        break;
-      default: {
-        // Unknown event type — recorded in webhook_events but no handler.
-        // Not an error; Cashfree occasionally adds new event types.
-        break;
-      }
-    }
+    await routeWebhookEvent(admin, event);
 
     // Mark event processed.
     if (webhookEventId) {
@@ -200,206 +155,4 @@ export async function POST(req: NextRequest) {
     // processing attempts.
     return NextResponse.json({ ok: true, error: "deferred" }, { status: 200 });
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Payment handlers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Cashfree payload shape (2025-01-01):
- *   data.order.order_id
- *   data.payment.cf_payment_id
- *   data.payment.payment_status
- *   data.payment.payment_message  (on failure)
- */
-function extractOrderId(event: CashfreeWebhookEvent): string | null {
-  const data = event.data as { order?: { order_id?: unknown } } | undefined;
-  const orderId = data?.order?.order_id;
-  return typeof orderId === "string" ? orderId : null;
-}
-
-function extractPaymentMessage(event: CashfreeWebhookEvent): string {
-  const data = event.data as {
-    payment?: { payment_message?: unknown; payment_status?: unknown };
-  };
-  const msg = data?.payment?.payment_message;
-  if (typeof msg === "string" && msg.length > 0) return msg;
-  const status = data?.payment?.payment_status;
-  return typeof status === "string" ? status : "payment_failed";
-}
-
-async function lookupTopUp(
-  admin: AdminUntyped,
-  orderId: string,
-): Promise<TopUpRow | null> {
-  const { data } = await admin
-    .from("credit_top_ups")
-    .select("id, brand_id, cf_order_id, status")
-    .eq("cf_order_id", orderId)
-    .maybeSingle();
-  return (data as TopUpRow | null) ?? null;
-}
-
-async function handlePaymentSuccess(
-  admin: AdminUntyped,
-  event: CashfreeWebhookEvent,
-): Promise<void> {
-  const orderId = extractOrderId(event);
-  if (!orderId) return;
-  const topUp = await lookupTopUp(admin, orderId);
-  if (!topUp) {
-    // Race: webhook arrived before our DB row committed.
-    // Leave processed_at=null so reconciliation cron retries.
-    console.warn(
-      `[cashfree/webhook] PAYMENT_SUCCESS no top-up for order ${orderId}`,
-    );
-    return;
-  }
-  if (topUp.status === "success") {
-    // Already committed — idempotent no-op.
-    return;
-  }
-
-  // Extract payment id if present.
-  const payment = (event.data as { payment?: { cf_payment_id?: unknown } })
-    ?.payment;
-  const cfPaymentId =
-    typeof payment?.cf_payment_id === "string"
-      ? payment.cf_payment_id
-      : undefined;
-
-  // Flip status BEFORE committing so commit_top_up's internal guard
-  // (requires status='success') passes.
-  await admin
-    .from("credit_top_ups")
-    .update({
-      status: "success",
-      cf_payment_id: cfPaymentId ?? null,
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", topUp.id);
-
-  await commitTopUp(topUp.id);
-}
-
-async function handlePaymentFailed(
-  admin: AdminUntyped,
-  event: CashfreeWebhookEvent,
-): Promise<void> {
-  const orderId = extractOrderId(event);
-  if (!orderId) return;
-  const topUp = await lookupTopUp(admin, orderId);
-  if (!topUp) return;
-  if (topUp.status === "failed" || topUp.status === "success") return;
-
-  const reason = extractPaymentMessage(event);
-  await admin
-    .from("credit_top_ups")
-    .update({
-      status: "failed",
-      failure_reason: reason.slice(0, 500),
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", topUp.id);
-}
-
-async function handlePaymentDropped(
-  admin: AdminUntyped,
-  event: CashfreeWebhookEvent,
-): Promise<void> {
-  const orderId = extractOrderId(event);
-  if (!orderId) return;
-  const topUp = await lookupTopUp(admin, orderId);
-  if (!topUp) return;
-  if (topUp.status === "failed" || topUp.status === "success") return;
-
-  await admin
-    .from("credit_top_ups")
-    .update({
-      status: "failed",
-      failure_reason: "user_dropped",
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", topUp.id);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Transfer (payout) handlers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function extractTransferId(event: CashfreeWebhookEvent): string | null {
-  const data = event.data as { transfer?: { transfer_id?: unknown } };
-  const tid = data?.transfer?.transfer_id;
-  return typeof tid === "string" ? tid : null;
-}
-
-function extractTransferUtr(event: CashfreeWebhookEvent): string {
-  const data = event.data as { transfer?: { utr?: unknown } };
-  const utr = data?.transfer?.utr;
-  return typeof utr === "string" ? utr : "";
-}
-
-function extractTransferFailureReason(event: CashfreeWebhookEvent): string {
-  const data = event.data as {
-    transfer?: { status_description?: unknown; status?: unknown };
-  };
-  const desc = data?.transfer?.status_description;
-  if (typeof desc === "string" && desc.length > 0) return desc;
-  const status = data?.transfer?.status;
-  return typeof status === "string" ? status : "transfer_failed";
-}
-
-async function lookupWithdrawal(
-  admin: AdminUntyped,
-  transferId: string,
-): Promise<WithdrawalRow | null> {
-  const { data } = await admin
-    .from("withdrawal_requests")
-    .select("id, creator_id, cf_transfer_id, status")
-    .eq("cf_transfer_id", transferId)
-    .maybeSingle();
-  return (data as WithdrawalRow | null) ?? null;
-}
-
-async function handleTransferSuccess(
-  admin: AdminUntyped,
-  event: CashfreeWebhookEvent,
-): Promise<void> {
-  const transferId = extractTransferId(event);
-  if (!transferId) return;
-  const wr = await lookupWithdrawal(admin, transferId);
-  if (!wr) {
-    console.warn(
-      `[cashfree/webhook] TRANSFER_SUCCESS no withdrawal for transfer ${transferId}`,
-    );
-    return;
-  }
-  if (wr.status === "success") return;
-
-  await commitWithdrawalSuccess({
-    withdrawalRequestId: wr.id,
-    cfUtr: extractTransferUtr(event),
-  });
-}
-
-async function handleTransferFailed(
-  admin: AdminUntyped,
-  event: CashfreeWebhookEvent,
-): Promise<void> {
-  const transferId = extractTransferId(event);
-  if (!transferId) return;
-  const wr = await lookupWithdrawal(admin, transferId);
-  if (!wr) {
-    console.warn(
-      `[cashfree/webhook] TRANSFER_FAILED no withdrawal for transfer ${transferId}`,
-    );
-    return;
-  }
-  if (wr.status === "failed" || wr.status === "success") return;
-
-  await commitWithdrawalFailure({
-    withdrawalRequestId: wr.id,
-    reason: extractTransferFailureReason(event),
-  });
 }
