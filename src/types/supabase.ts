@@ -326,6 +326,10 @@ export type Database = {
           status: string;
           compliance_result: Json | null;
           cost_paise: number | null;
+          /** FK to licenses (Chunk E per-generation license). */
+          license_id: string | null;
+          /** R2 URL of license certificate PDF. */
+          cert_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -342,6 +346,8 @@ export type Database = {
           status?: string;
           compliance_result?: Json | null;
           cost_paise?: number | null;
+          license_id?: string | null;
+          cert_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -353,9 +359,99 @@ export type Database = {
           status?: string;
           compliance_result?: Json | null;
           cost_paise?: number | null;
+          license_id?: string | null;
+          cert_url?: string | null;
           updated_at?: string;
         };
         Relationships: [];
+      };
+      licenses: {
+        Row: {
+          id: string;
+          generation_id: string;
+          brand_id: string;
+          creator_id: string;
+          scope: "digital" | "digital_print" | "digital_print_packaging";
+          is_category_exclusive: boolean;
+          exclusive_category: string | null;
+          exclusive_until: string | null;
+          amount_paid_paise: number;
+          creator_share_paise: number;
+          platform_share_paise: number;
+          issued_at: string;
+          expires_at: string;
+          auto_renew: boolean;
+          renewed_count: number;
+          status: "active" | "expired" | "revoked";
+          revoked_at: string | null;
+          revocation_reason: string | null;
+          cert_url: string | null;
+          cert_signature_sha256: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          generation_id: string;
+          brand_id: string;
+          creator_id: string;
+          scope: "digital" | "digital_print" | "digital_print_packaging";
+          is_category_exclusive?: boolean;
+          exclusive_category?: string | null;
+          exclusive_until?: string | null;
+          amount_paid_paise: number;
+          creator_share_paise: number;
+          platform_share_paise: number;
+          issued_at?: string;
+          expires_at: string;
+          auto_renew?: boolean;
+          renewed_count?: number;
+          status?: "active" | "expired" | "revoked";
+          revoked_at?: string | null;
+          revocation_reason?: string | null;
+          cert_url?: string | null;
+          cert_signature_sha256?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          scope?: "digital" | "digital_print" | "digital_print_packaging";
+          is_category_exclusive?: boolean;
+          exclusive_category?: string | null;
+          exclusive_until?: string | null;
+          expires_at?: string;
+          auto_renew?: boolean;
+          renewed_count?: number;
+          status?: "active" | "expired" | "revoked";
+          revoked_at?: string | null;
+          revocation_reason?: string | null;
+          cert_url?: string | null;
+          cert_signature_sha256?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "licenses_generation_id_fkey";
+            columns: ["generation_id"];
+            isOneToOne: true;
+            referencedRelation: "generations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "licenses_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "licenses_creator_id_fkey";
+            columns: ["creator_id"];
+            isOneToOne: false;
+            referencedRelation: "creators";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       approvals: {
         Row: {

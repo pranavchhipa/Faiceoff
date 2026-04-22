@@ -52,3 +52,4 @@ STITCH_UI_PROMPT.md
 
 # claude config (local only)
 .claude/settings.local.json
+.claude/worktrees/
