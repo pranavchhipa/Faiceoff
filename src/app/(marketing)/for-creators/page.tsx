@@ -36,7 +36,7 @@ export default function ForCreatorsPage() {
             Your Revenue.
           </h1>
           <p className="text-base sm:text-xl text-on-surface-variant max-w-lg leading-relaxed">
-            License your digital likeness to global brands. Maintain 100% ownership with DPDP-compliant security and instant payouts via Razorpay.
+            License your digital likeness to global brands. Maintain 100% ownership with DPDP-compliant security and instant payouts via Cashfree.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4">
             <button className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-headline font-bold text-base sm:text-lg active:scale-95 transition-all shadow-xl shadow-primary/25 cursor-pointer">
@@ -86,7 +86,7 @@ export default function ForCreatorsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-8 h-8" />
-                <span className="font-headline font-bold text-xl tracking-tighter">RAZORPAY</span>
+                <span className="font-headline font-bold text-xl tracking-tighter">CASHFREE</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-8 h-8" />
@@ -218,7 +218,7 @@ export default function ForCreatorsPage() {
                   <Zap className="w-6 h-6 text-tertiary" />
                 </div>
                 <h3 className="text-2xl font-headline font-bold">Instant Payouts</h3>
-                <p className="text-on-surface-variant">No more waiting 30-90 days for agency fees. Get paid via Razorpay the moment an AI generation is rendered.</p>
+                <p className="text-on-surface-variant">No more waiting 30-90 days for agency fees. Get paid via Cashfree the moment an AI generation is rendered.</p>
               </div>
               <div className="pt-8">
                 <div className="flex -space-x-4">

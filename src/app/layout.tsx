@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Outfit, Plus_Jakarta_Sans as PlusJakartaSans, JetBrains_Mono as JetBrainsMono, Space_Grotesk, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers/providers";
 import "./globals.css";
@@ -70,7 +69,7 @@ export const metadata: Metadata = {
     "brand UGC",
     "consent-first AI",
     "DPDP compliant",
-    "Razorpay payouts",
+    "Cashfree payouts",
   ],
   alternates: { canonical: "/" },
   openGraph: {
@@ -102,7 +101,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-[var(--color-background)] text-[var(--color-ink)] antialiased">
-        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         <Providers>{children}</Providers>
       </body>
     </html>
