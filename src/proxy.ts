@@ -5,10 +5,29 @@ import { isLegacyDashboardPath } from "@/config/routes";
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
-  const { role, refreshedResponse } = await getSessionRole(request, response);
+  const { role, userId, refreshedResponse } = await getSessionRole(request, response);
   const pathname = request.nextUrl.pathname;
 
   const target = decideRedirect(pathname, role);
+
+  // Debug logging — temporary, remove once login flow is stable.
+  // Skip noisy paths to keep Vercel logs readable.
+  const isNoisy =
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/api/health") ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".svg");
+  if (!isNoisy) {
+    const sbCookieNames = request.cookies
+      .getAll()
+      .filter((c) => c.name.startsWith("sb-"))
+      .map((c) => c.name);
+    console.log(
+      `[proxy] ${pathname} userId=${userId ?? "null"} role=${role ?? "null"} target=${target ?? "passthrough"} sbCookies=[${sbCookieNames.join(",")}]`,
+    );
+  }
+
   if (!target) return refreshedResponse ?? response;
 
   const redirectUrl = request.nextUrl.clone();
