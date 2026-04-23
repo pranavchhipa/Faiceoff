@@ -148,8 +148,12 @@ export default function DashboardPage() {
 
   // DB-backed role (authoritative). While it's resolving the page shows the
   // loading spinner (see below), so this fallback is only used after.
+  // Admins never land here — middleware redirects /dashboard → /admin for
+  // admin role — but narrow the type defensively.
   const role: "creator" | "brand" =
-    dbRole ?? (user?.user_metadata?.role === "brand" ? "brand" : "creator");
+    dbRole === "admin"
+      ? "creator"
+      : dbRole ?? (user?.user_metadata?.role === "brand" ? "brand" : "creator");
   const displayName =
     user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "User";
   const firstName = displayName.split(" ")[0];

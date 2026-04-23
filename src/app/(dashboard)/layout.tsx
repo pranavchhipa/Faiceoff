@@ -18,6 +18,9 @@ import {
   IndianRupee,
   ScanFace,
   BarChart3,
+  Package,
+  Shield,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -47,8 +50,16 @@ const BRAND_NAV: NavLink[] = [
   { href: "/dashboard/settings",  label: "Settings",          icon: Settings },
 ];
 
+const ADMIN_NAV: NavLink[] = [
+  { href: "/admin",             label: "Overview",          icon: LayoutDashboard },
+  { href: "/admin/packs",       label: "Credit packs",      icon: Package },
+  { href: "/admin/safety",      label: "Safety review",     icon: Shield },
+  { href: "/admin/stuck-gens",  label: "Stuck generations", icon: AlertTriangle },
+];
+
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/admin") return pathname === "/admin";
   return pathname.startsWith(href);
 }
 
@@ -68,8 +79,10 @@ function SidebarContent({
   // Only trust the DB-backed role. Never fall back to session metadata — it
   // can be stale and causes a creator→brand flash for brand accounts on
   // session refresh. Until dbRole resolves, render the skeleton.
-  const role: "creator" | "brand" | null = dbRole;
+  const role: "creator" | "brand" | "admin" | null = dbRole;
   const roleResolved = role !== null;
+  const roleHomeHref =
+    role === "admin" ? "/admin" : "/dashboard";
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -84,7 +97,7 @@ function SidebarContent({
     <div className="flex h-full flex-col bg-[var(--color-ink)]">
       {/* Logo */}
       <div className="flex h-20 shrink-0 items-center border-b border-white/10 px-5">
-        <Link href="/dashboard" onClick={onLinkClick} className="no-underline">
+        <Link href={roleHomeHref} onClick={onLinkClick} className="no-underline">
           <Image src="/images/logo-dark.png" alt="Faiceoff" width={180} height={60} priority className="h-12 w-auto brightness-0 invert" />
         </Link>
       </div>
@@ -106,7 +119,14 @@ function SidebarContent({
             ))}
           </div>
         ) : null}
-        {(!roleResolved ? [] : role === "brand" ? BRAND_NAV : CREATOR_NAV).map((link) => {
+        {(!roleResolved
+          ? []
+          : role === "admin"
+          ? ADMIN_NAV
+          : role === "brand"
+          ? BRAND_NAV
+          : CREATOR_NAV
+        ).map((link) => {
           const Icon = link.icon;
           const active = isActive(pathname, link.href);
           return (
@@ -248,7 +268,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="size-5" />
           </button>
-          <Link href="/dashboard">
+          <Link href="/">
             <Image src="/images/logo-dark.png" alt="Faiceoff" width={130} height={43} priority className="h-6 w-auto" />
           </Link>
         </header>

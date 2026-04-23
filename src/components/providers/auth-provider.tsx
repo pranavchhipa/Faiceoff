@@ -13,7 +13,7 @@ import type { Session, User, SupabaseClient } from "@supabase/supabase-js";
 
 /* ── Types ── */
 
-type Role = "creator" | "brand" | null;
+type Role = "creator" | "brand" | "admin" | null;
 
 interface AuthContextValue {
   user: User | null;
@@ -127,7 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         if (cancelled) return;
         let resolved: Role = null;
-        if (data.has_brand_row) resolved = "brand";
+        // Admin ALWAYS wins — even if the user happens to have a creator/brand
+        // row lying around, the role column on public.users is authoritative
+        // for admin. Otherwise fall back to the row-existence heuristic.
+        if (data.public_users_row?.role === "admin") resolved = "admin";
+        else if (data.has_brand_row) resolved = "brand";
         else if (data.has_creator_row) resolved = "creator";
         else if (data.public_users_row?.role === "brand") resolved = "brand";
         else if (data.public_users_row?.role === "creator") resolved = "creator";
