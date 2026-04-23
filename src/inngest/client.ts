@@ -1,15 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Inngest stub — Chunk E removed Inngest in favour of direct webhooks + cron.
 // This stub preserves the import surface for legacy callers
-// (`/api/legacy-licenses/*`, `/api/lora/*`, `/api/campaigns/*`, etc.)
+// (`/api/lora/*`, `/api/campaigns/*`, `/api/generations/[id]/approve`)
 // without pulling the runtime dependency. All `inngest.send()` calls are
 // no-ops and return resolved promises.
 //
 // Migration path for any remaining callers:
 //   • LoRA training notifications  → handle inline in /api/lora/webhook
 //   • Campaign generation dispatch → call /api/generations/create directly
-//   • License accept side-effects  → handle inline in legacy route or migrate
-//                                    to the new licenses table workflow
+//   • Image approval side-effects  → handled inline in /api/approvals/[id]
+//                                    (Chunk E new approval workflow)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type GenerationCreatedEvent = {

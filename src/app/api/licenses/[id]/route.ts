@@ -3,15 +3,11 @@
 // Task E14 / Phase 3 Group C
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// COLLISION NOTE: This file previously handled the OLD `license_requests` system
-// (Chunk C). That implementation has been moved to /api/legacy-licenses/[id]/
-// (src/app/api/legacy-licenses/[id]/route.ts) to preserve it.
+// HISTORY: This file previously handled the OLD `license_requests` system
+// (Chunk C). It now serves the new `licenses` table (migration 00032).
+// The Chunk C implementation was preserved at /api/legacy-licenses/[id]/ for
+// reference, then deleted in Chunk E follow-up because no callers remained.
 //
-// The OLD sub-routes (accept, reject, contract) remain under this directory
-// because they only handle POST/GET for their specific paths and don't conflict
-// with the new sub-routes (certificate, auto-renew, revoke).
-//
-// This GET handler now serves the new `licenses` table (migration 00032).
 // Access gate: caller must be brand OR creator party on the license.
 // ─────────────────────────────────────────────────────────────────────────────
 

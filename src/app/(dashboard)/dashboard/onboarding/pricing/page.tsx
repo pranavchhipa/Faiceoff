@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { IndianRupee, ArrowRight, Tag } from "lucide-react";
+import { IndianRupee, ArrowRight, Tag, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
@@ -132,6 +132,23 @@ export default function PricingPage() {
         <p className="text-sm text-[var(--color-neutral-500)]">
           Final check on your per-generation prices. You can always update these from your dashboard later.
         </p>
+      </div>
+
+      {/* Scope / exclusivity uplift explainer */}
+      <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline-variant)]/20 bg-[var(--color-blush)]/40 p-4">
+        <div className="flex items-start gap-2.5">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--color-ink)]" />
+          <div className="text-xs leading-relaxed text-[var(--color-ink)]">
+            <p className="font-700 mb-1">You earn more on bigger licenses</p>
+            <p className="text-[var(--color-neutral-600)]">
+              Your base price is what brands pay for digital-only use. Print
+              add-ons earn you <span className="font-600">+₹500</span>, packaging
+              earns <span className="font-600">+₹1,000</span>, and exclusive
+              licenses add <span className="font-600">+50%</span> on top — all
+              applied automatically at generation time.
+            </p>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>

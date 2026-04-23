@@ -2,9 +2,11 @@ import {
   LayoutDashboard,
   Inbox,
   ClipboardCheck,
-  Megaphone,
   IndianRupee,
-  FileStack,
+  Banknote,
+  ArrowDownToLine,
+  FileSignature,
+  ShieldOff,
   User as UserIcon,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -16,9 +18,11 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Dashboard", href: "/creator/dashboard", icon: LayoutDashboard },
   { label: "Requests", href: "/creator/requests", icon: Inbox },
   { label: "Approvals", href: "/creator/approvals", icon: ClipboardCheck },
-  { label: "Sessions", href: "/creator/sessions", icon: Megaphone },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee },
-  { label: "Listings", href: "/creator/listings", icon: FileStack },
+  { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine },
+  { label: "Payouts", href: "/creator/payouts", icon: Banknote },
+  { label: "Licenses", href: "/creator/licenses", icon: FileSignature },
+  { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldOff },
   { label: "Settings", href: "/creator/settings", icon: SettingsIcon },
 ];
 
