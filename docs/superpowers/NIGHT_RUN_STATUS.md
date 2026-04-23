@@ -199,9 +199,28 @@ These are all non-blocking — Chunk E ships without them:
 
 2. **Run migration 00038 in staging** before deploying to verify the two new RPCs work end-to-end. The route fallbacks (try/catch with manual reconciliation logs) are safe but you want the RPCs live.
 
-3. **Wire the new generation-sheet modal into the campaign create flow.** The modal exists at `src/components/sessions/generation-sheet.tsx` but isn't yet imported into a session detail page. UI agent left a hook but the parent integration is for the next pass.
+3. ~~**Wire the new generation-sheet modal into the campaign create flow.**~~ ✅ Done in `8b11f21` — `/brand/discover/[creatorId]` now hosts the GenerationSheet via the LaunchSection client island.
 
-4. **Wire the brand sessions page to a sessions list.** `/brand/sessions/[id]` exists; `/brand/sessions` (the list) is still on the legacy `/dashboard/campaigns` route. Migrating those is a separate follow-up.
+4. ~~**Wire the brand sessions page to a sessions list.**~~ ✅ Done in `8b11f21` — `/brand/sessions` now renders a paginated 24/page grid with status pills + "+ New generation" CTA.
+
+---
+
+## Glue-Layer Follow-Up (commit `8b11f21`)
+
+After the main 5-agent UI parallel build, an 8-item glue layer was completed in a single autonomous pass:
+
+| # | Item | Files |
+|---|---|---|
+| 1 | Sidebar nav for brand + creator + admin | `src/config/nav-items.{brand,creator,admin}.ts` |
+| 2 | Generation-sheet wired to creator detail | `src/app/(dashboard)/brand/discover/[creatorId]/{page,launch-section}.tsx` |
+| 3 | `/brand/sessions` list page | `src/app/(dashboard)/brand/sessions/page.tsx` |
+| 4 | Legacy `/dashboard/wallet` permanent redirect to `/brand/wallet` | `src/app/(dashboard)/dashboard/wallet/page.tsx` |
+| 5 | Onboarding pricing scope/exclusivity uplift hint | `src/app/(dashboard)/dashboard/onboarding/pricing/page.tsx` |
+| 6 | Delete `/api/legacy-licenses/*` (no callers) | (8 files removed) |
+| 7 | Inngest stub comments refreshed | `src/inngest/client.ts` |
+| 8 | Verify gates re-run | tsc 0, vitest 622/622, build exit 0 |
+
+Also: `docs/superpowers/OPS_DEPLOY_GUIDE.md` written — single-page deploy checklist for migrations, env vars, Cashfree + Replicate webhook config, and smoke tests.
 
 ---
 
