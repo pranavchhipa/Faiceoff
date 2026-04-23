@@ -315,13 +315,8 @@ export default function WithdrawWizard({
               </div>
 
               <p className="text-center text-xs text-[var(--color-neutral-400)]">
-                Want a different account?{" "}
-                <a
-                  href="/creator/settings/bank"
-                  className="underline text-[var(--color-neutral-600)]"
-                >
-                  Manage bank accounts
-                </a>
+                Want a different account? Contact support — bank account
+                management UI is coming soon.
               </p>
             </motion.div>
           )}

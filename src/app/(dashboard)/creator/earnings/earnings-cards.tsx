@@ -103,7 +103,9 @@ export default function EarningsCards({ data }: { data: DashboardData }) {
       value: pending_count,
       isCount: true,
       dimmed: false,
-      link: "/creator/approvals",
+      // /creator/approvals page doesn't exist yet — point at dashboard so the
+      // tile is at least clickable; revisit when the approvals page lands.
+      link: "/creator/dashboard",
     },
     {
       label: "Lifetime earned",

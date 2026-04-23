@@ -32,22 +32,29 @@ interface NavLink {
   icon: LucideIcon;
 }
 
+// Use direct /brand/* and /creator/* paths — NOT legacy /dashboard/*.
+// Legacy paths get rewritten by middleware, but the rewrite map is
+// inconsistent with what pages actually exist (e.g. /dashboard/settings →
+// /brand/settings, which has no page). Routing through legacy was the
+// source of the 404s the user kept hitting.
 const CREATOR_NAV: NavLink[] = [
-  { href: "/dashboard",           label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/dashboard/likeness",  label: "My Likeness",    icon: ScanFace },
-  { href: "/dashboard/campaigns", label: "Collaborations", icon: Megaphone },
-  { href: "/dashboard/approvals", label: "Approvals",      icon: ClipboardCheck },
-  { href: "/dashboard/wallet",    label: "Earnings",       icon: IndianRupee },
-  { href: "/dashboard/analytics", label: "Analytics",      icon: BarChart3 },
-  { href: "/dashboard/settings",  label: "Settings",       icon: Settings },
+  { href: "/creator/dashboard",          label: "Dashboard",          icon: LayoutDashboard },
+  { href: "/creator/licenses",           label: "Licenses",           icon: ClipboardCheck },
+  { href: "/creator/earnings",           label: "Earnings",           icon: IndianRupee },
+  { href: "/creator/payouts",            label: "Payouts",            icon: Wallet },
+  { href: "/creator/withdraw",           label: "Withdraw",           icon: BarChart3 },
+  { href: "/creator/blocked-categories", label: "Blocked categories", icon: ScanFace },
 ];
 
 const BRAND_NAV: NavLink[] = [
-  { href: "/dashboard",           label: "Dashboard",         icon: LayoutDashboard },
-  { href: "/dashboard/creators",  label: "Discover Creators", icon: Users },
-  { href: "/dashboard/campaigns", label: "Campaigns",         icon: Megaphone },
-  { href: "/dashboard/wallet",    label: "Wallet",            icon: Wallet },
-  { href: "/dashboard/settings",  label: "Settings",          icon: Settings },
+  { href: "/brand/dashboard", label: "Dashboard",         icon: LayoutDashboard },
+  { href: "/brand/discover",  label: "Discover Creators", icon: Users },
+  { href: "/brand/sessions",  label: "Sessions",          icon: Megaphone },
+  { href: "/brand/licenses",  label: "Licenses",          icon: ClipboardCheck },
+  { href: "/brand/vault",     label: "Vault",             icon: ScanFace },
+  { href: "/brand/wallet",    label: "Wallet",            icon: Wallet },
+  { href: "/brand/credits",   label: "Credits",           icon: IndianRupee },
+  { href: "/brand/billing",   label: "Billing",           icon: Settings },
 ];
 
 const ADMIN_NAV: NavLink[] = [
@@ -58,8 +65,16 @@ const ADMIN_NAV: NavLink[] = [
 ];
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/admin") return pathname === "/admin";
+  // Exact match for role-home paths so /brand/dashboard doesn't light up
+  // when you're at /brand/sessions, etc.
+  if (
+    href === "/dashboard" ||
+    href === "/admin" ||
+    href === "/brand/dashboard" ||
+    href === "/creator/dashboard"
+  ) {
+    return pathname === href;
+  }
   return pathname.startsWith(href);
 }
 

@@ -376,7 +376,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2.5 rounded-xl bg-white border border-[var(--color-neutral-200)] shadow-sm px-4 py-2.5">
              <Clock className="size-4 text-[var(--color-ink)] opacity-60" />
              <p className="text-[13px] font-500 text-[var(--color-ink)] opacity-80">
-               {creatorProfile?.is_active ? "Profile is live \u2014 Brands can discover and book you" : "Profile under review \u2014 Activation within 24\u201348 hours"}
+               {creatorProfile?.is_active ? "Profile is live — Brands can discover and book you" : "Profile under review — Activation within 24–48 hours"}
              </p>
           </div>
         </motion.div>
@@ -386,7 +386,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2.5 rounded-xl bg-[#daece0] px-4 py-2.5">
              <CheckCircle2 className="size-4 text-[#1a6b3c]" />
              <p className="text-[13px] font-500 text-[#1a6b3c]">
-               Brand verified \u2014 You can now discover creators and run campaigns
+               Brand verified — You can now discover creators and run campaigns
              </p>
           </div>
         </motion.div>

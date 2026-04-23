@@ -371,7 +371,7 @@ export default function VaultGrid({
               : "Your generated images will appear here. Generate your first image to get started."}
           </p>
           {!searchValue && !activeStatus && (
-            <Link href="/brand/campaigns">
+            <Link href="/brand/sessions">
               <Button className="rounded-[var(--radius-button)] bg-[var(--color-ink)] font-600 text-white hover:opacity-80">
                 Generate your first image →
               </Button>
