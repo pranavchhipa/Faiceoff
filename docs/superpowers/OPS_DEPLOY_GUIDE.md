@@ -56,14 +56,23 @@ SELECT code, credits, price_paise, bonus_paise FROM credit_packs_catalog ORDER B
 
 You should see: `free_signup`, `spark`, `flow`, `pro`, `studio`, `enterprise`, plus legacy `small`/`medium`/`large`.
 
-**Enable pg_cron jobs** (one-time, in Supabase SQL editor):
+**pg_cron is OPTIONAL.** Vercel Cron is the primary scheduler — see step 5 below. Migration `00035` already registered a conditional pg_cron job that auto-skips if the extension isn't installed.
+
+If you want pg_cron as a belt-and-suspenders backup:
+
 ```sql
+-- Enable extension (Supabase: Database → Extensions → pg_cron, or:)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Re-run the conditional block from migration 00035 (idempotent)
 SELECT cron.schedule(
-  'expire-stale-topups',
+  'auto-reject-expired-approvals',
   '*/15 * * * *',
-  $$SELECT expire_stale_topups()$$
+  $$SELECT public.auto_reject_expired_approvals()$$
 );
 ```
+
+Otherwise just skip — Vercel Cron handles it.
 
 ---
 
