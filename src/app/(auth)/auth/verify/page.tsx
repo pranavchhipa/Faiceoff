@@ -1,217 +1,192 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { Loader2, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { Loader2, ArrowRight, CheckCheck, RotateCw } from "lucide-react";
+import { AuthShell } from "@/components/landing/AuthShell";
 
-import { Button } from "@/components/ui/button";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-  InputOTPSeparator,
-} from "@/components/ui/input-otp";
+const OTP_LENGTH = 8;
 
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const emailFromUrl = searchParams.get("email") ?? "";
+  const email = searchParams.get("email") ?? "";
 
-  const [email, setEmail] = useState(emailFromUrl);
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(""));
+  const [error, setError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  async function handleVerify() {
-    if (otp.length !== 8) return;
-    setError("");
-    setLoading(true);
+  useEffect(() => { inputs.current[0]?.focus(); }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
+  const code = useMemo(() => digits.join(""), [digits]);
+  const filled = code.length === OTP_LENGTH;
+
+  const setDigit = (i: number, v: string) => {
+    const next = [...digits]; next[i] = v; setDigits(next);
+  };
+
+  const onChange = (i: number, raw: string) => {
+    const v = raw.replace(/\D/g, "");
+    if (!v) { setDigit(i, ""); return; }
+    if (v.length === 1) {
+      setDigit(i, v);
+      if (i < OTP_LENGTH - 1) inputs.current[i + 1]?.focus();
+    } else {
+      const chars = v.slice(0, OTP_LENGTH - i).split("");
+      const next = [...digits];
+      chars.forEach((c, idx) => (next[i + idx] = c));
+      setDigits(next);
+      inputs.current[Math.min(i + chars.length, OTP_LENGTH - 1)]?.focus();
+    }
+    if (error) setError(null);
+  };
+
+  const onKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[i] && i > 0) {
+      inputs.current[i - 1]?.focus(); setDigit(i - 1, ""); e.preventDefault();
+    } else if (e.key === "ArrowLeft" && i > 0) inputs.current[i - 1]?.focus();
+    else if (e.key === "ArrowRight" && i < OTP_LENGTH - 1) inputs.current[i + 1]?.focus();
+  };
+
+  const onPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (!text) return;
+    e.preventDefault();
+    const next = Array(OTP_LENGTH).fill("");
+    text.split("").forEach((c, idx) => (next[idx] = c));
+    setDigits(next);
+    inputs.current[Math.min(text.length, OTP_LENGTH - 1)]?.focus();
+  };
+
+  const verify = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!filled || verifying) return;
+    setVerifying(true); setError(null);
 
     try {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token: otp }),
+        body: JSON.stringify({ email, token: code }),
       });
       const data = await res.json();
-
-      if (data.error) {
-        setError(data.error);
-        setLoading(false);
-        return;
-      }
-
-      router.push("/dashboard");
-      router.refresh();
+      if (data.error) { setError(data.error); setVerifying(false); return; }
+      setSuccess(true);
+      setTimeout(() => { router.push("/dashboard"); router.refresh(); }, 1100);
     } catch {
       setError("Verification failed. Please try again.");
-      setLoading(false);
+      setVerifying(false);
     }
-  }
+  };
 
-  async function handleResend() {
+  const resend = async () => {
+    if (cooldown > 0 || resending) return;
     setResending(true);
-    setError("");
-
     try {
-      const res = await fetch("/api/auth/sign-in", {
+      await fetch("/api/auth/sign-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
+      setCooldown(30);
+    } catch { /* silent */ }
+    setResending(false);
+  };
 
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResent(true);
-        setTimeout(() => setResent(false), 5000);
-      }
-    } catch {
-      setError("Failed to resend code.");
-    } finally {
-      setResending(false);
-    }
-  }
+  const masked = email
+    ? email.replace(/^(.).+(@.+)$/, (_m: string, a: string, b: string) => `${a}•••••${b}`)
+    : "your email";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+    <AuthShell
+      eyebrow="One last step"
+      title={<>Enter the <span className="text-gradient-primary">8-digit code.</span></>}
+      subtitle={<>We sent a verification code to <span className="text-foreground font-semibold">{masked}</span>. It expires in 10 minutes.</>}
+      side={{ tint: "success", heading: "Secure by default.", body: "Every new account gets a fresh one-time code. No passwords to guess. Just click your inbox." }}
     >
-      <div className="text-center mb-8">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-[var(--color-lilac)]/50">
-          <svg
-            className="size-6 text-[var(--color-ink)]"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+      <form onSubmit={verify} className="space-y-6" noValidate>
+        <div className="grid grid-cols-8 gap-1.5 sm:gap-2.5">
+          {digits.map((d, i) => (
+            <motion.input
+              key={i}
+              ref={(el) => { inputs.current[i] = el; }}
+              type="text"
+              inputMode="numeric"
+              autoComplete={i === 0 ? "one-time-code" : "off"}
+              maxLength={1}
+              value={d}
+              onChange={(e) => onChange(i, e.target.value)}
+              onKeyDown={(e) => onKeyDown(i, e)}
+              onPaste={onPaste}
+              whileFocus={{ scale: 1.04 }}
+              animate={d ? { scale: [1, 1.08, 1] } : undefined}
+              transition={{ duration: 0.25 }}
+              className={`aspect-square w-full text-center font-display text-lg sm:text-2xl font-bold rounded-lg sm:rounded-xl border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors ${d ? "border-primary/60 bg-primary/5" : "border-input"}`}
             />
-          </svg>
+          ))}
         </div>
-        <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
-          Check your email
-        </h1>
-        <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
-          {email
-            ? <>We sent a verification code to{" "}<span className="font-500 text-[var(--color-ink)]">{email}</span></>
-            : "Enter your email and verification code"
-          }
-        </p>
-      </div>
-
-      <div className="flex flex-col items-center gap-6">
-        {!emailFromUrl && (
-          <div className="w-full space-y-1.5">
-            <label htmlFor="verify-email" className="text-sm font-500 text-[var(--color-ink)]">
-              Email
-            </label>
-            <input
-              id="verify-email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-11 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        )}
-
-        <InputOTP
-          maxLength={8}
-          value={otp}
-          onChange={setOtp}
-          onComplete={handleVerify}
-        >
-          <InputOTPGroup>
-            <InputOTPSlot index={0} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={1} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={2} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={3} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-          </InputOTPGroup>
-          <InputOTPSeparator />
-          <InputOTPGroup>
-            <InputOTPSlot index={4} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={5} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={6} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-            <InputOTPSlot index={7} className="size-9 sm:size-11 text-base sm:text-lg font-600 border-[var(--color-neutral-200)]" />
-          </InputOTPGroup>
-        </InputOTP>
 
         {error && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 w-full text-center"
-          >
+          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive">
             {error}
           </motion.p>
         )}
 
-        <Button
-          onClick={handleVerify}
-          disabled={loading || otp.length !== 8}
-          className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
+        <motion.button
+          type="submit"
+          whileTap={{ scale: 0.98 }}
+          disabled={!filled || verifying || success}
+          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-all disabled:opacity-50"
         >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Verify code"
-          )}
-        </Button>
+          <AnimatePresence mode="wait">
+            {success ? (
+              <motion.span key="ok" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex items-center gap-2">
+                <CheckCheck size={18} /> Verified
+              </motion.span>
+            ) : verifying ? (
+              <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-2">
+                <Loader2 size={18} className="animate-spin" /> Verifying…
+              </motion.span>
+            ) : (
+              <motion.span key="cta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-2">
+                Verify & continue <ArrowRight size={18} />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
 
-        <div className="text-center">
-          <p className="text-sm text-[var(--color-neutral-500)]">
-            {"Didn't receive it? "}
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resending || resent}
-              className="font-500 text-[var(--color-gold)] hover:text-[var(--color-gold-hover)] disabled:opacity-50 transition-colors"
-            >
-              {resending
-                ? "Sending..."
-                : resent
-                  ? "Code sent!"
-                  : "Resend code"}
-            </button>
-          </p>
+        <div className="flex items-center justify-between text-sm pt-1">
+          <a href="/login" className="text-muted-foreground hover:text-foreground transition-colors">
+            ← Use a different email
+          </a>
+          <button
+            type="button"
+            onClick={resend}
+            disabled={cooldown > 0 || resending}
+            className="inline-flex items-center gap-1.5 font-semibold text-foreground hover:text-primary transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed"
+          >
+            {resending ? <><Loader2 size={14} className="animate-spin" /> Resending…</> : cooldown > 0 ? <>Resend in {cooldown}s</> : <><RotateCw size={14} /> Resend code</>}
+          </button>
         </div>
-      </div>
-
-      <div className="mt-6 text-center">
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-1 text-sm text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors"
-        >
-          <ArrowLeft className="size-3" />
-          Back to login
-        </Link>
-      </div>
-    </motion.div>
+      </form>
+    </AuthShell>
   );
 }
 
 export default function VerifyPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-[var(--color-neutral-400)]" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
       <VerifyForm />
     </Suspense>
   );

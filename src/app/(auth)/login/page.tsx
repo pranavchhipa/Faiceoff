@@ -4,25 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { AuthShell, FormField } from "@/components/landing/AuthShell";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+function isEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setServerError("");
+    const next: { email?: string; password?: string } = {};
+    if (!isEmail(email)) next.email = "Please enter a valid email address.";
+    if (!password) next.password = "Please enter your password.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
 
+    setLoading(true);
     try {
       const res = await fetch("/api/auth/sign-in-password", {
         method: "POST",
@@ -32,10 +39,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        // Supabase returns "Invalid login credentials" for both "no user" and
-        // "wrong password". Give the user a hint about reset in case they're
-        // an older account that was created via OTP-only (no password set).
-        setError(
+        setServerError(
           data.error === "Invalid login credentials"
             ? "Incorrect email or password. Never set one? Use Forgot password."
             : data.error ?? "Sign in failed."
@@ -47,115 +51,103 @@ export default function LoginPage() {
       router.push("/dashboard");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      setServerError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+    <AuthShell
+      eyebrow="Welcome back"
+      title={<>Sign in to <span className="text-gradient-primary">Faiceoff.</span></>}
+      subtitle="Sign in with your email and password."
+      side={{
+        tint: "creator",
+        heading: "Your face. Your rules.",
+        body: "You approve every image. You set every price. You earn in INR.",
+      }}
     >
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
-          Welcome back
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
-          Sign in to your Faiceoff account
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <FormField label="Email">
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="email"
+            <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
               type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              autoFocus
               autoComplete="email"
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+              inputMode="email"
+              maxLength={255}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+              placeholder="you@example.com"
+              className={`w-full pl-10 pr-4 py-3.5 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.email ? "border-destructive" : "border-input focus:border-ring"}`}
             />
           </div>
-        </div>
+          {errors.email && (
+            <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1.5 text-xs text-destructive">
+              {errors.email}
+            </motion.p>
+          )}
+        </FormField>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href="/forgot-password"
-              className="text-xs font-500 text-[var(--color-gold)] hover:text-[var(--color-gold-hover)] transition-colors"
-            >
-              Forgot password?
-            </Link>
-          </div>
+        <FormField label="Password">
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="password"
-              type="password"
-              placeholder="Your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+            <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type={showPw ? "text" : "password"}
               autoComplete="current-password"
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+              maxLength={128}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
+              placeholder="Your password"
+              className={`w-full pl-10 pr-11 py-3.5 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.password ? "border-destructive" : "border-input focus:border-ring"}`}
             />
+            <button
+              type="button"
+              onClick={() => setShowPw((s) => !s)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+            >
+              {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
+          {errors.password && (
+            <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1.5 text-xs text-destructive">
+              {errors.password}
+            </motion.p>
+          )}
+        </FormField>
+
+        <div className="flex justify-end -mt-2">
+          <Link href="/forgot-password" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            Forgot password?
+          </Link>
         </div>
 
-        {error && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2"
-          >
-            {error}
+        {serverError && (
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">
+            {serverError}
           </motion.p>
         )}
 
-        <Button
+        <motion.button
           type="submit"
-          disabled={loading || !email || !password}
-          className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
+          whileTap={{ scale: 0.98 }}
+          disabled={loading}
+          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
         >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Sign in"
-          )}
-        </Button>
+          {loading ? <><Loader2 size={18} className="animate-spin" /> Signing in…</> : <>Sign in <ArrowRight size={18} /></>}
+        </motion.button>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <Link href="/auth/signup/creator" className="py-3 rounded-xl border border-border bg-tint-creator font-medium text-sm text-center hover:border-primary/40 transition-colors">
+            Join as Creator
+          </Link>
+          <Link href="/auth/signup/brand" className="py-3 rounded-xl border border-border bg-tint-brand font-medium text-sm text-center hover:border-primary/40 transition-colors">
+            Join as Brand
+          </Link>
+        </div>
       </form>
-
-      <div className="relative my-6">
-        <Separator className="bg-[var(--color-neutral-200)]" />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-[var(--color-neutral-400)]">
-          New to Faiceoff?
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          variant="outline"
-          asChild
-          className="h-11 rounded-[var(--radius-button)] border-[var(--color-neutral-200)] hover:border-[var(--color-blush-deep)] hover:bg-[var(--color-blush)]/40 transition-colors"
-        >
-          <Link href="/auth/signup/creator">Join as Creator</Link>
-        </Button>
-        <Button
-          variant="outline"
-          asChild
-          className="h-11 rounded-[var(--radius-button)] border-[var(--color-neutral-200)] hover:border-[var(--color-ocean-deep)] hover:bg-[var(--color-ocean)]/40 transition-colors"
-        >
-          <Link href="/auth/signup/brand">Join as Brand</Link>
-        </Button>
-      </div>
-    </motion.div>
+    </AuthShell>
   );
 }

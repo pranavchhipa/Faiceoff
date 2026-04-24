@@ -4,21 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail, Building2, Globe, Lock } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Mail, Building2, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { AuthShell, FormField } from "@/components/landing/AuthShell";
 
 export default function BrandSignupPage() {
   const router = useRouter();
-  const [formState, setFormState] = useState({
-    email: "",
-    companyName: "",
-    website: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [formState, setFormState] = useState({ email: "", companyName: "", password: "", confirmPassword: "" });
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,16 +21,8 @@ export default function BrandSignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
-    if (formState.password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (formState.password !== formState.confirmPassword) {
-      setError("Passwords don't match.");
-      return;
-    }
-
+    if (formState.password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (formState.password !== formState.confirmPassword) { setError("Passwords don't match."); return; }
     setLoading(true);
 
     try {
@@ -53,16 +37,8 @@ export default function BrandSignupPage() {
         }),
       });
       const data = await res.json();
-
-      if (data.error) {
-        setError(data.debug ? `${data.error} — ${data.debug}` : data.error);
-        setLoading(false);
-        return;
-      }
-
-      router.push(
-        `/auth/verify?email=${encodeURIComponent(formState.email)}`
-      );
+      if (data.error) { setError(data.debug ? `${data.error} — ${data.debug}` : data.error); setLoading(false); return; }
+      router.push(`/auth/verify?email=${encodeURIComponent(formState.email)}`);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -70,151 +46,96 @@ export default function BrandSignupPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+    <AuthShell
+      eyebrow="Create your account"
+      title={<>Join as a <span className="text-gradient-primary">Brand.</span></>}
+      subtitle="Generate ads with verified Indian creators. Full usage rights, GST invoiced."
+      side={{ tint: "brand", heading: "Skip the shoot. Ship the campaign.", body: "Verified creators, AI generation, full commercial rights — all in one workflow." }}
     >
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-ocean)]/60 px-3 py-1 text-xs font-500 text-[var(--color-ink)] mb-3">
-          Brand Account
-        </div>
-        <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
-          Access licensed faces
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
-          Create AI content with real creator likenesses
-        </p>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {[
+          { key: "companyName", label: "Company name", Icon: Building2, type: "text",  ac: "organization", ph: "Acme India Pvt Ltd",  max: 100 },
+          { key: "email",       label: "Work email",   Icon: Mail,      type: "email", ac: "email",         ph: "you@company.com",     max: 255 },
+        ].map(({ key, label, Icon, type, ac, ph, max }, i) => (
+          <motion.div key={key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+            <FormField label={label}>
+              <div className="relative">
+                <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type={type}
+                  autoComplete={ac}
+                  maxLength={max}
+                  value={formState[key as keyof typeof formState]}
+                  onChange={(e) => updateField(key, e.target.value)}
+                  placeholder={ph}
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                />
+              </div>
+            </FormField>
+          </motion.div>
+        ))}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="companyName">Company name</Label>
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="companyName"
-              type="text"
-              placeholder="Your company"
-              value={formState.companyName}
-              onChange={(e) => updateField("companyName", e.target.value)}
-              required
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
+          <FormField label="Password" hint="At least 8 characters.">
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPw ? "text" : "password"}
+                autoComplete="new-password"
+                maxLength={128}
+                value={formState.password}
+                onChange={(e) => updateField("password", e.target.value)}
+                placeholder="Create a password"
+                className="w-full pl-10 pr-11 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+              />
+              <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </FormField>
+        </motion.div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Work email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@company.com"
-              value={formState.email}
-              onChange={(e) => updateField("email", e.target.value)}
-              required
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="password"
-              type="password"
-              placeholder="At least 8 characters"
-              value={formState.password}
-              onChange={(e) => updateField("password", e.target.value)}
-              required
-              minLength={8}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Re-enter password"
-              value={formState.confirmPassword}
-              onChange={(e) => updateField("confirmPassword", e.target.value)}
-              required
-              minLength={8}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="website">
-            Website{" "}
-            <span className="text-[var(--color-neutral-400)] font-400">
-              (optional)
-            </span>
-          </Label>
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="website"
-              type="url"
-              placeholder="https://yourcompany.com"
-              value={formState.website}
-              onChange={(e) => updateField("website", e.target.value)}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.21 }}>
+          <FormField label="Confirm password">
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="password"
+                autoComplete="new-password"
+                maxLength={128}
+                value={formState.confirmPassword}
+                onChange={(e) => updateField("confirmPassword", e.target.value)}
+                placeholder="Re-enter password"
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+              />
+            </div>
+          </FormField>
+        </motion.div>
 
         {error && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2"
-          >
+          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">
             {error}
           </motion.p>
         )}
 
-        <Button
-          type="submit"
-          disabled={
-            loading ||
-            !formState.email ||
-            !formState.companyName ||
-            !formState.password
-          }
-          className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
-        >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Create brand account"
-          )}
-        </Button>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          We'll send an 8-digit code to verify your email. By continuing you agree to our Terms and DPDP-compliant Privacy policy.
+        </p>
 
-        <p className="text-xs text-center text-[var(--color-neutral-400)]">
-          We'll send a verification code to your email to confirm it's yours.
+        <motion.button
+          type="submit"
+          whileTap={{ scale: 0.98 }}
+          disabled={loading || !formState.email || !formState.companyName || !formState.password}
+          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
+        >
+          {loading ? <><Loader2 size={18} className="animate-spin" /> Creating account…</> : <>Create brand account <ArrowRight size={18} /></>}
+        </motion.button>
+
+        <p className="text-sm text-muted-foreground text-center pt-2">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">Sign in</Link>
         </p>
       </form>
-
-      <p className="mt-6 text-center text-sm text-[var(--color-neutral-500)]">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-500 text-[var(--color-gold)] hover:text-[var(--color-gold-hover)]"
-        >
-          Sign in
-        </Link>
-      </p>
-    </motion.div>
+    </AuthShell>
   );
 }

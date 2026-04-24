@@ -259,3 +259,71 @@ pre code {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-neutral-400);
 }
+
+/* ============================================================
+   Landing page design tokens (Lovable port)
+   ============================================================ */
+
+:root {
+  /* Gold-based gradient (primary accent for landing pages) */
+  --lp-primary: oklch(0.74 0.085 80);
+  --lp-primary-glow: oklch(0.82 0.09 85);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, oklch(0.74 0.085 80), oklch(0.82 0.09 85));
+  --gradient-hero: radial-gradient(ellipse at top, oklch(0.74 0.085 80 / 18%), transparent 60%),
+    radial-gradient(ellipse at bottom right, oklch(0.91 0.022 250 / 35%), transparent 60%);
+
+  /* Section tints */
+  --tint-creator: oklch(0.92 0.025 15);   /* blush #f6dfe0 */
+  --tint-brand: oklch(0.91 0.022 250);    /* ocean #d9e5f0 */
+  --tint-success: oklch(0.92 0.025 155);  /* mint  #daece0 */
+  --success: oklch(0.55 0.12 155);
+
+  /* Shadows */
+  --shadow-glow: 0 20px 60px -20px oklch(0.74 0.085 80 / 55%);
+  --shadow-landing-card: 0 24px 60px -28px oklch(0.18 0.008 40 / 22%);
+}
+
+/* Landing page scope — overrides primary to gold for all Tailwind text-primary, bg-primary etc. */
+.landing-scope {
+  --color-primary: oklch(0.74 0.085 80);
+  --color-primary-foreground: oklch(0.18 0.008 40);
+  --color-accent: oklch(0.74 0.085 80);
+  --color-accent-foreground: oklch(0.18 0.008 40);
+  --color-background: oklch(0.987 0.006 80);   /* warm cream */
+  --color-foreground: oklch(0.18 0.008 40);    /* dark ink */
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.18 0.008 40);
+  --color-secondary: oklch(0.95 0.01 80);
+  --color-secondary-foreground: oklch(0.18 0.008 40);
+  --color-muted: oklch(0.94 0.008 80);
+  --color-muted-foreground: oklch(0.42 0.012 50);
+  --color-border: oklch(0.18 0.008 40 / 12%);
+  --color-input: oklch(0.18 0.008 40 / 18%);
+  --color-ring: oklch(0.74 0.085 80);
+}
+
+@layer utilities {
+  .bg-gradient-primary  { background-image: var(--gradient-primary); }
+  .bg-gradient-hero     { background-image: var(--gradient-hero); }
+  .bg-tint-creator      { background-color: var(--tint-creator); }
+  .bg-tint-brand        { background-color: var(--tint-brand); }
+  .bg-tint-success      { background-color: var(--tint-success); }
+  .text-success         { color: var(--success); }
+  .border-success       { border-color: var(--success); }
+  .shadow-glow          { box-shadow: var(--shadow-glow); }
+  .shadow-card-landing  { box-shadow: var(--shadow-landing-card); }
+
+  .text-gradient-primary {
+    background-image: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .grain {
+    background-image: radial-gradient(oklch(0.18 0.008 40 / 5%) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+}

@@ -4,21 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail, User, Phone, Lock } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Mail, User, Lock, Eye, EyeOff, ArrowRight, AtSign } from "lucide-react";
+import { AuthShell, FormField } from "@/components/landing/AuthShell";
 
 export default function CreatorSignupPage() {
   const router = useRouter();
-  const [formState, setFormState] = useState({
-    email: "",
-    displayName: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [formState, setFormState] = useState({ email: "", displayName: "", instagram: "", password: "", confirmPassword: "" });
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,16 +21,8 @@ export default function CreatorSignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
-    if (formState.password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (formState.password !== formState.confirmPassword) {
-      setError("Passwords don't match.");
-      return;
-    }
-
+    if (formState.password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (formState.password !== formState.confirmPassword) { setError("Passwords don't match."); return; }
     setLoading(true);
 
     try {
@@ -48,22 +32,13 @@ export default function CreatorSignupPage() {
         body: JSON.stringify({
           email: formState.email,
           displayName: formState.displayName,
-          phone: formState.phone || undefined,
           password: formState.password,
           role: "creator",
         }),
       });
       const data = await res.json();
-
-      if (data.error) {
-        setError(data.error);
-        setLoading(false);
-        return;
-      }
-
-      router.push(
-        `/auth/verify?email=${encodeURIComponent(formState.email)}`
-      );
+      if (data.error) { setError(data.error); setLoading(false); return; }
+      router.push(`/auth/verify?email=${encodeURIComponent(formState.email)}`);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -71,151 +46,98 @@ export default function CreatorSignupPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+    <AuthShell
+      eyebrow="Create your account"
+      title={<>Join as a <span className="text-gradient-primary">Creator.</span></>}
+      subtitle="License your AI face. Approve every image. Get paid in INR."
+      side={{ tint: "creator", heading: "Your face is the IP.", body: "Train once. License forever. You decide every category, every brand, every image." }}
     >
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)]/60 px-3 py-1 text-xs font-500 text-[var(--color-ink)] mb-3">
-          Creator Account
-        </div>
-        <h1 className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
-          License your likeness
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
-          Earn from AI-generated content featuring you
-        </p>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {[
+          { key: "displayName", label: "Full name",        Icon: User,  type: "text",     ac: "name",      ph: "Priya Sharma",        max: 100 },
+          { key: "email",       label: "Email",            Icon: Mail,  type: "email",    ac: "email",     ph: "you@example.com",     max: 255 },
+          { key: "instagram",   label: "Instagram handle", Icon: AtSign,type: "text",     ac: "off",       ph: "yourhandle",          max: 30, prefix: "@" },
+        ].map(({ key, label, Icon, type, ac, ph, max, prefix }, i) => (
+          <motion.div key={key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+            <FormField label={label}>
+              <div className="relative">
+                <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                {prefix && <span className="absolute left-10 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">{prefix}</span>}
+                <input
+                  type={type}
+                  autoComplete={ac}
+                  maxLength={max}
+                  value={formState[key as keyof typeof formState]}
+                  onChange={(e) => updateField(key, e.target.value)}
+                  placeholder={ph}
+                  className={`w-full ${prefix ? "pl-14" : "pl-10"} pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all`}
+                />
+              </div>
+            </FormField>
+          </motion.div>
+        ))}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="displayName">Display name</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="displayName"
-              type="text"
-              placeholder="Your name"
-              value={formState.displayName}
-              onChange={(e) => updateField("displayName", e.target.value)}
-              required
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.21 }}>
+          <FormField label="Password" hint="At least 8 characters.">
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPw ? "text" : "password"}
+                autoComplete="new-password"
+                maxLength={128}
+                value={formState.password}
+                onChange={(e) => updateField("password", e.target.value)}
+                placeholder="Create a password"
+                className="w-full pl-10 pr-11 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+              />
+              <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </FormField>
+        </motion.div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={formState.email}
-              onChange={(e) => updateField("email", e.target.value)}
-              required
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="password"
-              type="password"
-              placeholder="At least 8 characters"
-              value={formState.password}
-              onChange={(e) => updateField("password", e.target.value)}
-              required
-              minLength={8}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Re-enter password"
-              value={formState.confirmPassword}
-              onChange={(e) => updateField("confirmPassword", e.target.value)}
-              required
-              minLength={8}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone">
-            Phone number{" "}
-            <span className="text-[var(--color-neutral-400)] font-400">
-              (optional)
-            </span>
-          </Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+91 98765 43210"
-              value={formState.phone}
-              onChange={(e) => updateField("phone", e.target.value)}
-              className="pl-10 h-11 rounded-[var(--radius-input)] border-[var(--color-neutral-200)] bg-white focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
-            />
-          </div>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+          <FormField label="Confirm password">
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="password"
+                autoComplete="new-password"
+                maxLength={128}
+                value={formState.confirmPassword}
+                onChange={(e) => updateField("confirmPassword", e.target.value)}
+                placeholder="Re-enter password"
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+              />
+            </div>
+          </FormField>
+        </motion.div>
 
         {error && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2"
-          >
+          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">
             {error}
           </motion.p>
         )}
 
-        <Button
-          type="submit"
-          disabled={
-            loading ||
-            !formState.email ||
-            !formState.displayName ||
-            !formState.password
-          }
-          className="w-full h-11 rounded-[var(--radius-button)] bg-[var(--color-gold)] text-white font-600 hover:bg-[var(--color-gold-hover)] transition-colors"
-        >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Create creator account"
-          )}
-        </Button>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          We'll send an 8-digit code to verify your email. By continuing you agree to our Terms and DPDP-compliant Privacy policy.
+        </p>
 
-        <p className="text-xs text-center text-[var(--color-neutral-400)]">
-          We'll send a verification code to your email to confirm it's yours.
+        <motion.button
+          type="submit"
+          whileTap={{ scale: 0.98 }}
+          disabled={loading || !formState.email || !formState.displayName || !formState.password}
+          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
+        >
+          {loading ? <><Loader2 size={18} className="animate-spin" /> Creating account…</> : <>Create account & send code <ArrowRight size={18} /></>}
+        </motion.button>
+
+        <p className="text-sm text-muted-foreground text-center pt-2">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">Sign in</Link>
         </p>
       </form>
-
-      <p className="mt-6 text-center text-sm text-[var(--color-neutral-500)]">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-500 text-[var(--color-gold)] hover:text-[var(--color-gold-hover)]"
-        >
-          Sign in
-        </Link>
-      </p>
-    </motion.div>
+    </AuthShell>
   );
 }
