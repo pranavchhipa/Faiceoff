@@ -14,7 +14,7 @@
   --popover: 0 0% 100%;
   --popover-foreground: 18 18% 9%;
   --primary: 37 35% 61%;
-  --primary-foreground: 37 43% 98%;
+  --primary-foreground: 18 18% 9%;   /* dark ink — readable on gold/gradient primary backgrounds */
   --secondary: 30 20% 93%;
   --secondary-foreground: 18 18% 9%;
   --muted: 30 20% 93%;
@@ -124,6 +124,36 @@
   --shadow-soft: 0 1px 3px 0 rgba(44, 47, 48, 0.04), 0 1px 2px -1px rgba(44, 47, 48, 0.03);
   --shadow-card: 0 4px 12px -2px rgba(44, 47, 48, 0.06), 0 2px 6px -2px rgba(44, 47, 48, 0.03);
   --shadow-elevated: 0 24px 48px 0 rgba(44, 47, 48, 0.06);
+}
+
+/* ── shadcn ↔ Tailwind v4 bridge ──
+   Maps the shadcn HSL tokens (defined in :root / .landing-scope) to the
+   `--color-*` custom properties Tailwind v4 uses to compile utilities.
+   Without this bridge, classes like `text-primary-foreground`,
+   `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
+   compile to invalid/undefined color → visible as "invisible text on
+   gold buttons" etc. `inline` makes the token emit `color: var(...)` so
+   the `.landing-scope` scope can still override per-section.           */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 }
 
 /* ============================================================
