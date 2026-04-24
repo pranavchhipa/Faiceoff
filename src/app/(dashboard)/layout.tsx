@@ -21,6 +21,9 @@ import {
   Package,
   Shield,
   AlertTriangle,
+  Camera,
+  Inbox,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -33,17 +36,27 @@ interface NavLink {
 }
 
 // Use direct /brand/* and /creator/* paths — NOT legacy /dashboard/*.
-// Legacy paths get rewritten by middleware, but the rewrite map is
-// inconsistent with what pages actually exist (e.g. /dashboard/settings →
-// /brand/settings, which has no page). Routing through legacy was the
-// source of the 404s the user kept hitting.
+// Each href below MUST point to a page file that actually exists under
+// `src/app/(dashboard)/{brand|creator}/...`. Routing through legacy was
+// the source of the 404s the user kept hitting.
+//
+// Pages that are role-aware (Settings, Approvals, Likeness, Analytics,
+// Collaborations) live under /dashboard/* and are mounted into role
+// folders via thin re-export wrappers (e.g. /creator/settings →
+// dashboard/settings/page). This keeps the sidebar URLs role-prefixed
+// while reusing one page implementation.
 const CREATOR_NAV: NavLink[] = [
   { href: "/creator/dashboard",          label: "Dashboard",          icon: LayoutDashboard },
+  { href: "/creator/likeness",           label: "My Likeness",        icon: Camera },
+  { href: "/creator/approvals",          label: "Approvals",          icon: Inbox },
+  { href: "/creator/collaborations",     label: "Collaborations",     icon: Megaphone },
   { href: "/creator/licenses",           label: "Licenses",           icon: ClipboardCheck },
   { href: "/creator/earnings",           label: "Earnings",           icon: IndianRupee },
   { href: "/creator/payouts",            label: "Payouts",            icon: Wallet },
   { href: "/creator/withdraw",           label: "Withdraw",           icon: BarChart3 },
+  { href: "/creator/analytics",          label: "Analytics",          icon: TrendingUp },
   { href: "/creator/blocked-categories", label: "Blocked categories", icon: ScanFace },
+  { href: "/creator/settings",           label: "Settings",           icon: Settings },
 ];
 
 const BRAND_NAV: NavLink[] = [
@@ -54,7 +67,8 @@ const BRAND_NAV: NavLink[] = [
   { href: "/brand/vault",     label: "Vault",             icon: ScanFace },
   { href: "/brand/wallet",    label: "Wallet",            icon: Wallet },
   { href: "/brand/credits",   label: "Credits",           icon: IndianRupee },
-  { href: "/brand/billing",   label: "Billing",           icon: Settings },
+  { href: "/brand/billing",   label: "Billing",           icon: Package },
+  { href: "/brand/settings",  label: "Settings",          icon: Settings },
 ];
 
 const ADMIN_NAV: NavLink[] = [

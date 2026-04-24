@@ -13,9 +13,15 @@ interface Rule {
 //
 // Existing pages snapshot (keep in sync when adding/removing pages):
 //   brand:   billing, credits, dashboard, discover, discover/[id], licenses,
-//            licenses/[id], sessions, sessions/[id], vault, wallet
-//   creator: blocked-categories, dashboard, earnings, licenses, payouts, withdraw
-//   admin:   dashboard, packs, safety, stuck-gens, plus / (overview)
+//            licenses/[id], sessions, sessions/[id], settings, vault, wallet
+//   creator: analytics, approvals, blocked-categories, collaborations,
+//            dashboard, earnings, licenses, likeness, payouts, settings, withdraw
+//   admin:   dashboard (alias), packs, safety, stuck-gens, plus / (overview)
+//
+// Several creator/brand pages (approvals, likeness, settings, analytics,
+// collaborations) are thin re-export wrappers around role-aware pages that
+// still live under /dashboard/*. The redirects below send legacy URLs to
+// those wrappers so old bookmarks keep working.
 
 const RULES: Rule[] = [
   // /dashboard root → role home (admin gets /admin, others get /${r}/dashboard)
@@ -24,11 +30,12 @@ const RULES: Rule[] = [
     resolve: (_m, r) => (r === "admin" ? "/admin" : `/${r}/dashboard`),
   },
 
-  // Campaigns → sessions (only brand has /brand/sessions; creator has none yet)
+  // Campaigns → brand: /brand/sessions, creator: /creator/collaborations
   {
     match: /^\/dashboard\/campaigns(?:\/(.+))?$/,
     resolve: (m, r) => {
       if (r === "brand") return m[1] ? `/brand/sessions/${m[1]}` : "/brand/sessions";
+      if (r === "creator") return "/creator/collaborations";
       return `/${r}/dashboard`;
     },
   },
@@ -46,10 +53,10 @@ const RULES: Rule[] = [
     },
   },
 
-  // Approvals page doesn't exist for creator yet → bounce to dashboard
+  // Approvals → /creator/approvals (wrapper around dashboard/approvals)
   {
     match: /^\/dashboard\/approvals(?:\/(.+))?$/,
-    resolve: (_m, r) => (r === "creator" ? "/creator/dashboard" : `/${r}/dashboard`),
+    resolve: (_m, r) => (r === "creator" ? "/creator/approvals" : `/${r}/dashboard`),
   },
 
   // Wallet → brand has /brand/wallet, creator has /creator/earnings
@@ -73,22 +80,29 @@ const RULES: Rule[] = [
     resolve: () => null,
   },
 
-  // Likeness → no /creator/reference-photos page yet, bounce to dashboard
+  // Likeness → /creator/likeness wrapper (creator-only page; the underlying
+  // page renders a "this is for creators" notice for non-creators, so we
+  // bounce brand/admin to their dashboards instead of mounting it there).
   {
     match: /^\/dashboard\/likeness\/?$/,
-    resolve: (_m, r) => `/${r === "admin" ? "admin" : r === "creator" ? "creator/dashboard" : "brand/dashboard"}`,
+    resolve: (_m, r) => (r === "creator" ? "/creator/likeness" : r === "admin" ? "/admin" : "/brand/dashboard"),
   },
 
-  // Settings page doesn't exist for either brand or creator yet
+  // Settings → role-prefixed wrapper around the same role-aware page.
   {
     match: /^\/dashboard\/settings(?:\/.*)?$/,
-    resolve: (_m, r) => `/${r === "admin" ? "admin" : `${r}/dashboard`}`,
+    resolve: (_m, r) => {
+      if (r === "creator") return "/creator/settings";
+      if (r === "brand") return "/brand/settings";
+      return "/admin";
+    },
   },
 
-  // Analytics → no dedicated page, fall through to dashboard
+  // Analytics → /creator/analytics (page is creator-focused; brand
+  // analytics is a separate, future page).
   {
     match: /^\/dashboard\/analytics\/?$/,
-    resolve: (_m, r) => `/${r === "admin" ? "admin" : `${r}/dashboard`}`,
+    resolve: (_m, r) => (r === "creator" ? "/creator/analytics" : r === "admin" ? "/admin" : "/brand/dashboard"),
   },
 
   // Wildcard fallback — any other /dashboard/* goes to role home
