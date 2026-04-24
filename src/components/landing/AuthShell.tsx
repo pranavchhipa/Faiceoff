@@ -2,11 +2,12 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { CREATORS } from "./images";
 
 const SIDE_PHOTOS: Record<"creator" | "brand" | "success", { src: string; label: string }> = {
-  creator: { src: "/landing/creator-face.jpg", label: "Priya · Mumbai" },
-  brand:   { src: "/landing/creator-2.jpg",    label: "Arjun · Bengaluru" },
-  success: { src: "/landing/creator-3.jpg",    label: "Meera · Delhi" },
+  creator: CREATORS.priya,
+  brand:   CREATORS.arjun,
+  success: CREATORS.meera,
 };
 
 export function AuthShell({

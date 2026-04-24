@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Check, X, IndianRupee } from "lucide-react";
+import { Check, X, IndianRupee, Wand2 } from "lucide-react";
+import { CREATOR_PRIYA, PRIYA_COMPOSITES } from "./images";
 
 const requests = [
-  { id: "nike",        brand: "Nike India",       category: "Sportswear", color: "from-orange-400 to-pink-500", emoji: "👟", img: "/landing/product-sneaker.jpg", payout: 2500 },
-  { id: "oneplus",     brand: "OnePlus",           category: "Tech",       color: "from-red-500 to-rose-600",    emoji: "📱", img: "/landing/product-phone.jpg",   payout: 3200 },
-  { id: "minimalist",  brand: "The Minimalist",    category: "Skincare",   color: "from-amber-400 to-orange-500",emoji: "🧴", img: "/landing/product-skincare.jpg",payout: 1800 },
+  { id: "nike",        brand: "Nike India",       category: "Sportswear", color: "from-orange-400 to-pink-500", emoji: "👟", img: PRIYA_COMPOSITES.sneaker,  payout: 2500 },
+  { id: "oneplus",     brand: "OnePlus",           category: "Tech",       color: "from-red-500 to-rose-600",    emoji: "📱", img: PRIYA_COMPOSITES.phone,    payout: 3200 },
+  { id: "minimalist",  brand: "The Minimalist",    category: "Skincare",   color: "from-amber-400 to-orange-500",emoji: "🧴", img: PRIYA_COMPOSITES.skincare, payout: 1800 },
 ] as const;
 
 export function CreatorDemo() {
@@ -41,9 +42,12 @@ export function CreatorDemo() {
         <div className="relative">
           <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-secondary">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/landing/creator-face.jpg" alt="Creator" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={CREATOR_PRIYA} alt="Creator" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-background/80 backdrop-blur text-xs font-mono">
               You · Priya
+            </div>
+            <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-background/85 backdrop-blur text-[10px] font-mono text-muted-foreground">
+              REFERENCE
             </div>
           </div>
 
@@ -152,7 +156,7 @@ export function CreatorDemo() {
                   <div className="text-xs text-muted-foreground">Generated · awaiting your approval</div>
                 </div>
               </div>
-              <div className="aspect-[4/5] bg-secondary overflow-hidden">
+              <div className="relative aspect-[4/5] bg-secondary overflow-hidden">
                 <motion.img
                   src={current.img}
                   alt={current.brand}
@@ -161,6 +165,18 @@ export function CreatorDemo() {
                   transition={{ duration: 0.6 }}
                   className="h-full w-full object-cover"
                 />
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="absolute top-3 right-3 px-2 py-1 rounded-md bg-primary/90 text-primary-foreground text-[10px] font-bold flex items-center gap-1 shadow-sm"
+                >
+                  <Wand2 size={10} />
+                  AI · FAICEOFF
+                </motion.div>
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-background/85 backdrop-blur text-[11px] font-mono">
+                  <span className="text-accent">●</span> GENERATED · {current.brand}
+                </div>
               </div>
               <div className="p-4 grid grid-cols-2 gap-3">
                 <button

@@ -7,6 +7,7 @@ import {
   Camera, Bot, CheckCheck, IndianRupee,
 } from "lucide-react";
 import { BrandDemo } from "@/components/landing/BrandDemo";
+import { CREATORS } from "@/components/landing/images";
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -94,13 +95,13 @@ function Hero() {
 
           {/* Floating face stack */}
           <div className="relative h-[500px] hidden lg:block">
-            <FloatingCard img="/landing/creator-face.jpg" className="top-0 left-8 rotate-[-6deg]" delay={0.2}>
+            <FloatingCard img={CREATORS.priya.src} className="top-0 left-8 rotate-[-6deg]" delay={0.2}>
               <Tag>Priya · Mumbai</Tag>
             </FloatingCard>
-            <FloatingCard img="/landing/creator-2.jpg" className="top-32 right-0 rotate-[5deg]" delay={0.4}>
+            <FloatingCard img={CREATORS.arjun.src} className="top-32 right-0 rotate-[5deg]" delay={0.4}>
               <Tag>Arjun · Bengaluru</Tag>
             </FloatingCard>
-            <FloatingCard img="/landing/creator-3.jpg" className="bottom-0 left-16 rotate-[-2deg]" delay={0.6}>
+            <FloatingCard img={CREATORS.meera.src} className="bottom-0 left-16 rotate-[-2deg]" delay={0.6}>
               <Tag>Meera · Delhi</Tag>
             </FloatingCard>
 
