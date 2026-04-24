@@ -136,11 +136,15 @@ export function WalletTopup({ initialBalance }: Props) {
       });
 
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
         const msg = body.error === "no_brand_profile"
           ? "Brand profile not found — please complete setup first"
           : body.error === "invalid_input"
           ? "Invalid amount. Minimum ₹500, maximum ₹5,00,000."
+          : body.error === "cashfree_unavailable"
+          ? "Payment gateway not configured. Please contact support."
+          : body.error === "db_error"
+          ? "Database error. Please try again in a moment."
           : "Payment initiation failed. Please try again.";
         toast.error(msg);
         return;

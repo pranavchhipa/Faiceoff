@@ -453,9 +453,9 @@ export default function LikenessPage() {
           </div>
         )}
 
-        <button className="mt-3 text-xs font-600 text-[var(--color-primary)] hover:underline">
+        <a href="/creator/blocked-categories" className="mt-3 text-xs font-600 text-[var(--color-primary)] hover:underline inline-block">
           Manage blocked concepts &rarr;
-        </button>
+        </a>
       </div>
     </div>
   );

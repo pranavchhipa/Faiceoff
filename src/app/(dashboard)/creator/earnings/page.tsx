@@ -15,8 +15,9 @@ async function fetchDashboard(): Promise<DashboardData> {
   const cookieHeader = cookieStore.toString();
 
   try {
+    const base = process.env.__NEXT_INTERNAL_URL ?? "http://localhost:3000";
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL ? process.env.__NEXT_INTERNAL_URL ?? "http://localhost:3000" : "http://localhost:3000"}/api/earnings/dashboard`,
+      `${base}/api/earnings/dashboard`,
       {
         headers: { cookie: cookieHeader },
         cache: "no-store",

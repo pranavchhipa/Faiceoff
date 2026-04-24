@@ -194,11 +194,15 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
       });
 
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
         const msg = body.error === "pack_inactive"
           ? "This pack is currently unavailable"
           : body.error === "no_brand_profile"
           ? "Brand profile not found — please complete setup"
+          : body.error === "cashfree_unavailable"
+          ? "Payment gateway not configured. Please contact support."
+          : body.error === "db_error"
+          ? "Database error. Please try again in a moment."
           : "Failed to initiate payment. Please try again.";
         toast.error(msg);
         return;
