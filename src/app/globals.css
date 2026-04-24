@@ -320,24 +320,56 @@ pre code {
    Every Tailwind utility (bg-background, text-foreground, border-border etc.)
    resolves to these dark values inside any `.landing-scope` subtree. */
 .landing-scope {
-  /* core tokens */
-  --color-background:          #0A0908;   /* near-black, 1% warm */
-  --color-foreground:          #F2EDE3;   /* warm cream ink */
-  --color-card:                #141210;   /* surface */
+  /* paint the scope itself so cream body bg doesn't bleed through */
+  background-color: #0A0908;
+  color: #F2EDE3;
+
+  /* ── shadcn HSL triplets (drive all Tailwind utilities: bg-card,
+     bg-background, border-border, text-primary-foreground, etc.)
+     These are what `@theme inline` above references via hsl(var(--x)).
+     Overriding them here is REQUIRED — without this, utility classes
+     still resolve to the light :root values and the landing page
+     renders pale cards on dark bg (invisible text).                    */
+  --background:           30 14% 4%;    /* #0A0908 */
+  --foreground:           37 30% 92%;   /* #F2EDE3 */
+  --card:                 30 10% 7%;    /* #141210 */
+  --card-foreground:      37 30% 92%;   /* #F2EDE3 */
+  --popover:              30 10% 7%;    /* #141210 */
+  --popover-foreground:   37 30% 92%;
+  --primary:              35 55% 60%;   /* #D4A15E brass gold */
+  --primary-foreground:   30 14% 4%;    /* DARK on gold — always */
+  --secondary:            30 12% 10%;   /* #1D1A17 surface-2 */
+  --secondary-foreground: 37 30% 92%;
+  --muted:                30 12% 10%;
+  --muted-foreground:     32 8% 55%;    /* #8B8278 muted cream, nudged
+                                           lighter for contrast */
+  --accent:               35 55% 60%;
+  --accent-foreground:    30 14% 4%;
+  --destructive:          0 55% 61%;    /* #C96E6E muted red */
+  --destructive-foreground: 37 30% 92%;
+  --border:               30 15% 18%;   /* visible warm hairline */
+  --input:                30 15% 22%;
+  --ring:                 35 55% 60%;
+
+  /* ── `--color-*` duplicates — redundant belt-and-suspenders for any
+     utility or component that reads --color-* directly rather than via
+     the @theme inline bridge.                                          */
+  --color-background:          #0A0908;
+  --color-foreground:          #F2EDE3;
+  --color-card:                #141210;
   --color-card-foreground:     #F2EDE3;
   --color-popover:             #141210;
   --color-popover-foreground:  #F2EDE3;
-  --color-primary:             #D4A15E;   /* brass gold */
-  --color-primary-foreground:  #0A0908;   /* DARK on gold — always */
-  --primary-foreground:        18 18% 9%; /* shadcn HSL fallback */
-  --color-secondary:           #1D1A17;   /* surface-2 */
+  --color-primary:             #D4A15E;
+  --color-primary-foreground:  #0A0908;
+  --color-secondary:           #1D1A17;
   --color-secondary-foreground:#F2EDE3;
   --color-muted:               #1D1A17;
-  --color-muted-foreground:    #8B8278;   /* muted cream */
+  --color-muted-foreground:    #8B8278;
   --color-accent:              #D4A15E;
   --color-accent-foreground:   #0A0908;
-  --color-border:              rgba(242, 237, 227, 0.08);
-  --color-input:               rgba(242, 237, 227, 0.12);
+  --color-border:              rgba(242, 237, 227, 0.12);
+  --color-input:               rgba(242, 237, 227, 0.14);
   --color-ring:                #D4A15E;
 
   /* landing-specific */
