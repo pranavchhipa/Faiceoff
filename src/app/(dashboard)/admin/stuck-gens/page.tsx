@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// /admin/stuck-gens — Stuck generation fallback queue (E35)
+// /admin/stuck-gens — Stuck generation triage list
 //
-// Server component shell — StuckList handles all data loading and actions.
+// Server component shell — data loading + triage actions live in StuckList.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { StuckList } from "./stuck-list";
@@ -11,9 +11,5 @@ export const metadata = {
 };
 
 export default function AdminStuckGensPage() {
-  return (
-    <div>
-      <StuckList />
-    </div>
-  );
+  return <StuckList />;
 }

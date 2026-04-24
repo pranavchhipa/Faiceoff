@@ -1,11 +1,5 @@
 import {
   LayoutDashboard,
-  AlertTriangle,
-  ReceiptText,
-  RefreshCw,
-  Users,
-  ScrollText,
-  FileText,
   Package,
   ShieldAlert,
   Hourglass,
@@ -14,15 +8,16 @@ import type { NavItem } from "./nav-items.brand";
 
 export type { NavItem };
 
+/**
+ * Admin split-stage sidebar — grouped by workflow.
+ * Only 4 pages actually exist today; keep group headings so the
+ * chrome can accommodate future Triage / Manage / System additions.
+ */
 export const ADMIN_SIDE_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Packs", href: "/admin/packs", icon: Package },
-  { label: "Safety queue", href: "/admin/safety", icon: ShieldAlert },
-  { label: "Stuck gens", href: "/admin/stuck-gens", icon: Hourglass },
-  { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
-  { label: "Ledgers", href: "/admin/ledgers", icon: ReceiptText },
-  { label: "Reconcile", href: "/admin/reconcile", icon: RefreshCw },
-  { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Contracts", href: "/admin/contracts", icon: FileText },
-  { label: "Audit log", href: "/admin/audit-log", icon: ScrollText },
+  // Triage
+  { label: "Overview", href: "/admin", icon: LayoutDashboard, group: "Triage" },
+  { label: "Safety review", href: "/admin/safety", icon: ShieldAlert, group: "Triage" },
+  { label: "Stuck generations", href: "/admin/stuck-gens", icon: Hourglass, group: "Triage" },
+  // Manage
+  { label: "Credit packs", href: "/admin/packs", icon: Package, group: "Manage" },
 ];

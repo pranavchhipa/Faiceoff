@@ -1,20 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// /admin/safety — Hive safety review queue (E34)
+// /admin/safety — Hive safety review queue (Split Stage)
 //
-// Server component shell — initial queue fetch happens client-side (auto-refresh
-// every 30s). SafetyCards handles all data loading and action mutations.
+// Server component shell — the split-stage layout, polling, and action
+// mutations all live inside SafetyCards.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { SafetyCards } from "./safety-cards";
 
 export const metadata = {
-  title: "Safety review queue — Admin",
+  title: "Safety review — Admin",
 };
 
 export default function AdminSafetyPage() {
-  return (
-    <div>
-      <SafetyCards />
-    </div>
-  );
+  return <SafetyCards />;
 }

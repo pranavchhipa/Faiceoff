@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// /admin/packs — Credit pack catalog management (E33)
+// /admin/packs — Credit pack catalog management
 //
 // Server component: fetches all packs (including inactive) and passes to
-// client-side PacksTable for CRUD operations.
+// client-side PacksTable for CRUD. The layout (padding / max width) lives
+// inside the client component so we can keep the shell lean.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,6 +12,7 @@ import { PacksTable } from "./packs-table";
 
 async function getAllPacks(): Promise<CreditPack[]> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
     const { data, error } = await admin
       .from("credit_packs_catalog")
@@ -34,10 +36,5 @@ export const metadata = {
 
 export default async function AdminPacksPage() {
   const packs = await getAllPacks();
-
-  return (
-    <div className="max-w-6xl">
-      <PacksTable initialPacks={packs} />
-    </div>
-  );
+  return <PacksTable initialPacks={packs} />;
 }

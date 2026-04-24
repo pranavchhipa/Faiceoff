@@ -1,312 +1,186 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import {
-  LayoutDashboard,
-  Users,
-  Megaphone,
-  Wallet,
-  ClipboardCheck,
-  Settings,
-  Menu,
-  X,
-  LogOut,
-  IndianRupee,
-  ScanFace,
-  BarChart3,
-  Package,
-  Shield,
-  AlertTriangle,
-  Camera,
-  Inbox,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
+import { BrandIconRail } from "@/components/dashboard/brand-icon-rail";
+import { CreatorPillNav } from "@/components/dashboard/creator-pill-nav";
+import { AdminSectionSidebar } from "@/components/dashboard/admin-section-sidebar";
+import { TopBar } from "@/components/dashboard/top-bar";
+import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
+import { CommandPalette, useCommandPalette } from "@/components/dashboard/command-palette";
+import { MobileDrawerNav } from "@/components/dashboard/mobile-drawer-nav";
+import { Menu } from "lucide-react";
 
-interface NavLink {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
+/**
+ * DashboardLayout — the single entry point for all internal pages.
+ *
+ * Three chrome variants keyed off the DB-backed role:
+ *  - creator  → editorial: top pill nav, no sidebar
+ *  - brand    → linear-bento: 56px icon rail + top bar
+ *  - admin    → split-stage: 220px grouped sidebar + top bar
+ *
+ * Mobile collapses all three into a single top bar + bottom tab nav
+ * with a hamburger drawer for full nav access.
+ *
+ * The command palette (⌘K) is globally mounted for all roles.
+ */
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const { user, role } = useAuth();
+  const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-// Use direct /brand/* and /creator/* paths — NOT legacy /dashboard/*.
-// Each href below MUST point to a page file that actually exists under
-// `src/app/(dashboard)/{brand|creator}/...`. Routing through legacy was
-// the source of the 404s the user kept hitting.
-//
-// Pages that are role-aware (Settings, Approvals, Likeness, Analytics,
-// Collaborations) live under /dashboard/* and are mounted into role
-// folders via thin re-export wrappers (e.g. /creator/settings →
-// dashboard/settings/page). This keeps the sidebar URLs role-prefixed
-// while reusing one page implementation.
-const CREATOR_NAV: NavLink[] = [
-  { href: "/creator/dashboard",          label: "Dashboard",          icon: LayoutDashboard },
-  { href: "/creator/likeness",           label: "My Likeness",        icon: Camera },
-  { href: "/creator/approvals",          label: "Approvals",          icon: Inbox },
-  { href: "/creator/collaborations",     label: "Collaborations",     icon: Megaphone },
-  { href: "/creator/licenses",           label: "Licenses",           icon: ClipboardCheck },
-  { href: "/creator/earnings",           label: "Earnings",           icon: IndianRupee },
-  { href: "/creator/payouts",            label: "Payouts",            icon: Wallet },
-  { href: "/creator/withdraw",           label: "Withdraw",           icon: BarChart3 },
-  { href: "/creator/analytics",          label: "Analytics",          icon: TrendingUp },
-  { href: "/creator/blocked-categories", label: "Blocked categories", icon: ScanFace },
-  { href: "/creator/settings",           label: "Settings",           icon: Settings },
-];
-
-const BRAND_NAV: NavLink[] = [
-  { href: "/brand/dashboard", label: "Dashboard",         icon: LayoutDashboard },
-  { href: "/brand/discover",  label: "Discover Creators", icon: Users },
-  { href: "/brand/sessions",  label: "Sessions",          icon: Megaphone },
-  { href: "/brand/licenses",  label: "Licenses",          icon: ClipboardCheck },
-  { href: "/brand/vault",     label: "Vault",             icon: ScanFace },
-  { href: "/brand/wallet",    label: "Wallet",            icon: Wallet },
-  { href: "/brand/credits",   label: "Credits",           icon: IndianRupee },
-  { href: "/brand/billing",   label: "Billing",           icon: Package },
-  { href: "/brand/settings",  label: "Settings",          icon: Settings },
-];
-
-const ADMIN_NAV: NavLink[] = [
-  { href: "/admin",             label: "Overview",          icon: LayoutDashboard },
-  { href: "/admin/packs",       label: "Credit packs",      icon: Package },
-  { href: "/admin/safety",      label: "Safety review",     icon: Shield },
-  { href: "/admin/stuck-gens",  label: "Stuck generations", icon: AlertTriangle },
-];
-
-function isActive(pathname: string, href: string): boolean {
-  // Exact match for role-home paths so /brand/dashboard doesn't light up
-  // when you're at /brand/sessions, etc.
-  if (
-    href === "/dashboard" ||
-    href === "/admin" ||
-    href === "/brand/dashboard" ||
-    href === "/creator/dashboard"
-  ) {
-    return pathname === href;
-  }
-  return pathname.startsWith(href);
-}
-
-function SidebarContent({
-  pathname,
-  onLinkClick,
-}: {
-  pathname: string;
-  onLinkClick?: () => void;
-}) {
-  const { user, role: dbRole } = useAuth();
-  const router = useRouter();
   const displayName =
     user?.user_metadata?.display_name ??
     user?.email?.split("@")[0] ??
     "";
-  // Only trust the DB-backed role. Never fall back to session metadata — it
-  // can be stale and causes a creator→brand flash for brand accounts on
-  // session refresh. Until dbRole resolves, render the skeleton.
-  const role: "creator" | "brand" | "admin" | null = dbRole;
-  const roleResolved = role !== null;
-  const roleHomeHref =
-    role === "admin" ? "/admin" : "/dashboard";
-  const [confirmLogout, setConfirmLogout] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const email = user?.email ?? null;
+  const avatarUrl = (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url ?? null;
 
-  async function handleSignOut() {
-    setIsSigningOut(true);
-    await fetch("/api/auth/sign-out", { method: "POST" });
-    router.push("/");
-    router.refresh();
+  // While role resolves from DB, render a quiet skeleton so we don't
+  // flash the wrong chrome (e.g. creator editorial → brand bento swap).
+  if (!role) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--color-background)]">
+        <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
+          <span className="flex h-8 w-8 animate-spin items-center justify-center">
+            <span className="h-5 w-5 rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+          </span>
+          <span className="text-sm">Loading workspace…</span>
+        </div>
+      </div>
+    );
+  }
+
+  const hamburger = (
+    <button
+      type="button"
+      onClick={() => setDrawerOpen(true)}
+      aria-label="Open menu"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-foreground)] lg:hidden"
+    >
+      <Menu className="h-4 w-4" />
+    </button>
+  );
+
+  // Compose the top bar's left slot per role
+  let leftSlot: ReactNode = null;
+  if (role === "creator") {
+    // Desktop: pill nav. Mobile: hamburger + compact wordmark.
+    leftSlot = (
+      <>
+        {hamburger}
+        <div className="hidden lg:block">
+          <CreatorPillNav />
+        </div>
+        <span className="font-display text-base font-800 tracking-tight lg:hidden">
+          Faiceoff<span className="text-[var(--color-primary)]">.</span>
+        </span>
+      </>
+    );
+  } else if (role === "brand") {
+    // Desktop: hairline breadcrumb (BrandIconRail handles nav). Mobile: hamburger.
+    leftSlot = (
+      <>
+        {hamburger}
+        <BrandBreadcrumb />
+      </>
+    );
+  } else if (role === "admin") {
+    // Desktop: page title (sidebar handles nav). Mobile: hamburger.
+    leftSlot = (
+      <>
+        {hamburger}
+        <AdminPageTitle />
+      </>
+    );
   }
 
   return (
-    <div className="flex h-full flex-col bg-[var(--color-ink)]">
-      {/* Logo */}
-      <div className="flex h-20 shrink-0 items-center border-b border-white/10 px-5">
-        <Link href={roleHomeHref} onClick={onLinkClick} className="no-underline">
-          <Image src="/images/logo-dark.png" alt="Faiceoff" width={180} height={60} priority className="h-12 w-auto brightness-0 invert" />
-        </Link>
+    <div className="flex min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)]">
+      {/* Desktop role-specific sidebar/rail (hidden on mobile) */}
+      {role === "brand" && <BrandIconRail />}
+      {role === "admin" && <AdminSectionSidebar />}
+
+      {/* Main column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          role={role}
+          displayName={displayName}
+          email={email}
+          avatarUrl={avatarUrl}
+          onOpenCommandPalette={() => setPaletteOpen(true)}
+          leftSlot={leftSlot}
+        />
+
+        {/* Page content. Bottom padding leaves room for mobile bottom nav. */}
+        <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
+          {children}
+        </main>
       </div>
 
-      {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-5">
-        <p className="mb-2 px-3 text-[10px] font-700 uppercase tracking-widest text-white/30">
-          Navigation
-        </p>
-        {/* While we're still resolving the role, show a skeleton so we don't
-            render creator nav to a brand (or vice-versa) and then swap. */}
-        {!roleResolved ? (
-          <div className="flex flex-col gap-1 animate-pulse">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-10 rounded-xl bg-white/5"
-              />
-            ))}
-          </div>
-        ) : null}
-        {(!roleResolved
-          ? []
-          : role === "admin"
-          ? ADMIN_NAV
-          : role === "brand"
-          ? BRAND_NAV
-          : CREATOR_NAV
-        ).map((link) => {
-          const Icon = link.icon;
-          const active = isActive(pathname, link.href);
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onLinkClick}
-              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all no-underline ${
-                active
-                  ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 shadow-[0_4px_16px_rgba(106,28,246,0.3)]"
-                  : "font-600 text-[#ffffff] hover:bg-white/10"
-              }`}
-            >
-              <Icon className={`size-4 shrink-0 ${active ? "text-[#ffffff]" : "text-white/70 group-hover:text-[#ffffff]"}`} />
-              <span className="text-[#ffffff]">{link.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Mobile bottom tabs */}
+      <MobileBottomNav role={role} />
 
-      {/* Bottom: user + sign out */}
-      <div className="shrink-0 border-t border-white/10 p-3">
-        <AnimatePresence mode="wait">
-          {confirmLogout ? (
-            <motion.div
-              key="confirm"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.15 }}
-              className="rounded-xl bg-red-500/10 p-3"
-            >
-              <p className="mb-2.5 text-[12px] font-600 text-white/80 text-center">
-                Sign out?
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmLogout(false)}
-                  className="flex-1 rounded-lg py-1.5 text-xs font-600 text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  disabled={isSigningOut}
-                  className="flex-1 rounded-lg bg-red-500/30 py-1.5 text-xs font-600 text-red-300 transition-colors hover:bg-red-500/40 disabled:opacity-50"
-                >
-                  {isSigningOut ? "..." : "Sign out"}
-                </button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="user"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.15 }}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-            >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/20 text-xs font-700 uppercase text-[var(--color-primary-container)]">
-                {displayName ? displayName.charAt(0) : "·"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-600 text-white/90">
-                  {displayName || "…"}
-                </p>
-                <p className="text-[11px] capitalize text-white/30">
-                  {roleResolved ? role : "…"}
-                </p>
-              </div>
-              <button
-                onClick={() => setConfirmLogout(true)}
-                title="Sign out"
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-500/15 text-red-400 transition-colors hover:bg-red-500/25 hover:text-red-300"
-              >
-                <LogOut className="size-4.5" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Mobile drawer — full nav accessible via hamburger */}
+      <MobileDrawerNav
+        role={role}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
+
+      {/* Global ⌘K palette */}
+      <CommandPalette
+        role={role}
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+      />
     </div>
   );
 }
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+/* ───────── Left-slot helpers ───────── */
 
+function BrandBreadcrumb() {
+  // Simple static breadcrumb: just the current section label.
+  // Derive from pathname for now — swap for a real breadcrumb when
+  // nested routes warrant it.
   return (
-    <div className="flex min-h-screen bg-white">
-
-      {/* ── Desktop Sidebar ── */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-[var(--color-ink)] lg:flex">
-        <SidebarContent pathname={pathname} />
-      </aside>
-
-      {/* ── Mobile Overlay ── */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-[var(--color-ink)]/40"
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="relative flex h-full w-64 flex-col bg-[var(--color-ink)] shadow-[var(--shadow-elevated)]"
-            >
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="absolute right-3 top-4 flex size-8 items-center justify-center rounded-full text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-              >
-                <X className="size-4" />
-              </button>
-              <SidebarContent
-                pathname={pathname}
-                onLinkClick={() => setMobileOpen(false)}
-              />
-            </motion.aside>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Main content area ── */}
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Mobile topbar */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--color-neutral-200)] bg-[var(--color-background)] px-4 shadow-[var(--shadow-soft)] lg:hidden">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="flex size-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-100)]"
-          >
-            <Menu className="size-5" />
-          </button>
-          <Link href="/">
-            <Image src="/images/logo-dark.png" alt="Faiceoff" width={130} height={43} priority className="h-6 w-auto" />
-          </Link>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto bg-white p-5 lg:p-8">
-          {children}
-        </main>
-      </div>
-    </div>
+    <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
+      <PageTitle />
+    </span>
   );
+}
+
+function AdminPageTitle() {
+  return (
+    <span className="font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
+      <PageTitle />
+    </span>
+  );
+}
+
+function PageTitle() {
+  const path = usePathname();
+  const map: Record<string, string> = {
+    "/brand/dashboard": "Overview",
+    "/brand/discover": "Discover creators",
+    "/brand/sessions": "Sessions",
+    "/brand/vault": "Vault",
+    "/brand/licenses": "Licenses",
+    "/brand/credits": "Credits",
+    "/brand/wallet": "Wallet",
+    "/brand/billing": "Billing",
+    "/brand/settings": "Settings",
+    "/admin": "Triage overview",
+    "/admin/safety": "Safety review",
+    "/admin/stuck-gens": "Stuck generations",
+    "/admin/packs": "Credit packs",
+  };
+  // Longest-prefix match so nested routes inherit their parent label
+  const match = Object.keys(map)
+    .sort((a, b) => b.length - a.length)
+    .find((key) => path === key || path.startsWith(key + "/"));
+  return <>{match ? map[match] : "Workspace"}</>;
 }

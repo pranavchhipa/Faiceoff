@@ -1,27 +1,34 @@
 "use client";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// /admin/packs — Credit pack catalog management
+//
+// Table of all packs with inline toggles for active/popular, edit + soft-
+// delete dialogs, and an add/edit form. Uses the new Hybrid Soft Luxe v2
+// token system (foreground / muted-foreground / card / secondary / primary).
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus,
-  Pencil,
-  Trash2,
   CheckCircle2,
-  XCircle,
-  Star,
   Package,
+  Pencil,
+  Plus,
   RefreshCw,
+  Star,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import type { CreditPack, UpsertPackInput } from "@/lib/billing";
 
@@ -117,7 +124,7 @@ function PackFormFields({
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Code
           </label>
           <Input
@@ -125,25 +132,25 @@ function PackFormFields({
             onChange={(e) => onChange({ code: e.target.value })}
             placeholder="e.g. pro"
             disabled={isEditing}
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500 disabled:opacity-50 disabled:bg-[var(--color-surface-container-low)]"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500 disabled:bg-[var(--color-secondary)] disabled:opacity-60"
           />
         </div>
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Display name
           </label>
           <Input
             value={form.display_name}
             onChange={(e) => onChange({ display_name: e.target.value })}
             placeholder="e.g. Pro Pack"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Credits
           </label>
           <Input
@@ -152,11 +159,11 @@ function PackFormFields({
             value={form.credits}
             onChange={(e) => onChange({ credits: e.target.value })}
             placeholder="100"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Bonus credits
           </label>
           <Input
@@ -165,11 +172,11 @@ function PackFormFields({
             value={form.bonus_credits}
             onChange={(e) => onChange({ bonus_credits: e.target.value })}
             placeholder="0"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Price (₹)
           </label>
           <Input
@@ -179,14 +186,14 @@ function PackFormFields({
             value={form.price_rupees}
             onChange={(e) => onChange({ price_rupees: e.target.value })}
             placeholder="999"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Sort order
           </label>
           <Input
@@ -195,42 +202,42 @@ function PackFormFields({
             value={form.sort_order}
             onChange={(e) => onChange({ sort_order: e.target.value })}
             placeholder="10"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-600 text-[var(--color-on-surface)] mb-1.5">
+          <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Marketing tagline
           </label>
           <Input
             value={form.marketing_tagline}
             onChange={(e) => onChange({ marketing_tagline: e.target.value })}
             placeholder="e.g. Most popular"
-            className="rounded-xl border-[var(--color-outline-variant)]/20 text-sm font-500"
+            className="rounded-xl border-[var(--color-border)] text-sm font-500"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-6 pt-1">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex cursor-pointer select-none items-center gap-2">
           <input
             type="checkbox"
             checked={form.is_popular}
             onChange={(e) => onChange({ is_popular: e.target.checked })}
-            className="size-4 rounded accent-[var(--color-accent-gold)]"
+            className="size-4 rounded accent-[var(--color-primary)]"
           />
-          <span className="text-sm font-600 text-[var(--color-on-surface)]">
+          <span className="text-sm font-600 text-[var(--color-foreground)]">
             Mark as popular
           </span>
         </label>
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex cursor-pointer select-none items-center gap-2">
           <input
             type="checkbox"
             checked={form.is_active}
             onChange={(e) => onChange({ is_active: e.target.checked })}
-            className="size-4 rounded accent-[var(--color-primary)]"
+            className="size-4 rounded accent-emerald-500"
           />
-          <span className="text-sm font-600 text-[var(--color-on-surface)]">
+          <span className="text-sm font-600 text-[var(--color-foreground)]">
             Active
           </span>
         </label>
@@ -285,9 +292,18 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
   /* ── Submit add/edit ── */
   function handleSubmit() {
     const input = formToInput(form);
-    if (!input.code) { toast.error("Code is required"); return; }
-    if (!input.display_name) { toast.error("Display name is required"); return; }
-    if (input.credits < 0) { toast.error("Credits must be >= 0"); return; }
+    if (!input.code) {
+      toast.error("Code is required");
+      return;
+    }
+    if (!input.display_name) {
+      toast.error("Display name is required");
+      return;
+    }
+    if (input.credits < 0) {
+      toast.error("Credits must be >= 0");
+      return;
+    }
 
     startFormTransition(async () => {
       const isEdit = Boolean(editingPack);
@@ -307,7 +323,9 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
         setModalOpen(false);
         reloadPacks();
       } else {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
         toast.error(data.error ?? "Failed to save pack");
       }
     });
@@ -324,8 +342,8 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
       if (res.ok) {
         setPacks((prev) =>
           prev.map((p) =>
-            p.code === pack.code ? { ...p, [field]: !pack[field] } : p
-          )
+            p.code === pack.code ? { ...p, [field]: !pack[field] } : p,
+          ),
         );
         toast.success(`${field === "is_active" ? "Active" : "Popular"} toggled`);
       } else {
@@ -351,54 +369,74 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
     });
   }
 
+  const activeCount = packs.filter((p) => p.is_active).length;
+
   return (
-    <>
-      {/* ── Header row ── */}
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+      {/* ═══════════ Header ═══════════ */}
+      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-800 tracking-tight text-[var(--color-on-surface)]">
-            Credit pack catalog
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+            <Package className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
+            Pricing ops · brand top-ups · catalog
+          </p>
+          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+            Credit packs
           </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-outline-variant)]">
-            {packs.length} packs — including inactive
+          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+            <span className="font-600 text-[var(--color-foreground)]">
+              {packs.length}
+            </span>{" "}
+            in catalog · {activeCount} active · changes go live the moment you save.
           </p>
         </div>
+
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <button
             onClick={reloadPacks}
             disabled={isPending}
-            className="rounded-xl text-[var(--color-outline-variant)] hover:text-[var(--color-on-surface)]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)] disabled:opacity-60"
           >
-            <RefreshCw className={`size-4 ${isPending ? "animate-spin" : ""}`} />
-          </Button>
-          <Button
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </button>
+          <button
             onClick={openAdd}
-            className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-sm transition-transform hover:-translate-y-0.5"
           >
-            <Plus className="size-4" />
-            Add new pack
-          </Button>
+            <Plus className="h-3.5 w-3.5" />
+            New pack
+          </button>
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <div className="rounded-2xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-lowest)] overflow-hidden shadow-sm">
+      {/* ═══════════ Table ═══════════ */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-low)]">
-                {["Sort", "Code", "Name", "Credits", "Bonus", "Price (₹)", "Per credit", "Active", "Popular", ""].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      className="px-4 py-3 text-left text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] whitespace-nowrap"
-                    >
-                      {col}
-                    </th>
-                  )
-                )}
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-secondary)]/60">
+                {[
+                  "Sort",
+                  "Code",
+                  "Name",
+                  "Credits",
+                  "Bonus",
+                  "Price",
+                  "Per credit",
+                  "Active",
+                  "Popular",
+                  "",
+                ].map((col) => (
+                  <th
+                    key={col}
+                    className="whitespace-nowrap px-4 py-3 text-left font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]"
+                  >
+                    {col}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -410,38 +448,38 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.2, delay: i * 0.03 }}
-                    className={`border-b border-[var(--color-outline-variant)]/10 transition-colors hover:bg-[var(--color-surface-container-low)]/50 ${
-                      !pack.is_active ? "opacity-50" : ""
+                    className={`border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-secondary)]/60 ${
+                      !pack.is_active ? "opacity-55" : ""
                     }`}
                   >
-                    <td className="px-4 py-3 text-[var(--color-outline-variant)] font-500">
+                    <td className="px-4 py-3 font-mono text-[12px] font-600 text-[var(--color-muted-foreground)]">
                       {pack.sort_order}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-700 text-[var(--color-on-surface)] bg-[var(--color-surface-container-low)] px-2 py-0.5 rounded-md">
+                      <span className="rounded-md bg-[var(--color-secondary)] px-2 py-0.5 font-mono text-xs font-700 text-[var(--color-foreground)]">
                         {pack.code}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-600 text-[var(--color-on-surface)]">
+                      <p className="font-600 text-[var(--color-foreground)]">
                         {pack.display_name}
                       </p>
                       {pack.marketing_tagline && (
-                        <p className="text-xs text-[var(--color-outline-variant)] truncate max-w-[140px]">
+                        <p className="max-w-[200px] truncate text-xs text-[var(--color-muted-foreground)]">
                           {pack.marketing_tagline}
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-700 text-[var(--color-on-surface)]">
+                    <td className="px-4 py-3 font-700 text-[var(--color-foreground)]">
                       {pack.credits.toLocaleString("en-IN")}
                     </td>
-                    <td className="px-4 py-3 text-[var(--color-outline-variant)] font-500">
+                    <td className="px-4 py-3 font-500 text-[var(--color-muted-foreground)]">
                       {pack.bonus_credits > 0 ? `+${pack.bonus_credits}` : "—"}
                     </td>
-                    <td className="px-4 py-3 font-700 text-[var(--color-on-surface)]">
+                    <td className="px-4 py-3 font-700 text-[var(--color-primary)]">
                       {formatINR(pack.price_paise)}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[var(--color-outline-variant)] font-500">
+                    <td className="px-4 py-3 font-mono text-xs font-500 text-[var(--color-muted-foreground)]">
                       {perCreditPrice(pack.price_paise, pack.credits)}
                     </td>
                     <td className="px-4 py-3">
@@ -452,9 +490,9 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
                         title={pack.is_active ? "Deactivate" : "Activate"}
                       >
                         {pack.is_active ? (
-                          <CheckCircle2 className="size-4 text-green-500" />
+                          <CheckCircle2 className="size-4 text-emerald-500 dark:text-emerald-300" />
                         ) : (
-                          <XCircle className="size-4 text-[var(--color-outline-variant)]" />
+                          <XCircle className="size-4 text-[var(--color-muted-foreground)]" />
                         )}
                       </button>
                     </td>
@@ -468,32 +506,28 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
                         <Star
                           className={`size-4 ${
                             pack.is_popular
-                              ? "fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]"
-                              : "text-[var(--color-outline-variant)]"
+                              ? "fill-[var(--color-primary)] text-[var(--color-primary)]"
+                              : "text-[var(--color-muted-foreground)]"
                           }`}
                         />
                       </button>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
+                        <button
                           onClick={() => openEdit(pack)}
-                          className="rounded-lg text-[var(--color-outline-variant)] hover:text-[var(--color-on-surface)] hover:bg-[var(--color-surface-container)]"
                           title="Edit pack"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)]"
                         >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
                           onClick={() => setDeleteTarget(pack)}
-                          className="rounded-lg text-[var(--color-outline-variant)] hover:text-red-500 hover:bg-red-50"
                           title="Deactivate pack"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] transition-colors hover:bg-rose-500/10 hover:text-rose-500 dark:hover:text-rose-300"
                         >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>
@@ -501,11 +535,17 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
               </AnimatePresence>
               {packs.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center">
+                  <td colSpan={10} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <Package className="size-8 text-[var(--color-outline-variant)]" />
-                      <p className="text-sm text-[var(--color-outline-variant)]">
-                        No packs yet. Add one above.
+                      <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-secondary)]">
+                        <Package className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                      </div>
+                      <p className="text-sm text-[var(--color-muted-foreground)]">
+                        No packs yet. Click{" "}
+                        <span className="font-700 text-[var(--color-foreground)]">
+                          New pack
+                        </span>{" "}
+                        to add one.
                       </p>
                     </div>
                   </td>
@@ -516,14 +556,16 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
         </div>
       </div>
 
-      {/* ── Add / Edit modal ── */}
+      {/* ═══════════ Add / Edit modal ═══════════ */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-xl rounded-2xl border-[var(--color-outline-variant)]/15">
+        <DialogContent className="rounded-2xl border-[var(--color-border)] sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-700 text-[var(--color-on-surface)]">
-              {editingPack ? `Edit pack — ${editingPack.code}` : "Add new pack"}
+            <DialogTitle className="font-display text-lg font-800 tracking-tight text-[var(--color-foreground)]">
+              {editingPack
+                ? `Edit pack · ${editingPack.code}`
+                : "Add new pack"}
             </DialogTitle>
-            <DialogDescription className="text-sm text-[var(--color-outline-variant)]">
+            <DialogDescription className="text-sm text-[var(--color-muted-foreground)]">
               {editingPack
                 ? "Update this credit pack. Code cannot be changed."
                 : "Create a new credit pack. Code must be unique."}
@@ -537,71 +579,69 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
           />
 
           <DialogFooter>
-            <Button
-              variant="ghost"
+            <button
               onClick={() => setModalOpen(false)}
               disabled={formPending}
-              className="rounded-xl text-[var(--color-outline-variant)]"
+              className="inline-flex items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[13px] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-60"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleSubmit}
               disabled={formPending}
-              className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] font-600 text-white hover:opacity-90"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-sm hover:-translate-y-0.5 disabled:opacity-60"
             >
-              {formPending ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white inline-block" />
-              ) : null}
+              {formPending && (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              )}
               {editingPack ? "Save changes" : "Create pack"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete confirm modal ── */}
+      {/* ═══════════ Delete confirm modal ═══════════ */}
       <Dialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
       >
-        <DialogContent className="sm:max-w-sm rounded-2xl border-[var(--color-outline-variant)]/15">
+        <DialogContent className="rounded-2xl border-[var(--color-border)] sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-lg font-700 text-[var(--color-on-surface)]">
+            <DialogTitle className="font-display text-lg font-800 tracking-tight text-[var(--color-foreground)]">
               Deactivate pack?
             </DialogTitle>
-            <DialogDescription className="text-sm text-[var(--color-outline-variant)]">
+            <DialogDescription className="text-sm text-[var(--color-muted-foreground)]">
               Pack{" "}
-              <span className="font-mono font-700 text-[var(--color-on-surface)]">
+              <span className="font-mono font-700 text-[var(--color-foreground)]">
                 {deleteTarget?.code}
               </span>{" "}
-              will be set to inactive. Brands won&apos;t be able to purchase it. Existing
-              purchases are unaffected.
+              will be set to inactive. Brands won&apos;t be able to purchase it.
+              Existing purchases are unaffected.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="ghost"
+            <button
               onClick={() => setDeleteTarget(null)}
               disabled={deletePending}
-              className="rounded-xl text-[var(--color-outline-variant)]"
+              className="inline-flex items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[13px] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-60"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleDelete}
               disabled={deletePending}
-              className="rounded-xl bg-red-500 text-white hover:bg-red-600 font-600"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-500 px-4 py-2 text-[13px] font-700 text-white hover:bg-rose-600 disabled:opacity-60"
             >
               {deletePending ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white inline-block" />
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
               ) : (
-                <Trash2 className="size-4" />
+                <Trash2 className="h-4 w-4" />
               )}
               Deactivate
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

@@ -1,14 +1,29 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 
 /**
- * ThemeProvider — Hybrid Soft Luxe v2 (light only).
+ * ThemeProvider — Faiceoff dashboard theme switcher.
  *
- * Currently a pass-through wrapper. When dark mode or theme
- * switching is needed later, this provider will manage that state.
- * All design tokens live in globals.css via CSS custom properties.
+ * - Uses `next-themes` with `class` attribute on <html>.
+ * - Default: "light" (Hybrid Soft Luxe, paper/cream surface).
+ * - Dark: dashboard dark (cool slate — distinct from the landing
+ *   page's warm "Studio Black" which is scoped via `.landing-scope`
+ *   and overrides tokens regardless of the `.dark` class).
+ * - Only the internal (dashboard) pages render a toggle UI. Landing
+ *   stays dark always because its CSS scope wins over `.dark`.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      storageKey="faiceoff-theme"
+      disableTransitionOnChange
+    >
+      {children}
+    </NextThemesProvider>
+  );
 }
