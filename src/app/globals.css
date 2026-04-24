@@ -289,6 +289,7 @@ pre code {
 .landing-scope {
   --color-primary: oklch(0.74 0.085 80);
   --color-primary-foreground: oklch(0.18 0.008 40);
+  --primary-foreground: 18 18% 9%;   /* shadcn HSL fallback — keeps text dark on gradient buttons */
   --color-accent: oklch(0.74 0.085 80);
   --color-accent-foreground: oklch(0.18 0.008 40);
   --color-background: oklch(0.987 0.006 80);   /* warm cream */

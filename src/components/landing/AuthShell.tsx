@@ -3,6 +3,12 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+const SIDE_PHOTOS: Record<"creator" | "brand" | "success", { src: string; label: string }> = {
+  creator: { src: "/landing/creator-face.jpg", label: "Priya · Mumbai" },
+  brand:   { src: "/landing/creator-2.jpg",    label: "Arjun · Bengaluru" },
+  success: { src: "/landing/creator-3.jpg",    label: "Meera · Delhi" },
+};
+
 export function AuthShell({
   eyebrow,
   title,
@@ -22,6 +28,8 @@ export function AuthShell({
       : side?.tint === "brand"
         ? "bg-tint-brand"
         : "bg-tint-success";
+
+  const photo = side ? SIDE_PHOTOS[side.tint] : null;
 
   return (
     <div className="landing-scope relative min-h-screen bg-background overflow-hidden">
@@ -72,35 +80,89 @@ export function AuthShell({
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] as const }}
-              className={`relative hidden lg:flex flex-col justify-between rounded-3xl border border-border ${tintBg} p-10 overflow-hidden`}
+              className={`relative hidden lg:flex flex-col justify-between rounded-3xl border border-border ${tintBg} p-10 overflow-hidden min-h-[560px]`}
             >
+              {/* Subtle watermark */}
               <motion.img
                 src="/landing/logo-mark.png"
                 alt=""
                 aria-hidden
-                className="absolute -right-16 -bottom-16 h-[420px] w-auto opacity-40"
+                className="absolute -right-20 -bottom-20 h-[320px] w-auto opacity-15 pointer-events-none"
                 initial={{ rotate: -8, scale: 0.95 }}
                 animate={{ rotate: [-8, -4, -8], scale: [0.95, 1, 0.95] }}
                 transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
               />
+
+              {/* Top text */}
               <div className="relative">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-foreground/15 bg-background/50 backdrop-blur text-xs font-medium">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                   Faiceoff · Made in India
                 </div>
-                <h2 className="mt-8 font-display text-3xl xl:text-4xl font-bold leading-tight text-foreground max-w-sm">
+                <h2 className="mt-6 font-display text-2xl xl:text-3xl font-bold leading-tight text-foreground max-w-xs">
                   {side.heading}
                 </h2>
-                <p className="mt-4 text-foreground/70 max-w-sm leading-relaxed">{side.body}</p>
+                <p className="mt-3 text-sm text-foreground/70 max-w-xs leading-relaxed">{side.body}</p>
               </div>
-              <div className="relative grid grid-cols-3 gap-3">
+
+              {/* Creator photo */}
+              {photo && (
+                <div className="relative flex items-center justify-center py-4 flex-1">
+                  <div className="relative">
+                    {/* Photo card */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.88, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ duration: 0.85, delay: 0.35, ease: [0.22, 1, 0.36, 1] as const }}
+                      className="relative w-44 xl:w-52 rounded-2xl overflow-hidden border-2 border-white/25 shadow-card-landing"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.src}
+                        alt=""
+                        aria-hidden
+                        loading="eager"
+                        className="w-full aspect-[3/4] object-cover object-top"
+                      />
+                      {/* Name overlay */}
+                      <div className="absolute inset-x-0 bottom-0 px-3 py-3 bg-gradient-to-t from-black/60 via-black/20 to-transparent">
+                        <span className="text-[10px] font-mono text-white/95 tracking-wide">{photo.label}</span>
+                      </div>
+                    </motion.div>
+
+                    {/* Floating earnings badge */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ delay: 0.7, type: "spring", stiffness: 260, damping: 20 }}
+                      className="absolute -right-11 top-8 px-3 py-2 rounded-xl bg-card border border-border shadow-card flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                      <span className="text-xs font-mono font-semibold">+₹2,500</span>
+                    </motion.div>
+
+                    {/* Floating verified badge */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8, x: -10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ delay: 0.85, type: "spring", stiffness: 260, damping: 20 }}
+                      className="absolute -left-12 bottom-10 px-2.5 py-1.5 rounded-lg bg-background/90 backdrop-blur border border-border text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      <span className="text-green-600">✓</span> KYC Verified
+                    </motion.div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom trust badges */}
+              <div className="relative grid grid-cols-3 gap-2">
                 {["Consent first", "INR payouts", "DPDP compliant"].map((t, i) => (
                   <motion.div
                     key={t}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + i * 0.1 }}
-                    className="px-3 py-2 rounded-xl bg-background/70 backdrop-blur border border-border text-[11px] font-medium text-foreground/80 text-center"
+                    transition={{ delay: 0.5 + i * 0.1 }}
+                    className="px-2 py-2 rounded-xl bg-background/70 backdrop-blur border border-border text-[10px] font-medium text-foreground/80 text-center leading-tight"
                   >
                     {t}
                   </motion.div>
