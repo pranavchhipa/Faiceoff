@@ -11,11 +11,17 @@ const requests = [
   { id: "minimalist",  brand: "The Minimalist",    category: "Skincare",   color: "from-amber-400 to-orange-500",emoji: "🧴", img: PRIYA_COMPOSITES.skincare, payout: 1800 },
 ] as const;
 
+// Priya's already-earned balance (kept consistent with the ₹42,500/month
+// caption in the landing page's CreatorInbox card). Approvals in the demo
+// stack on top of this so the wallet feels alive, not empty.
+const STARTING_BALANCE = 42500;
+
 export function CreatorDemo() {
   const [visible, setVisible] = useState<string[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [earnings, setEarnings] = useState(0);
   const [approved, setApproved] = useState<string[]>([]);
+  const walletTotal = STARTING_BALANCE + earnings;
 
   useEffect(() => {
     requests.forEach((r, i) => {
@@ -58,18 +64,32 @@ export function CreatorDemo() {
             key={earnings}
             transition={{ duration: 0.4 }}
           >
-            <div className="text-xs font-medium opacity-80">Wallet balance</div>
-            <div className="font-display text-3xl font-bold flex items-center gap-1">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-medium opacity-80">Wallet balance</div>
+              {earnings > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[10px] font-mono font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-primary-foreground/15"
+                >
+                  +₹{earnings.toLocaleString("en-IN")}
+                </motion.div>
+              )}
+            </div>
+            <div className="font-display text-3xl font-bold flex items-center gap-0.5 mt-1">
               <IndianRupee size={24} strokeWidth={2.5} />
               <motion.span
-                key={earnings}
+                key={walletTotal}
                 initial={{ y: -10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
               >
-                {earnings.toLocaleString("en-IN")}
+                {walletTotal.toLocaleString("en-IN")}
               </motion.span>
             </div>
-            <div className="text-xs opacity-80 mt-1">Withdraw to bank anytime</div>
+            <div className="mt-2 flex items-center justify-between text-[11px] opacity-80">
+              <span>Withdraw to bank anytime</span>
+              <span className="font-mono">+₹12,400 this week</span>
+            </div>
           </motion.div>
         </div>
 
@@ -122,7 +142,12 @@ export function CreatorDemo() {
                 className="p-6 rounded-2xl border border-success/40 bg-tint-success text-center text-foreground"
               >
                 <div className="text-3xl mb-2">🎉</div>
-                <div className="font-semibold">All done. ₹{earnings.toLocaleString("en-IN")} added to wallet.</div>
+                <div className="font-semibold">
+                  +₹{earnings.toLocaleString("en-IN")} added · wallet at ₹{walletTotal.toLocaleString("en-IN")}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Tap withdraw anytime. UPI lands in 30 seconds.
+                </div>
               </motion.div>
             )}
           </div>
