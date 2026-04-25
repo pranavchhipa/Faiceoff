@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -153,7 +153,15 @@ export default function BrandDashboardPage() {
   const lastAddedIso =
     vaultItems[0]?.delivered_at ?? vaultItems[0]?.created_at ?? null;
 
-  const greeting = useMemo(() => greetingByHour(new Date()), []);
+  // Greeting computed in an effect (NOT in render) to avoid SSR/CSR
+  // hydration mismatch — server timezone != client timezone, so a
+  // useMemo here would fire React error #418/#425 in production and
+  // surface as "Something went wrong" via error.tsx.
+  const [greeting, setGreeting] = useState("Welcome back");
+  useEffect(() => {
+    setGreeting(greetingByHour(new Date()));
+  }, []);
+
   const companyName = profile?.company_name ?? displayName;
 
   if (loading) return <BrandDashboardSkeleton />;

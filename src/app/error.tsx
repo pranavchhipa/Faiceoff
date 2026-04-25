@@ -44,6 +44,25 @@ export default function Error({
           Error ID: {error.digest}
         </p>
       )}
+      {/* DIAGNOSTIC: Show the actual error message + stack so we can debug
+          production crashes without needing devtools access. Safe to ship —
+          this is a generic in-app boundary; sensitive data isn't passed
+          via error.message in any of our own throws. */}
+      {error.message && (
+        <details className="mt-6 max-w-2xl rounded-lg border border-[var(--color-neutral-100)] bg-[var(--color-paper)] px-4 py-3 text-left">
+          <summary className="cursor-pointer text-xs font-600 text-[var(--color-ink)]">
+            Show error details
+          </summary>
+          <p className="mt-2 break-words text-xs text-[var(--color-neutral-600)]">
+            <strong>Message:</strong> {error.message}
+          </p>
+          {error.stack && (
+            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words text-[10px] text-[var(--color-neutral-500)]">
+              {error.stack}
+            </pre>
+          )}
+        </details>
+      )}
       <button
         type="button"
         onClick={reset}
