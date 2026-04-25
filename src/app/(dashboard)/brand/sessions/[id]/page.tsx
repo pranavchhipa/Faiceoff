@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import SessionPoller from "./session-poller";
 
 /* ── Types ── */
@@ -53,15 +55,24 @@ export default async function BrandSessionPage({ params }: PageProps) {
   const initialStatus = await fetchGeneration(id);
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8 text-center">
-        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-foreground)]">
-          Your generation
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)] font-mono">
-          {id.slice(0, 8)}…
-        </p>
+    <div className="w-full max-w-6xl">
+      {/* Compact header — left-aligned, breadcrumb style */}
+      <div className="mb-5 flex items-center gap-3 sm:mb-6">
+        <Link
+          href="/brand/sessions"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+          aria-label="Back to sessions"
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-700 leading-tight tracking-tight text-[var(--color-foreground)] sm:text-xl">
+            Generation session
+          </h1>
+          <p className="truncate font-mono text-[11px] text-[var(--color-muted-foreground)] sm:text-xs">
+            {id}
+          </p>
+        </div>
       </div>
 
       {/* Client poller */}
@@ -72,10 +83,7 @@ export default async function BrandSessionPage({ params }: PageProps) {
           </div>
         }
       >
-        <SessionPoller
-          generationId={id}
-          initialStatus={initialStatus}
-        />
+        <SessionPoller generationId={id} initialStatus={initialStatus} />
       </Suspense>
     </div>
   );
