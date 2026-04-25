@@ -80,7 +80,7 @@ function getStatusConfig(status: string): StatusConfig {
       return {
         label: "Checking compliance...",
         bg: "bg-[var(--color-lilac)]",
-        textColor: "text-[var(--color-ink)]",
+        textColor: "text-[var(--color-foreground)]",
         icon: Shield,
         pulsing: true,
         terminal: false,
@@ -92,7 +92,7 @@ function getStatusConfig(status: string): StatusConfig {
         label: "Generating image...",
         sublabel: "Typically takes 30–90 seconds",
         bg: "bg-[var(--color-lilac)]",
-        textColor: "text-[var(--color-ink)]",
+        textColor: "text-[var(--color-foreground)]",
         icon: Loader2,
         pulsing: true,
         terminal: false,
@@ -102,7 +102,7 @@ function getStatusConfig(status: string): StatusConfig {
       return {
         label: "Safety review...",
         bg: "bg-[var(--color-lilac)]",
-        textColor: "text-[var(--color-ink)]",
+        textColor: "text-[var(--color-foreground)]",
         icon: Shield,
         pulsing: true,
         terminal: false,
@@ -112,7 +112,7 @@ function getStatusConfig(status: string): StatusConfig {
       return {
         label: "Waiting for creator approval",
         bg: "bg-[var(--color-mint)]",
-        textColor: "text-[var(--color-ink)]",
+        textColor: "text-[var(--color-foreground)]",
         icon: Clock,
         pulsing: true,
         terminal: false,
@@ -120,7 +120,7 @@ function getStatusConfig(status: string): StatusConfig {
     case "approved":
       return {
         label: "Approved!",
-        bg: "bg-[var(--color-accent-gold)]",
+        bg: "bg-[var(--color-primary)]",
         textColor: "text-white",
         icon: CheckCircle2,
         pulsing: false,
@@ -148,7 +148,7 @@ function getStatusConfig(status: string): StatusConfig {
       return {
         label: "Processing...",
         bg: "bg-[var(--color-ocean)]",
-        textColor: "text-[var(--color-ink)]",
+        textColor: "text-[var(--color-foreground)]",
         icon: Loader2,
         pulsing: true,
         terminal: false,
@@ -178,7 +178,7 @@ function ApprovalCountdown({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt]);
 
   return (
-    <span className="text-sm font-600 text-[var(--color-neutral-500)]">{remaining}</span>
+    <span className="text-sm font-600 text-[var(--color-muted-foreground)]">{remaining}</span>
   );
 }
 
@@ -199,8 +199,8 @@ function ProgressBar({ currentStage }: { currentStage: number }) {
               <motion.div
                 className={`relative flex size-3.5 items-center justify-center rounded-full ${
                   past || active
-                    ? "bg-[var(--color-accent-gold)]"
-                    : "bg-[var(--color-neutral-200)]"
+                    ? "bg-[var(--color-primary)]"
+                    : "bg-[var(--color-border)]"
                 }`}
                 animate={active ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                 transition={
@@ -211,7 +211,7 @@ function ProgressBar({ currentStage }: { currentStage: number }) {
               >
                 {active && (
                   <motion.div
-                    className="absolute inset-0 rounded-full bg-[var(--color-accent-gold)]/40"
+                    className="absolute inset-0 rounded-full bg-[var(--color-primary)]/40"
                     animate={{ scale: [1, 2], opacity: [0.5, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
                   />
@@ -221,7 +221,7 @@ function ProgressBar({ currentStage }: { currentStage: number }) {
                 className={`text-[10px] font-600 whitespace-nowrap ${
                   future
                     ? "text-[var(--color-neutral-300)]"
-                    : "text-[var(--color-ink)]"
+                    : "text-[var(--color-foreground)]"
                 }`}
               >
                 {stage.label}
@@ -230,9 +230,9 @@ function ProgressBar({ currentStage }: { currentStage: number }) {
 
             {/* Connector line */}
             {i < STAGES.length - 1 && (
-              <div className="h-0.5 flex-1 mx-1 overflow-hidden rounded-full bg-[var(--color-neutral-200)]">
+              <div className="h-0.5 flex-1 mx-1 overflow-hidden rounded-full bg-[var(--color-border)]">
                 <motion.div
-                  className="h-full bg-[var(--color-accent-gold)] origin-left"
+                  className="h-full bg-[var(--color-primary)] origin-left"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: past ? 1 : active ? 0.5 : 0 }}
                   transition={{ duration: 0.6, ease: "easeOut" }}
@@ -379,7 +379,7 @@ export default function SessionPoller({
                 </div>
               )}
               <Link href="/brand/vault">
-                <Button className="rounded-[var(--radius-button)] bg-white text-[var(--color-accent-gold)] font-700 hover:bg-white/90 shadow-sm">
+                <Button className="rounded-[var(--radius-button)] bg-white text-[var(--color-primary)] font-700 hover:bg-white/90 shadow-sm">
                   View in vault
                   <ArrowRight className="size-4" />
                 </Button>
@@ -397,7 +397,7 @@ export default function SessionPoller({
       </motion.div>
 
       {/* Progress bar */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)] mb-6">
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-soft)] mb-6">
         <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-4">
           Pipeline stages
         </p>
@@ -410,7 +410,7 @@ export default function SessionPoller({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.15 }}
-          className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]"
+          className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-soft)]"
         >
           <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-3">
             Your brief
@@ -420,31 +420,31 @@ export default function SessionPoller({
             {brief.product_name && (
               <div>
                 <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Product</p>
-                <p className="font-600 text-[var(--color-ink)]">{brief.product_name}</p>
+                <p className="font-600 text-[var(--color-foreground)]">{brief.product_name}</p>
               </div>
             )}
             {brief.scene && (
               <div>
                 <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Scene</p>
-                <p className="text-[var(--color-ink)]">{brief.scene}</p>
+                <p className="text-[var(--color-foreground)]">{brief.scene}</p>
               </div>
             )}
             {brief.mood && (
               <div>
                 <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Mood</p>
-                <p className="text-[var(--color-ink)]">{brief.mood}</p>
+                <p className="text-[var(--color-foreground)]">{brief.mood}</p>
               </div>
             )}
             {brief.scope && (
               <div>
                 <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Scope</p>
-                <p className="text-[var(--color-ink)]">{brief.scope}</p>
+                <p className="text-[var(--color-foreground)]">{brief.scope}</p>
               </div>
             )}
           </div>
 
           {gen?.assembled_prompt && (
-            <div className="mt-4 pt-3 border-t border-[var(--color-neutral-200)]">
+            <div className="mt-4 pt-3 border-t border-[var(--color-border)]">
               <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-1.5">Assembled prompt</p>
               <p className="text-xs text-[var(--color-neutral-600)] leading-relaxed line-clamp-3">
                 {gen.assembled_prompt}
@@ -473,7 +473,7 @@ export default function SessionPoller({
 
       {/* No image placeholder when not yet generated */}
       {!gen?.image_url && status !== "approved" && (
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] py-10">
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] bg-[var(--color-neutral-50)] py-10">
           <ImageIcon className="size-8 text-[var(--color-neutral-300)]" />
           <p className="text-sm text-[var(--color-neutral-400)] font-500">
             Image will appear here once generated

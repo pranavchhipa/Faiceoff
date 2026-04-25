@@ -56,10 +56,10 @@ export default async function BrandSessionPage({ params }: PageProps) {
     <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-6 sm:mb-8 text-center">
-        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-foreground)]">
           Your generation
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-neutral-500)] font-mono">
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)] font-mono">
           {id.slice(0, 8)}…
         </p>
       </div>
@@ -68,7 +68,7 @@ export default async function BrandSessionPage({ params }: PageProps) {
       <Suspense
         fallback={
           <div className="flex items-center justify-center py-24">
-            <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-200)] border-t-[var(--color-accent-gold)]" />
+            <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
           </div>
         }
       >

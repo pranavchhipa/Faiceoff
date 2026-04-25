@@ -283,9 +283,23 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         const body = await res.text();
         throw new Error(`Campaign create failed (${res.status}): ${body}`);
       }
-      const { campaign_id } = (await res.json()) as { campaign_id: string };
+      const { campaign_id, generation_ids } = (await res.json()) as {
+        campaign_id: string;
+        generation_ids: string[];
+      };
       clearDraft();
-      router.push(`/dashboard/campaigns/${campaign_id}`);
+      // Redirect to the first generation's status page so the user sees
+      // the live polling UI immediately. (Multi-image campaigns will get
+      // a proper session list view later — for v1 each brief usually
+      // creates one generation.)
+      const firstGenId = generation_ids?.[0];
+      if (firstGenId) {
+        router.push(`/brand/sessions/${firstGenId}`);
+      } else {
+        router.push(`/brand/sessions`);
+      }
+      // Suppress unused-var lint — campaign_id stays for future routing.
+      void campaign_id;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create campaign");
     } finally {
