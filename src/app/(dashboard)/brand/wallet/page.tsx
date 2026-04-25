@@ -58,13 +58,14 @@ async function WalletPageInner() {
         .maybeSingle();
 
       if (brand?.id) {
-        // Query v_brand_billing view for balances
+        // Query v_brand_billing view for balances. View exposes brand id
+        // as `brand_id`, NOT `id`.
         const { data: billing } = await admin
           .from("v_brand_billing")
           .select(
             "wallet_balance_paise, wallet_reserved_paise, wallet_available_paise, lifetime_topup_paise",
           )
-          .eq("id", brand.id)
+          .eq("brand_id", brand.id)
           .maybeSingle();
 
         if (billing) {

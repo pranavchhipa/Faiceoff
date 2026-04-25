@@ -66,7 +66,10 @@ export async function GET(req: NextRequest) {
     .select(
       "credits_remaining, credits_lifetime_purchased, wallet_balance_paise, wallet_reserved_paise, wallet_available_paise, lifetime_topup_paise",
     )
-    .eq("id", brandId)
+    // The view exposes the brand id as `brand_id`, not `id`. Filtering on
+    // `id` returns 0 rows (or errors on some PostgREST versions) and the
+    // route then surfaces all-zero balances despite the brand having funds.
+    .eq("brand_id", brandId)
     .maybeSingle();
 
   if (billingError) {

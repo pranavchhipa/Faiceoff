@@ -120,7 +120,8 @@ async function loadBrandBalance(userId: string): Promise<BrandBalance | null> {
   const { data: billing } = await admin
     .from("v_brand_billing")
     .select("credits_remaining, wallet_available_paise")
-    .eq("id", brand.id)
+    // View exposes brand id as `brand_id`, NOT `id`.
+    .eq("brand_id", brand.id)
     .maybeSingle();
 
   return {

@@ -152,7 +152,8 @@ async function BillingPageInner() {
           .select(
             "credits_remaining, credits_lifetime_purchased, wallet_balance_paise, wallet_reserved_paise, wallet_available_paise, lifetime_topup_paise",
           )
-          .eq("id", brandId)
+          // View exposes brand id as `brand_id`, not `id`.
+          .eq("brand_id", brandId)
           .maybeSingle();
 
         if (billingView) {
