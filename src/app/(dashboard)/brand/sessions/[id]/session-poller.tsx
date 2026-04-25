@@ -23,6 +23,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /* ── Types ── */
 
@@ -455,6 +463,10 @@ export default function SessionPoller({
     null | "send" | "retry" | "discard"
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Confirm dialog state — replaces window.confirm() for a polished UX
+  const [confirmOpen, setConfirmOpen] = useState<null | "retry" | "discard">(
+    null,
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const status = gen?.status ?? "draft";
@@ -536,18 +548,9 @@ export default function SessionPoller({
     }
   }, [generationId, actionPending]);
 
-  const retryGeneration = useCallback(async () => {
-    if (actionPending) return;
-    const retryCount = gen?.retry_count ?? 0;
-    const isFree = retryCount === 0;
-    const cost = isFree ? 0 : Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100);
-    const ok = window.confirm(
-      isFree
-        ? "Use your 1 free retry? The current image will be discarded and a new one generated with the same brief."
-        : `Paid retry: ₹${cost} will be deducted. The current image will be discarded. Continue?`,
-    );
-    if (!ok) return;
-
+  // Actual retry execution — invoked after confirm dialog approval
+  const executeRetry = useCallback(async () => {
+    setConfirmOpen(null);
     setActionPending("retry");
     setActionError(null);
     try {
@@ -558,21 +561,16 @@ export default function SessionPoller({
       if (!res.ok || !body.ok) {
         throw new Error(body.error ?? "Retry failed");
       }
-      // Redirect to the new generation's session page
       router.push(`/brand/sessions/${body.new_generation_id}`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Retry failed");
       setActionPending(null);
     }
-  }, [generationId, actionPending, gen, router]);
+  }, [generationId, router]);
 
-  const discardGeneration = useCallback(async () => {
-    if (actionPending) return;
-    const ok = window.confirm(
-      "Discard this image? Your credits will be refunded in full. This cannot be undone.",
-    );
-    if (!ok) return;
-
+  // Actual discard execution — invoked after confirm dialog approval
+  const executeDiscard = useCallback(async () => {
+    setConfirmOpen(null);
     setActionPending("discard");
     setActionError(null);
     try {
@@ -589,7 +587,25 @@ export default function SessionPoller({
     } finally {
       setActionPending(null);
     }
-  }, [generationId, actionPending]);
+  }, [generationId]);
+
+  // Trigger handlers — open the confirm dialog instead of native popup
+  const retryGeneration = useCallback(() => {
+    if (actionPending) return;
+    setConfirmOpen("retry");
+  }, [actionPending]);
+
+  const discardGeneration = useCallback(() => {
+    if (actionPending) return;
+    setConfirmOpen("discard");
+  }, [actionPending]);
+
+  // Dialog content state
+  const retryCount = gen?.retry_count ?? 0;
+  const isFreeRetry = retryCount === 0;
+  const retryCostRupees = isFreeRetry
+    ? 0
+    : Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100);
 
   const brief = gen?.structured_brief ?? {};
   const briefEntries = Object.entries({
@@ -882,6 +898,110 @@ export default function SessionPoller({
           )}
         </AnimatePresence>
       </div>
+
+      {/* ───────── Confirm dialog (replaces window.confirm) ───────── */}
+      <Dialog
+        open={confirmOpen !== null}
+        onOpenChange={(o) => !o && setConfirmOpen(null)}
+      >
+        <DialogContent className="border-[var(--color-border)] bg-[var(--color-card)] sm:max-w-md">
+          {confirmOpen === "retry" && (
+            <>
+              <DialogHeader>
+                <div className="mb-2 flex size-11 items-center justify-center rounded-full bg-[var(--color-primary)]/15">
+                  <RefreshCw className="size-5 text-[var(--color-primary)]" />
+                </div>
+                <DialogTitle className="text-lg font-700 text-[var(--color-foreground)]">
+                  {isFreeRetry
+                    ? "Use your free retry?"
+                    : `Paid retry — ₹${retryCostRupees}`}
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+                  {isFreeRetry ? (
+                    <>
+                      The current image will be discarded and a new one
+                      generated with the same brief. This is the only{" "}
+                      <span className="font-700 text-[var(--color-foreground)]">
+                        free retry
+                      </span>{" "}
+                      — any further retries will cost{" "}
+                      <span className="font-700 text-[var(--color-foreground)]">
+                        ₹
+                        {Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100)}
+                      </span>
+                      .
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-700 text-[var(--color-foreground)]">
+                        ₹{retryCostRupees}
+                      </span>{" "}
+                      will be deducted from your wallet (50% of the original
+                      generation price). The current image will be discarded
+                      and a new one generated with the same brief.
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(null)}
+                  className="rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeRetry}
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-700 text-[var(--color-primary-foreground)] shadow-sm hover:bg-[var(--color-primary)]/90"
+                >
+                  <RefreshCw className="size-4" />
+                  {isFreeRetry ? "Use free retry" : `Pay ₹${retryCostRupees}`}
+                </button>
+              </DialogFooter>
+            </>
+          )}
+
+          {confirmOpen === "discard" && (
+            <>
+              <DialogHeader>
+                <div className="mb-2 flex size-11 items-center justify-center rounded-full bg-red-500/15">
+                  <Trash2 className="size-5 text-red-500" />
+                </div>
+                <DialogTitle className="text-lg font-700 text-[var(--color-foreground)]">
+                  Discard this image?
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+                  Your credits will be{" "}
+                  <span className="font-700 text-[var(--color-foreground)]">
+                    refunded in full
+                  </span>
+                  . The image will be marked as discarded and removed from your
+                  active sessions. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(null)}
+                  className="rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDiscard}
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] bg-red-500 px-4 py-2.5 text-sm font-700 text-white shadow-sm hover:bg-red-600"
+                >
+                  <Trash2 className="size-4" />
+                  Discard image
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
