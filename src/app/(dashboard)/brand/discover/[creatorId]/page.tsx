@@ -172,7 +172,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
       {/* Back link */}
       <Link
         href="/brand/discover"
-        className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors"
+        className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
       >
         <ArrowLeft className="size-3.5" />
         Back to discover
@@ -195,11 +195,11 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <Sparkles className="size-16 text-[var(--color-ink)] opacity-40" />
+                <Sparkles className="size-16 text-[var(--color-foreground)] opacity-40" />
               </div>
             )}
             {creator.kyc_status === "verified" && (
-              <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-sm px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-ink)]">
+              <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[var(--color-card)]/90 backdrop-blur-sm border border-[var(--color-border)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-foreground)]">
                 <ShieldCheck className="size-3" />
                 KYC verified
               </span>
@@ -208,10 +208,10 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
 
           {/* Name + handle */}
           <div className="mb-4">
-            <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+            <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-foreground)]">
               {creator.display_name}
             </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-[var(--color-neutral-500)]">
+            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-[var(--color-muted-foreground)]">
               {creator.instagram_handle && (
                 <span className="inline-flex items-center gap-1">
                   <AtSign className="size-3.5" />
@@ -219,7 +219,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
                 </span>
               )}
               {formatFollowersShort(creator.instagram_followers) && (
-                <span className="font-600 text-[var(--color-ink)]">
+                <span className="font-600 text-[var(--color-foreground)]">
                   {formatFollowersShort(creator.instagram_followers)} followers
                 </span>
               )}
@@ -228,35 +228,35 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
 
           {/* Bio */}
           {creator.bio && (
-            <p className="text-sm text-[var(--color-ink)] leading-relaxed mb-6">
+            <p className="text-sm text-[var(--color-foreground)] leading-relaxed mb-6">
               {creator.bio}
             </p>
           )}
 
           {/* Categories list */}
           <div>
-            <p className="mb-3 text-xs font-700 uppercase tracking-wider text-[var(--color-neutral-500)]">
+            <p className="mb-3 text-xs font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
               Available categories
             </p>
             <div className="space-y-2">
               {creator.categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center justify-between rounded-xl border border-[var(--color-outline-variant)]/15 bg-white px-4 py-3"
+                  className="flex items-center justify-between rounded-xl border border-[var(--color-border)]/15 bg-[var(--color-card)] px-4 py-3"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-600 text-[var(--color-ink)]">
+                    <p className="text-sm font-600 text-[var(--color-foreground)]">
                       {cat.category}
                     </p>
                     {cat.subcategories && cat.subcategories.length > 0 && (
-                      <p className="text-xs text-[var(--color-neutral-500)] truncate">
+                      <p className="text-xs text-[var(--color-muted-foreground)] truncate">
                         {cat.subcategories.slice(0, 4).join(" · ")}
                       </p>
                     )}
                   </div>
-                  <span className="shrink-0 text-sm font-700 text-[var(--color-ink)]">
+                  <span className="shrink-0 text-sm font-700 text-[var(--color-foreground)]">
                     {formatINR(cat.price_per_generation_paise)}
-                    <span className="text-[10px] font-500 text-[var(--color-neutral-500)] ml-0.5">
+                    <span className="text-[10px] font-500 text-[var(--color-muted-foreground)] ml-0.5">
                       /img
                     </span>
                   </span>

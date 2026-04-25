@@ -128,8 +128,8 @@ function PillRow<T extends string>({
           onClick={() => onSelect(opt)}
           className={`rounded-full px-3 py-1.5 text-xs font-600 transition-all ${
             selected === opt
-              ? "bg-[var(--color-on-surface)] text-white"
-              : "bg-[var(--color-surface-container-low)] text-[var(--color-on-surface)] hover:bg-[var(--color-surface-container)]"
+              ? "bg-[var(--color-foreground)] text-white"
+              : "bg-[var(--color-surface-container-low)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-container)]"
           }`}
         >
           {opt}
@@ -155,20 +155,20 @@ function ScopeCards({
           onClick={() => onSelect(opt.value)}
           className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all ${
             selected === opt.value
-              ? "border-[var(--color-on-surface)] bg-[var(--color-surface-container-low)]"
-              : "border-[var(--color-outline-variant)]/20 hover:border-[var(--color-outline-variant)]/40"
+              ? "border-[var(--color-foreground)] bg-[var(--color-surface-container-low)]"
+              : "border-[var(--color-border)]/20 hover:border-[var(--color-border)]/40"
           }`}
         >
           <div>
-            <p className="text-sm font-600 text-[var(--color-on-surface)]">{opt.label}</p>
-            <p className="text-xs text-[var(--color-outline-variant)]">{opt.sublabel}</p>
+            <p className="text-sm font-600 text-[var(--color-foreground)]">{opt.label}</p>
+            <p className="text-xs text-[var(--color-border)]">{opt.sublabel}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {opt.extra && (
-              <span className="text-xs font-600 text-[var(--color-outline-variant)]">{opt.extra}</span>
+              <span className="text-xs font-600 text-[var(--color-border)]">{opt.extra}</span>
             )}
             {selected === opt.value && (
-              <CheckCircle2 className="size-4 text-[var(--color-on-surface)]" />
+              <CheckCircle2 className="size-4 text-[var(--color-foreground)]" />
             )}
           </div>
         </button>
@@ -193,34 +193,34 @@ function PriceBar({
   hasEnoughWallet: boolean;
 }) {
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)] px-4 py-3">
+    <div className="rounded-[var(--radius-card)] border border-[var(--color-border)]/20 bg-[var(--color-surface-container-low)] px-4 py-3">
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-xs text-[var(--color-outline-variant)]">
+        <div className="flex items-center justify-between text-xs text-[var(--color-border)]">
           <span>Base creator fee</span>
           <span>{formatINR(base)}</span>
         </div>
         {scopeAddon > 0 && (
-          <div className="flex items-center justify-between text-xs text-[var(--color-outline-variant)]">
+          <div className="flex items-center justify-between text-xs text-[var(--color-border)]">
             <span>Scope add-on</span>
             <span>+{formatINR(scopeAddon)}</span>
           </div>
         )}
         {exclusivityPremium > 0 && (
-          <div className="flex items-center justify-between text-xs text-[var(--color-outline-variant)]">
+          <div className="flex items-center justify-between text-xs text-[var(--color-border)]">
             <span>Exclusivity (+50%)</span>
             <span>+{formatINR(exclusivityPremium)}</span>
           </div>
         )}
-        <div className="flex items-center justify-between border-t border-[var(--color-outline-variant)]/15 pt-2">
+        <div className="flex items-center justify-between border-t border-[var(--color-border)]/15 pt-2">
           <motion.span
             key={total}
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="text-base font-700 text-[var(--color-on-surface)]"
+            className="text-base font-700 text-[var(--color-foreground)]"
           >
             {formatINR(total)}
           </motion.span>
-          <span className="text-xs text-[var(--color-outline-variant)]">creator fee</span>
+          <span className="text-xs text-[var(--color-border)]">creator fee</span>
         </div>
       </div>
 
@@ -248,7 +248,7 @@ function PriceBar({
         </div>
       </div>
 
-      <p className="mt-2 text-[10px] text-[var(--color-outline-variant)]">
+      <p className="mt-2 text-[10px] text-[var(--color-border)]">
         + 1 credit will be deducted on submit
       </p>
     </div>
@@ -371,11 +371,11 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
         className="flex flex-col w-full sm:max-w-lg bg-[var(--color-background)] p-0 gap-0"
       >
         {/* Header */}
-        <SheetHeader className="shrink-0 border-b border-[var(--color-outline-variant)]/15 px-5 py-4">
-          <SheetTitle className="text-lg font-800 text-[var(--color-on-surface)]">
+        <SheetHeader className="shrink-0 border-b border-[var(--color-border)]/15 px-5 py-4">
+          <SheetTitle className="text-lg font-800 text-[var(--color-foreground)]">
             Generate with {creator.display_name}
           </SheetTitle>
-          <SheetDescription className="text-xs text-[var(--color-outline-variant)]">
+          <SheetDescription className="text-xs text-[var(--color-border)]">
             1 credit + {formatINR(creator.base_price_paise)} creator fee per image
           </SheetDescription>
         </SheetHeader>
@@ -384,35 +384,35 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
           {/* Product */}
           <div>
-            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-border)]">
               Product
             </p>
             <Input
               placeholder="What product?"
               value={product}
               onChange={(e) => setProduct(e.target.value)}
-              className="rounded-[var(--radius-input)] border-[var(--color-outline-variant)]/20 text-sm"
+              className="rounded-[var(--radius-input)] border-[var(--color-border)]/20 text-sm"
               maxLength={200}
             />
           </div>
 
           {/* Scene */}
           <div>
-            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-border)]">
               Scene
             </p>
             <Input
               placeholder="Where? mood?"
               value={scene}
               onChange={(e) => setScene(e.target.value)}
-              className="rounded-[var(--radius-input)] border-[var(--color-outline-variant)]/20 text-sm"
+              className="rounded-[var(--radius-input)] border-[var(--color-border)]/20 text-sm"
               maxLength={200}
             />
           </div>
 
           {/* Mood pills */}
           <div>
-            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-border)]">
               Mood
             </p>
             <PillRow
@@ -424,7 +424,7 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
 
           {/* Aesthetic pills */}
           <div>
-            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-border)]">
               Aesthetic
             </p>
             <PillRow
@@ -436,7 +436,7 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
 
           {/* Scope */}
           <div>
-            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+            <p className="mb-2 text-xs font-700 uppercase tracking-widest text-[var(--color-border)]">
               License scope
             </p>
             <ScopeCards selected={scope} onSelect={setScope} />
@@ -444,22 +444,22 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
 
           {/* Exclusivity */}
           <div>
-            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-[var(--color-outline-variant)]/20 p-4 hover:border-[var(--color-outline-variant)]/40 transition-colors">
+            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-[var(--color-border)]/20 p-4 hover:border-[var(--color-border)]/40 transition-colors">
               <input
                 type="checkbox"
                 checked={exclusive}
                 onChange={(e) => setExclusive(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-[var(--color-outline-variant)]/30 accent-[var(--color-on-surface)]"
+                className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)]/30 accent-[var(--color-foreground)]"
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-600 text-[var(--color-on-surface)]">
+                <p className="text-sm font-600 text-[var(--color-foreground)]">
                   Exclusive license
                 </p>
-                <p className="text-xs text-[var(--color-outline-variant)]">
+                <p className="text-xs text-[var(--color-border)]">
                   +50% creator fee — prevents this creator from working with other brands in this category
                 </p>
               </div>
-              <span className="shrink-0 text-xs font-600 text-[var(--color-outline-variant)]">
+              <span className="shrink-0 text-xs font-600 text-[var(--color-border)]">
                 +{formatINR(Math.round((creator.base_price_paise + SCOPE_ADDONS_PAISE[scope]) * EXCLUSIVITY_RATE))}
               </span>
             </label>
@@ -481,11 +481,11 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
             <div className="flex items-start gap-2.5 rounded-xl bg-[var(--color-blush)] border border-red-100 px-4 py-3">
               <AlertCircle className="size-4 text-red-500 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-600 text-[var(--color-on-surface)] mb-0.5">No credits remaining</p>
-                <p className="text-xs text-[var(--color-outline-variant)]">Buy a credit pack to continue.</p>
+                <p className="text-sm font-600 text-[var(--color-foreground)] mb-0.5">No credits remaining</p>
+                <p className="text-xs text-[var(--color-border)]">Buy a credit pack to continue.</p>
               </div>
               <Link href="/brand/credits" onClick={() => onOpenChange(false)}>
-                <Button size="xs" className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--color-on-surface)] font-600 text-white">
+                <Button size="xs" className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--color-foreground)] font-600 text-white">
                   Top up
                   <ChevronRight className="size-3" />
                 </Button>
@@ -498,13 +498,13 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
             <div className="flex items-start gap-2.5 rounded-xl bg-[var(--color-blush)] border border-red-100 px-4 py-3">
               <AlertCircle className="size-4 text-red-500 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-600 text-[var(--color-on-surface)] mb-0.5">Wallet balance too low</p>
-                <p className="text-xs text-[var(--color-outline-variant)]">
+                <p className="text-sm font-600 text-[var(--color-foreground)] mb-0.5">Wallet balance too low</p>
+                <p className="text-xs text-[var(--color-border)]">
                   Need {formatINR(total)} to cover the creator fee.
                 </p>
               </div>
               <Link href="/brand/wallet" onClick={() => onOpenChange(false)}>
-                <Button size="xs" className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--color-on-surface)] font-600 text-white">
+                <Button size="xs" className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--color-foreground)] font-600 text-white">
                   Add funds
                   <ExternalLink className="size-3" />
                 </Button>
@@ -514,7 +514,7 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
         </div>
 
         {/* Sticky footer: price bar + generate button */}
-        <div className="shrink-0 border-t border-[var(--color-outline-variant)]/15 px-5 py-4 space-y-3 bg-[var(--color-background)]">
+        <div className="shrink-0 border-t border-[var(--color-border)]/15 px-5 py-4 space-y-3 bg-[var(--color-background)]">
           <PriceBar
             base={base}
             scopeAddon={scopeAddon}
@@ -543,7 +543,7 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
           </Button>
 
           {!product.trim() && (
-            <p className="text-center text-xs text-[var(--color-outline-variant)]">
+            <p className="text-center text-xs text-[var(--color-border)]">
               Describe your product and scene to enable generation
             </p>
           )}
