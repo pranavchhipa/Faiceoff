@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
@@ -10,12 +11,16 @@ import {
   Loader2,
   Shield,
   Sparkles,
+  Eye,
   ImageIcon,
   ArrowRight,
   AlertTriangle,
   Copy,
   Check,
   Download,
+  Send,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +34,9 @@ interface GenerationStatus {
   assembled_prompt: string | null;
   created_at: string;
   updated_at: string;
+  cost_paise?: number | null;
+  retry_count?: number | null;
+  is_free_retry?: boolean | null;
 }
 
 interface SessionPollerProps {
@@ -38,8 +46,17 @@ interface SessionPollerProps {
 
 /* ── Constants ── */
 
-const TERMINAL_STATUSES = new Set(["approved", "rejected", "failed"]);
+// Brand-discarded gens are also terminal — pipeline doesn't continue.
+const TERMINAL_STATUSES = new Set([
+  "approved",
+  "rejected",
+  "failed",
+  "discarded",
+]);
 const POLL_INTERVAL_MS = 3000;
+// Once we're in brand review, slow the poll way down — only changes via brand
+// click (handled locally) or 24h auto-send (rare). 30s is enough.
+const POLL_INTERVAL_REVIEW_MS = 30_000;
 
 /* ── Stage pipeline ── */
 
@@ -47,6 +64,7 @@ const STAGES = [
   { key: "compliance", label: "Compliance", icon: Shield },
   { key: "generation", label: "Generation", icon: Sparkles },
   { key: "safety", label: "Safety", icon: Shield },
+  { key: "review", label: "Review", icon: Eye },
   { key: "approval", label: "Approval", icon: CheckCircle2 },
 ] as const;
 
@@ -54,13 +72,15 @@ function getStageIndex(status: string): number {
   if (status === "draft" || status === "compliance_check" || status === "pending_compliance") return 0;
   if (status === "generating" || status === "pending_replicate" || status === "processing") return 1;
   if (status === "output_check" || status === "pending_safety") return 2;
+  if (status === "ready_for_brand_review") return 3;
   if (
     status === "ready_for_approval" ||
     status === "pending_approval" ||
     status === "approved" ||
     status === "rejected"
   )
-    return 3;
+    return 4;
+  if (status === "discarded") return 3; // failed at review gate
   return 0;
 }
 
@@ -109,6 +129,15 @@ function getStatusConfig(status: string): StatusConfig {
         pulsing: true,
         terminal: false,
       };
+    case "ready_for_brand_review":
+      return {
+        label: "Ready for your review",
+        sublabel: "Approve to send for creator consent, or retry / discard",
+        tone: "warning",
+        icon: Eye,
+        pulsing: true,
+        terminal: false,
+      };
     case "ready_for_approval":
     case "pending_approval":
       return {
@@ -143,6 +172,15 @@ function getStatusConfig(status: string): StatusConfig {
         sublabel: "Credits refunded — please try again",
         tone: "danger",
         icon: AlertTriangle,
+        pulsing: false,
+        terminal: true,
+      };
+    case "discarded":
+      return {
+        label: "Discarded",
+        sublabel: "You discarded this image — credits refunded",
+        tone: "neutral",
+        icon: Trash2,
         pulsing: false,
         terminal: true,
       };
@@ -410,8 +448,13 @@ export default function SessionPoller({
   generationId,
   initialStatus,
 }: SessionPollerProps) {
+  const router = useRouter();
   const [gen, setGen] = useState<GenerationStatus | null>(initialStatus);
   const [fetchError, setFetchError] = useState(false);
+  const [actionPending, setActionPending] = useState<
+    null | "send" | "retry" | "discard"
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const status = gen?.status ?? "draft";
@@ -421,6 +464,7 @@ export default function SessionPoller({
   const stageIndex = getStageIndex(status);
   const isTerminal = TERMINAL_STATUSES.has(status);
   const isFailed = status === "failed" || status === "rejected";
+  const isInBrandReview = status === "ready_for_brand_review";
 
   /* ── Poll ── */
   const fetchStatus = useCallback(async () => {
@@ -439,6 +483,9 @@ export default function SessionPoller({
         assembled_prompt: data.generation.assembled_prompt ?? null,
         created_at: data.generation.created_at,
         updated_at: data.generation.updated_at,
+        cost_paise: data.generation.cost_paise ?? null,
+        retry_count: data.generation.retry_count ?? 0,
+        is_free_retry: data.generation.is_free_retry ?? false,
       };
       setGen(updated);
       setFetchError(false);
@@ -454,13 +501,95 @@ export default function SessionPoller({
 
   useEffect(() => {
     if (isTerminal) return;
-    intervalRef.current = setInterval(fetchStatus, POLL_INTERVAL_MS);
+    const interval = isInBrandReview
+      ? POLL_INTERVAL_REVIEW_MS
+      : POLL_INTERVAL_MS;
+    intervalRef.current = setInterval(fetchStatus, interval);
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [fetchStatus, isTerminal]);
+  }, [fetchStatus, isTerminal, isInBrandReview]);
+
+  /* ── Brand actions ── */
+
+  const sendForApproval = useCallback(async () => {
+    if (actionPending) return;
+    setActionPending("send");
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/generations/${generationId}/send-for-approval`,
+        { method: "POST" },
+      );
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? body.message ?? "Failed to send");
+      }
+      // Optimistic update — poll will reconcile
+      setGen((g) => (g ? { ...g, status: "ready_for_approval" } : g));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setActionPending(null);
+    }
+  }, [generationId, actionPending]);
+
+  const retryGeneration = useCallback(async () => {
+    if (actionPending) return;
+    const retryCount = gen?.retry_count ?? 0;
+    const isFree = retryCount === 0;
+    const cost = isFree ? 0 : Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100);
+    const ok = window.confirm(
+      isFree
+        ? "Use your 1 free retry? The current image will be discarded and a new one generated with the same brief."
+        : `Paid retry: ₹${cost} will be deducted. The current image will be discarded. Continue?`,
+    );
+    if (!ok) return;
+
+    setActionPending("retry");
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/generations/${generationId}/retry`, {
+        method: "POST",
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? "Retry failed");
+      }
+      // Redirect to the new generation's session page
+      router.push(`/brand/sessions/${body.new_generation_id}`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Retry failed");
+      setActionPending(null);
+    }
+  }, [generationId, actionPending, gen, router]);
+
+  const discardGeneration = useCallback(async () => {
+    if (actionPending) return;
+    const ok = window.confirm(
+      "Discard this image? Your credits will be refunded in full. This cannot be undone.",
+    );
+    if (!ok) return;
+
+    setActionPending("discard");
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/generations/${generationId}/discard`, {
+        method: "POST",
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? body.message ?? "Discard failed");
+      }
+      setGen((g) => (g ? { ...g, status: "discarded" } : g));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Discard failed");
+    } finally {
+      setActionPending(null);
+    }
+  }, [generationId, actionPending]);
 
   const brief = gen?.structured_brief ?? {};
   const briefEntries = Object.entries({
@@ -603,6 +732,86 @@ export default function SessionPoller({
 
         {/* Action row — adapts to state */}
         <AnimatePresence mode="popLayout">
+          {/* ── BRAND REVIEW GATE ── */}
+          {isInBrandReview && gen?.image_url && (
+            <motion.div
+              key="review-actions"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="space-y-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-[var(--shadow-soft)]"
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-mint)]/40">
+                  <Eye className="size-4 text-[var(--color-foreground)]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-700 text-[var(--color-foreground)]">
+                    Approve this image to send to creator
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
+                    {(gen?.retry_count ?? 0) === 0
+                      ? "1 free retry available if not satisfied. Auto-sent to creator after 24h."
+                      : `Retry costs 50% of original price (₹${Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100)}). Auto-sent after 24h.`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Primary: Send for approval */}
+              <Button
+                onClick={sendForApproval}
+                disabled={!!actionPending}
+                className="w-full rounded-[var(--radius-button)] bg-[var(--color-primary)] font-700 text-[var(--color-primary-foreground)] shadow-sm hover:bg-[var(--color-primary)]/90 disabled:opacity-60"
+              >
+                {actionPending === "send" ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <Send className="size-4" />
+                    Send to creator for approval
+                  </>
+                )}
+              </Button>
+
+              {/* Secondary row: Retry + Discard */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={retryGeneration}
+                  disabled={!!actionPending}
+                  className="flex items-center justify-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-sm font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-card)] disabled:opacity-60"
+                >
+                  {actionPending === "retry" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
+                  {(gen?.retry_count ?? 0) === 0 ? "Retry (free)" : "Retry"}
+                </button>
+                <button
+                  type="button"
+                  onClick={discardGeneration}
+                  disabled={!!actionPending}
+                  className="flex items-center justify-center gap-1.5 rounded-[var(--radius-button)] border border-red-500/30 bg-red-500/5 px-3 py-2.5 text-sm font-600 text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-60"
+                >
+                  {actionPending === "discard" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Discard
+                </button>
+              </div>
+
+              {actionError && (
+                <p className="text-xs text-red-500">{actionError}</p>
+              )}
+            </motion.div>
+          )}
+
           {status === "approved" && gen?.image_url && (
             <motion.div
               key="approved-actions"

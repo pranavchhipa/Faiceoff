@@ -35,7 +35,6 @@ import { generateImage, type ImageInput } from "@/lib/ai/gemini-client";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const HIVE_UNSAFE_THRESHOLD = 0.7;
-const APPROVAL_EXPIRY_MS = 48 * 60 * 60 * 1000;
 const HIVE_NSFW_CLASSES = new Set([
   "yes_sexual",
   "yes_male_nudity",
@@ -363,35 +362,21 @@ export async function runGeneration(generationId: string): Promise<void> {
       return;
     }
 
-    // ── 8. Insert approval row + flip generation to ready_for_approval ──────
-    const expiresAt = new Date(Date.now() + APPROVAL_EXPIRY_MS).toISOString();
-    try {
-      await admin.from("approvals").insert({
-        generation_id: generationId,
-        creator_id: creatorId,
-        brand_id: brandId,
-        status: "pending",
-        expires_at: expiresAt,
-      });
-    } catch (apprErr) {
-      // Non-fatal — generation surfaces, approval can be reconciled later.
-      console.error(
-        `[run-generation] approvals insert failed for gen=${generationId}`,
-        apprErr,
-      );
-    }
-
+    // ── 8. Brand quality gate ──────────────────────────────────────────────
+    // After safety pass, image goes to BRAND for preview/retry/discard before
+    // being sent to creator. Brand action (or 24h timeout) creates the
+    // approval row — see /api/generations/[id]/send-for-approval.
     await admin
       .from("generations")
       .update({
-        status: "ready_for_approval",
+        status: "ready_for_brand_review",
         image_url: r2Url,
         assembled_prompt: assembledPrompt,
       })
       .eq("id", generationId);
 
     console.log(
-      `[run-generation] gen=${generationId} ready_for_approval (${r2Url})`,
+      `[run-generation] gen=${generationId} ready_for_brand_review (${r2Url})`,
     );
   } catch (err) {
     // Catch-all for unexpected pipeline errors (DB issues, fetch failures

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Brand has 24h to preview / retry / discard before we auto-send to creator.
+const BRAND_REVIEW_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+const APPROVAL_EXPIRY_MS = 48 * 60 * 60 * 1000;
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -19,20 +23,21 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // --- Fetch generation ---
   // Note: base_image_url, upscaled_url, quality_scores, generation_attempts,
-  // provider_prediction_id, and pipeline_version are from migration 00016
-  // (v2 pipeline). src/types/supabase.ts is stale until we regenerate, so we
-  // cast the row shape at the boundary — runtime select accepts these names.
+  // provider_prediction_id, retry_count, is_free_retry, and pipeline_version
+  // are from migrations 00016 / 00028. src/types/supabase.ts is stale until
+  // we regenerate, so we cast the row shape at the boundary.
   const { data: genRaw, error: genError } = await admin
     .from("generations")
     .select(
       `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
        structured_brief, image_url, cost_paise, created_at, updated_at,
        base_image_url, upscaled_url, quality_scores, generation_attempts,
-       provider_prediction_id, pipeline_version`,
+       provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
     )
     .eq("id", id)
     .single();
@@ -56,6 +61,8 @@ export async function GET(
         generation_attempts: number | null;
         provider_prediction_id: string | null;
         pipeline_version: string | null;
+        retry_count: number | null;
+        is_free_retry: boolean | null;
       }
     | null;
 
@@ -121,6 +128,41 @@ export async function GET(
 
   const isCreator = creatorRow?.id === gen.creator_id;
 
+  // --- Auto-send timeout (Q3=A): if generation has been sitting in
+  //     ready_for_brand_review for >24h, auto-promote to ready_for_approval
+  //     so the pipeline keeps moving without forever-hanging gens. ---
+  let effectiveGen = gen;
+  if (gen.status === "ready_for_brand_review") {
+    const ageMs = Date.now() - new Date(gen.updated_at).getTime();
+    if (ageMs > BRAND_REVIEW_TIMEOUT_MS) {
+      const { data: claimed } = await admin
+        .from("generations")
+        .update({ status: "ready_for_approval" })
+        .eq("id", id)
+        .eq("status", "ready_for_brand_review")
+        .select(
+          `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
+           structured_brief, image_url, cost_paise, created_at, updated_at,
+           base_image_url, upscaled_url, quality_scores, generation_attempts,
+           provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
+        )
+        .maybeSingle();
+      if (claimed) {
+        const expiresAt = new Date(
+          Date.now() + APPROVAL_EXPIRY_MS,
+        ).toISOString();
+        await admin.from("approvals").insert({
+          generation_id: id,
+          creator_id: gen.creator_id,
+          brand_id: gen.brand_id,
+          status: "pending",
+          expires_at: expiresAt,
+        });
+        effectiveGen = claimed as typeof gen;
+      }
+    }
+  }
+
   // --- Fetch approval record ---
   const { data: approvalData } = await admin
     .from("approvals")
@@ -131,7 +173,7 @@ export async function GET(
     .maybeSingle();
 
   return NextResponse.json({
-    generation: { ...gen, campaign },
+    generation: { ...effectiveGen, campaign },
     approval: approvalData ?? null,
     is_creator: isCreator,
   });
