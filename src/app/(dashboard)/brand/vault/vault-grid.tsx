@@ -63,10 +63,10 @@ const STATUS_FILTERS = [
 
 const statusPillColors: Record<string, string> = {
   approved: "bg-[var(--color-mint)] text-green-700",
-  pending: "bg-[var(--color-lilac)] text-[var(--color-ink)]",
+  pending: "bg-[var(--color-lilac)] text-[var(--color-foreground)]",
   rejected: "bg-[var(--color-blush)] text-red-700",
-  ready_for_approval: "bg-[var(--color-lilac)] text-[var(--color-ink)]",
-  generating: "bg-[var(--color-ocean)] text-[var(--color-ink)]",
+  ready_for_approval: "bg-[var(--color-lilac)] text-[var(--color-foreground)]",
+  generating: "bg-[var(--color-ocean)] text-[var(--color-foreground)]",
 };
 
 function statusLabel(status: string): string {
@@ -108,9 +108,9 @@ function VaultItemModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl rounded-[var(--radius-card)] border-[var(--color-neutral-200)] p-0 overflow-hidden">
+      <DialogContent className="max-w-2xl rounded-[var(--radius-card)] border-[var(--color-border)] bg-[var(--color-card)] p-0 overflow-hidden">
         {/* Image */}
-        <div className="relative bg-[var(--color-neutral-100)] w-full h-72 sm:h-96 overflow-hidden">
+        <div className="relative bg-[var(--color-secondary)] w-full h-72 sm:h-96 overflow-hidden">
           {item.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -127,7 +127,7 @@ function VaultItemModal({
 
         <div className="p-5 sm:p-6">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-lg font-700 text-[var(--color-ink)]">
+            <DialogTitle className="text-lg font-700 text-[var(--color-foreground)]">
               Licensed Image
             </DialogTitle>
           </DialogHeader>
@@ -136,43 +136,43 @@ function VaultItemModal({
           <div className="grid grid-cols-2 gap-3 mb-5 text-sm">
             {brief.product_name && (
               <div>
-                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Product</p>
-                <p className="font-600 text-[var(--color-ink)]">{brief.product_name}</p>
+                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Product</p>
+                <p className="font-600 text-[var(--color-foreground)]">{brief.product_name}</p>
               </div>
             )}
             {item.creator_name && (
               <div>
-                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Creator</p>
-                <p className="font-600 text-[var(--color-ink)]">{item.creator_name}</p>
+                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Creator</p>
+                <p className="font-600 text-[var(--color-foreground)]">{item.creator_name}</p>
               </div>
             )}
             {brief.scene && (
               <div>
-                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Scene</p>
-                <p className="text-[var(--color-ink)]">{brief.scene}</p>
+                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Scene</p>
+                <p className="text-[var(--color-foreground)]">{brief.scene}</p>
               </div>
             )}
             {brief.mood && (
               <div>
-                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Mood</p>
-                <p className="text-[var(--color-ink)]">{brief.mood}</p>
+                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Mood</p>
+                <p className="text-[var(--color-foreground)]">{brief.mood}</p>
               </div>
             )}
             {brief.scope && (
               <div>
-                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Scope</p>
-                <p className="text-[var(--color-ink)]">{brief.scope}</p>
+                <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Scope</p>
+                <p className="text-[var(--color-foreground)]">{brief.scope}</p>
               </div>
             )}
             <div>
-              <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Status</p>
-              <span className={`inline-flex rounded-[var(--radius-pill)] px-2 py-0.5 text-xs font-600 ${statusPillColors[item.status] ?? "bg-[var(--color-neutral-100)] text-[var(--color-ink)]"}`}>
+              <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Status</p>
+              <span className={`inline-flex rounded-[var(--radius-pill)] px-2 py-0.5 text-xs font-600 ${statusPillColors[item.status] ?? "bg-[var(--color-secondary)] text-[var(--color-foreground)]"}`}>
                 {statusLabel(item.status)}
               </span>
             </div>
             <div>
-              <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Created</p>
-              <p className="text-[var(--color-ink)]">{formatDate(item.created_at)}</p>
+              <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">Created</p>
+              <p className="text-[var(--color-foreground)]">{formatDate(item.created_at)}</p>
             </div>
           </div>
 
@@ -181,7 +181,7 @@ function VaultItemModal({
             <Button
               size="sm"
               onClick={() => triggerDownload(`/api/vault/${item.id}/download?format=original`)}
-              className="rounded-[var(--radius-button)] bg-[var(--color-ink)] font-600 text-white hover:opacity-80 text-xs"
+              className="rounded-[var(--radius-button)] bg-[var(--color-primary)] font-700 text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary)]/90 text-xs"
             >
               <Download className="size-3.5" />
               Original (ZIP)
@@ -190,7 +190,7 @@ function VaultItemModal({
               size="sm"
               variant="outline"
               onClick={() => triggerDownload(`/api/vault/${item.id}/download?format=pdf`)}
-              className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] text-xs"
+              className="rounded-[var(--radius-button)] border-[var(--color-border)] bg-[var(--color-card)] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] text-xs"
             >
               <FileText className="size-3.5" />
               PDF Package
@@ -199,7 +199,7 @@ function VaultItemModal({
               size="sm"
               variant="outline"
               onClick={() => triggerDownload(`/api/vault/${item.id}/download?format=docx`)}
-              className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] text-xs"
+              className="rounded-[var(--radius-button)] border-[var(--color-border)] bg-[var(--color-card)] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] text-xs"
             >
               <FileText className="size-3.5" />
               DOCX Report
@@ -210,7 +210,7 @@ function VaultItemModal({
           {item.license_id && (
             <Link
               href={`/brand/licenses/${item.license_id}`}
-              className="inline-flex items-center gap-1.5 text-sm font-600 text-[var(--color-accent-gold)] hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-600 text-[var(--color-primary)] hover:underline"
               onClick={onClose}
             >
               <ExternalLink className="size-3.5" />
@@ -307,7 +307,7 @@ export default function VaultGrid({
   return (
     <div>
       {/* Filter pills + search row */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-[var(--color-neutral-200)] py-3 mb-6 -mx-5 px-5 lg:-mx-8 lg:px-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="sticky top-0 z-10 bg-[var(--color-background)]/90 backdrop-blur-sm border-b border-[var(--color-border)] py-3 mb-6 -mx-5 px-5 lg:-mx-8 lg:px-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {STATUS_FILTERS.map((f) => (
@@ -316,8 +316,8 @@ export default function VaultGrid({
               onClick={() => handleFilterChange(f.value)}
               className={`rounded-[var(--radius-pill)] px-3.5 py-1.5 text-xs font-600 transition-all ${
                 activeStatus === f.value
-                  ? "bg-[var(--color-ink)] text-white shadow-sm"
-                  : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-200)]"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm"
+                  : "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] hover:text-[var(--color-foreground)]"
               }`}
             >
               {f.label}
@@ -327,17 +327,17 @@ export default function VaultGrid({
 
         {/* Search */}
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[var(--color-neutral-400)]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[var(--color-muted-foreground)]" />
           <Input
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search images..."
-            className="rounded-[var(--radius-pill)] pl-9 pr-9 h-9 text-sm border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] focus:border-[var(--color-accent-gold)] focus:ring-[var(--color-accent-gold)]/20"
+            className="rounded-[var(--radius-pill)] pl-9 pr-9 h-9 text-sm border-[var(--color-border)] bg-[var(--color-card)] focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]/20"
           />
           {searchValue && (
             <button
               onClick={() => handleSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-neutral-400)] hover:text-[var(--color-ink)]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
             >
               <X className="size-3.5" />
             </button>
@@ -348,7 +348,7 @@ export default function VaultGrid({
       {/* Loading overlay */}
       {loading && (
         <div className="flex items-center justify-center py-8">
-          <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-200)] border-t-[var(--color-accent-gold)]" />
+          <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
         </div>
       )}
 
@@ -359,20 +359,20 @@ export default function VaultGrid({
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-24 text-center"
         >
-          <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-[var(--color-ocean)]">
-            <ImageIcon className="size-8 text-[var(--color-ink)]" />
+          <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-[var(--color-primary)]/15 ring-1 ring-[var(--color-primary)]/20">
+            <ImageIcon className="size-8 text-[var(--color-primary)]" />
           </div>
-          <h3 className="text-lg font-700 text-[var(--color-ink)] mb-2">
+          <h3 className="text-lg font-700 text-[var(--color-foreground)] mb-2">
             {searchValue || activeStatus ? "No images found" : "Your vault is empty"}
           </h3>
-          <p className="text-sm text-[var(--color-neutral-500)] max-w-sm mb-5">
+          <p className="text-sm text-[var(--color-muted-foreground)] max-w-sm mb-5">
             {searchValue || activeStatus
               ? "Try adjusting your search or filters."
               : "Your generated images will appear here. Generate your first image to get started."}
           </p>
           {!searchValue && !activeStatus && (
             <Link href="/brand/discover">
-              <Button className="rounded-[var(--radius-button)] bg-[var(--color-ink)] font-600 text-white hover:opacity-80">
+              <Button className="rounded-[var(--radius-button)] bg-[var(--color-primary)] font-700 text-[var(--color-primary-foreground)] shadow-sm hover:bg-[var(--color-primary)]/90">
                 Discover creators &amp; generate →
               </Button>
             </Link>
@@ -391,7 +391,7 @@ export default function VaultGrid({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.25, delay: i * 0.03 }}
-                className="group relative aspect-square cursor-pointer overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)] shadow-[var(--shadow-soft)]"
+                className="group relative aspect-square cursor-pointer overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] shadow-[var(--shadow-soft)]"
                 onClick={() => {
                   setSelectedItem(item);
                   setModalOpen(true);
@@ -470,12 +470,12 @@ export default function VaultGrid({
             size="sm"
             disabled={page <= 1}
             onClick={() => handlePage(page - 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] disabled:opacity-40"
+            className="rounded-[var(--radius-button)] border-[var(--color-border)] bg-[var(--color-card)] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-40"
           >
             <ChevronLeft className="size-4" />
             Previous
           </Button>
-          <span className="text-sm font-600 text-[var(--color-neutral-500)]">
+          <span className="text-sm font-600 text-[var(--color-muted-foreground)]">
             Page {page} of {totalPages}
           </span>
           <Button
@@ -483,7 +483,7 @@ export default function VaultGrid({
             size="sm"
             disabled={page >= totalPages}
             onClick={() => handlePage(page + 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] disabled:opacity-40"
+            className="rounded-[var(--radius-button)] border-[var(--color-border)] bg-[var(--color-card)] font-600 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-40"
           >
             Next
             <ChevronRight className="size-4" />
