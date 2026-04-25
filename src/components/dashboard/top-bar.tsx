@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { UserMenu } from "./user-menu";
+import { BalanceChip } from "./balance-chip";
 import type { Role } from "@/config/routes";
 
 interface TopBarProps {
@@ -75,6 +76,7 @@ export function TopBar({
           <Search className="h-4 w-4" />
         </button>
 
+        <BalanceChip role={role} />
         <ThemeToggle />
         <NotificationBell count={0} />
         <UserMenu
