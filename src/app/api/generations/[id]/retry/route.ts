@@ -75,10 +75,31 @@ export async function POST(
   }
 
   // ── Compute retry cost ──
+  // CRITICAL: when computing retry cost we must use the cost of the ORIGINAL
+  // (retry_count=0) generation in the chain, NOT the current gen's cost. If
+  // the current gen is itself a free retry its cost_paise is 0, which would
+  // make 50%-of-cost wrongly evaluate to ₹0 for every subsequent retry.
   const oldRetryCount = (original.retry_count as number) ?? 0;
   const isFreeRetry = oldRetryCount === 0;
-  const originalCost = (original.cost_paise as number) ?? 0;
-  const retryCost = isFreeRetry ? 0 : Math.round(originalCost * 0.5);
+
+  let chainOriginalCost = (original.cost_paise as number) ?? 0;
+  if (oldRetryCount > 0 && original.collab_session_id) {
+    // Walk back to the chain's original (retry_count=0) generation in the
+    // same collab_session and read its cost_paise.
+    const { data: chainOriginal } = await admin
+      .from("generations")
+      .select("cost_paise")
+      .eq("collab_session_id", original.collab_session_id)
+      .eq("retry_count", 0)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (chainOriginal?.cost_paise) {
+      chainOriginalCost = chainOriginal.cost_paise as number;
+    }
+  }
+
+  const retryCost = isFreeRetry ? 0 : Math.round(chainOriginalCost * 0.5);
 
   // ── Pre-flight wallet check (paid retry only) ──
   if (retryCost > 0) {

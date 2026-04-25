@@ -119,6 +119,26 @@ export async function GET(
     if (campData) campaign = campData;
   }
 
+  // --- Resolve original cost in the retry chain ---
+  // For retry-cost calculations, the UI needs the cost of the FIRST gen
+  // (retry_count=0) in this chain. The current gen's own cost_paise is 0
+  // when it was itself a free retry — using that to compute "50% of cost"
+  // would always give ₹0, so we look it up explicitly.
+  let originalCostPaise: number = (gen.cost_paise as number) ?? 0;
+  if ((gen.retry_count ?? 0) > 0 && gen.collab_session_id) {
+    const { data: chainOriginal } = await admin
+      .from("generations")
+      .select("cost_paise")
+      .eq("collab_session_id", gen.collab_session_id)
+      .eq("retry_count", 0)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (chainOriginal?.cost_paise) {
+      originalCostPaise = chainOriginal.cost_paise as number;
+    }
+  }
+
   // --- Check if current user is the creator ---
   const { data: creatorRow } = await admin
     .from("creators")
@@ -173,7 +193,11 @@ export async function GET(
     .maybeSingle();
 
   return NextResponse.json({
-    generation: { ...effectiveGen, campaign },
+    generation: {
+      ...effectiveGen,
+      campaign,
+      original_cost_paise: originalCostPaise,
+    },
     approval: approvalData ?? null,
     is_creator: isCreator,
   });

@@ -43,6 +43,10 @@ interface GenerationStatus {
   created_at: string;
   updated_at: string;
   cost_paise?: number | null;
+  // Cost of the FIRST (retry_count=0) gen in this retry chain. Use this to
+  // compute paid-retry pricing; cost_paise on free retries is 0 which would
+  // wrongly resolve "50% of cost" to ₹0 for every subsequent retry.
+  original_cost_paise?: number | null;
   retry_count?: number | null;
   is_free_retry?: boolean | null;
 }
@@ -496,6 +500,7 @@ export default function SessionPoller({
         created_at: data.generation.created_at,
         updated_at: data.generation.updated_at,
         cost_paise: data.generation.cost_paise ?? null,
+        original_cost_paise: data.generation.original_cost_paise ?? null,
         retry_count: data.generation.retry_count ?? 0,
         is_free_retry: data.generation.is_free_retry ?? false,
       };
@@ -600,12 +605,16 @@ export default function SessionPoller({
     setConfirmOpen("discard");
   }, [actionPending]);
 
-  // Dialog content state
+  // Dialog content state — use original_cost_paise (chain root) so that
+  // "50% of original" doesn't wrongly resolve to ₹0 when the current gen
+  // is itself a free retry (which has cost_paise = 0).
   const retryCount = gen?.retry_count ?? 0;
   const isFreeRetry = retryCount === 0;
+  const referenceCostPaise =
+    gen?.original_cost_paise ?? gen?.cost_paise ?? 0;
   const retryCostRupees = isFreeRetry
     ? 0
-    : Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100);
+    : Math.round((referenceCostPaise * 0.5) / 100);
 
   const brief = gen?.structured_brief ?? {};
   const briefEntries = Object.entries({
@@ -768,7 +777,7 @@ export default function SessionPoller({
                   <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
                     {(gen?.retry_count ?? 0) === 0
                       ? "1 free retry available if not satisfied. Auto-sent to creator after 24h."
-                      : `Retry costs 50% of original price (₹${Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100)}). Auto-sent after 24h.`}
+                      : `Retry costs 50% of original price (₹${retryCostRupees}). Auto-sent after 24h.`}
                   </p>
                 </div>
               </div>
@@ -926,8 +935,7 @@ export default function SessionPoller({
                       </span>{" "}
                       — any further retries will cost{" "}
                       <span className="font-700 text-[var(--color-foreground)]">
-                        ₹
-                        {Math.round(((gen?.cost_paise ?? 0) * 0.5) / 100)}
+                        ₹{Math.round((referenceCostPaise * 0.5) / 100)}
                       </span>
                       .
                     </>
