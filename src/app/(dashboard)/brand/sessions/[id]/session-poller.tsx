@@ -93,7 +93,7 @@ function getStatusConfig(status: string): StatusConfig {
     case "processing":
       return {
         label: "Generating image",
-        sublabel: "Gemini is producing your shot — typically 30–90 seconds",
+        sublabel: "Faiceoff AI is producing your shot — typically 30–90 seconds",
         tone: "info",
         icon: Loader2,
         pulsing: true,
@@ -362,8 +362,8 @@ function ImageCanvas({
             </p>
             {isGenerating && (
               <p className="max-w-xs text-xs text-[var(--color-muted-foreground)]">
-                Gemini is composing your scene with the creator's likeness +
-                product anchor
+                Faiceoff AI is composing your scene with the creator&apos;s
+                likeness + product anchor
               </p>
             )}
           </div>
@@ -549,7 +549,7 @@ export default function SessionPoller({
         </div>
 
         {/* Brief recap */}
-        {(briefEntries.length > 0 || gen?.assembled_prompt) && (
+        {briefEntries.length > 0 && (
           <details className="group rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--shadow-soft)] [&_summary::-webkit-details-marker]:hidden" open>
             <summary className="flex cursor-pointer list-none items-center justify-between p-5 pb-4">
               <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)]">
@@ -560,7 +560,7 @@ export default function SessionPoller({
               </span>
             </summary>
 
-            <div className="space-y-3 px-5 pb-5">
+            <div className="px-5 pb-5">
               {briefEntries.length > 0 && (
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                   {briefEntries.map(([k, v]) => (
@@ -574,17 +574,6 @@ export default function SessionPoller({
                     </div>
                   ))}
                 </dl>
-              )}
-
-              {gen?.assembled_prompt && (
-                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] p-3">
-                  <p className="mb-1 text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)]">
-                    Assembled prompt
-                  </p>
-                  <p className="line-clamp-4 text-[11px] leading-relaxed text-[var(--color-muted-foreground)]">
-                    {gen.assembled_prompt}
-                  </p>
-                </div>
               )}
             </div>
           </details>
