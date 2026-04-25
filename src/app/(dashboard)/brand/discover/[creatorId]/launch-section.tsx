@@ -3,23 +3,24 @@
 /**
  * LaunchSection — Client island for /brand/discover/[creatorId]
  *
- * Owns the GenerationSheet state and renders the balance summary + Generate
- * CTA. Brand balance and creator info are pre-loaded server-side and passed
- * in as props.
+ * Renders the balance summary + Generate CTA + opens the StartCampaignSheet
+ * when the brand clicks Generate.
  *
- * Hybrid Soft Luxe v2 — uses canonical theme tokens so it reads cleanly in
- * both light and dark modes. (Older bg-white / text-ink usage caused
- * invisible-text issues in dark mode and harsh red "error" pills.)
+ * Why StartCampaignSheet (not the legacy GenerationSheet):
+ *   • The new Gemini 3.1 Flash Image pipeline REQUIRES a product image
+ *     reference (run-generation.ts throws if brief.product_image_url is
+ *     missing). The old GenerationSheet had no upload field, so every
+ *     submit would crash inside the orchestrator.
+ *   • StartCampaignSheet at /dashboard/creators/[id] already supports
+ *     product image upload + per-pill creative brief + count + aspect
+ *     ratio + draft autosave, and posts to /api/campaigns/create which
+ *     uses the new StructuredBriefSchema.
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import { Zap, Wallet, CreditCard, ChevronRight, Check, AlertTriangle } from "lucide-react";
-import { GenerationSheet } from "@/components/sessions/generation-sheet";
-import type {
-  CreatorInfo,
-  BrandBalance,
-} from "@/components/sessions/generation-sheet";
+import { StartCampaignSheet } from "@/app/(dashboard)/dashboard/creators/[id]/start-campaign-sheet";
 
 function formatINR(paise: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -30,9 +31,27 @@ function formatINR(paise: number): string {
   }).format(paise / 100);
 }
 
+export interface LaunchCreatorInfo {
+  id: string;
+  display_name: string;
+  hero_photo_url: string | null;
+  avatar_url: string | null;
+  base_price_paise: number;
+  categories: {
+    id: string;
+    category: string;
+    price_per_generation_paise: number;
+  }[];
+}
+
+export interface LaunchBrandBalance {
+  credits_remaining: number;
+  wallet_available_paise: number;
+}
+
 interface Props {
-  creator: CreatorInfo;
-  brandBalance: BrandBalance;
+  creator: LaunchCreatorInfo;
+  brandBalance: LaunchBrandBalance;
 }
 
 export function LaunchSection({ creator, brandBalance }: Props) {
@@ -124,12 +143,19 @@ export function LaunchSection({ creator, brandBalance }: Props) {
         </Link>
       </div>
 
-      <GenerationSheet
-        open={open}
-        onOpenChange={setOpen}
-        creator={creator}
-        brandBalance={brandBalance}
-      />
+      {open && (
+        <StartCampaignSheet
+          creator={{
+            id: creator.id,
+            display_name: creator.display_name,
+            hero_photo_url: creator.hero_photo_url,
+            avatar_url: creator.avatar_url,
+            categories: creator.categories,
+          }}
+          minPrice={creator.base_price_paise}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

@@ -159,13 +159,19 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
       )
     : null;
 
-  // Pre-pick the cheapest active category so the GenerationSheet has a known
-  // price to anchor on. The sheet itself handles per-scope/exclusivity uplift.
+  // LaunchCreatorInfo shape — full category objects (id + category + price)
+  // so StartCampaignSheet can render the per-niche pill row with prices.
   const sheetCreator = {
     id: creator.id,
     display_name: creator.display_name,
+    hero_photo_url: creator.hero_photo_url,
+    avatar_url: null,
     base_price_paise: cheapestCategory?.price_per_generation_paise ?? 0,
-    categories: creator.categories.map((c) => c.category),
+    categories: creator.categories.map((c) => ({
+      id: c.id,
+      category: c.category,
+      price_per_generation_paise: c.price_per_generation_paise,
+    })),
   };
 
   return (
