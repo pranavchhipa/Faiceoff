@@ -59,14 +59,12 @@ export function MobileDrawerNav({ role, open, onClose }: MobileDrawerNavProps) {
       >
         <SheetHeader className="border-b border-[var(--color-border)] p-4">
           <SheetTitle className="flex items-center gap-2 font-display text-lg font-800 tracking-tight">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-primary)] p-1">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-mark.png"
-                alt="Faiceoff"
-                className="h-full w-full object-contain"
-              />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-mark.png"
+              alt="Faiceoff"
+              className="h-7 w-7 object-contain"
+            />
             Faiceoff<span className="text-[var(--color-primary)]">.</span>
             <span className="ml-auto rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
               {role}

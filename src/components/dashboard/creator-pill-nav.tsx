@@ -26,12 +26,18 @@ export function CreatorPillNav() {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Compact wordmark — clicks home */}
+      {/* Compact logo + wordmark — clicks home */}
       <Link
         href="/creator/dashboard"
         aria-label="Faiceoff home"
-        className="shrink-0 font-display text-base font-800 tracking-tight text-[var(--color-foreground)] hover:text-[var(--color-primary)]"
+        className="flex shrink-0 items-center gap-2 font-display text-base font-800 tracking-tight text-[var(--color-foreground)] hover:text-[var(--color-primary)]"
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-mark.png"
+          alt=""
+          className="h-7 w-7 object-contain"
+        />
         Faiceoff<span className="text-[var(--color-primary)]">.</span>
       </Link>
 

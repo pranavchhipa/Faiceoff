@@ -74,7 +74,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="hidden lg:block">
           <CreatorPillNav />
         </div>
-        <span className="font-display text-base font-800 tracking-tight lg:hidden">
+        <span className="flex items-center gap-2 font-display text-base font-800 tracking-tight lg:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-mark.png"
+            alt=""
+            aria-hidden
+            className="h-6 w-6 object-contain"
+          />
           Faiceoff<span className="text-[var(--color-primary)]">.</span>
         </span>
       </>
@@ -154,11 +161,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 /* ───────── Left-slot helpers ───────── */
 
 function BrandBreadcrumb() {
-  // Simple static breadcrumb: just the current section label.
-  // Derive from pathname for now — swap for a real breadcrumb when
-  // nested routes warrant it.
+  // Logo mark + current section label.
   return (
-    <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
+    <span className="hidden items-center gap-2 font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline-flex">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-mark.png"
+        alt=""
+        aria-hidden
+        className="h-6 w-6 object-contain"
+      />
       <PageTitle />
     </span>
   );
@@ -166,7 +178,14 @@ function BrandBreadcrumb() {
 
 function AdminPageTitle() {
   return (
-    <span className="font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
+    <span className="inline-flex items-center gap-2 font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-mark.png"
+        alt=""
+        aria-hidden
+        className="h-6 w-6 object-contain"
+      />
       <PageTitle />
     </span>
   );
