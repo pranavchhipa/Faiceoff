@@ -397,8 +397,8 @@ export default function SessionPoller({
       </motion.div>
 
       {/* Progress bar */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-soft)] mb-6">
-        <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-4">
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-soft)] mb-6">
+        <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">
           Pipeline stages
         </p>
         <ProgressBar currentStage={stageIndex} />
@@ -410,34 +410,34 @@ export default function SessionPoller({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.15 }}
-          className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-soft)]"
+          className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-soft)]"
         >
-          <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-3">
+          <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
             Your brief
           </p>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             {brief.product_name && (
               <div>
-                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Product</p>
+                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] mb-0.5">Product</p>
                 <p className="font-600 text-[var(--color-foreground)]">{brief.product_name}</p>
               </div>
             )}
             {brief.scene && (
               <div>
-                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Scene</p>
+                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] mb-0.5">Scene</p>
                 <p className="text-[var(--color-foreground)]">{brief.scene}</p>
               </div>
             )}
             {brief.mood && (
               <div>
-                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Mood</p>
+                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] mb-0.5">Mood</p>
                 <p className="text-[var(--color-foreground)]">{brief.mood}</p>
               </div>
             )}
             {brief.scope && (
               <div>
-                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-0.5">Scope</p>
+                <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] mb-0.5">Scope</p>
                 <p className="text-[var(--color-foreground)]">{brief.scope}</p>
               </div>
             )}
@@ -445,8 +445,8 @@ export default function SessionPoller({
 
           {gen?.assembled_prompt && (
             <div className="mt-4 pt-3 border-t border-[var(--color-border)]">
-              <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-neutral-400)] mb-1.5">Assembled prompt</p>
-              <p className="text-xs text-[var(--color-neutral-600)] leading-relaxed line-clamp-3">
+              <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] mb-1.5">Assembled prompt</p>
+              <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed line-clamp-3">
                 {gen.assembled_prompt}
               </p>
             </div>
@@ -461,10 +461,10 @@ export default function SessionPoller({
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
-            className="mt-4 flex items-center gap-2.5 rounded-[var(--radius-card)] border border-red-100 bg-red-50 px-4 py-3"
+            className="mt-4 flex items-center gap-2.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-3"
           >
             <AlertTriangle className="size-4 text-red-500 shrink-0" />
-            <p className="text-sm text-red-600">
+            <p className="text-sm text-red-500">
               Unable to fetch status. Retrying automatically...
             </p>
           </motion.div>
@@ -473,9 +473,9 @@ export default function SessionPoller({
 
       {/* No image placeholder when not yet generated */}
       {!gen?.image_url && status !== "approved" && (
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] bg-[var(--color-neutral-50)] py-10">
-          <ImageIcon className="size-8 text-[var(--color-neutral-300)]" />
-          <p className="text-sm text-[var(--color-neutral-400)] font-500">
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] py-10">
+          <ImageIcon className="size-8 text-[var(--color-muted-foreground)]" />
+          <p className="text-sm text-[var(--color-muted-foreground)] font-500">
             Image will appear here once generated
           </p>
         </div>
