@@ -12,7 +12,7 @@
  */
 
 import crypto from "crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/anti-fraud";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { replicate } from "@/lib/ai/replicate-client";
+import { runGeneration } from "@/lib/ai/run-generation";
 import type { LicenseScope } from "@/lib/billing";
 import type { Json } from "@/types/supabase";
 
@@ -384,7 +385,13 @@ export async function POST(request: Request) {
     campaignId = newCampaign.id as string;
   }
 
-  // ── 13. Insert generation row (status='processing') ───────────────────────────
+  // ── 13. Insert generation row ─────────────────────────────────────────────
+  // Status starts as 'draft' so runGeneration() can atomically claim it via
+  // its draft→processing transition (idempotency guard). The legacy Flux
+  // path still flips it to 'processing' via direct update below.
+  const provider = process.env.IMAGE_PROVIDER ?? "gemini";
+  const initialStatus = provider === "gemini" ? "draft" : "processing";
+
   const normalizedBrief: Record<string, unknown> = {
     product: brief.product,
     scene: brief.scene,
@@ -404,7 +411,7 @@ export async function POST(request: Request) {
       creator_id: creator_id,
       structured_brief: normalizedBrief as unknown as Json,
       assembled_prompt: assembledPrompt,
-      status: "processing",
+      status: initialStatus,
       cost_paise: rate.total_paise,
       compliance_result: complianceResult as unknown as Json,
     })
@@ -463,9 +470,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Billing error — wallet reservation failed" }, { status: 402 });
   }
 
-  // ── 15. Submit to Replicate with webhook ──────────────────────────────────────
-  // LoRA path retired (migration 00026) — every generation goes through
-  // Flux Kontext Max with the creator's reference photos as the identity anchor.
+  // ── 15. Dispatch image generation ─────────────────────────────────────────
+  // Default path: Gemini 3.1 Flash Image via after() background dispatch.
+  // The runGeneration() orchestrator handles face refs, product image,
+  // anchor prompt, Hive safety, R2 upload, approval row, and refund-on-fail.
+  if (provider === "gemini") {
+    after(async () => {
+      try {
+        await runGeneration(generationId);
+      } catch (err) {
+        console.error(
+          `[generations/create] runGeneration unexpected error for gen=${generationId}`,
+          err,
+        );
+      }
+    });
+    return NextResponse.json(
+      { generation_id: generationId, status: "processing" },
+      { status: 202 },
+    );
+  }
+
+  // ── Legacy path: Replicate Flux Kontext Max (kept for kill-switch rollback)
   let webhookToken: string;
   try {
     webhookToken = makeWebhookToken(generationId);

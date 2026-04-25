@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { inngest } from "@/inngest/client";
+import { runGenerationsBatch } from "@/lib/ai/run-generation";
 import { StructuredBriefSchema } from "@/domains/generation/structured-brief";
 import type { Json } from "@/types/supabase";
 
@@ -215,14 +216,33 @@ export async function POST(request: Request) {
     balance_after_paise: number;
   };
 
-  // Dispatch Inngest events — one per generation. Done OUTSIDE the RPC so a
-  // failed send doesn't roll back the campaign. Use batch form.
-  await inngest.send(
-    generation_ids.map((id) => ({
-      name: "generation/created" as const,
-      data: { generation_id: id },
-    })),
-  );
+  // Dispatch Gemini generation pipeline in the background. Each generation
+  // is fired in parallel via `after()` so the response returns immediately —
+  // the brand UI then polls /api/generations/[id] for status updates.
+  //
+  // Kill switch: IMAGE_PROVIDER=flux skips dispatch (legacy Replicate path
+  // is no longer wired into campaigns/create — flag exists for future
+  // rollback work, see runbooks/v2-pipeline-rollout.md).
+  const provider = process.env.IMAGE_PROVIDER ?? "gemini";
+  if (provider === "gemini") {
+    after(async () => {
+      try {
+        await runGenerationsBatch(generation_ids);
+      } catch (err) {
+        // runGenerationsBatch never throws (uses allSettled), but guard anyway.
+        console.error("[campaigns/create] background dispatch failed", err);
+        Sentry.captureException(err, {
+          tags: { route: "campaigns/create", phase: "background" },
+          extra: { campaign_id, generation_ids },
+        });
+      }
+    });
+  } else {
+    console.warn(
+      `[campaigns/create] IMAGE_PROVIDER=${provider} — generations not dispatched. ` +
+        `${generation_ids.length} draft generations will need manual replay.`,
+    );
+  }
 
   return NextResponse.json({ campaign_id, generation_ids }, { status: 201 });
 }
