@@ -97,7 +97,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // --- Look up brand ---
   const { data: brand } = await admin
@@ -173,48 +174,113 @@ export async function POST(request: Request) {
   const aspectLabel = brief.aspect_ratio;
   const description = `${brief.product_name} shoot with ${creatorName}. ${aspectLabel} format, ${count} images.`;
 
-  // --- Atomically create campaign + escrow via RPC ---
-  const { data: rpcData, error: rpcError } = await admin.rpc(
-    "create_campaign_with_escrow",
-    {
-      p_brand_id: brand.id,
-      p_user_id: user.id,
-      p_creator_id: creator.id,
-      p_name: name,
-      p_description: description,
-      p_budget_paise: budget_paise,
-      p_max_generations: count,
-      p_price_per_generation_paise: price_per_generation_paise,
-      p_structured_brief: brief as unknown as Json,
-    },
-  );
+  // --- Pre-flight wallet check (against new two_layer_billing schema) ---
+  // The legacy create_campaign_with_escrow RPC was dropped in migration
+  // 00025 (it operated on the retired wallet_transactions/user_id model).
+  // Inline equivalent below: check available balance, insert collab_session,
+  // insert N draft generations. Per-gen credit deduct + wallet reserve
+  // happens later inside runGeneration (so partial failures only burn one
+  // generation, not the whole campaign).
+  const { data: brandBilling, error: brandBillingError } = await admin
+    .from("v_brand_billing")
+    .select("wallet_available_paise, credits_remaining")
+    .eq("brand_id", brand.id)
+    .maybeSingle();
 
-  if (rpcError) {
-    // Match "insufficient_balance:" prefix to return 402 instead of 500.
-    if (rpcError.message?.startsWith("insufficient_balance:")) {
-      return NextResponse.json(
-        {
-          error: "Insufficient wallet balance. Please top up your wallet.",
-          required_paise: budget_paise,
-        },
-        { status: 402 },
-      );
-    }
-    Sentry.captureException(rpcError, {
-      tags: { route: "campaigns/create" },
-      extra: { brand_id: brand.id, creator_id: creator.id },
+  if (brandBillingError || !brandBilling) {
+    Sentry.captureException(brandBillingError ?? new Error("billing view missing"), {
+      tags: { route: "campaigns/create", phase: "billing_check" },
+      extra: { brand_id: brand.id },
     });
     return NextResponse.json(
-      { error: "Failed to create campaign" },
+      { error: "Could not read brand billing balances" },
       { status: 500 },
     );
   }
 
-  const { campaign_id, generation_ids } = rpcData as {
-    campaign_id: string;
-    generation_ids: string[];
-    balance_after_paise: number;
-  };
+  const walletAvailable = (brandBilling.wallet_available_paise as number) ?? 0;
+  const creditsRemaining = (brandBilling.credits_remaining as number) ?? 0;
+
+  if (walletAvailable < budget_paise) {
+    return NextResponse.json(
+      {
+        error: "Insufficient wallet balance. Please top up your wallet.",
+        required_paise: budget_paise,
+        available_paise: walletAvailable,
+      },
+      { status: 402 },
+    );
+  }
+
+  if (creditsRemaining < count) {
+    return NextResponse.json(
+      {
+        error: "Insufficient credits. Please top up.",
+        required_credits: count,
+        available_credits: creditsRemaining,
+      },
+      { status: 402 },
+    );
+  }
+
+  // --- 1. Insert collab_session (renamed from campaigns in migration 00025) ---
+  const { data: sessionRow, error: sessionError } = await admin
+    .from("collab_sessions")
+    .insert({
+      brand_id: brand.id,
+      creator_id: creator.id,
+      name,
+      description,
+      budget_paise,
+      max_generations: count,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (sessionError || !sessionRow) {
+    Sentry.captureException(sessionError ?? new Error("collab_session insert failed"), {
+      tags: { route: "campaigns/create", phase: "session_insert" },
+      extra: { brand_id: brand.id, creator_id: creator.id },
+    });
+    return NextResponse.json(
+      { error: "Failed to create campaign session" },
+      { status: 500 },
+    );
+  }
+
+  const campaign_id = sessionRow.id as string;
+
+  // --- 2. Insert N draft generation rows ---
+  const genRows = Array.from({ length: count }).map(() => ({
+    collab_session_id: campaign_id,
+    brand_id: brand.id,
+    creator_id: creator.id,
+    structured_brief: brief as unknown as Json,
+    status: "draft" as const,
+    cost_paise: price_per_generation_paise,
+  }));
+
+  const { data: insertedGens, error: genError } = await admin
+    .from("generations")
+    .insert(genRows)
+    .select("id");
+
+  if (genError || !insertedGens) {
+    // Roll back the session row so the brand doesn't see an empty
+    // campaign with zero generations sitting in their list.
+    await admin.from("collab_sessions").delete().eq("id", campaign_id);
+    Sentry.captureException(genError ?? new Error("generations insert failed"), {
+      tags: { route: "campaigns/create", phase: "generations_insert" },
+      extra: { brand_id: brand.id, campaign_id, count },
+    });
+    return NextResponse.json(
+      { error: "Failed to create generation rows" },
+      { status: 500 },
+    );
+  }
+
+  const generation_ids = (insertedGens as Array<{ id: string }>).map((g) => g.id);
 
   // Dispatch Gemini generation pipeline in the background. Each generation
   // is fired in parallel via `after()` so the response returns immediately —

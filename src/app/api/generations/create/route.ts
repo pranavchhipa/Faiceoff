@@ -343,7 +343,7 @@ export async function POST(request: Request) {
   if (requestedCampaignId) {
     // Verify the campaign belongs to this brand.
     const { data: existingCampaign, error: campaignError } = await admin
-      .from("campaigns")
+      .from("collab_sessions")
       .select("id, status")
       .eq("id", requestedCampaignId)
       .eq("brand_id", brand.id)
@@ -360,7 +360,7 @@ export async function POST(request: Request) {
     // Create a stub "Direct Generation" campaign for the brand+creator pair.
     // This keeps the DB schema constraint (campaigns.id NOT NULL on generations).
     const { data: newCampaign, error: createCampaignError } = await admin
-      .from("campaigns")
+      .from("collab_sessions")
       .insert({
         brand_id: brand.id,
         creator_id: creator_id,
@@ -406,7 +406,7 @@ export async function POST(request: Request) {
   const { data: generation, error: genError } = await admin
     .from("generations")
     .insert({
-      campaign_id: campaignId,
+      collab_session_id: campaignId,
       brand_id: brand.id,
       creator_id: creator_id,
       structured_brief: normalizedBrief as unknown as Json,
