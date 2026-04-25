@@ -2,12 +2,11 @@
  * Generation orchestrator — replaces the dead Inngest pipeline.
  *
  * Called from `after()` in /api/campaigns/create + /api/generations/create.
- * Drives a single generation from 'draft' or 'processing' through to
- * 'ready_for_approval' (success), 'failed' (refunded), or
- * 'needs_admin_review' (output safety / storage failure).
+ * Drives a single generation from 'draft' through to
+ * 'ready_for_approval' (success) or 'failed' (refunded / safety / storage).
  *
  * Pipeline:
- *   1. Atomic status transition draft→processing (idempotency guard)
+ *   1. Atomic status transition draft→generating (idempotency guard)
  *   2. Fetch creator face refs (primary + 2 random) from Supabase Storage
  *   3. Fetch product image bytes from brief.product_image_url
  *   4. LLM-assemble creative prompt (OpenRouter)
@@ -18,8 +17,8 @@
  *
  * Failure paths:
  *   - Gemini hard-fails → status='failed', releaseReserve, rollback credit
- *   - Hive flags unsafe → status='needs_admin_review' (no refund — admin decides)
- *   - R2 / fetch / DB error → status='needs_admin_review' (manual replay)
+ *   - Hive flags unsafe → status='failed' (no refund — admin decides)
+ *   - R2 / fetch / DB error → status='failed' (manual replay)
  */
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -165,11 +164,13 @@ export async function runGeneration(generationId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  // ── 1. Atomic status transition: draft → processing ───────────────────────
+  // ── 1. Atomic status transition: draft → generating ──────────────────────
   // Only one concurrent run can claim the row.
+  // NOTE: "processing" is NOT in the DB check constraint — use "generating"
+  // which IS an allowed status value.
   const { data: claimed, error: claimError } = await admin
     .from("generations")
-    .update({ status: "processing" })
+    .update({ status: "generating" })
     .eq("id", generationId)
     .eq("status", "draft")
     .select("id, brand_id, creator_id, structured_brief, cost_paise")
@@ -286,7 +287,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     // Hive needs a URL — upload the bytes to R2 first under a temp key, then
     // check, then promote to permanent key. Simpler approach: skip URL-based
     // Hive and run on a data URL is not supported; instead, upload to R2,
-    // check, and on unsafe flag mark needs_admin_review (image stays in R2).
+    // check, and on unsafe flag mark failed (image stays in R2).
     const ext = geminiResult.mimeType === "image/jpeg" ? "jpg" : "png";
     const r2Key = `generations/${generationId}/raw.${ext}`;
     let r2Url: string;
@@ -315,7 +316,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       await admin
         .from("generations")
         .update({
-          status: "needs_admin_review",
+          status: "failed",
           assembled_prompt: assembledPrompt,
         })
         .eq("id", generationId);
@@ -352,7 +353,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       await admin
         .from("generations")
         .update({
-          status: "needs_admin_review",
+          status: "failed",
           image_url: r2Url,
           assembled_prompt: assembledPrompt,
         })
@@ -405,7 +406,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     try {
       await admin
         .from("generations")
-        .update({ status: "needs_admin_review" })
+        .update({ status: "failed" })
         .eq("id", generationId);
     } catch {
       // swallow — already in error path

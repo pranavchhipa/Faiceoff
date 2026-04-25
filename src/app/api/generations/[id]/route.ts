@@ -29,7 +29,7 @@ export async function GET(
   const { data: genRaw, error: genError } = await admin
     .from("generations")
     .select(
-      `id, campaign_id, creator_id, brand_id, status, assembled_prompt,
+      `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
        structured_brief, image_url, cost_paise, created_at, updated_at,
        base_image_url, upscaled_url, quality_scores, generation_attempts,
        provider_prediction_id, pipeline_version`,
@@ -40,7 +40,7 @@ export async function GET(
   const gen = genRaw as unknown as
     | {
         id: string;
-        campaign_id: string | null;
+        collab_session_id: string | null;
         creator_id: string;
         brand_id: string;
         status: string;
@@ -101,13 +101,13 @@ export async function GET(
     }
   }
 
-  // --- Fetch campaign name ---
+  // --- Fetch session name ---
   let campaign: { id: string; name: string } | null = null;
-  if (gen.campaign_id) {
+  if (gen.collab_session_id) {
     const { data: campData } = await admin
-      .from("campaigns")
+      .from("collab_sessions")
       .select("id, name")
-      .eq("id", gen.campaign_id)
+      .eq("id", gen.collab_session_id)
       .single();
     if (campData) campaign = campData;
   }
