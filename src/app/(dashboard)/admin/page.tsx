@@ -12,6 +12,7 @@
 // tiles are stubs marked "Soon" so the admin knows what's coming.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -57,52 +58,48 @@ interface TriageRow {
   href: string;
 }
 
-interface HealthItem {
-  label: string;
-  value: string;
-  status: "green" | "yellow" | "red";
+/* ───────── Live tiles ───────── */
+
+function buildQueues(safetyCount: number, stuckCount: number): QueueTile[] {
+  return [
+    {
+      href: "/admin/safety",
+      title: "Safety review",
+      count: safetyCount,
+      sub: "Hive flags + policy edges",
+      icon: Shield,
+      status: "live",
+      severity: safetyCount > 0 ? "warn" : "ok",
+    },
+    {
+      href: "/admin/stuck-gens",
+      title: "Stuck generations",
+      count: stuckCount,
+      sub: "Pipeline retry tooling",
+      icon: AlertTriangle,
+      status: "live",
+      severity: stuckCount > 0 ? "error" : "ok",
+    },
+    {
+      href: "/admin/disputes",
+      title: "Disputes",
+      count: null,
+      sub: "Brand ↔ creator resolution",
+      icon: Flag,
+      status: "soon",
+      severity: "warn",
+    },
+    {
+      href: "/admin/kyc-queue",
+      title: "KYC queue",
+      count: null,
+      sub: "PAN + bank verification",
+      icon: IdCard,
+      status: "soon",
+      severity: "info",
+    },
+  ];
 }
-
-/* ───────── Mock content ───────── */
-
-const QUEUES: QueueTile[] = [
-  {
-    href: "/admin/safety",
-    title: "Safety review",
-    count: 7,
-    sub: "Hive flags + policy edges",
-    icon: Shield,
-    status: "live",
-    severity: "warn",
-  },
-  {
-    href: "/admin/stuck-gens",
-    title: "Stuck generations",
-    count: 3,
-    sub: "Pipeline retry tooling",
-    icon: AlertTriangle,
-    status: "live",
-    severity: "error",
-  },
-  {
-    href: "/admin/disputes",
-    title: "Disputes",
-    count: 1,
-    sub: "Brand ↔ creator resolution",
-    icon: Flag,
-    status: "soon",
-    severity: "warn",
-  },
-  {
-    href: "/admin/kyc-queue",
-    title: "KYC queue",
-    count: 4,
-    sub: "PAN + bank verification",
-    icon: IdCard,
-    status: "soon",
-    severity: "info",
-  },
-];
 
 const MANAGE: QueueTile[] = [
   {
@@ -143,62 +140,8 @@ const MANAGE: QueueTile[] = [
   },
 ];
 
-const TRIAGE_ROWS: TriageRow[] = [
-  {
-    id: "t1",
-    title: "OnePlus · Nord launch",
-    subtitle: "Hive flag · brand logo over-saturation",
-    meta: "2h ago · Priya",
-    severity: "warn",
-    href: "/admin/safety",
-  },
-  {
-    id: "t2",
-    title: "Starbucks India · Café",
-    subtitle: "Compliance check failed · blocked concept",
-    meta: "3h ago · Meera",
-    severity: "error",
-    href: "/admin/safety",
-  },
-  {
-    id: "t3",
-    title: "Gen #g_4188 stuck",
-    subtitle: "Replicate timeout · retry available",
-    meta: "1h ago · LoRA v3",
-    severity: "error",
-    href: "/admin/stuck-gens",
-  },
-  {
-    id: "t4",
-    title: "Priya · reference re-train",
-    subtitle: "LoRA retrain requested · 28 new photos",
-    meta: "4h ago",
-    severity: "warn",
-    href: "/admin/safety",
-  },
-  {
-    id: "t5",
-    title: "Arjun · KYC update",
-    subtitle: "PAN change submitted · needs approval",
-    meta: "5h ago",
-    severity: "info",
-    href: "/admin/safety",
-  },
-];
-
-const HEALTH: HealthItem[] = [
-  { label: "Inngest queue", value: "All green · 0 backlog", status: "green" },
-  { label: "Replicate API", value: "94ms avg · healthy", status: "green" },
-  { label: "Cashfree webhook", value: "200/200 last hr", status: "green" },
-  { label: "Hive moderation", value: "7 flags pending", status: "yellow" },
-];
-
-const KPIS = [
-  { label: "Active creators", value: "142", delta: "+6 this week", tone: "up" as const },
-  { label: "Brands", value: "38", delta: "+2 this week", tone: "up" as const },
-  { label: "Generations / 24h", value: "94", delta: "98% pass rate", tone: "neutral" as const },
-  { label: "GMV · month", value: "₹4.2L", delta: "+12% MoM", tone: "up" as const },
-];
+// Triage rows / KPIs / health — live data is wired below from the
+// /api/admin/* endpoints. No fixtures.
 
 /* ───────── Page ───────── */
 
@@ -207,8 +150,81 @@ const fadeUp = {
   animate: { opacity: 1, y: 0 },
 };
 
+interface SafetyItem {
+  id: string;
+  brand?: string | null;
+  creator?: string | null;
+  reason?: string | null;
+  created_at?: string;
+}
+
+interface StuckItem {
+  id: string;
+  brand?: string | null;
+  creator?: string | null;
+  status?: string | null;
+  created_at?: string;
+}
+
+function relativeFrom(iso?: string): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 export default function AdminHomePage() {
+  const [safetyItems, setSafetyItems] = useState<SafetyItem[]>([]);
+  const [stuckItems, setStuckItems] = useState<StuckItem[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [safetyRes, stuckRes] = await Promise.allSettled([
+        fetch("/api/admin/safety/queue", { cache: "no-store" }),
+        fetch("/api/admin/stuck-gens", { cache: "no-store" }),
+      ]);
+      if (!cancelled && safetyRes.status === "fulfilled" && safetyRes.value.ok) {
+        const j = await safetyRes.value.json();
+        setSafetyItems((j.items as SafetyItem[]) ?? []);
+      }
+      if (!cancelled && stuckRes.status === "fulfilled" && stuckRes.value.ok) {
+        const j = await stuckRes.value.json();
+        setStuckItems((j.items as StuckItem[]) ?? []);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const QUEUES = buildQueues(safetyItems.length, stuckItems.length);
   const totalPending = QUEUES.reduce((s, q) => s + (q.count ?? 0), 0);
+
+  const triageRows: TriageRow[] = [
+    ...safetyItems.slice(0, 3).map((s) => ({
+      id: `safety-${s.id}`,
+      title:
+        [s.brand, s.creator].filter(Boolean).join(" · ") ||
+        `Safety review #${s.id.slice(0, 6)}`,
+      subtitle: s.reason ?? "Hive flag awaiting review",
+      meta: relativeFrom(s.created_at),
+      severity: "warn" as Severity,
+      href: "/admin/safety",
+    })),
+    ...stuckItems.slice(0, 3).map((s) => ({
+      id: `stuck-${s.id}`,
+      title: `Generation ${s.id.slice(0, 8)} stuck`,
+      subtitle: s.status ?? "Pipeline error · retry available",
+      meta: relativeFrom(s.created_at),
+      severity: "error" as Severity,
+      href: "/admin/stuck-gens",
+    })),
+  ];
 
   return (
     <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
@@ -287,32 +303,44 @@ export default function AdminHomePage() {
             </span>
           </div>
           <div className="divide-y divide-[var(--color-border)]">
-            {TRIAGE_ROWS.map((row) => (
-              <Link
-                key={row.id}
-                href={row.href}
-                className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[var(--color-secondary)]/60"
-              >
-                <SeverityDot severity={row.severity} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-[14px] font-700 text-[var(--color-foreground)]">
-                    {row.title}
-                  </p>
-                  <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
-                    {row.subtitle}
-                  </p>
-                </div>
-                <span className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] sm:inline">
-                  {row.meta}
-                </span>
-                <SeverityPill severity={row.severity} />
-                <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-foreground)]" />
-              </Link>
-            ))}
+            {triageRows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-5 py-12 text-center">
+                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+                  Inbox zero
+                </p>
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  No safety flags or stuck generations right now.
+                </p>
+              </div>
+            ) : (
+              triageRows.map((row) => (
+                <Link
+                  key={row.id}
+                  href={row.href}
+                  className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[var(--color-secondary)]/60"
+                >
+                  <SeverityDot severity={row.severity} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-display text-[14px] font-700 text-[var(--color-foreground)]">
+                      {row.title}
+                    </p>
+                    <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                      {row.subtitle}
+                    </p>
+                  </div>
+                  <span className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] sm:inline">
+                    {row.meta}
+                  </span>
+                  <SeverityPill severity={row.severity} />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-foreground)]" />
+                </Link>
+              ))
+            )}
           </div>
           <div className="flex items-center justify-between border-t border-[var(--color-border)] px-5 py-3">
             <p className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
-              {TRIAGE_ROWS.length} of {totalPending} showing
+              {triageRows.length} of {totalPending} showing
             </p>
             <Link
               href="/admin/safety"
@@ -323,77 +351,26 @@ export default function AdminHomePage() {
           </div>
         </motion.div>
 
-        {/* Right column: Health + KPIs */}
-        <div className="flex flex-col gap-4">
-          {/* Health panel */}
-          <motion.div
-            variants={fadeUp}
-            initial="initial"
-            animate="animate"
-            transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-                  System health
-                </p>
-                <h3 className="mt-1 font-display text-[16px] font-800 tracking-tight">
-                  <Activity className="mr-1 inline h-3.5 w-3.5 text-emerald-500" />
-                  All systems nominal
-                </h3>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              {HEALTH.map((h) => (
-                <div
-                  key={h.label}
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-background)]/40 px-3 py-2"
-                >
-                  <span className="flex items-center gap-2 text-[12px] font-600 text-[var(--color-foreground)]">
-                    <StatusDot status={h.status} />
-                    {h.label}
-                  </span>
-                  <span className="font-mono text-[11px] text-[var(--color-muted-foreground)]">
-                    {h.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* KPI quartet */}
-          <motion.div
-            variants={fadeUp}
-            initial="initial"
-            animate="animate"
-            transition={{ duration: 0.45, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="grid grid-cols-2 gap-3"
-          >
-            {KPIS.map((k) => (
-              <div
-                key={k.label}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"
-              >
-                <p className="font-mono text-[9px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-                  {k.label}
-                </p>
-                <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-                  {k.value}
-                </p>
-                <p
-                  className={`mt-1 font-mono text-[10px] ${
-                    k.tone === "up"
-                      ? "text-emerald-500"
-                      : "text-[var(--color-muted-foreground)]"
-                  }`}
-                >
-                  {k.delta}
-                </p>
-              </div>
-            ))}
-          </motion.div>
-        </div>
+        {/* Right column: Health placeholder */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)]/60 p-5"
+        >
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+            System health
+          </p>
+          <h3 className="mt-1 font-display text-[16px] font-800 tracking-tight">
+            <Activity className="mr-1 inline h-3.5 w-3.5 text-emerald-500" />
+            Live metrics coming soon
+          </h3>
+          <p className="mt-2 text-[12px] text-[var(--color-muted-foreground)]">
+            Pipeline latency, webhook health, and KPI quartet wire up once the
+            observability endpoints land. No fixtures shown.
+          </p>
+        </motion.div>
       </div>
 
       {/* ═══════════ Manage tiles ═══════════ */}
@@ -522,18 +499,6 @@ function SeverityPill({ severity }: { severity: Severity }) {
       <Icon className="h-2.5 w-2.5" />
       {label}
     </span>
-  );
-}
-
-function StatusDot({ status }: { status: "green" | "yellow" | "red" }) {
-  const cls =
-    status === "green"
-      ? "bg-emerald-500"
-      : status === "yellow"
-      ? "bg-amber-400"
-      : "bg-rose-500";
-  return (
-    <span className={`h-1.5 w-1.5 rounded-full ${cls} shadow-[0_0_0_3px_rgba(16,185,129,0.1)]`} />
   );
 }
 

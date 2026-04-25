@@ -1,15 +1,13 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// /creator/approvals — Editorial approval queue
+// /creator/approvals — Editorial approval queue (LIVE)
 //
-// The flagship creator screen. Every generation from a brand lands here and
-// the creator has 48h to approve/reject. We render it as a two-pane editorial
-// view: list of pending approvals on the left, expanded preview + brief on
-// the right. Mobile collapses to a single stacked feed.
+// Wires to /api/creator/approvals (read), /api/approvals/[id]/approve and
+// /api/approvals/[id]/reject (mutations). No mock data.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,6 +18,7 @@ import {
   FileText,
   IndianRupee,
   Inbox,
+  Loader2,
   MessageCircle,
   Shield,
   Sparkles,
@@ -28,65 +27,76 @@ import {
 
 /* ───────── Types ───────── */
 
+interface RawApproval {
+  id: string;
+  status: string;
+  feedback: string | null;
+  expires_at: string | null;
+  created_at: string;
+  generation: {
+    id: string;
+    image_url: string | null;
+    assembled_prompt: string | null;
+    structured_brief:
+      | { title?: string; category?: string; niche?: string; scope?: string }
+      | null;
+    cost_paise?: number | null;
+  } | null;
+  campaign: { id: string; name: string | null } | null;
+}
+
 interface Approval {
   id: string;
   brand: string;
-  brandLogo?: string;
   title: string;
   prompt: string;
-  thumb: string;
-  payoutRupees: number;
+  thumb: string | null;
+  payoutPaise: number;
   expiresIn: string;
   urgent: boolean;
   niche: string;
   createdAt: string;
-  hiveScore: number; // 0-1
 }
 
-const MOCK: Approval[] = [
-  {
-    id: "a1",
-    brand: "Nike India",
-    title: "Monsoon sneaker · Editorial",
-    prompt:
-      "Priya in white Nike sneakers, soft pink backdrop, monsoon light mist, editorial fashion, overhead angle, shot on 35mm film.",
-    thumb: "/landing/product-sneaker.jpg",
-    payoutRupees: 2500,
-    expiresIn: "41h 18m",
-    urgent: false,
-    niche: "Fashion",
-    createdAt: "2h ago",
-    hiveScore: 0.92,
-  },
-  {
-    id: "a2",
-    brand: "OnePlus",
-    title: "Nord launch · Lifestyle",
-    prompt:
-      "Priya holding OnePlus Nord, neon rim light, night scene, mumbai rooftop, cinematic anamorphic, gold accents.",
-    thumb: "/landing/product-phone.jpg",
-    payoutRupees: 3200,
-    expiresIn: "12h 04m",
-    urgent: true,
-    niche: "Tech",
-    createdAt: "8h ago",
-    hiveScore: 0.86,
-  },
-  {
-    id: "a3",
-    brand: "The Ordinary",
-    title: "Morning serum · Routine",
-    prompt:
-      "Priya applying serum, peach morning light, bathroom vanity, minimalist frame, soft skin highlights, gentle smile.",
-    thumb: "/landing/product-skincare.jpg",
-    payoutRupees: 1800,
-    expiresIn: "26h 52m",
-    urgent: false,
-    niche: "Beauty",
-    createdAt: "5h ago",
-    hiveScore: 0.94,
-  },
-];
+function formatExpiresIn(iso: string | null): { label: string; urgent: boolean; expired: boolean } {
+  if (!iso) return { label: "—", urgent: false, expired: false };
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return { label: "expired", urgent: true, expired: true };
+  const totalMin = Math.floor(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  const label = h >= 1 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
+  return { label, urgent: h < 12, expired: false };
+}
+
+function relativeFrom(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return "just now";
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function mapApproval(r: RawApproval): Approval {
+  const exp = formatExpiresIn(r.expires_at);
+  const brief = r.generation?.structured_brief ?? {};
+  return {
+    id: r.id,
+    brand: r.campaign?.name ?? "Unnamed brief",
+    title: brief.title ?? brief.category ?? "Generation",
+    prompt: r.generation?.assembled_prompt ?? "",
+    thumb: r.generation?.image_url ?? null,
+    payoutPaise:
+      // Creator earns 75% (platform takes 25%)
+      Math.round((r.generation?.cost_paise ?? 0) * 0.75),
+    expiresIn: exp.label,
+    urgent: exp.urgent,
+    niche: brief.niche ?? brief.category ?? "Generation",
+    createdAt: relativeFrom(r.created_at),
+  };
+}
 
 /* ───────── Page ───────── */
 
@@ -96,26 +106,106 @@ const fadeUp = {
 };
 
 export default function CreatorApprovalsPage() {
-  const [approvals, setApprovals] = useState(MOCK);
-  const [selectedId, setSelectedId] = useState<string | null>(MOCK[0]?.id ?? null);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [weekApproved, setWeekApproved] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/creator/approvals", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to load approvals");
+        if (cancelled) return;
+        const list = (data.approvals as RawApproval[]) ?? [];
+        const pending = list.filter((a) => a.status === "pending").map(mapApproval);
+        setApprovals(pending);
+        setSelectedId(pending[0]?.id ?? null);
+
+        // Approved-this-week count from the same payload
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const wk = list.filter(
+          (a) =>
+            a.status === "approved" &&
+            new Date(a.created_at).getTime() >= weekAgo,
+        ).length;
+        setWeekApproved(wk);
+      } catch (err) {
+        console.error("[creator/approvals] load failed", err);
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selected = useMemo(
     () => approvals.find((a) => a.id === selectedId) ?? null,
     [approvals, selectedId],
   );
 
-  const totalPayout = approvals.reduce((s, a) => s + a.payoutRupees, 0);
+  const totalPayoutPaise = approvals.reduce((s, a) => s + a.payoutPaise, 0);
   const urgent = approvals.filter((a) => a.urgent).length;
 
-  function handleDecision(id: string, _kind: "approve" | "reject") {
-    setApprovals((prev) => prev.filter((a) => a.id !== id));
-    setDecision(null);
-    setFeedback("");
-    // Move selection to next
-    const remaining = approvals.filter((a) => a.id !== id);
-    setSelectedId(remaining[0]?.id ?? null);
+  async function handleDecision(id: string, kind: "approve" | "reject") {
+    setPendingId(id);
+    try {
+      const res = await fetch(`/api/approvals/${id}/${kind}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body:
+          kind === "reject"
+            ? JSON.stringify({ feedback: feedback || null })
+            : "{}",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `Failed to ${kind}`);
+      }
+      setApprovals((prev) => {
+        const remaining = prev.filter((a) => a.id !== id);
+        setSelectedId(remaining[0]?.id ?? null);
+        return remaining;
+      });
+      setDecision(null);
+      setFeedback("");
+    } catch (err) {
+      console.error(`[creator/approvals] ${kind} failed`, err);
+      alert(err instanceof Error ? err.message : `Failed to ${kind}`);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-md py-20 text-center">
+        <p className="font-display text-lg font-700 text-[var(--color-foreground)]">
+          Couldn&apos;t load approvals
+        </p>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">{error}</p>
+      </div>
+    );
   }
 
   return (
@@ -146,7 +236,7 @@ export default function CreatorApprovalsPage() {
             </span>{" "}
             urgent · total payout{" "}
             <span className="font-600 text-[var(--color-primary)]">
-              ₹{totalPayout.toLocaleString("en-IN")}
+              ₹{(totalPayoutPaise / 100).toLocaleString("en-IN")}
             </span>
           </p>
         </div>
@@ -157,15 +247,7 @@ export default function CreatorApprovalsPage() {
               This week
             </p>
             <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
-              8 approved
-            </p>
-          </div>
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-right">
-            <p className="font-mono text-[9px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              Response rate
-            </p>
-            <p className="font-display text-[18px] font-800 text-emerald-500">
-              98%
+              {weekApproved} approved
             </p>
           </div>
         </div>
@@ -200,8 +282,14 @@ export default function CreatorApprovalsPage() {
                       : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-muted-foreground)]/30"
                   }`}
                 >
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)]">
-                    <Image src={a.thumb} alt="" fill sizes="56px" className="object-cover" />
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]">
+                    {a.thumb ? (
+                      <Image src={a.thumb} alt="" fill sizes="56px" className="object-cover" unoptimized />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[var(--color-muted-foreground)]">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -221,7 +309,7 @@ export default function CreatorApprovalsPage() {
                       <Clock className="h-2.5 w-2.5" />
                       {a.expiresIn}
                       <span className="ml-auto font-700 text-[var(--color-primary)]">
-                        +₹{a.payoutRupees.toLocaleString("en-IN")}
+                        +₹{(a.payoutPaise / 100).toLocaleString("en-IN")}
                       </span>
                     </div>
                   </div>
@@ -249,14 +337,21 @@ export default function CreatorApprovalsPage() {
                 className="sticky top-4 h-fit rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]"
               >
                 {/* Hero image */}
-                <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
-                  <Image
-                    src={selected.thumb}
-                    alt=""
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover"
-                  />
+                <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl bg-[var(--color-secondary)]">
+                  {selected.thumb ? (
+                    <Image
+                      src={selected.thumb}
+                      alt=""
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[var(--color-muted-foreground)]">
+                      <Sparkles className="h-10 w-10" />
+                    </div>
+                  )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-5">
                     <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-white/70">
                       {selected.niche} · Generation
@@ -280,14 +375,22 @@ export default function CreatorApprovalsPage() {
                     Brief
                   </p>
                   <p className="mt-2 text-[14px] leading-relaxed text-[var(--color-foreground)]">
-                    {selected.prompt}
+                    {selected.prompt || (
+                      <span className="text-[var(--color-muted-foreground)]">
+                        No prompt stored for this generation.
+                      </span>
+                    )}
                   </p>
 
                   {/* Meta */}
                   <div className="mt-5 grid grid-cols-3 gap-3">
-                    <MetaBlock label="Payout" value={`₹${selected.payoutRupees.toLocaleString("en-IN")}`} accent />
+                    <MetaBlock
+                      label="Payout"
+                      value={`₹${(selected.payoutPaise / 100).toLocaleString("en-IN")}`}
+                      accent
+                    />
                     <MetaBlock label="Niche" value={selected.niche} />
-                    <MetaBlock label="Safety" value={`${Math.round(selected.hiveScore * 100)}%`} />
+                    <MetaBlock label="Submitted" value={selected.createdAt} />
                   </div>
 
                   {/* Decision row */}
@@ -311,15 +414,18 @@ export default function CreatorApprovalsPage() {
                         />
                         <div className="mt-2 flex gap-2">
                           <button
+                            disabled={pendingId === selected.id}
                             onClick={() => setDecision(null)}
-                            className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-600 text-[var(--color-foreground)]"
+                            className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-600 text-[var(--color-foreground)] disabled:opacity-50"
                           >
                             Cancel
                           </button>
                           <button
+                            disabled={pendingId === selected.id}
                             onClick={() => handleDecision(selected.id, "reject")}
-                            className="flex-1 rounded-lg bg-rose-500 px-3 py-2 text-[12px] font-700 text-white"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-rose-500 px-3 py-2 text-[12px] font-700 text-white disabled:opacity-50"
                           >
+                            {pendingId === selected.id && <Loader2 className="h-3 w-3 animate-spin" />}
                             Confirm reject
                           </button>
                         </div>
@@ -327,18 +433,24 @@ export default function CreatorApprovalsPage() {
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         <button
+                          disabled={pendingId === selected.id}
                           onClick={() => setDecision("reject")}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[14px] font-700 text-[var(--color-foreground)] transition-colors hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-500"
+                          className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[14px] font-700 text-[var(--color-foreground)] transition-colors hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-500 disabled:opacity-50"
                         >
                           <X className="h-4 w-4" />
                           Reject
                         </button>
                         <button
+                          disabled={pendingId === selected.id}
                           onClick={() => handleDecision(selected.id, "approve")}
-                          className="flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_6px_16px_-6px_rgba(201,169,110,0.6)] transition-transform hover:-translate-y-0.5"
+                          className="flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_6px_16px_-6px_rgba(201,169,110,0.6)] transition-transform hover:-translate-y-0.5 disabled:opacity-50"
                         >
-                          <Check className="h-4 w-4" />
-                          Approve · ₹{selected.payoutRupees.toLocaleString("en-IN")}
+                          {pendingId === selected.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                          Approve · ₹{(selected.payoutPaise / 100).toLocaleString("en-IN")}
                         </button>
                       </div>
                     )}
@@ -347,7 +459,7 @@ export default function CreatorApprovalsPage() {
                       <Sparkles className="h-3 w-3 text-[var(--color-primary)]" />
                       Approving auto-credits{" "}
                       <span className="text-[var(--color-foreground)] font-600">
-                        ₹{selected.payoutRupees.toLocaleString("en-IN")}
+                        ₹{(selected.payoutPaise / 100).toLocaleString("en-IN")}
                       </span>{" "}
                       to holding · released in 7 days.
                     </p>

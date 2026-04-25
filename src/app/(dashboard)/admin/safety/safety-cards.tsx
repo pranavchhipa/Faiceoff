@@ -36,7 +36,7 @@ interface SafetyItem {
   hive_result: Record<string, unknown> | null;
   created_at: string;
   campaign_id: string | null;
-  // presentational / seed fields
+  // presentational fields (live API may attach)
   brand?: string;
   creator?: string;
   creatorLocation?: string;
@@ -46,7 +46,6 @@ interface SafetyItem {
   severityLabel?: string;
   cost?: string;
   hiveScore?: string;
-  seed?: boolean;
 }
 
 /* ───────── Helpers ───────── */
@@ -79,135 +78,9 @@ function severityClasses(s: Severity): string {
   return "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
 }
 
-/* ───────── Seed fallback ─────────
+/* No seeds — live queue only. Empty state renders when nothing is flagged. */
 
-   When the live queue is empty (fresh install, staging env, or all clear),
-   show realistic seeds so the split-stage layout reads like a finished
-   product. Seeds never fire approve/reject network calls. */
 
-const NOW = Date.now();
-const SEED: SafetyItem[] = [
-  {
-    id: "seed-oneplus-nord",
-    status: "needs_admin_review",
-    image_url: "/landing/product-phone.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { nsfw: 0.04, violence: 0.02, brandSafety: 0.74 },
-    created_at: new Date(NOW - 1000 * 60 * 120).toISOString(),
-    campaign_id: "camp-oneplus",
-    brand: "OnePlus India Pvt Ltd",
-    creator: "Priya Sharma",
-    creatorLocation: "Mumbai",
-    title: "OnePlus · Nord launch",
-    summary: "Phone held at neon rim light, night street backdrop, brand logo rim",
-    severity: "warn",
-    severityLabel: "REVIEW",
-    cost: "₹3,000",
-    hiveScore: "0.74 · flagged",
-    seed: true,
-  },
-  {
-    id: "seed-ordinary-priya",
-    status: "needs_admin_review",
-    image_url: "/landing/product-skincare.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { nsfw: 0.02, cosmetics_claim: 0.31 },
-    created_at: new Date(NOW - 1000 * 60 * 90).toISOString(),
-    campaign_id: "camp-ordinary",
-    brand: "The Ordinary (DECIEM)",
-    creator: "Priya Sharma",
-    creatorLocation: "Mumbai",
-    title: "The Ordinary · Niacinamide serum",
-    summary: "Serum dropper framed against matte beige tile, soft morning light",
-    severity: "ok",
-    severityLabel: "PASS",
-    cost: "₹2,200",
-    hiveScore: "0.31 · clean",
-    seed: true,
-  },
-  {
-    id: "seed-nike-monsoon",
-    status: "needs_admin_review",
-    image_url: "/landing/product-sneaker.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { nsfw: 0.01, brandSafety: 0.12 },
-    created_at: new Date(NOW - 1000 * 60 * 55).toISOString(),
-    campaign_id: "camp-nike",
-    brand: "Nike India",
-    creator: "Arjun Mehta",
-    creatorLocation: "Bengaluru",
-    title: "Nike · Monsoon drop",
-    summary: "Sneaker on wet tarmac, reflections of traffic light bokeh",
-    severity: "ok",
-    severityLabel: "PASS",
-    cost: "₹2,500",
-    hiveScore: "0.12 · clean",
-    seed: true,
-  },
-  {
-    id: "seed-starbucks-cafe",
-    status: "needs_admin_review",
-    image_url: "/landing/product-food.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { nsfw: 0.04, policy_violation: 0.88 },
-    created_at: new Date(NOW - 1000 * 60 * 40).toISOString(),
-    campaign_id: "camp-sbux",
-    brand: "Starbucks India (Tata)",
-    creator: "Meera Iyer",
-    creatorLocation: "Delhi NCR",
-    title: "Starbucks · Café evening",
-    summary: "Flagged: competitor logo visible in café window reflection",
-    severity: "error",
-    severityLabel: "BLOCK",
-    cost: "₹2,000",
-    hiveScore: "0.88 · block",
-    seed: true,
-  },
-  {
-    id: "seed-priya-retrain",
-    status: "needs_admin_review",
-    image_url: "/landing/creator-face.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { likeness_drift: 0.61 },
-    created_at: new Date(NOW - 1000 * 60 * 25).toISOString(),
-    campaign_id: null,
-    brand: "Internal · LoRA ops",
-    creator: "Priya Sharma",
-    creatorLocation: "Mumbai",
-    title: "Priya · reference re-train",
-    summary: "Creator requested LoRA retrain — new reference set pending review",
-    severity: "warn",
-    severityLabel: "REVIEW",
-    cost: "—",
-    hiveScore: "0.61 · drift",
-    seed: true,
-  },
-  {
-    id: "seed-arjun-kyc",
-    status: "needs_admin_review",
-    image_url: "/landing/creator-2.jpg",
-    assembled_prompt: null,
-    structured_brief: null,
-    hive_result: { kyc_mismatch: 0.48 },
-    created_at: new Date(NOW - 1000 * 60 * 15).toISOString(),
-    campaign_id: null,
-    brand: "Internal · KYC ops",
-    creator: "Arjun Mehta",
-    creatorLocation: "Bengaluru",
-    title: "Arjun · KYC update",
-    summary: "PAN change submitted. Verify new document matches payout account name.",
-    severity: "warn",
-    severityLabel: "REVIEW",
-    cost: "—",
-    hiveScore: "0.48 · flagged",
-    seed: true,
-  },
-];
 
 /* ───────── Presentation pieces ───────── */
 
@@ -269,13 +142,12 @@ export function SafetyCards() {
       const res = await fetch("/api/admin/safety/queue", { cache: "no-store" });
       if (res.ok) {
         const data = (await res.json()) as { items: SafetyItem[] };
-        const live = data.items ?? [];
-        setItems(live.length > 0 ? live : SEED);
+        setItems(data.items ?? []);
       } else {
-        setItems(SEED);
+        setItems([]);
       }
     } catch {
-      setItems(SEED);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -305,23 +177,11 @@ export function SafetyCards() {
     [items, selectedId],
   );
 
-  const liveCount = items.filter((i) => !i.seed).length;
   const totalCount = items.length;
 
   function handleAction(id: string, action: "approve" | "reject") {
     const item = items.find((i) => i.id === id);
     if (!item) return;
-
-    // Seed rows don't hit the network
-    if (item.seed) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
-      toast.success(
-        action === "approve"
-          ? "Seed cleared (demo only)"
-          : "Seed rejected (demo only)",
-      );
-      return;
-    }
 
     setActioningId(id);
     startTransition(async () => {
@@ -374,7 +234,7 @@ export function SafetyCards() {
             <span className="font-600 text-[var(--color-foreground)]">
               {totalCount}
             </span>{" "}
-            in queue · {liveCount} live · auto-refresh every 30s
+            in queue · auto-refresh every 30s
           </p>
         </div>
 

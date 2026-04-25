@@ -155,23 +155,109 @@ export default function WithdrawWizard({
   }
 
   if (!can_withdraw) {
+    const remainingPaise = Math.max(0, min_payout_paise - available_paise);
+    const progressPct = Math.min(
+      100,
+      Math.round((available_paise / min_payout_paise) * 100),
+    );
     return (
-      <div className="max-w-lg">
-        <h1 className="text-2xl font-bold text-[var(--color-ink)] mb-4">Withdraw</h1>
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-blush)]/40 p-6 text-center">
-          <IndianRupee className="size-8 mx-auto mb-3 text-[var(--color-neutral-500)]" />
-          <p className="font-semibold text-[var(--color-ink)] mb-1">Not enough balance</p>
-          <p className="text-sm text-[var(--color-neutral-600)]">
-            Minimum withdrawal is {fmt(min_payout_paise)}. Your available balance is{" "}
-            {fmt(available_paise)}.
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 lg:px-8 lg:py-10">
+        <div className="mb-8">
+          <h1 className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-ink)] md:text-[34px]">
+            Withdraw
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
+            Move your earnings to UPI or bank — instant via Cashfree.
           </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => router.push("/creator/earnings")}
-          >
-            Back to earnings
-          </Button>
+        </div>
+
+        <div
+          className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-gradient-to-br from-[var(--color-blush)]/60 via-white to-[var(--color-mint)]/40 p-8"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+              <IndianRupee className="size-5 text-[var(--color-accent-gold)]" />
+            </div>
+            <div>
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.2em] text-[var(--color-neutral-500)]">
+                Below minimum
+              </p>
+              <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-ink)]">
+                A little more to go
+              </h2>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white/80 p-4">
+              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)]">
+                Available now
+              </p>
+              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-ink)]">
+                {fmt(available_paise)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-4">
+              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)]">
+                Minimum payout
+              </p>
+              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-accent-gold)]">
+                {fmt(min_payout_paise)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2 flex items-center justify-between text-[12px]">
+              <span className="text-[var(--color-neutral-600)]">Progress to minimum</span>
+              <span className="font-700 text-[var(--color-ink)]">{progressPct}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/70">
+              <div
+                className="h-full rounded-full bg-[var(--color-accent-gold)] transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <p className="mt-3 text-[13px] text-[var(--color-neutral-600)]">
+              Earn{" "}
+              <span className="font-700 text-[var(--color-ink)]">
+                {fmt(remainingPaise)}
+              </span>{" "}
+              more to unlock withdrawals. Keep approving briefs — every approval
+              clears to Available after a 7-day hold.
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button
+              onClick={() => router.push("/creator/approvals")}
+              className="rounded-[var(--radius-button)] bg-[var(--color-ink)] text-white hover:bg-[var(--color-ink)]/85"
+            >
+              Review approvals <ChevronRight className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/creator/earnings")}
+              className="rounded-[var(--radius-button)]"
+            >
+              Back to earnings
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <InfoCard
+            title="UPI in 30s"
+            body="Once you cross the minimum, UPI withdrawals land instantly."
+          />
+          <InfoCard
+            title="TDS handled"
+            body="1% TDS deducted at source per Section 194-O. We file for you."
+          />
+          <InfoCard
+            title="No fees"
+            body="₹25 processing fee per withdrawal. No hidden charges."
+          />
         </div>
       </div>
     );
@@ -405,5 +491,18 @@ export default function WithdrawWizard({
         </AnimatePresence>
       </div>
     </motion.div>
+  );
+}
+
+function InfoCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-neutral-200)] bg-white p-4">
+      <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-ink)]">
+        {title}
+      </p>
+      <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-neutral-500)]">
+        {body}
+      </p>
+    </div>
   );
 }

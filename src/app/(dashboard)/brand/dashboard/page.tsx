@@ -36,70 +36,25 @@ interface BrandStats {
   walletBalance: number; // paise
 }
 
-interface MockGeneration {
+interface VaultItem {
   id: string;
-  creator: string;
-  brief: string;
-  status: "approved" | "pending" | "delivered";
-  ageOrLeft: string;
-  cost: number; // rupees
-  thumb: string;
-  accent: "gold" | "steel";
+  image_url: string | null;
+  delivered_at: string | null;
+  created_at: string;
+  structured_brief: { title?: string; category?: string } | null;
+  cost_paise: number | null;
+  status: string;
+  creator?: { display_name?: string | null } | null;
 }
 
-const MOCK_GENS: MockGeneration[] = [
-  {
-    id: "g1",
-    creator: "Priya",
-    brief: "Monsoon sneaker",
-    status: "approved",
-    ageOrLeft: "41h",
-    cost: 2500,
-    thumb: "/landing/product-sneaker.jpg",
-    accent: "gold",
-  },
-  {
-    id: "g2",
-    creator: "Arjun",
-    brief: "Phone launch",
-    status: "pending",
-    ageOrLeft: "12h left",
-    cost: 3000,
-    thumb: "/landing/product-phone.jpg",
-    accent: "steel",
-  },
-  {
-    id: "g3",
-    creator: "Meera",
-    brief: "Café shoot",
-    status: "approved",
-    ageOrLeft: "26h",
-    cost: 2000,
-    thumb: "/landing/product-food.jpg",
-    accent: "gold",
-  },
-  {
-    id: "g4",
-    creator: "Priya",
-    brief: "Serum closeup",
-    status: "pending",
-    ageOrLeft: "18h left",
-    cost: 2200,
-    thumb: "/landing/product-skincare.jpg",
-    accent: "steel",
-  },
-];
-
-const MOCK_VAULT = [
-  "/landing/product-sneaker.jpg",
-  "/landing/product-phone.jpg",
-  "/landing/product-skincare.jpg",
-  "/landing/product-food.jpg",
-];
-
-// 7-day spend bars (height % 0-100)
-const SPEND_BARS = [42, 58, 34, 72, 48, 90, 66];
-const SPEND_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+function relativeFrom(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
 /* ───────── Helpers ───────── */
 
@@ -110,15 +65,6 @@ function formatINR(paise: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(paise / 100);
-}
-
-function formatRupees(rupees: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rupees);
 }
 
 const fadeUp = {
@@ -137,6 +83,8 @@ export default function BrandDashboardPage() {
     totalGenerations: 0,
     walletBalance: 0,
   });
+  const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
+  const [vaultTotal, setVaultTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const displayName =
@@ -145,12 +93,18 @@ export default function BrandDashboardPage() {
     "Brand";
 
   useEffect(() => {
-    async function fetchStats() {
+    if (!user) return;
+    let cancelled = false;
+    async function load() {
       setLoading(true);
       try {
-        const res = await fetch("/api/dashboard/stats");
-        if (res.ok) {
-          const data = await res.json();
+        const [statsRes, vaultRes] = await Promise.allSettled([
+          fetch("/api/dashboard/stats", { cache: "no-store" }),
+          fetch("/api/vault?pageSize=8", { cache: "no-store" }),
+        ]);
+
+        if (!cancelled && statsRes.status === "fulfilled" && statsRes.value.ok) {
+          const data = await statsRes.value.json();
           if (data.brand) setProfile(data.brand);
           if (data.stats) {
             setStats({
@@ -161,25 +115,43 @@ export default function BrandDashboardPage() {
             });
           }
         }
+
+        if (!cancelled && vaultRes.status === "fulfilled" && vaultRes.value.ok) {
+          const v = await vaultRes.value.json();
+          setVaultItems((v.items as VaultItem[]) ?? []);
+          setVaultTotal(v.total ?? 0);
+        }
       } catch (err) {
         console.error("Brand dashboard fetch failed:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    if (user) fetchStats();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  // Demo-seed values while the real API has no data — keeps the bento
-  // feeling alive on first load. Will naturally fade as real data arrives.
-  const walletPaise = stats.walletBalance > 0 ? stats.walletBalance : 1_250_000; // ₹12,500
-  const spentThisMonth = 18_400;
-  const spent7d = 8_200;
-  const generations = stats.totalGenerations > 0 ? stats.totalGenerations : 27;
-  const approvalSLA = 41; // hours
-  const gstYTD = 3_312;
-  const avgDeliverySec = 47;
-  const vaultCount = 142;
+  // Real values — empty state when zero.
+  const walletPaise = stats.walletBalance;
+  const spentThisMonthPaise = vaultItems
+    .filter((g) => {
+      const t = new Date(g.delivered_at ?? g.created_at).getTime();
+      return t >= Date.now() - 30 * 24 * 60 * 60 * 1000;
+    })
+    .reduce((sum, g) => sum + (g.cost_paise ?? 0), 0);
+  const spent7dPaise = vaultItems
+    .filter((g) => {
+      const t = new Date(g.delivered_at ?? g.created_at).getTime();
+      return t >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+    })
+    .reduce((sum, g) => sum + (g.cost_paise ?? 0), 0);
+  const generations = stats.totalGenerations;
+  const recentGens = vaultItems.slice(0, 5);
+  const vaultCount = vaultTotal || vaultItems.length;
+  const lastAddedIso =
+    vaultItems[0]?.delivered_at ?? vaultItems[0]?.created_at ?? null;
 
   const greeting = useMemo(() => greetingByHour(new Date()), []);
   const companyName = profile?.company_name ?? displayName;
@@ -205,12 +177,13 @@ export default function BrandDashboardPage() {
             <span className="text-[var(--color-primary)]">.</span>
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            {stats.activeCampaigns || 2} approvals pending ·{" "}
-            {generations >= 4 ? 4 : generations} generations this week ·{" "}
+            {stats.activeCampaigns} active{" "}
+            {stats.activeCampaigns === 1 ? "campaign" : "campaigns"} · {generations}{" "}
+            {generations === 1 ? "generation" : "generations"} ·{" "}
             <span className="font-600 text-[var(--color-foreground)]">
               {formatINR(walletPaise)}
             </span>{" "}
-            remaining in wallet
+            in wallet
           </p>
         </div>
 
@@ -242,29 +215,21 @@ export default function BrandDashboardPage() {
           delay={0}
         />
         <BentoStat
-          label="Spent this month"
-          value={formatRupees(spentThisMonth)}
-          delta="+12% vs last"
-          deltaTone="up"
+          label="Spent (30d)"
+          value={spentThisMonthPaise > 0 ? formatINR(spentThisMonthPaise) : "—"}
+          delta="From delivered generations"
           delay={0.03}
         />
         <BentoStat
           label="Generations"
           value={String(generations)}
-          delta="4 this week"
+          delta={`${stats.totalCampaigns} ${stats.totalCampaigns === 1 ? "campaign" : "campaigns"} total`}
           delay={0.06}
         />
         <BentoStat
-          label="Approval SLA"
-          value={
-            <span>
-              {approvalSLA}
-              <span className="text-[20px] font-500 text-[var(--color-muted-foreground)]">
-                h
-              </span>
-            </span>
-          }
-          delta="under 48h window"
+          label="Active campaigns"
+          value={String(stats.activeCampaigns)}
+          delta="48h approval window"
           delay={0.09}
         />
 
@@ -289,65 +254,65 @@ export default function BrandDashboardPage() {
           </div>
           <div className="flex items-baseline gap-2">
             <p className="font-display text-[30px] font-800 tracking-tight text-[var(--color-foreground)]">
-              {formatRupees(spent7d)}
+              {spent7dPaise > 0 ? formatINR(spent7dPaise) : "₹0"}
             </p>
-            <span className="font-mono text-[12px] font-700 text-emerald-500">
-              +24%
-            </span>
           </div>
-
-          {/* Bars */}
-          <div className="mt-5 flex h-[88px] items-end gap-[6px]">
-            {SPEND_BARS.map((h, i) => (
-              <div key={i} className="flex-1">
-                <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-[var(--color-primary)] to-[var(--color-primary)]/50"
-                  style={{ height: `${h}%` }}
-                />
-                <p className="mt-1.5 text-center font-mono text-[9px] text-[var(--color-muted-foreground)]">
-                  {SPEND_LABELS[i]}
-                </p>
-              </div>
-            ))}
-          </div>
+          <p className="mt-1 font-mono text-[11px] text-[var(--color-muted-foreground)]">
+            {spent7dPaise > 0
+              ? `${recentGens.length} ${recentGens.length === 1 ? "generation" : "generations"} delivered`
+              : "No spend in the last 7 days."}
+          </p>
 
           {/* Recent generations */}
           <div className="mt-6 border-t border-[var(--color-border)] pt-4">
             <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
               Recent generations
             </p>
-            <div className="flex flex-col gap-0.5">
-              {MOCK_GENS.map((gen) => (
-                <Link
-                  key={gen.id}
-                  href={`/brand/sessions/${gen.id}`}
-                  className="group flex items-center gap-3 rounded-lg px-2 py-2 text-[13px] transition-colors hover:bg-[var(--color-secondary)]"
-                >
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      gen.accent === "gold"
-                        ? "bg-[var(--color-primary)]"
-                        : "bg-[var(--color-muted-foreground)]/40"
-                    }`}
-                  />
-                  <span className="flex-1 truncate font-600 text-[var(--color-foreground)]">
-                    {gen.creator} ·{" "}
-                    <span className="font-500 text-[var(--color-muted-foreground)]">
-                      {gen.brief}
-                    </span>
-                  </span>
-                  <span className="hidden font-mono text-[11px] capitalize text-[var(--color-muted-foreground)] sm:inline">
-                    {gen.status}
-                  </span>
-                  <span className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] md:inline">
-                    {gen.ageOrLeft}
-                  </span>
-                  <span className="font-mono text-[12px] font-700 text-[var(--color-primary)]">
-                    {formatRupees(gen.cost)}
-                  </span>
-                </Link>
-              ))}
-            </div>
+            {recentGens.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[12px] text-[var(--color-muted-foreground)]">
+                No generations yet. Start a campaign to see them here.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {recentGens.map((gen) => {
+                  const title =
+                    gen.structured_brief?.title ??
+                    gen.structured_brief?.category ??
+                    "Generation";
+                  const isApproved = gen.status === "approved";
+                  return (
+                    <Link
+                      key={gen.id}
+                      href={`/brand/sessions`}
+                      className="group flex items-center gap-3 rounded-lg px-2 py-2 text-[13px] transition-colors hover:bg-[var(--color-secondary)]"
+                    >
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          isApproved
+                            ? "bg-[var(--color-primary)]"
+                            : "bg-[var(--color-muted-foreground)]/40"
+                        }`}
+                      />
+                      <span className="flex-1 truncate font-600 text-[var(--color-foreground)]">
+                        {gen.creator?.display_name ?? "Creator"} ·{" "}
+                        <span className="font-500 text-[var(--color-muted-foreground)]">
+                          {title}
+                        </span>
+                      </span>
+                      <span className="hidden font-mono text-[11px] capitalize text-[var(--color-muted-foreground)] sm:inline">
+                        {gen.status}
+                      </span>
+                      <span className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] md:inline">
+                        {relativeFrom(gen.delivered_at ?? gen.created_at)}
+                      </span>
+                      <span className="font-mono text-[12px] font-700 text-[var(--color-primary)]">
+                        {formatINR(gen.cost_paise ?? 0)}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -379,46 +344,54 @@ export default function BrandDashboardPage() {
             </span>
           </div>
           <p className="mt-1 font-mono text-[11px] text-[var(--color-muted-foreground)]">
-            Last added · 2h ago
+            {lastAddedIso
+              ? `Last added · ${relativeFrom(lastAddedIso)}`
+              : "Approved generations land here."}
           </p>
 
           <div className="mt-4 grid grid-cols-4 gap-1.5">
-            {MOCK_VAULT.map((src, i) => (
-              <div
-                key={i}
-                className="relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)]"
-              >
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="120px"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              </div>
-            ))}
+            {vaultItems.length > 0
+              ? vaultItems.slice(0, 4).map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]"
+                  >
+                    {item.image_url ? (
+                      <Image
+                        src={item.image_url}
+                        alt=""
+                        fill
+                        sizes="120px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : null}
+                  </div>
+                ))
+              : Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)]/30"
+                  />
+                ))}
           </div>
         </motion.div>
 
-        {/* Row 3 — GST YTD + Avg delivery */}
+        {/* Row 3 — Vault total + Pending approvals */}
         <BentoStat
-          label="GST YTD"
-          value={formatRupees(gstYTD)}
-          delta="Invoices ready"
+          label="Vault"
+          value={String(vaultCount)}
+          delta={vaultCount > 0 ? "Approved creatives" : "Empty"}
           icon={Receipt}
+          href="/brand/vault"
           delay={0.18}
         />
         <BentoStat
-          label="Avg delivery"
-          value={
-            <span>
-              {avgDeliverySec}
-              <span className="text-[20px] font-500 text-[var(--color-muted-foreground)]">
-                s
-              </span>
-            </span>
-          }
-          delta="P95 · 1m12s"
+          label="Pending approvals"
+          value={String(
+            vaultItems.filter((g) => g.status === "pending_approval").length,
+          )}
+          delta="Awaiting creator response"
           icon={Timer}
           delay={0.21}
         />

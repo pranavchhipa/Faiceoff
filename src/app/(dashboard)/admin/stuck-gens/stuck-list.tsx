@@ -42,12 +42,11 @@ interface StuckGenItem {
   replicate_prediction_id: string | null;
   assembled_prompt: string | null;
   structured_brief: Record<string, unknown> | null;
-  // presentational / seed fields
+  // presentational fields (live API may attach)
   brand?: string;
   creator?: string;
   summary?: string;
   costRupees?: number;
-  seed?: boolean;
 }
 
 /* ── Helpers ── */
@@ -80,57 +79,6 @@ function briefSnippet(it: StuckGenItem): string | null {
   return it.assembled_prompt?.slice(0, 120) ?? null;
 }
 
-/* ── Seed fallback ── */
-
-const NOW = Date.now();
-const SEED: StuckGenItem[] = [
-  {
-    id: "seed-nike-monsoon-01",
-    status: "processing",
-    created_at: new Date(NOW - 1000 * 60 * 42).toISOString(),
-    campaign_id: "camp-nike",
-    replicate_prediction_id: "pred_pq9x2mkbh3dvhr1",
-    assembled_prompt:
-      "Sneaker hero shot on wet tarmac, monsoon rain, neon bokeh reflections",
-    structured_brief: null,
-    brand: "Nike India",
-    creator: "Arjun Mehta · Bengaluru",
-    summary: "Sneaker hero shot · monsoon rain · neon bokeh",
-    costRupees: 2500,
-    seed: true,
-  },
-  {
-    id: "seed-oneplus-nord-02",
-    status: "processing",
-    created_at: new Date(NOW - 1000 * 60 * 18).toISOString(),
-    campaign_id: "camp-oneplus",
-    replicate_prediction_id: "pred_ab8f3lktr9wzpv2",
-    assembled_prompt:
-      "Phone held at night, rim light, reflective OP logo, cinematic",
-    structured_brief: null,
-    brand: "OnePlus India",
-    creator: "Priya Sharma · Mumbai",
-    summary: "Nord launch hero · night rim light",
-    costRupees: 3000,
-    seed: true,
-  },
-  {
-    id: "seed-myntra-festive-03",
-    status: "processing",
-    created_at: new Date(NOW - 1000 * 60 * 9).toISOString(),
-    campaign_id: "camp-myntra",
-    replicate_prediction_id: "pred_mz2t9jcvq8lkrx4",
-    assembled_prompt:
-      "Creator in festive kurta, warm golden hour, diya accent, lifestyle",
-    structured_brief: null,
-    brand: "Myntra (Flipkart)",
-    creator: "Meera Iyer · Delhi NCR",
-    summary: "Festive kurta · golden hour · diya accent",
-    costRupees: 2200,
-    seed: true,
-  },
-];
-
 /* ── Main component ── */
 
 export function StuckList() {
@@ -146,13 +94,12 @@ export function StuckList() {
       const res = await fetch("/api/admin/stuck-gens", { cache: "no-store" });
       if (res.ok) {
         const data = (await res.json()) as { items: StuckGenItem[] };
-        const live = data.items ?? [];
-        setItems(live.length > 0 ? live : SEED);
+        setItems(data.items ?? []);
       } else {
-        setItems(SEED);
+        setItems([]);
       }
     } catch {
-      setItems(SEED);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -163,11 +110,6 @@ export function StuckList() {
   }, [fetchItems]);
 
   async function handleRetry(item: StuckGenItem) {
-    if (item.seed) {
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-      toast.success("Seed retried (demo only)");
-      return;
-    }
     setActioningId(item.id);
     try {
       const res = await fetch(`/api/admin/stuck-gens/${item.id}/retry`, {
@@ -192,12 +134,6 @@ export function StuckList() {
 
   function handleRefund() {
     if (!refundTarget) return;
-    if (refundTarget.seed) {
-      setItems((prev) => prev.filter((i) => i.id !== refundTarget.id));
-      setRefundTarget(null);
-      toast.success("Seed refund queued (demo only)");
-      return;
-    }
     startRefundTransition(async () => {
       const res = await fetch(
         `/api/admin/stuck-gens/${refundTarget.id}/refund`,

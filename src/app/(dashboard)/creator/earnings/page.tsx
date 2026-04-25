@@ -33,26 +33,24 @@ interface EarningsData {
   can_withdraw: boolean;
 }
 
-interface Transaction {
+interface PayoutTxn {
   id: string;
-  brand: string;
-  title: string;
-  amount: number;
-  status: "available" | "holding" | "paid";
-  date: string;
+  amount_paise: number;
+  status: "requested" | "processing" | "success" | "failed" | "reversed";
+  created_at: string;
 }
 
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: "t1", brand: "Nike India", title: "Monsoon sneaker", amount: 2500, status: "available", date: "2h ago" },
-  { id: "t2", brand: "The Ordinary", title: "Serum routine", amount: 1800, status: "available", date: "1d ago" },
-  { id: "t3", brand: "OnePlus", title: "Phone launch", amount: 3000, status: "holding", date: "3d ago" },
-  { id: "t4", brand: "Starbucks India", title: "Café morning", amount: 2000, status: "holding", date: "5d ago" },
-  { id: "t5", brand: "Urban Company", title: "Home services", amount: 2200, status: "paid", date: "Apr 18" },
-  { id: "t6", brand: "Zomato", title: "Food delivery", amount: 2500, status: "paid", date: "Apr 15" },
-];
-
-const CHART_VALUES = [28, 42, 35, 64, 48, 82, 70];
-const CHART_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+function relativeFrom(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return "just now";
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
 
 const fadeUp = {
   initial: { opacity: 0, y: 12 },
@@ -70,41 +68,56 @@ function fmt(paise: number): string {
 
 export default function CreatorEarningsPage() {
   const [data, setData] = useState<EarningsData>({
-    available_paise: 2_100_000,
-    holding_paise: 500_000,
-    pending_count: 3,
-    lifetime_earned_paise: 12_840_000,
+    available_paise: 0,
+    holding_paise: 0,
+    pending_count: 0,
+    lifetime_earned_paise: 0,
     min_payout_paise: 50_000,
-    can_withdraw: true,
+    can_withdraw: false,
   });
+  const [payouts, setPayouts] = useState<PayoutTxn[]>([]);
   const [, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/earnings/dashboard");
-        if (res.ok) {
-          const d = await res.json();
-          setData((prev) => ({
-            available_paise: d.available_paise ?? prev.available_paise,
-            holding_paise: d.holding_paise ?? prev.holding_paise,
-            pending_count: d.pending_count ?? prev.pending_count,
-            lifetime_earned_paise:
-              d.lifetime_earned_paise ?? prev.lifetime_earned_paise,
-            min_payout_paise: d.min_payout_paise ?? prev.min_payout_paise,
-            can_withdraw: d.can_withdraw ?? prev.can_withdraw,
-          }));
+        const [dashRes, payoutsRes] = await Promise.allSettled([
+          fetch("/api/earnings/dashboard", { cache: "no-store" }),
+          fetch("/api/payouts/list?pageSize=10", { cache: "no-store" }),
+        ]);
+
+        if (!cancelled && dashRes.status === "fulfilled" && dashRes.value.ok) {
+          const d = await dashRes.value.json();
+          setData({
+            available_paise: d.available_paise ?? 0,
+            holding_paise: d.holding_paise ?? 0,
+            pending_count: d.pending_count ?? 0,
+            lifetime_earned_paise: d.lifetime_earned_paise ?? 0,
+            min_payout_paise: d.min_payout_paise ?? 50_000,
+            can_withdraw: d.can_withdraw ?? false,
+          });
         }
-      } catch {
-        // Keep seed values
+
+        if (
+          !cancelled &&
+          payoutsRes.status === "fulfilled" &&
+          payoutsRes.value.ok
+        ) {
+          const p = await payoutsRes.value.json();
+          setPayouts((p.items as PayoutTxn[]) ?? []);
+        }
+      } catch (err) {
+        console.error("[creator/earnings] load failed", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const earnedThisWeek = 12_400;
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
@@ -187,7 +200,7 @@ export default function CreatorEarningsPage() {
 
       {/* ═══════════ Chart + Transactions ═══════════ */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr] lg:gap-6">
-        {/* 7-day chart */}
+        {/* Lifetime summary panel */}
         <motion.div
           variants={fadeUp}
           initial="initial"
@@ -195,43 +208,31 @@ export default function CreatorEarningsPage() {
           transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
         >
-          <div className="mb-1 flex items-center justify-between">
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              This week
-            </p>
-            <span className="font-mono text-[11px] font-700 text-emerald-500">
-              +24%
-            </span>
-          </div>
-          <p className="font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-            ₹{earnedThisWeek.toLocaleString("en-IN")}
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+            Lifetime earned
+          </p>
+          <p className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+            {fmt(data.lifetime_earned_paise)}
           </p>
           <p className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">
-            5 brands shipped · 1 rejected
+            Net of platform fee · before TDS
           </p>
-
-          <div className="mt-5 flex h-[120px] items-end gap-1.5">
-            {CHART_VALUES.map((h, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center">
-                <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-[var(--color-primary)] to-[var(--color-primary)]/40"
-                  style={{ height: `${h}%` }}
-                />
-                <p className="mt-1.5 font-mono text-[9px] text-[var(--color-muted-foreground)]">
-                  {CHART_LABELS[i]}
-                </p>
-              </div>
-            ))}
-          </div>
 
           <div className="mt-5 space-y-2 border-t border-[var(--color-border)] pt-4">
             <LegendRow label="Available now" value={fmt(data.available_paise)} tone="primary" />
             <LegendRow label="In 7-day hold" value={fmt(data.holding_paise)} />
             <LegendRow
-              label="TDS withheld"
-              value={fmt(Math.round(data.lifetime_earned_paise * 0.01))}
+              label="Pending approvals"
+              value={String(data.pending_count)}
             />
           </div>
+
+          <Link
+            href="/creator/payouts"
+            className="mt-5 inline-flex items-center gap-1 text-[12px] font-600 text-[var(--color-primary)] hover:underline"
+          >
+            View payout history <ArrowRight className="h-3 w-3" />
+          </Link>
         </motion.div>
 
         {/* Recent transactions */}
@@ -259,28 +260,45 @@ export default function CreatorEarningsPage() {
             </Link>
           </div>
           <div className="divide-y divide-[var(--color-border)]">
-            {MOCK_TRANSACTIONS.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-3 px-5 py-3.5"
-              >
-                <TxnStatusIcon status={t.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-[14px] font-700 text-[var(--color-foreground)]">
-                    {t.brand}
-                  </p>
-                  <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
-                    {t.title}
-                  </p>
-                </div>
-                <p className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] sm:block">
-                  {t.date}
+            {payouts.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+                  No payouts yet
                 </p>
-                <p className="font-mono text-[13px] font-700 text-[var(--color-primary)]">
-                  +₹{t.amount.toLocaleString("en-IN")}
+                <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">
+                  Once you withdraw, every transfer shows here with its
+                  Cashfree reference.
                 </p>
               </div>
-            ))}
+            ) : (
+              payouts.map((t) => {
+                const txnStatus: "available" | "holding" | "paid" =
+                  t.status === "success"
+                    ? "paid"
+                    : t.status === "failed" || t.status === "reversed"
+                      ? "available"
+                      : "holding";
+                return (
+                  <div key={t.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <TxnStatusIcon status={txnStatus} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display text-[14px] font-700 capitalize text-[var(--color-foreground)]">
+                        Payout · {t.status}
+                      </p>
+                      <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                        Ref {t.id.slice(0, 8)}
+                      </p>
+                    </div>
+                    <p className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] sm:block">
+                      {relativeFrom(t.created_at)}
+                    </p>
+                    <p className="font-mono text-[13px] font-700 text-[var(--color-primary)]">
+                      ₹{(t.amount_paise / 100).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                );
+              })
+            )}
           </div>
         </motion.div>
       </div>

@@ -55,7 +55,7 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
   const q = sp.q ?? "";
 
   const data = await fetchVaultItems(page, pageSize, status, q);
-  const count = data.total > 0 ? data.total : 142;
+  const count = data.total;
 
   return (
     <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, UserCircle2, ChevronDown } from "lucide-react";
+import { LogOut, Settings, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,12 +126,6 @@ function MenuBody({
         )}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <Link href={settingsHref} className="flex cursor-pointer items-center gap-2">
-          <UserCircle2 className="h-4 w-4" />
-          Profile
-        </Link>
-      </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href={settingsHref} className="flex cursor-pointer items-center gap-2">
           <Settings className="h-4 w-4" />
