@@ -4,6 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "product-images";
 
+// Server-side cap: 4MB. Client compresses to ~1-2MB before upload, so this
+// is a safety net well under Vercel's 4.5MB serverless body limit.
+const MAX_BYTES = 4 * 1024 * 1024;
+
+// Run on Node (not Edge) — needed for FormData with binary blobs.
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 /**
  * POST /api/campaigns/upload-product-image
  *
@@ -29,7 +37,7 @@ export async function POST(request: Request) {
     if (!buckets?.some((b) => b.name === BUCKET)) {
       await admin.storage.createBucket(BUCKET, {
         public: true,
-        fileSizeLimit: 5 * 1024 * 1024, // 5MB max
+        fileSizeLimit: MAX_BYTES,
         allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
       });
     }
@@ -45,11 +53,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file size client-side already, but double check
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_BYTES) {
       return NextResponse.json(
-        { error: "Image must be under 5MB" },
-        { status: 400 }
+        {
+          error:
+            "Image too large after compression. Try a smaller original (<10MB).",
+        },
+        { status: 413 }
       );
     }
 

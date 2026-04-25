@@ -198,6 +198,48 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
     onClose();
   }
 
+  /**
+   * Client-side image compression before upload.
+   *
+   * Vercel's serverless function body limit is 4.5MB. Brand product photos
+   * straight off a phone or DSLR are routinely 7-15MB, hitting "Request
+   * Entity Too Large". We resize the longest edge to 2048px and re-encode
+   * as JPEG (q=0.85), which yields ~1-2MB for any input — well under the
+   * platform limit and visually indistinguishable from the source for
+   * product-photography use.
+   */
+  async function compressImage(file: File): Promise<Blob> {
+    const MAX_DIM = 2048;
+    const QUALITY = 0.85;
+    // SVGs and tiny files: skip compression
+    if (file.size < 1024 * 1024 || file.type === "image/svg+xml") {
+      return file;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      let { width, height } = bitmap;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", QUALITY),
+      );
+      bitmap.close?.();
+      return blob ?? file;
+    } catch {
+      // If compression fails for any reason, fall back to the original
+      return file;
+    }
+  }
+
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (isUploading) return;
     const file = e.target.files?.[0];
@@ -206,8 +248,13 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
     setIsUploading(true);
     setError(null);
     try {
+      // Compress before upload — keeps payload under Vercel's 4.5MB limit
+      // and speeds up the round-trip on slow networks.
+      const compressed = await compressImage(file);
+      const uploadName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+
       const form = new FormData();
-      form.append("image", file); // endpoint expects "image"
+      form.append("image", compressed, uploadName);
       const res = await fetch("/api/campaigns/upload-product-image", {
         method: "POST",
         body: form,
@@ -473,7 +520,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
                   {productFile?.name ?? "Choose product image"}
                 </p>
                 <p className="text-xs text-[var(--color-muted-foreground)]">
-                  {isUploading ? "Uploading…" : productUrl ? "✓ Uploaded" : "PNG / JPG, up to 5MB"}
+                  {isUploading ? "Compressing & uploading…" : productUrl ? "✓ Uploaded" : "PNG / JPG — auto-compressed before upload"}
                 </p>
               </div>
               <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={onUpload} />
