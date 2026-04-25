@@ -74,25 +74,37 @@ function buildAnchorPrompt(
   const cleanedBrief = sanitizeBeautyTriggers(assembledPrompt);
 
   return [
-    // ── OPENING ANCHOR ─────────────────────────────────────────────────
+    // ── OPENING ANCHOR — IDENTITY ──────────────────────────────────────
     "IDENTITY LOCK (read carefully):",
     "The subject in the final image MUST be the exact same person shown in the first 3 reference images — not a similar-looking person, not an averaged or idealised version, not a model who resembles them.",
     "",
-    "Preserve EXACTLY from the references:",
+    "Preserve EXACTLY from the face references:",
     "  • Face shape, including natural cheek fullness and jawline width — DO NOT slim, narrow, or sharpen the face",
     "  • Body proportions, including shoulder width and natural frame — DO NOT make the body thinner or taller than reference",
     "  • Skin texture, including pores, natural variation, and any blemishes — DO NOT airbrush, smooth, or retouch",
     "  • Eye shape, eyebrow shape, lip shape, nose shape — copy from the references",
     "  • Hairline, hair texture, hair length, hair colour",
     "",
-    "The product (image 4) MUST match exactly: same packaging, same colour, same label typography, same brand mark. Do not redesign or substitute.",
+    // ── OPENING ANCHOR — PRODUCT ───────────────────────────────────────
+    "PRODUCT LOCK (read carefully):",
+    "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Treat its packaging like a photograph you must reproduce — every detail copied pixel-for-pixel:",
     "",
-    // ── CREATIVE BRIEF (sandwiched in middle, lower attention weight) ──
+    "  • Brand wordmark / logo — exact spelling, exact font, exact placement, exact colour",
+    "  • All text on the packaging — readable in the final image, character-for-character match",
+    "  • Pack format (tube, jar, bottle, box, can, tin, sachet) — never swap formats",
+    "  • Pack silhouette and proportions — same width-to-height ratio",
+    "  • Cap / lid / closure colour and material",
+    "  • Body colour(s) of the packaging — exact hue, no substitutions",
+    "  • Any taglines, ingredient callouts, volume markings — all preserved",
+    "",
+    "DO NOT invent generic-looking packaging. DO NOT paraphrase the brand name. DO NOT substitute a similar-category product. DO NOT blur or remove the brand text. If you cannot read the brand name clearly in your output, the product is wrong.",
+    "",
+    // ── CREATIVE BRIEF (sandwiched in middle) ──────────────────────────
     "─── SCENE & STYLE ───",
     cleanedBrief,
     "",
-    // ── CLOSING ANCHOR (recency-weighted, MAX attention) ───────────────
-    "─── FINAL CHECK BEFORE GENERATING ───",
+    // ── CLOSING ANCHOR — IDENTITY (recency-weighted, MAX attention) ────
+    "─── FINAL CHECK #1 — IDENTITY ───",
     "Look at the face in the references one more time. The output face must:",
     "  ✓ Have the SAME width, fullness, and shape as the references — not slimmer, not sharper",
     "  ✓ Have the SAME body proportions — not thinner, not different frame",
@@ -100,6 +112,16 @@ function buildAnchorPrompt(
     "  ✓ Look like another candid frame from the same person's same week",
     "",
     "If your output makes the person look more conventionally attractive than the references, you have failed the assignment. Match what is real, not what is idealised.",
+    "",
+    // ── CLOSING ANCHOR — PRODUCT (final, max recency weight) ───────────
+    "─── FINAL CHECK #2 — PRODUCT FIDELITY ───",
+    "Look at the product reference image one more time. The product in your output must:",
+    "  ✓ Have the SAME brand wordmark, in the SAME font, in the SAME position — clearly readable",
+    "  ✓ Show ALL text from the original packaging — no missing labels, no blurred text, no invented words",
+    "  ✓ Match the exact pack format — never substitute (e.g. don't turn a tube into a jar, a bottle into a can)",
+    "  ✓ Use the exact same body colour, cap colour, and material finish",
+    "",
+    "If a viewer cannot read the brand name and product variant clearly in your output, the product is wrong. The packaging is a real commercial SKU — treat it like a logo trademark, not a creative suggestion.",
     "",
     `Output format: photorealistic image, ${aspectRatio} aspect ratio.`,
   ].join("\n");
