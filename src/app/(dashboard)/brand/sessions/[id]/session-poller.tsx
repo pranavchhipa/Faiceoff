@@ -43,10 +43,6 @@ interface GenerationStatus {
   created_at: string;
   updated_at: string;
   cost_paise?: number | null;
-  // Cost of the FIRST (retry_count=0) gen in this retry chain. Use this to
-  // compute paid-retry pricing; cost_paise on free retries is 0 which would
-  // wrongly resolve "50% of cost" to ₹0 for every subsequent retry.
-  original_cost_paise?: number | null;
   retry_count?: number | null;
   is_free_retry?: boolean | null;
 }
@@ -500,7 +496,6 @@ export default function SessionPoller({
         created_at: data.generation.created_at,
         updated_at: data.generation.updated_at,
         cost_paise: data.generation.cost_paise ?? null,
-        original_cost_paise: data.generation.original_cost_paise ?? null,
         retry_count: data.generation.retry_count ?? 0,
         is_free_retry: data.generation.is_free_retry ?? false,
       };
@@ -605,16 +600,13 @@ export default function SessionPoller({
     setConfirmOpen("discard");
   }, [actionPending]);
 
-  // Dialog content state — use original_cost_paise (chain root) so that
-  // "50% of original" doesn't wrongly resolve to ₹0 when the current gen
-  // is itself a free retry (which has cost_paise = 0).
+  // Retry pricing — credit-only model:
+  //   • 1st retry: free (no credit, no money)
+  //   • subsequent retries: 1 credit, no money
+  // Brand already paid for the original generation in wallet ₹; retries
+  // are quality-fixes and should never bill the creator again.
   const retryCount = gen?.retry_count ?? 0;
   const isFreeRetry = retryCount === 0;
-  const referenceCostPaise =
-    gen?.original_cost_paise ?? gen?.cost_paise ?? 0;
-  const retryCostRupees = isFreeRetry
-    ? 0
-    : Math.round((referenceCostPaise * 0.5) / 100);
 
   const brief = gen?.structured_brief ?? {};
   const briefEntries = Object.entries({
@@ -775,9 +767,9 @@ export default function SessionPoller({
                     Approve this image to send to creator
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
-                    {(gen?.retry_count ?? 0) === 0
+                    {isFreeRetry
                       ? "1 free retry available if not satisfied. Auto-sent to creator after 24h."
-                      : `Retry costs 50% of original price (₹${retryCostRupees}). Auto-sent after 24h.`}
+                      : "Each retry now uses 1 credit. Auto-sent after 24h."}
                   </p>
                 </div>
               </div>
@@ -814,7 +806,7 @@ export default function SessionPoller({
                   ) : (
                     <RefreshCw className="size-4" />
                   )}
-                  {(gen?.retry_count ?? 0) === 0 ? "Retry (free)" : "Retry"}
+                  {isFreeRetry ? "Retry (free)" : "Retry (1 credit)"}
                 </button>
                 <button
                   type="button"
@@ -923,7 +915,7 @@ export default function SessionPoller({
                 <DialogTitle className="text-lg font-700 text-[var(--color-foreground)]">
                   {isFreeRetry
                     ? "Use your free retry?"
-                    : `Paid retry — ₹${retryCostRupees}`}
+                    : "Use 1 credit to retry?"}
                 </DialogTitle>
                 <DialogDescription className="text-sm leading-relaxed text-[var(--color-muted-foreground)]">
                   {isFreeRetry ? (
@@ -935,18 +927,19 @@ export default function SessionPoller({
                       </span>{" "}
                       — any further retries will cost{" "}
                       <span className="font-700 text-[var(--color-foreground)]">
-                        ₹{Math.round((referenceCostPaise * 0.5) / 100)}
-                      </span>
-                      .
+                        1 credit
+                      </span>{" "}
+                      each (no extra ₹ from wallet).
                     </>
                   ) : (
                     <>
                       <span className="font-700 text-[var(--color-foreground)]">
-                        ₹{retryCostRupees}
+                        1 credit
                       </span>{" "}
-                      will be deducted from your wallet (50% of the original
-                      generation price). The current image will be discarded
-                      and a new one generated with the same brief.
+                      will be used. No money is deducted from your wallet —
+                      the creator was already paid for the original generation.
+                      The current image will be discarded and a new one
+                      generated with the same brief.
                     </>
                   )}
                 </DialogDescription>
@@ -965,7 +958,7 @@ export default function SessionPoller({
                   className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-700 text-[var(--color-primary-foreground)] shadow-sm hover:bg-[var(--color-primary)]/90"
                 >
                   <RefreshCw className="size-4" />
-                  {isFreeRetry ? "Use free retry" : `Pay ₹${retryCostRupees}`}
+                  {isFreeRetry ? "Use free retry" : "Use 1 credit"}
                 </button>
               </DialogFooter>
             </>

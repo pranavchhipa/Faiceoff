@@ -3,14 +3,18 @@
  *
  * Brand action: image not satisfactory, re-roll the AI with the same brief.
  *
- * Pricing (decision log Q1=B):
- *   - retry_count == 0 → 1st retry is FREE (covers genuine AI mistakes)
- *   - retry_count >= 1 → costs 50% of original generation price
+ * Pricing (final model — credit-only):
+ *   - retry_count == 0 → 1st retry is FREE (no credit, no money)
+ *   - retry_count >= 1 → costs 1 CREDIT only, no wallet deduction
+ *
+ * Rationale: brand already paid the full ₹ for the original generation.
+ * Retries are "fixes" — brand shouldn't pay creator again. Credit pool
+ * acts as the natural rate-limit so brands can't spam retries indefinitely.
  *
  * Effect:
  *   - Old generation: status = 'discarded' (no refund — retry supersedes it)
- *   - New generation: inserted in 'draft', retry_count + 1, is_free_retry flag,
- *     same brief, dispatched via after()
+ *   - New generation: inserted in 'draft', cost_paise = 0, retry_count + 1,
+ *     is_free_retry flag, same brief, dispatched via after()
  *   - Returns new generation_id so UI can redirect
  */
 
@@ -74,55 +78,27 @@ export async function POST(
     );
   }
 
-  // ── Compute retry cost ──
-  // CRITICAL: when computing retry cost we must use the cost of the ORIGINAL
-  // (retry_count=0) generation in the chain, NOT the current gen's cost. If
-  // the current gen is itself a free retry its cost_paise is 0, which would
-  // make 50%-of-cost wrongly evaluate to ₹0 for every subsequent retry.
+  // ── Determine retry cost (credit-only model) ──
+  // 1st retry (retry_count=0 on source) is fully free.
+  // Subsequent retries cost 1 credit, no wallet deduction.
   const oldRetryCount = (original.retry_count as number) ?? 0;
   const isFreeRetry = oldRetryCount === 0;
 
-  let chainOriginalCost = (original.cost_paise as number) ?? 0;
-  if (oldRetryCount > 0 && original.collab_session_id) {
-    // Walk back to the chain's original (retry_count=0) generation in the
-    // same collab_session and read its cost_paise.
-    const { data: chainOriginal } = await admin
-      .from("generations")
-      .select("cost_paise")
-      .eq("collab_session_id", original.collab_session_id)
-      .eq("retry_count", 0)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (chainOriginal?.cost_paise) {
-      chainOriginalCost = chainOriginal.cost_paise as number;
-    }
-  }
-
-  const retryCost = isFreeRetry ? 0 : Math.round(chainOriginalCost * 0.5);
-
-  // ── Pre-flight wallet check (paid retry only) ──
-  if (retryCost > 0) {
+  // ── Pre-flight credit check (only for paid retries) ──
+  if (!isFreeRetry) {
     const { data: billing } = await admin
       .from("v_brand_billing")
-      .select("wallet_available_paise, credits_remaining")
+      .select("credits_remaining")
       .eq("brand_id", brand.id)
       .maybeSingle();
-    const wallet = (billing?.wallet_available_paise as number) ?? 0;
     const credits = (billing?.credits_remaining as number) ?? 0;
-    if (wallet < retryCost) {
-      return NextResponse.json(
-        {
-          error: "Insufficient wallet balance for paid retry",
-          required_paise: retryCost,
-          available_paise: wallet,
-        },
-        { status: 402 },
-      );
-    }
     if (credits < 1) {
       return NextResponse.json(
-        { error: "Insufficient credits for retry" },
+        {
+          error: "Insufficient credits for retry. Please top up.",
+          required_credits: 1,
+          available_credits: credits,
+        },
         { status: 402 },
       );
     }
@@ -149,6 +125,9 @@ export async function POST(
   }
 
   // ── Create the retry row ──
+  // cost_paise = 0 always — retries don't pay the creator. Either it's
+  // the free retry (no cost) or it's a credit-only retry (1 credit
+  // deducted, no ₹ to creator).
   const { data: newGen, error: insertErr } = await admin
     .from("generations")
     .insert({
@@ -157,7 +136,7 @@ export async function POST(
       creator_id: original.creator_id,
       structured_brief: original.structured_brief as Json,
       status: "draft",
-      cost_paise: retryCost,
+      cost_paise: 0,
       retry_count: oldRetryCount + 1,
       is_free_retry: isFreeRetry,
     })
@@ -199,7 +178,7 @@ export async function POST(
     ok: true,
     new_generation_id: newId,
     is_free_retry: isFreeRetry,
-    cost_paise: retryCost,
+    credits_charged: isFreeRetry ? 0 : 1,
     retry_count: oldRetryCount + 1,
   });
 }
