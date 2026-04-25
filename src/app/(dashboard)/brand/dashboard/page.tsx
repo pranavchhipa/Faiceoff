@@ -302,9 +302,13 @@ export default function BrandDashboardPage() {
                         }`}
                       />
                       <span className="flex-1 truncate font-600 text-[var(--color-foreground)]">
-                        {gen.creator?.display_name ?? "Creator"} ·{" "}
+                        {typeof gen.creator?.display_name === "string" &&
+                        gen.creator.display_name
+                          ? gen.creator.display_name
+                          : "Creator"}{" "}
+                        ·{" "}
                         <span className="font-500 text-[var(--color-muted-foreground)]">
-                          {title}
+                          {typeof title === "string" ? title : "Generation"}
                         </span>
                       </span>
                       <span className="hidden font-mono text-[11px] capitalize text-[var(--color-muted-foreground)] sm:inline">

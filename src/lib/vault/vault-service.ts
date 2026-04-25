@@ -161,16 +161,32 @@ export async function listVaultImages(input: ListVaultImagesInput): Promise<Vaul
 
   const rows = (data ?? []) as Array<Record<string, unknown>>;
 
-  // Flatten creator join (Supabase nests it differently depending on the relationship)
+  // Flatten creator join. Supabase REST returns to-many joins as arrays and
+  // to-one joins as objects — the embedded `display_name:users(display_name)`
+  // sub-select can come back as EITHER `[{ display_name: "..." }]` OR
+  // `{ display_name: "..." }` depending on the FK cardinality. We must handle
+  // both, otherwise `creator.display_name` ends up as a raw object and
+  // React throws #31 ("objects are not valid as a React child") downstream.
   const items = rows.map((row) => {
-    // creator_id join comes back as an array when using FK syntax; flatten it
     const creatorRaw = Array.isArray(row.creator) ? row.creator[0] : row.creator;
-    // display_name may be nested in a users join
     if (creatorRaw && typeof creatorRaw === 'object') {
       const c = creatorRaw as Record<string, unknown>;
       const usersJoin = c.display_name;
       if (Array.isArray(usersJoin) && usersJoin.length > 0) {
+        // Array form: [{ display_name: "..." }]
         c.display_name = (usersJoin[0] as Record<string, unknown>).display_name;
+      } else if (
+        usersJoin &&
+        typeof usersJoin === 'object' &&
+        'display_name' in (usersJoin as Record<string, unknown>)
+      ) {
+        // Object form: { display_name: "..." }
+        c.display_name = (usersJoin as Record<string, unknown>).display_name;
+      }
+      // Last-line defence: if it's still an object after the above, coerce
+      // to empty string so it can never reach React as a child.
+      if (c.display_name && typeof c.display_name === 'object') {
+        c.display_name = '';
       }
     }
     return mapRowToVaultImage({ ...row, creator: creatorRaw });
@@ -239,12 +255,22 @@ export async function getVaultImage({
   }
 
   const row = data as Record<string, unknown>;
+  // Same array+object flatten as listVaultImages — see that function for why.
   const creatorRaw = Array.isArray(row.creator) ? row.creator[0] : row.creator;
   if (creatorRaw && typeof creatorRaw === 'object') {
     const c = creatorRaw as Record<string, unknown>;
     const usersJoin = c.display_name;
     if (Array.isArray(usersJoin) && usersJoin.length > 0) {
       c.display_name = (usersJoin[0] as Record<string, unknown>).display_name;
+    } else if (
+      usersJoin &&
+      typeof usersJoin === 'object' &&
+      'display_name' in (usersJoin as Record<string, unknown>)
+    ) {
+      c.display_name = (usersJoin as Record<string, unknown>).display_name;
+    }
+    if (c.display_name && typeof c.display_name === 'object') {
+      c.display_name = '';
     }
   }
 
