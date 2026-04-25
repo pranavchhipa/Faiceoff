@@ -35,23 +35,73 @@ function getModel(): string {
 }
 
 /**
- * Hardcoded anchor wrapper. The brand's creative brief (LLM-assembled) is
- * inserted into {assembled_prompt}. This ensures Gemini does not drift on
- * identity or product fidelity even if the creative prompt is loose.
+ * Anchor wrapper using "book-end" structure for maximum identity preservation.
+ *
+ * Why this structure:
+ *   Gemini's attention is recency-biased — the last tokens dominate. Putting
+ *   only identity at the TOP gets overwhelmed by styling tokens later
+ *   ("editorial", "Sony A7R-V", "magazine-quality") that pull from fashion-
+ *   photography datasets where beauty bias slims faces and sharpens jaws.
+ *
+ *   Solution: identity anchors at BOTH ends of the prompt. The creative brief
+ *   sits in the middle. The model sees identity → brief → identity, so the
+ *   FINAL instruction it processes is "do not modify the face."
+ *
+ * Why the explicit anti-slimming language:
+ *   Generic "match the face" instructions aren't enough — modern image models
+ *   default to industry-standard beauty (slim face, sharp jaw, smooth skin).
+ *   We must explicitly tell the model NOT to do this. Negative phrasing like
+ *   "do NOT slim" works better than positive phrasing because the bias is so
+ *   strong that the model needs an explicit override.
  */
+function sanitizeBeautyTriggers(text: string): string {
+  // Soften the most aggressive beauty-bias triggers without destroying the
+  // brand's stylistic intent. We're not removing all camera/quality language
+  // (that would override the brand's choice) — we're just pulling the
+  // teeth on the words that most reliably activate fashion-magazine bias.
+  return text
+    .replace(/\bmagazine-quality\b/gi, "high-quality")
+    .replace(/\beditorial portrait\b/gi, "candid portrait")
+    .replace(/\bcommercial-shoot quality\b/gi, "natural realistic quality")
+    .replace(/\bglamour\b/gi, "natural")
+    .replace(/\bflawless\b/gi, "natural");
+}
+
 function buildAnchorPrompt(
   assembledPrompt: string,
   aspectRatio: string,
 ): string {
+  const cleanedBrief = sanitizeBeautyTriggers(assembledPrompt);
+
   return [
-    "CRITICAL CONSTRAINTS (do not deviate):",
-    "- The person's face, skin tone, hair, and facial features MUST exactly match the first 3 reference images. This is the same individual.",
-    "- The product MUST exactly match image 4. Same shape, color, label, branding. Do not redesign, restyle, or imagine variations.",
+    // ── OPENING ANCHOR ─────────────────────────────────────────────────
+    "IDENTITY LOCK (read carefully):",
+    "The subject in the final image MUST be the exact same person shown in the first 3 reference images — not a similar-looking person, not an averaged or idealised version, not a model who resembles them.",
     "",
-    "CREATIVE BRIEF:",
-    assembledPrompt,
+    "Preserve EXACTLY from the references:",
+    "  • Face shape, including natural cheek fullness and jawline width — DO NOT slim, narrow, or sharpen the face",
+    "  • Body proportions, including shoulder width and natural frame — DO NOT make the body thinner or taller than reference",
+    "  • Skin texture, including pores, natural variation, and any blemishes — DO NOT airbrush, smooth, or retouch",
+    "  • Eye shape, eyebrow shape, lip shape, nose shape — copy from the references",
+    "  • Hairline, hair texture, hair length, hair colour",
     "",
-    `OUTPUT: photorealistic, ${aspectRatio} aspect ratio, commercial-shoot quality.`,
+    "The product (image 4) MUST match exactly: same packaging, same colour, same label typography, same brand mark. Do not redesign or substitute.",
+    "",
+    // ── CREATIVE BRIEF (sandwiched in middle, lower attention weight) ──
+    "─── SCENE & STYLE ───",
+    cleanedBrief,
+    "",
+    // ── CLOSING ANCHOR (recency-weighted, MAX attention) ───────────────
+    "─── FINAL CHECK BEFORE GENERATING ───",
+    "Look at the face in the references one more time. The output face must:",
+    "  ✓ Have the SAME width, fullness, and shape as the references — not slimmer, not sharper",
+    "  ✓ Have the SAME body proportions — not thinner, not different frame",
+    "  ✓ Have the SAME skin (with all natural texture) — not smoothed, not airbrushed",
+    "  ✓ Look like another candid frame from the same person's same week",
+    "",
+    "If your output makes the person look more conventionally attractive than the references, you have failed the assignment. Match what is real, not what is idealised.",
+    "",
+    `Output format: photorealistic image, ${aspectRatio} aspect ratio.`,
   ].join("\n");
 }
 
