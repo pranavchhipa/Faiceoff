@@ -181,7 +181,7 @@ export function WalletTopup({ initialBalance }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px]">
       {/* ═══ Header ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}

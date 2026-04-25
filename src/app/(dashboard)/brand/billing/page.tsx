@@ -87,7 +87,7 @@ function txIsCredit(type: string): boolean {
 
 function BillingSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px] space-y-6">
       <div className="h-12 w-48 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
         <div className="h-56 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
@@ -194,7 +194,7 @@ async function BillingPageInner() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px]">
       {/* ═══ Header ═══ */}
       <div className="mb-8">
         <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">

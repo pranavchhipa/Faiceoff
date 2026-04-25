@@ -167,7 +167,7 @@ export default function BrandDashboardPage() {
   if (loading) return <BrandDashboardSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1320px]">
       {/* ═══════════ Heading ═══════════ */}
       <motion.div
         variants={fadeUp}
@@ -577,7 +577,7 @@ function greetingByHour(d: Date): string {
 
 function BrandDashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[1320px] animate-pulse px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1320px] animate-pulse">
       <div className="mb-8 h-16 w-72 rounded-lg bg-[var(--color-secondary)]" />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (

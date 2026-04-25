@@ -114,9 +114,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           leftSlot={leftSlot}
         />
 
-        {/* Page content. Bottom padding leaves room for mobile bottom nav. */}
+        {/* Page content. Bottom padding leaves room for mobile bottom nav.
+
+            Layout-level centering fix (2026-04-25):
+            Many pages use `<div className="max-w-5xl">` without `mx-auto`,
+            which left-aligned their content against the sidebar. Rather
+            than touch every page, we force every direct child of <main>
+            to be horizontally centered via the `[&>*]:mx-auto` arbitrary
+            variant, and cap them at 1400px so the layout breathes on
+            ultra-wide displays. Pages with their own (smaller) max-w
+            still win because their max-w is more restrictive. */}
         <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
-          {children}
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8 [&>*]:mx-auto">
+            {children}
+          </div>
         </main>
       </div>
 
