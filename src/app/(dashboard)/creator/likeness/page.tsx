@@ -1,11 +1,15 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// /creator/likeness — Creator's LoRA + reference photos + niche management
+// /creator/likeness — Creator's face model + reference photos + niche management
 //
-// Editorial layout with a portrait hero, LoRA training status card, reference
+// Editorial layout with a portrait hero, face-model readiness card, reference
 // photo grid with upload slot, and niche/pricing chips. This is where the
 // creator controls how their face is used (which is the whole product).
+//
+// Pipeline note: per migration 00026 we no longer train per-creator LoRAs.
+// The face model is "ready" when the creator has enough reference photos
+// uploaded — those feed Flux Kontext Max directly as multi-image identity.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
@@ -32,11 +36,6 @@ interface CategoryInfo {
   subcategories: string[];
 }
 
-interface LoraInfo {
-  training_status?: string | null;
-  creator_approved?: boolean | null;
-}
-
 interface CreatorProfile {
   instagram_handle: string | null;
   bio: string | null;
@@ -60,7 +59,6 @@ const MOCK_PHOTOS = [
 export default function CreatorLikenessPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [lora, setLora] = useState<LoraInfo | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +78,6 @@ export default function CreatorLikenessPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.creator) setProfile(data.creator);
-          if (data.loraStatus) setLora(data.loraStatus);
           if (typeof data.photoCount === "number")
             setPhotoCount(data.photoCount);
           if (data.categories) setCategories(data.categories);
@@ -98,7 +95,9 @@ export default function CreatorLikenessPage() {
   const photos = photoCount > 0 ? photoCount : 28;
   const targetPhotos = 30;
   const progress = Math.min(100, Math.round((photos / targetPhotos) * 100));
-  const loraTrained = lora?.training_status === "succeeded";
+  // Face model is "ready" when the creator has enough reference photos
+  // queued — those feed Flux Kontext directly (LoRA training retired in 00026).
+  const faceModelReady = photos >= targetPhotos;
   const kycVerified = profile?.kyc_status === "approved";
 
   const niches =
@@ -142,8 +141,9 @@ export default function CreatorLikenessPage() {
           Likeness
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--color-muted-foreground)]">
-          Every generation uses your trained LoRA. More reference photos = sharper output.
-          Control which niches brands can book, and set your per-generation rate.
+          Every generation uses your reference photos as the identity anchor —
+          more photos = sharper output. Control which niches brands can book,
+          and set your per-generation rate.
         </p>
       </motion.div>
 
@@ -179,10 +179,10 @@ export default function CreatorLikenessPage() {
                     KYC live
                   </span>
                 )}
-                {loraTrained && (
+                {faceModelReady && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 font-mono text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
                     <Sparkles className="h-2.5 w-2.5" />
-                    LoRA trained
+                    Face model live
                   </span>
                 )}
               </div>
@@ -198,25 +198,25 @@ export default function CreatorLikenessPage() {
           </div>
         </div>
 
-        {/* LoRA status card */}
+        {/* Face model status card */}
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-                LoRA model
+                Face model
               </p>
               <h3 className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-                {loraTrained ? "Trained & ready" : "Training soon"}
+                {faceModelReady ? "Live & ready" : "Add more photos"}
               </h3>
             </div>
             <span
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                loraTrained
+                faceModelReady
                   ? "bg-emerald-500/10 text-emerald-500"
                   : "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
               }`}
             >
-              {loraTrained ? (
+              {faceModelReady ? (
                 <CheckCircle2 className="h-5 w-5" />
               ) : (
                 <RefreshCw className="h-5 w-5 animate-spin" />
@@ -243,9 +243,9 @@ export default function CreatorLikenessPage() {
           </div>
 
           <p className="mt-3 text-[12px] text-[var(--color-muted-foreground)]">
-            {loraTrained
-              ? `Your LoRA was trained on ${photos} photos. Add more to sharpen niches or retrain with recent looks.`
-              : `Upload ${targetPhotos - photos} more reference photos to kick off LoRA training. Takes ~18min on our GPU.`}
+            {faceModelReady
+              ? `Your face model is anchored on ${photos} reference photos. Add more to sharpen niches or refresh with newer looks.`
+              : `Upload ${targetPhotos - photos} more reference photos to make your face model live. Brands can book the moment you cross the threshold.`}
           </p>
 
           <div className="mt-4 flex gap-2">
@@ -253,10 +253,10 @@ export default function CreatorLikenessPage() {
               <Upload className="h-3.5 w-3.5" />
               Upload photos
             </button>
-            {loraTrained && (
+            {faceModelReady && (
               <button className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]">
                 <RefreshCw className="h-3.5 w-3.5" />
-                Retrain
+                Refresh photos
               </button>
             )}
           </div>

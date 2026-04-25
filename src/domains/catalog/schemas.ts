@@ -61,18 +61,5 @@ export const uploadPhotosSchema = z.object({
 
 export type UploadPhotosInput = z.infer<typeof uploadPhotosSchema>
 
-// ---------------------------------------------------------------------------
-// Approve LoRA model after reviewing sample images
-// ---------------------------------------------------------------------------
-export const approveLoraModelSchema = z.object({
-  lora_model_id: z.string().uuid('Invalid LoRA model ID'),
-  approved: z.boolean(),
-  feedback: z
-    .string()
-    .max(1000, 'Feedback must be at most 1000 characters')
-    .trim()
-    .nullable()
-    .optional(),
-})
-
-export type ApproveLoraModelInput = z.infer<typeof approveLoraModelSchema>
+// LoRA approval schema retired in migration 00026 — the live pipeline uses
+// reference photos as identity anchors and has no per-creator LoRA review step.

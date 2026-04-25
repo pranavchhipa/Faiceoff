@@ -40,7 +40,7 @@ export async function POST(
   // Fetch the stuck generation
   const { data: gen, error: genErr } = await admin
     .from("generations")
-    .select("id, status, assembled_prompt, lora_model_id, structured_brief")
+    .select("id, status, assembled_prompt, structured_brief")
     .eq("id", generationId)
     .maybeSingle();
 
@@ -73,21 +73,11 @@ export async function POST(
     return NextResponse.json({ error: "REPLICATE_API_TOKEN not set" }, { status: 500 });
   }
 
-  // Resolve LoRA model version from lora_models table
-  let loraModelId: string | null = null;
-  if (gen.lora_model_id) {
-    const { data: loraRow } = await admin
-      .from("lora_models")
-      .select("replicate_model_id")
-      .eq("id", gen.lora_model_id)
-      .maybeSingle();
-    loraModelId = loraRow?.replicate_model_id ?? null;
-  }
-
-  // Submit to Replicate
+  // Submit to Replicate using Flux Kontext Max (LoRA path retired in 00026).
   let replicatePredictionId: string;
   try {
-    const model = loraModelId ?? "black-forest-labs/flux-dev";
+    const model =
+      process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max";
     const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
       method: "POST",
       headers: {

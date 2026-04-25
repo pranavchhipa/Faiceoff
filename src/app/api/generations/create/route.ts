@@ -463,18 +463,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Billing error — wallet reservation failed" }, { status: 402 });
   }
 
-  // ── 15. Resolve creator LoRA model ────────────────────────────────────────────
-  const { data: loraModel } = await admin
-    .from("creator_lora_models")
-    .select("replicate_model_id, training_status, creator_approved")
-    .eq("creator_id", creator_id)
-    .eq("training_status", "completed")
-    .eq("creator_approved", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  // ── 16. Submit to Replicate with webhook ──────────────────────────────────────
+  // ── 15. Submit to Replicate with webhook ──────────────────────────────────────
+  // LoRA path retired (migration 00026) — every generation goes through
+  // Flux Kontext Max with the creator's reference photos as the identity anchor.
   let webhookToken: string;
   try {
     webhookToken = makeWebhookToken(generationId);
@@ -495,10 +486,9 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const webhookUrl = `${appUrl}/api/webhooks/replicate?gen_id=${generationId}&token=${webhookToken}`;
 
-  // Determine model to use. Fall back to flux-kontext-max if no LoRA is ready.
-  const modelToUse = loraModel?.replicate_model_id
-    ? (loraModel.replicate_model_id as string)
-    : (process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max");
+  // Replicate model: Flux Kontext Max (configurable via env for ops swaps).
+  const modelToUse =
+    process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max";
 
   let replicatePredictionId: string | null = null;
   try {
@@ -528,13 +518,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── 17. Persist Replicate prediction ID ─────────────────────────────────────
+  // ── 16. Persist Replicate prediction ID ─────────────────────────────────────
   await admin
     .from("generations")
     .update({ replicate_prediction_id: replicatePredictionId })
     .eq("id", generationId);
 
-  // ── 18. Return 202 ───────────────────────────────────────────────────────────
+  // ── 17. Return 202 ───────────────────────────────────────────────────────────
   return NextResponse.json(
     { generation_id: generationId, status: "processing" },
     { status: 202 },

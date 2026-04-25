@@ -60,11 +60,6 @@ interface CategoryInfo {
   subcategories: string[];
 }
 
-interface LoraInfo {
-  training_status: string;
-  creator_approved: boolean;
-}
-
 interface DashboardStats {
   activeCampaigns: number;
   totalGenerations: number;
@@ -130,7 +125,6 @@ export default function DashboardPage() {
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
-  const [loraStatus, setLoraStatus] = useState<LoraInfo | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
@@ -179,7 +173,6 @@ export default function DashboardPage() {
             walletBalance: data.stats?.walletBalance ?? 0,
           });
           setCategories(data.categories ?? []);
-          setLoraStatus(data.loraStatus ?? null);
           setPhotoCount(data.photoCount ?? 0);
         }
         if (data.brand) {

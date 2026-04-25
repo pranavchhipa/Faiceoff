@@ -28,13 +28,10 @@ export async function DELETE() {
         .maybeSingle();
 
       if (creator) {
-        // Delete creator-related data in order
+        // Delete creator-related data in order. (creator_lora_models retired
+        // in migration 00026 — table no longer exists.)
         await admin
           .from("approvals")
-          .delete()
-          .eq("creator_id", creator.id);
-        await admin
-          .from("creator_lora_models")
           .delete()
           .eq("creator_id", creator.id);
         await admin

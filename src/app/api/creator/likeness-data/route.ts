@@ -7,18 +7,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * Returns everything the /dashboard/likeness page needs:
  *   - creator row (or null if the signed-in user isn't a creator)
- *   - latest LoRA model (if any)
  *   - reference photos (sorted newest first)
  *   - blocked concepts (compliance vectors)
  *
+ * LoRA training has been retired (migration 00026) — the live pipeline uses
+ * Flux Kontext Max with creator reference photos as identity anchors.
+ *
  * Uses the admin client to bypass RLS. Auth is enforced at the top via the
  * session from cookies — without a session this returns 401.
- *
- * Why: client-side `supabase.from("creators")` reads were failing (returning
- * null for valid creators), which tripped the "non-creator" guard on the page
- * even though the user is authenticated as a creator. Same RLS pattern we've
- * had to route around elsewhere — move the read to the server with the
- * service-role client.
  */
 export async function GET() {
   const supabase = await createClient();
@@ -52,21 +48,13 @@ export async function GET() {
     return NextResponse.json({
       isCreator: false,
       creator: null,
-      loraModel: null,
       photos: [],
       blockedConcepts: [],
     });
   }
 
-  // 2. Fetch LoRA model + photos + blocked concepts + generation count in parallel
-  const [loraRes, photosRes, complianceRes, generationCountRes] = await Promise.all([
-    admin
-      .from("creator_lora_models")
-      .select("*")
-      .eq("creator_id", creator.id)
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+  // 2. Fetch photos + blocked concepts + generation count in parallel
+  const [photosRes, complianceRes, generationCountRes] = await Promise.all([
     admin
       .from("creator_reference_photos")
       .select("id, storage_path, is_primary, uploaded_at")
@@ -82,9 +70,6 @@ export async function GET() {
       .eq("creator_id", creator.id),
   ]);
 
-  if (loraRes.error) {
-    console.error("[likeness-data] lora lookup failed", loraRes.error);
-  }
   if (photosRes.error) {
     console.error("[likeness-data] photos lookup failed", photosRes.error);
   }
@@ -129,7 +114,6 @@ export async function GET() {
       onboarding_step: creator.onboarding_step,
       is_active: creator.is_active,
     },
-    loraModel: loraRes.data ?? null,
     photos: signedPhotos,
     blockedConcepts: complianceRes.data ?? [],
     totalGenerations: generationCountRes.count ?? 0,

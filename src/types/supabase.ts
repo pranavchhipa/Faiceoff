@@ -220,57 +220,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      creator_lora_models: {
-        Row: {
-          id: string;
-          creator_id: string;
-          replicate_model_id: string | null;
-          replicate_training_id: string | null;
-          training_status: "queued" | "training" | "completed" | "failed";
-          training_started_at: string | null;
-          training_completed_at: string | null;
-          training_zip_url: string | null;
-          training_error: string | null;
-          trigger_word: string;
-          sample_images: string[];
-          creator_approved: boolean;
-          version: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          creator_id: string;
-          replicate_model_id?: string | null;
-          replicate_training_id?: string | null;
-          training_status?: "queued" | "training" | "completed" | "failed";
-          training_started_at?: string | null;
-          training_completed_at?: string | null;
-          training_zip_url?: string | null;
-          training_error?: string | null;
-          trigger_word?: string;
-          sample_images?: string[];
-          creator_approved?: boolean;
-          version?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          replicate_model_id?: string | null;
-          replicate_training_id?: string | null;
-          training_status?: "queued" | "training" | "completed" | "failed";
-          training_started_at?: string | null;
-          training_completed_at?: string | null;
-          training_zip_url?: string | null;
-          training_error?: string | null;
-          trigger_word?: string;
-          sample_images?: string[];
-          creator_approved?: boolean;
-          version?: number;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
       campaigns: {
         Row: {
           id: string;

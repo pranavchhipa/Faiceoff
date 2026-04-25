@@ -16,16 +16,5 @@ export interface CreatorReferencePhoto {
   uploaded_at: string
 }
 
-export type LoraTrainingStatus = 'queued' | 'training' | 'completed' | 'failed'
-
-export interface CreatorLoraModel {
-  id: string
-  creator_id: string
-  replicate_model_id: string | null
-  training_status: LoraTrainingStatus
-  training_started_at: string | null
-  training_completed_at: string | null
-  sample_images: string[] // URLs of sample generations
-  creator_approved: boolean
-  version: number
-}
+// LoRA training was retired in migration 00026. The live pipeline anchors
+// identity via the creator's reference photos directly (Flux Kontext Max).

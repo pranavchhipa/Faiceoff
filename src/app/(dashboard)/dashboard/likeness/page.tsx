@@ -7,27 +7,12 @@ import {
   Camera,
   Shield,
   CheckCircle2,
-  Sparkles,
   ImagePlus,
   Loader2,
-  ExternalLink,
   Info,
 } from "lucide-react";
 
 /* ── Types ── */
-
-interface LoraModel {
-  id: string;
-  replicate_model_id: string | null;
-  training_status: string;
-  version: number;
-  creator_approved: boolean;
-  sample_images: string[] | null;
-  created_at: string;
-  trigger_word?: string | null;
-  training_started_at?: string | null;
-  training_completed_at?: string | null;
-}
 
 interface ReferencePhoto {
   id: string;
@@ -47,39 +32,18 @@ interface ComplianceVector {
 
 const ghostBorder = { border: "1px solid rgba(171,173,174,0.18)" };
 
-/* ── Helpers ── */
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return "—";
-  }
-}
-
 /**
- * My Likeness — creator-facing settings surface for the face anchor pack.
+ * My Likeness — creator-facing settings surface for the face anchor pipeline.
  *
- * Note on the pipeline shift:
- *   The earlier generation flow trained a per-creator LoRA adapter and the
- *   UI here managed that training lifecycle (Train / Retrain / Test). The
- *   current pipeline (`lib/ai/pipeline-router.ts`, v2/v3 → Nano Banana Pro
- *   + Kontext Max) uses the reference photos as face anchors at generation
- *   time — no per-creator model, no training step.
- *
- *   This page is now a read-only settings surface: reference photos, blocked
- *   concepts, and, for any creator who still has a legacy `lora_models` row,
- *   a read-only "Legacy model active" panel so they can see it and understand
- *   that no further training will happen.
+ * Pipeline note:
+ *   LoRA training was retired in migration 00026. The live generation flow
+ *   (`/api/generations/create` → Replicate Flux Kontext Max) uses the
+ *   creator's reference photos as identity anchors at generation time — no
+ *   per-creator model, no training step. This page is the read-only surface
+ *   over reference photos + blocked concepts.
  */
 export default function LikenessPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const [loraModel, setLoraModel] = useState<LoraModel | null>(null);
   const [photos, setPhotos] = useState<ReferencePhoto[]>([]);
   const [blockedConcepts, setBlockedConcepts] = useState<ComplianceVector[]>(
     [],
@@ -98,7 +62,6 @@ export default function LikenessPage() {
       });
       const data = (await res.json()) as {
         isCreator?: boolean;
-        loraModel?: LoraModel | null;
         photos?: ReferencePhoto[];
         blockedConcepts?: ComplianceVector[];
         totalGenerations?: number;
@@ -118,7 +81,6 @@ export default function LikenessPage() {
       }
 
       setIsNonCreator(false);
-      setLoraModel(data.loraModel ?? null);
       setPhotos(data.photos ?? []);
       setBlockedConcepts(data.blockedConcepts ?? []);
       setTotalGenerations(data.totalGenerations ?? 0);
@@ -179,9 +141,6 @@ export default function LikenessPage() {
     );
   }
 
-  const hasLegacyModel =
-    !!loraModel && loraModel.training_status === "completed";
-  const sampleImages = (loraModel?.sample_images ?? []).filter(Boolean);
   const hasEnoughPhotos = photos.length >= 3;
 
   return (
@@ -276,70 +235,6 @@ export default function LikenessPage() {
           )}
         </div>
       </div>
-
-      {/* ─── Legacy LoRA notice (only for creators who trained before the
-              pipeline shift) ─── */}
-      {hasLegacyModel && (
-        <div className="rounded-xl bg-white p-4" style={ghostBorder}>
-          <div className="flex items-start gap-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-lilac)]">
-              <Sparkles className="size-4 text-[var(--color-primary)]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-700 text-[var(--color-ink)]">
-                  Legacy face model (v{loraModel?.version ?? 1})
-                </h2>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-mint)] px-2 py-0.5 text-[11px] font-600 text-emerald-700">
-                  <CheckCircle2 className="size-3" />
-                  Active
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-[var(--color-ink)]/55">
-                Trained on{" "}
-                {formatDate(
-                  loraModel?.training_completed_at ?? loraModel?.created_at,
-                )}
-                . This model is kept for backward compatibility — current
-                generations use the face anchor pipeline instead, so this
-                won&rsquo;t be retrained.
-              </p>
-            </div>
-          </div>
-
-          {/* Sample images from legacy training */}
-          {sampleImages.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-1.5 text-[11px] font-600 uppercase tracking-wider text-[var(--color-ink)]/50">
-                Legacy samples
-              </p>
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                {sampleImages.slice(0, 8).map((url, i) => (
-                  <a
-                    key={i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative aspect-square overflow-hidden rounded-lg bg-[var(--color-surface-container-lowest)]"
-                    style={ghostBorder}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={`Sample ${i + 1}`}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="absolute bottom-1 right-1 rounded bg-black/50 px-1.5 py-0.5 text-[9px] font-600 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      <ExternalLink className="size-2.5 inline" />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ─── Reference Photos ─── */}
       <div className="rounded-xl bg-white p-4" style={ghostBorder}>

@@ -39,7 +39,6 @@ export async function GET() {
         walletResult,
         campaignsResult,
         categoriesResult,
-        loraResult,
         photosResult,
       ] = await Promise.all([
         // Pending approvals
@@ -117,21 +116,6 @@ export async function GET() {
               .catch(() => [])
           : Promise.resolve([]),
 
-        // LoRA status (only if onboarding complete)
-        isComplete
-          ? Promise.resolve(
-              admin
-                .from("creator_lora_models")
-                .select("training_status, creator_approved")
-                .eq("creator_id", creator.id)
-                .order("version", { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-            )
-              .then(({ data }) => data)
-              .catch(() => null)
-          : Promise.resolve(null),
-
         // Photo count (only if onboarding complete)
         isComplete
           ? Promise.resolve(
@@ -155,7 +139,6 @@ export async function GET() {
           totalCampaigns: campaignsResult.total,
         },
         categories: categoriesResult,
-        loraStatus: loraResult,
         photoCount: photosResult,
       });
     } else {
