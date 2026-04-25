@@ -42,24 +42,21 @@ interface CreatorProfile {
   kyc_status: string | null;
 }
 
+interface ReferencePhoto {
+  id: string;
+  url: string | null;
+  is_primary: boolean;
+}
+
 const fadeUp = {
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0 },
 };
 
-const MOCK_PHOTOS = [
-  "/landing/creator-face.jpg",
-  "/landing/creator-2.jpg",
-  "/landing/creator-3.jpg",
-  "/landing/product-sneaker.jpg",
-  "/landing/product-phone.jpg",
-  "/landing/product-skincare.jpg",
-];
-
 export default function CreatorLikenessPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [photoCount, setPhotoCount] = useState(0);
+  const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([]);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,28 +68,44 @@ export default function CreatorLikenessPage() {
     null;
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch("/api/dashboard/stats");
-        if (res.ok) {
-          const data = await res.json();
+        const [statsRes, likenessRes] = await Promise.allSettled([
+          fetch("/api/dashboard/stats", { cache: "no-store" }),
+          fetch("/api/creator/likeness-data", { cache: "no-store" }),
+        ]);
+
+        if (!cancelled && statsRes.status === "fulfilled" && statsRes.value.ok) {
+          const data = await statsRes.value.json();
           if (data.creator) setProfile(data.creator);
-          if (typeof data.photoCount === "number")
-            setPhotoCount(data.photoCount);
           if (data.categories) setCategories(data.categories);
+        }
+
+        if (
+          !cancelled &&
+          likenessRes.status === "fulfilled" &&
+          likenessRes.value.ok
+        ) {
+          const data = (await likenessRes.value.json()) as {
+            photos?: ReferencePhoto[];
+          };
+          setReferencePhotos(data.photos ?? []);
         }
       } catch (err) {
         console.error("Likeness fetch failed:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     if (user) load();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  // Seed values for empty accounts
-  const photos = photoCount > 0 ? photoCount : 28;
+  const photos = referencePhotos.length;
   const targetPhotos = 30;
   const progress = Math.min(100, Math.round((photos / targetPhotos) * 100));
   // Face model is "ready" when the creator has enough reference photos
@@ -100,26 +113,7 @@ export default function CreatorLikenessPage() {
   const faceModelReady = photos >= targetPhotos;
   const kycVerified = profile?.kyc_status === "approved";
 
-  const niches =
-    categories.length > 0
-      ? categories
-      : [
-          {
-            category: "Fashion",
-            price_per_generation_paise: 250_000,
-            subcategories: ["Editorial", "Streetwear"],
-          },
-          {
-            category: "Beauty",
-            price_per_generation_paise: 250_000,
-            subcategories: ["Skincare", "Makeup"],
-          },
-          {
-            category: "Lifestyle",
-            price_per_generation_paise: 200_000,
-            subcategories: ["Home", "Travel"],
-          },
-        ];
+  const niches: CategoryInfo[] = categories;
 
   if (loading) return <LikenessSkeleton />;
 
@@ -286,40 +280,73 @@ export default function CreatorLikenessPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-          {MOCK_PHOTOS.map((src, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08 + i * 0.03, duration: 0.3 }}
-              className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)]"
+        {referencePhotos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 py-12 text-center">
+            <Camera className="h-6 w-6 text-[var(--color-muted-foreground)]" />
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              No reference photos yet
+            </p>
+            <p className="max-w-sm text-[12px] text-[var(--color-muted-foreground)]">
+              Upload at least {targetPhotos} clear, varied solo shots of your
+              face to make brands able to book you.
+            </p>
+            <a
+              href="/dashboard/onboarding/photos"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[12px] font-700 text-[var(--color-primary-foreground)]"
             >
-              <Image
-                src={src}
-                alt=""
-                fill
-                sizes="120px"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                <button className="flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-md">
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+              <Upload className="h-3 w-3" />
+              Upload now
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+            {referencePhotos.map((photo, i) => (
+              <motion.div
+                key={photo.id}
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.08 + i * 0.03, duration: 0.3 }}
+                className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]"
+              >
+                {photo.url ? (
+                  <Image
+                    src={photo.url}
+                    alt=""
+                    fill
+                    sizes="120px"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Camera className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+                  </div>
+                )}
+                {photo.is_primary && (
+                  <span className="absolute left-1 top-1 z-10 rounded bg-[var(--color-primary)] px-1 py-px font-mono text-[8px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                    Primary
+                  </span>
+                )}
+                <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button className="flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-md">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
 
-          {/* Add slot */}
-          <button className="group flex aspect-square items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]">
-            <div className="text-center">
-              <Plus className="mx-auto h-5 w-5" />
-              <p className="mt-0.5 font-mono text-[9px] font-700 uppercase tracking-wider">
-                +{targetPhotos - photos}
-              </p>
-            </div>
-          </button>
-        </div>
+            {photos < targetPhotos && (
+              <button className="group flex aspect-square items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]">
+                <div className="text-center">
+                  <Plus className="mx-auto h-5 w-5" />
+                  <p className="mt-0.5 font-mono text-[9px] font-700 uppercase tracking-wider">
+                    +{targetPhotos - photos}
+                  </p>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
 
         <p className="mt-4 flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-muted-foreground)]">
           <Sparkles className="h-3 w-3 text-[var(--color-primary)]" />
@@ -350,6 +377,18 @@ export default function CreatorLikenessPage() {
           </button>
         </div>
 
+        {niches.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 py-10 text-center">
+            <Tag className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              No niches set
+            </p>
+            <p className="max-w-sm text-[12px] text-[var(--color-muted-foreground)]">
+              Add the categories you want brands to book you in, with your
+              per-generation rate.
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {niches.map((n, i) => (
             <motion.div
@@ -385,6 +424,7 @@ export default function CreatorLikenessPage() {
             </motion.div>
           ))}
         </div>
+        )}
 
         <p className="mt-4 flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-muted-foreground)]">
           <ShieldCheck className="h-3 w-3 text-[var(--color-primary)]" />

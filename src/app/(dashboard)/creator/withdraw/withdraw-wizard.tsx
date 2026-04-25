@@ -163,45 +163,43 @@ export default function WithdrawWizard({
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
-          <h1 className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-ink)] md:text-[34px]">
+          <h1 className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[34px]">
             Withdraw
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-neutral-500)]">
+          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             Move your earnings to UPI or bank — instant via Cashfree.
           </p>
         </div>
 
-        <div
-          className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-gradient-to-br from-[var(--color-blush)]/60 via-white to-[var(--color-mint)]/40 p-8"
-        >
+        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-8">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-white shadow-sm">
-              <IndianRupee className="size-5 text-[var(--color-accent-gold)]" />
+            <div className="flex size-11 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
+              <IndianRupee className="size-5 text-[var(--color-primary)]" />
             </div>
             <div>
-              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.2em] text-[var(--color-neutral-500)]">
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
                 Below minimum
               </p>
-              <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-ink)]">
+              <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
                 A little more to go
               </h2>
             </div>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white/80 p-4">
-              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)]">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
                 Available now
               </p>
-              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-ink)]">
+              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-foreground)]">
                 {fmt(available_paise)}
               </p>
             </div>
-            <div className="rounded-xl bg-white/80 p-4">
-              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)]">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+              <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
                 Minimum payout
               </p>
-              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-accent-gold)]">
+              <p className="mt-1 font-display text-[22px] font-800 text-[var(--color-primary)]">
                 {fmt(min_payout_paise)}
               </p>
             </div>
@@ -209,18 +207,18 @@ export default function WithdrawWizard({
 
           <div className="mt-5">
             <div className="mb-2 flex items-center justify-between text-[12px]">
-              <span className="text-[var(--color-neutral-600)]">Progress to minimum</span>
-              <span className="font-700 text-[var(--color-ink)]">{progressPct}%</span>
+              <span className="text-[var(--color-muted-foreground)]">Progress to minimum</span>
+              <span className="font-700 text-[var(--color-foreground)]">{progressPct}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/70">
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-secondary)]">
               <div
-                className="h-full rounded-full bg-[var(--color-accent-gold)] transition-all"
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <p className="mt-3 text-[13px] text-[var(--color-neutral-600)]">
+            <p className="mt-3 text-[13px] text-[var(--color-muted-foreground)]">
               Earn{" "}
-              <span className="font-700 text-[var(--color-ink)]">
+              <span className="font-700 text-[var(--color-foreground)]">
                 {fmt(remainingPaise)}
               </span>{" "}
               more to unlock withdrawals. Keep approving briefs — every approval
@@ -231,14 +229,14 @@ export default function WithdrawWizard({
           <div className="mt-6 flex flex-wrap gap-3">
             <Button
               onClick={() => router.push("/creator/approvals")}
-              className="rounded-[var(--radius-button)] bg-[var(--color-ink)] text-white hover:bg-[var(--color-ink)]/85"
+              className="rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90"
             >
               Review approvals <ChevronRight className="size-4" />
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push("/creator/earnings")}
-              className="rounded-[var(--radius-button)]"
+              className="rounded-lg border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-foreground)] hover:bg-[var(--color-secondary)]"
             >
               Back to earnings
             </Button>
@@ -496,11 +494,11 @@ export default function WithdrawWizard({
 
 function InfoCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-xl border border-[var(--color-neutral-200)] bg-white p-4">
-      <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-ink)]">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+      <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
         {title}
       </p>
-      <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-neutral-500)]">
+      <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
         {body}
       </p>
     </div>

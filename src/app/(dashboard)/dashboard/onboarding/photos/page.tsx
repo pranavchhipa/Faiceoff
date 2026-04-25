@@ -17,20 +17,24 @@ import { Button } from "@/components/ui/button";
 import { compressImageForUpload } from "@/lib/utils/image-compression";
 
 const PHOTO_DOS = [
-  "Clear face visibility — no sunglasses, masks, or heavy makeup",
-  "Varied angles: front-facing, 3/4 profile, slight head tilt",
-  "Mix of lighting: natural sunlight, indoor, golden hour",
-  "Different expressions: neutral, smiling, serious, laughing",
-  "Solo photos only — no group shots or other faces",
-  "High resolution (min 512×512px), sharp & not blurry",
-  "Recent photos taken within the last 6 months",
+  "Face fills 40%+ of the frame — close-up portraits, not full body",
+  "Sharp focus on the face, eyes clearly visible (no sunglasses or masks)",
+  "Varied angles: front-on, 3/4 profile, slight head tilt — at least one of each",
+  "Varied lighting: bright daylight, indoor warm, soft shade — mix it up",
+  "Varied expressions: neutral, smile, serious, laugh — emotion range matters",
+  "Plain or simple backgrounds where possible — keeps the AI focused on you",
+  "Solo shots only — no other faces, mirrors, or your own reflection",
+  "High resolution (min 1024×1024px), no compression artifacts",
+  "Recent photos (last 6 months) so the AI matches your current look",
 ] as const;
 
 const PHOTO_DONTS = [
-  "No heavy filters, Snapchat lenses, or AI face-tuning",
-  "No photos where face is less than 30% of the frame",
-  "No blurry, pixelated, or low-light dark photos",
-  "No duplicate or near-identical photos",
+  "No heavy filters, Snapchat lenses, AI smoothing, or beauty-mode",
+  "No tiny faces — if your face is less than ~40% of the frame, skip it",
+  "No motion blur, low-light grain, or out-of-focus shots",
+  "No duplicates or near-identical poses — variety beats quantity",
+  "No screenshots, watermarks, or photos with text overlays",
+  "No group photos, even if you're cropping — cropping leaves artifacts",
 ] as const;
 
 interface PhotoPreview {
@@ -211,7 +215,9 @@ export default function PhotosPage() {
           Upload your reference photos
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)]">
-          Upload 5-15 high-quality photos for AI model training. Use varied angles, lighting, and expressions for best results.
+          Each photo becomes a face anchor that the AI references on every
+          generation. <span className="font-700 text-[var(--color-ink)]">More variety + sharper photos = sharper output.</span> Aim
+          for 10+ now (minimum 5), and top up to 30 over time for max fidelity.
         </p>
       </div>
 
@@ -220,7 +226,7 @@ export default function PhotosPage() {
         <div className="rounded-[var(--radius-card)] border border-[var(--color-mint)] bg-[var(--color-mint)]/10 p-4">
           <p className="text-sm font-700 text-[var(--color-ink)] mb-2 flex items-center gap-1.5">
             <Check className="size-4 text-green-600" />
-            Best for LoRA training
+            Best for AI generation quality
           </p>
           <ul className="space-y-1.5">
             {PHOTO_DOS.map((item, i) => (
