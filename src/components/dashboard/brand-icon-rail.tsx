@@ -40,14 +40,18 @@ export function BrandIconRail() {
   return (
     <TooltipProvider delayDuration={120} skipDelayDuration={80}>
       <aside className="sticky top-0 hidden h-screen w-14 shrink-0 flex-col items-center border-r border-[var(--color-border)] bg-[var(--color-card)] py-3 lg:flex">
-        {/* Logo mark — gold "F" wordmark. Keep as text to avoid shipping
-           an extra icon asset; swap to an SVG mark when available. */}
+        {/* Logo mark */}
         <Link
           href="/brand/dashboard"
           aria-label="Faiceoff home"
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)] font-display text-lg font-800 text-[var(--color-primary-foreground)] transition-transform hover:scale-105"
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)] p-1.5 transition-transform hover:scale-105"
         >
-          F
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-mark.png"
+            alt="Faiceoff"
+            className="h-full w-full object-contain"
+          />
         </Link>
 
         <div className="my-3 h-px w-6 bg-[var(--color-border)]" />

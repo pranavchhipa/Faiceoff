@@ -46,9 +46,14 @@ export function AdminSectionSidebar({ counts = {} }: AdminSectionSidebarProps) {
         <Link
           href="/admin"
           aria-label="Faiceoff admin home"
-          className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-primary)] font-display text-xs font-800 text-[var(--color-primary-foreground)]"
+          className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-primary)] p-1"
         >
-          F
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-mark.png"
+            alt="Faiceoff"
+            className="h-full w-full object-contain"
+          />
         </Link>
         <div className="flex flex-col leading-none">
           <span className="font-display text-[13px] font-700 text-[var(--color-foreground)]">
