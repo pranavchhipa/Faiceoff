@@ -1,13 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /brand/billing — billing overview (server component)
-// Task E23 — Chunk E
+// Hybrid Soft Luxe v2 dark-mode revamp
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Button } from "@/components/ui/button";
 import {
   Zap,
   Wallet,
@@ -88,13 +87,13 @@ function txIsCredit(type: string): boolean {
 
 function BillingSkeleton() {
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-neutral-200)]" />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div className="h-52 animate-pulse rounded-[var(--radius-card)] bg-[var(--color-neutral-100)]" />
-        <div className="h-52 animate-pulse rounded-[var(--radius-card)] bg-[var(--color-neutral-100)]" />
+    <div className="mx-auto w-full max-w-[1200px] space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+      <div className="h-12 w-48 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
+        <div className="h-56 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+        <div className="h-56 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
       </div>
-      <div className="h-72 animate-pulse rounded-[var(--radius-card)] bg-[var(--color-neutral-100)]" />
+      <div className="h-72 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
     </div>
   );
 }
@@ -104,10 +103,10 @@ function BillingSkeleton() {
 function StatusPill({ isCredit }: { isCredit: boolean }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-700 uppercase tracking-wide ${
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-700 uppercase tracking-wider ${
         isCredit
-          ? "bg-[var(--color-mint)] text-green-700"
-          : "bg-[var(--color-blush)] text-red-600"
+          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+          : "border-rose-400/30 bg-rose-400/10 text-rose-300"
       }`}
     >
       {isCredit ? "Credit" : "Debit"}
@@ -131,13 +130,14 @@ async function BillingPageInner() {
 
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const admin = createAdminClient() as any;
 
-      // Resolve brand
       const { data: brand } = await admin
         .from("brands")
         .select("id, credits_remaining, credits_lifetime_purchased")
@@ -147,7 +147,6 @@ async function BillingPageInner() {
       if (brand?.id) {
         brandId = brand.id as string;
 
-        // Billing view
         const { data: billingView } = await admin
           .from("v_brand_billing")
           .select(
@@ -158,20 +157,24 @@ async function BillingPageInner() {
 
         if (billingView) {
           billing = {
-            credits_remaining: billingView.credits_remaining as number ?? 0,
-            credits_lifetime_purchased: billingView.credits_lifetime_purchased as number ?? 0,
-            wallet_available_paise: billingView.wallet_available_paise as number ?? 0,
-            wallet_reserved_paise: billingView.wallet_reserved_paise as number ?? 0,
-            wallet_balance_paise: billingView.wallet_balance_paise as number ?? 0,
-            lifetime_topup_paise: billingView.lifetime_topup_paise as number ?? 0,
+            credits_remaining: (billingView.credits_remaining as number) ?? 0,
+            credits_lifetime_purchased:
+              (billingView.credits_lifetime_purchased as number) ?? 0,
+            wallet_available_paise:
+              (billingView.wallet_available_paise as number) ?? 0,
+            wallet_reserved_paise:
+              (billingView.wallet_reserved_paise as number) ?? 0,
+            wallet_balance_paise:
+              (billingView.wallet_balance_paise as number) ?? 0,
+            lifetime_topup_paise:
+              (billingView.lifetime_topup_paise as number) ?? 0,
           };
         } else {
-          // Fallback: use brand row columns if view is empty
-          billing.credits_remaining = brand.credits_remaining as number ?? 0;
-          billing.credits_lifetime_purchased = brand.credits_lifetime_purchased as number ?? 0;
+          billing.credits_remaining = (brand.credits_remaining as number) ?? 0;
+          billing.credits_lifetime_purchased =
+            (brand.credits_lifetime_purchased as number) ?? 0;
         }
 
-        // Last 10 wallet transactions (new ledger)
         const { data: txRows } = await admin
           .from("wallet_transactions")
           .select(
@@ -191,174 +194,217 @@ async function BillingPageInner() {
   }
 
   return (
-    <div className="max-w-5xl">
-      {/* Header */}
+    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+      {/* ═══ Header ═══ */}
       <div className="mb-8">
-        <h1 className="text-2xl font-800 tracking-tight text-[var(--color-on-surface)]">
-          Billing overview
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          Billing
+        </p>
+        <h1 className="mt-1 font-display text-[32px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[40px]">
+          Overview
+          <span className="text-[var(--color-primary)]">.</span>
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-outline-variant)]">
-          Your credit balance, wallet funds, and recent transactions.
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          Credit balance, wallet funds, and recent transactions — all in one place.
         </p>
       </div>
 
-      {/* 2-column balance cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-8">
+      {/* ═══ Balance cards (2-up) ═══ */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
         {/* Credits card */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-ocean-deep)]/40 bg-gradient-to-br from-[var(--color-ocean)]/30 to-white p-6 shadow-[var(--shadow-card)]">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-ocean)]/60">
-              <Zap className="size-5 text-[var(--color-primary)]" />
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
+          <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[var(--color-primary)]/8 blur-3xl" />
+          <div className="relative">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary)]/12 text-[var(--color-primary)]">
+                <Zap className="h-5 w-5" />
+              </div>
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+                Credits
+              </p>
             </div>
-            <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mt-1">
-              Credits
+
+            <p className="font-display text-[44px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {billing.credits_remaining.toLocaleString("en-IN")}
             </p>
-          </div>
+            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
+              {billing.credits_lifetime_purchased.toLocaleString("en-IN")} purchased
+              lifetime
+            </p>
 
-          <p className="text-4xl font-800 text-[var(--color-on-surface)] mb-1">
-            {billing.credits_remaining.toLocaleString("en-IN")}
-          </p>
-          <p className="text-xs text-[var(--color-outline-variant)] mb-6">
-            {billing.credits_lifetime_purchased.toLocaleString("en-IN")} purchased lifetime
-          </p>
-
-          <Link href="/brand/credits">
-            <Button
-              size="sm"
-              className="rounded-[var(--radius-button)] bg-[var(--color-primary)] font-600 text-white hover:bg-[var(--color-primary-dim)]"
+            <Link
+              href="/brand/credits"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-3.5 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-all hover:-translate-y-0.5"
             >
-              <Zap className="size-3.5" />
+              <Zap className="h-3.5 w-3.5" />
               Buy more credits
-            </Button>
-          </Link>
+            </Link>
+          </div>
         </div>
 
         {/* Wallet card */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-accent-gold)]/30 bg-gradient-to-br from-[var(--color-accent-gold)]/10 to-white p-6 shadow-[var(--shadow-card)]">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-accent-gold)]/20">
-              <Wallet className="size-5 text-[var(--color-accent-gold)]" />
-            </div>
-            <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)] mt-1">
-              Wallet ₹
-            </p>
-          </div>
-
-          <p className="text-4xl font-800 text-[var(--color-on-surface)] mb-1">
-            {formatINR(billing.wallet_available_paise)}
-          </p>
-          <p className="text-xs text-[var(--color-outline-variant)] mb-1">
-            available balance
-          </p>
-
-          {billing.wallet_reserved_paise > 0 && (
-            <div className="flex items-center gap-1 mb-1">
-              <p className="text-xs text-[var(--color-outline-variant)]">
-                {formatINRDecimal(billing.wallet_reserved_paise)} in escrow
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--color-primary)]/30 bg-gradient-to-br from-[var(--color-primary)]/12 via-[var(--color-card)] to-[var(--color-card)] p-6">
+          <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[var(--color-primary)]/15 blur-3xl" />
+          <div className="relative">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary)]/20 text-[var(--color-primary)]">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-primary)]">
+                Wallet ₹
               </p>
-              <span title="Funds held in escrow on pending generations — released on creator approval">
-                <HelpCircle className="size-3 text-[var(--color-outline-variant)]" />
-              </span>
             </div>
-          )}
 
-          <p className="text-xs text-[var(--color-outline-variant)] mb-5">
-            {formatINRDecimal(billing.lifetime_topup_paise)} topped up lifetime
-          </p>
+            <p className="font-display text-[44px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {formatINR(billing.wallet_available_paise)}
+            </p>
+            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
+              available
+              {billing.wallet_reserved_paise > 0 && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="inline-flex items-center gap-1">
+                    {formatINRDecimal(billing.wallet_reserved_paise)} in escrow
+                    <span title="Held against pending generations — released on creator approval">
+                      <HelpCircle className="h-3 w-3" />
+                    </span>
+                  </span>
+                </>
+              )}
+            </p>
 
-          <Link href="/brand/wallet">
-            <Button
-              size="sm"
-              className="rounded-[var(--radius-button)] bg-[var(--color-accent-gold)] font-600 text-white hover:bg-[var(--color-accent-gold-hover)]"
+            <Link
+              href="/brand/wallet"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3.5 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition-all hover:border-[var(--color-primary)]/40"
             >
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="h-3.5 w-3.5" />
               Top up wallet
-            </Button>
-          </Link>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Recent transactions */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-card)]">
-        <div className="border-b border-[var(--color-outline-variant)]/10 px-6 py-4">
-          <p className="text-sm font-700 text-[var(--color-on-surface)]">Recent transactions</p>
-          <p className="text-xs text-[var(--color-outline-variant)]">Last 10 wallet movements</p>
+      {/* ═══ Lifetime stats strip ═══ */}
+      <div className="mb-8 grid grid-cols-2 gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 md:grid-cols-3">
+        <div>
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            Lifetime topped up
+          </p>
+          <p className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+            {formatINRDecimal(billing.lifetime_topup_paise)}
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            Wallet total
+          </p>
+          <p className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+            {formatINRDecimal(billing.wallet_balance_paise)}
+          </p>
+        </div>
+        <div className="col-span-2 md:col-span-1">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            Credits purchased
+          </p>
+          <p className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+            {billing.credits_lifetime_purchased.toLocaleString("en-IN")}
+          </p>
+        </div>
+      </div>
+
+      {/* ═══ Recent transactions table ═══ */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+        <div className="border-b border-[var(--color-border)] px-6 py-4">
+          <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+            Recent transactions
+          </p>
+          <p className="mt-0.5 text-[11px] text-[var(--color-muted-foreground)]">
+            Last 10 wallet movements
+          </p>
         </div>
 
         {transactions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 p-12 text-center">
-            <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-surface-container-low)]">
-              <Wallet className="size-5 text-[var(--color-outline-variant)]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-secondary)]">
+              <Wallet className="h-5 w-5 text-[var(--color-muted-foreground)]" />
             </div>
-            <p className="text-sm font-600 text-[var(--color-on-surface)]">No transactions yet</p>
-            <p className="text-xs text-[var(--color-outline-variant)]">
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              No transactions yet
+            </p>
+            <p className="text-[11px] text-[var(--color-muted-foreground)]">
               Top up your wallet to start generating.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-[var(--color-outline-variant)]/10">
-                  <th className="px-6 py-3 text-left text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-secondary)]/40">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Type
                   </th>
-                  <th className="px-6 py-3 text-left text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Reference
                   </th>
-                  <th className="px-6 py-3 text-right text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+                  <th className="px-6 py-3 text-right font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-right text-[10px] font-700 uppercase tracking-widest text-[var(--color-outline-variant)]">
+                  <th className="px-6 py-3 text-right font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--color-outline-variant)]/10">
+              <tbody>
                 {transactions.map((tx) => {
                   const isCredit = txIsCredit(tx.type);
                   return (
-                    <tr key={tx.id} className="hover:bg-[var(--color-surface-container-low)]/40 transition-colors">
+                    <tr
+                      key={tx.id}
+                      className="border-b border-[var(--color-border)] last:border-0 transition-colors hover:bg-[var(--color-secondary)]/30"
+                    >
                       <td className="px-6 py-3.5">
-                        <p className="text-xs text-[var(--color-outline-variant)]">
+                        <p className="font-mono text-[11px] text-[var(--color-muted-foreground)]">
                           {formatDate(tx.created_at)}
                         </p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           <div
-                            className={`flex size-7 items-center justify-center rounded-full ${
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border ${
                               isCredit
-                                ? "bg-[var(--color-mint)]"
-                                : "bg-[var(--color-blush)]"
+                                ? "border-emerald-400/30 bg-emerald-400/10"
+                                : "border-rose-400/30 bg-rose-400/10"
                             }`}
                           >
                             {isCredit ? (
-                              <ArrowDownLeft className="size-3.5 text-green-600" />
+                              <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
                             ) : (
-                              <ArrowUpRight className="size-3.5 text-red-500" />
+                              <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />
                             )}
                           </div>
-                          <span className="text-sm font-600 text-[var(--color-on-surface)]">
+                          <span className="text-[13px] font-600 text-[var(--color-foreground)]">
                             {txTypeLabel(tx.type)}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-xs text-[var(--color-outline-variant)] truncate max-w-[160px]">
+                        <p className="max-w-[200px] truncate text-[12px] text-[var(--color-muted-foreground)]">
                           {tx.description ?? tx.reference_type ?? "—"}
                         </p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
                         <p
-                          className={`text-sm font-700 ${
-                            isCredit ? "text-green-600" : "text-[var(--color-on-surface)]"
+                          className={`font-display text-[13px] font-700 ${
+                            isCredit
+                              ? "text-emerald-400"
+                              : "text-[var(--color-foreground)]"
                           }`}
                         >
-                          {isCredit ? "+" : "-"}
+                          {isCredit ? "+" : "−"}
                           {formatINRDecimal(tx.amount_paise)}
                         </p>
                       </td>

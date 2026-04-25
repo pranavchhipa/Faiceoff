@@ -109,11 +109,14 @@ html.dark {
   --color-inverse-on-surface:       #1E222B;
   --color-surface-dim:              #161A21;
   --color-surface-bright:           #2B2F38;
-  --color-surface-container-lowest: #0F1116;
-  --color-surface-container-low:    #161A21;
-  --color-surface-container:        #1E222B;
-  --color-surface-container-high:   #23272F;
-  --color-surface-container-highest:#2B2F38;
+  /* "lowest" was identical to --color-background (#0F1116), making cards
+     invisible in dark mode. Bumped to match --color-card so cards have
+     proper layer separation. */
+  --color-surface-container-lowest: #161A21;
+  --color-surface-container-low:    #1E222B;
+  --color-surface-container:        #23272F;
+  --color-surface-container-high:   #2B2F38;
+  --color-surface-container-highest:#34394A;
   --color-accent-gold:              #C9A96E;
   --color-accent-gold-hover:        #B8944F;
   --color-gold:                     #C9A96E;

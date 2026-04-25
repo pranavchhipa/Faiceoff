@@ -240,7 +240,7 @@ export default function SettingsPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-outline-variant)]/30 border-t-[var(--color-primary)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-muted-foreground)]/30 border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -256,17 +256,17 @@ export default function SettingsPage() {
     >
       {/* ══════════ Page Header ══════════ */}
       <div className="mb-6">
-        <h1 className="text-3xl font-700 tracking-tight text-[var(--color-on-surface)]">
+        <h1 className="text-3xl font-700 tracking-tight text-[var(--color-foreground)]">
           Account Settings
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-outline)]">
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
           Manage your profile and security preferences.
         </p>
       </div>
 
       {profileLoading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-outline-variant)]/30 border-t-[var(--color-primary)]" />
+          <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-muted-foreground)]/30 border-t-[var(--color-primary)]" />
         </div>
       ) : (
         <div className="space-y-5">
@@ -275,7 +275,7 @@ export default function SettingsPage() {
              1. Profile Card — Avatar + Display Name + Email
              ══════════════════════════════════════════════════ */}
           <section
-            className="rounded-2xl bg-[var(--color-surface-container-lowest)] p-6 lg:p-8"
+            className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
             style={ghostBorder}
           >
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -290,11 +290,11 @@ export default function SettingsPage() {
                 />
                 <div className="flex size-20 items-center justify-center rounded-full bg-[var(--color-lilac)] overflow-hidden">
                   {avatarUploading ? (
-                    <Loader2 className="size-6 animate-spin text-[var(--color-outline)]" />
+                    <Loader2 className="size-6 animate-spin text-[var(--color-muted-foreground)]" />
                   ) : userProfile.avatar_url ? (
                     <img src={userProfile.avatar_url} alt="Avatar" className="size-full object-cover" />
                   ) : (
-                    <span className="text-2xl font-700 text-[var(--color-on-surface)]">
+                    <span className="text-2xl font-700 text-[var(--color-foreground)]">
                       {userProfile.display_name?.charAt(0)?.toUpperCase() || "?"}
                     </span>
                   )}
@@ -308,7 +308,7 @@ export default function SettingsPage() {
               <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:gap-5">
                 {/* Display Name */}
                 <div className="flex-1">
-                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                     Display Name
                   </p>
                   <input
@@ -318,23 +318,23 @@ export default function SettingsPage() {
                       setUserProfile((prev) => ({ ...prev, display_name: e.target.value }))
                     }
                     placeholder="Your name"
-                    className="h-11 w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all placeholder:text-[var(--color-outline-variant)] focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                    className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
                     style={{ border: "none" }}
                   />
                 </div>
 
                 {/* Email (read-only) */}
                 <div className="flex-1">
-                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                     Email Address
                   </p>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-outline-variant)]" />
+                    <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
                     <input
                       type="email"
                       value={userProfile.email}
                       disabled
-                      className="h-11 w-full rounded-xl bg-[var(--color-surface-container)] px-4 pl-9 text-[15px] font-500 text-[var(--color-outline)] outline-none"
+                      className="h-11 w-full rounded-xl bg-[var(--color-muted)] px-4 pl-9 text-[15px] font-500 text-[var(--color-muted-foreground)] outline-none"
                       style={{ border: "none" }}
                     />
                   </div>
@@ -350,24 +350,24 @@ export default function SettingsPage() {
             <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
               {/* Creative Identity */}
               <section
-                className="rounded-2xl bg-[var(--color-surface-container-lowest)] p-6 lg:p-8"
+                className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
                 style={ghostBorder}
               >
                 <div className="mb-6 flex items-center gap-2.5">
                   <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-lilac)]">
                     <Fingerprint className="size-4 text-[var(--color-primary)]" />
                   </div>
-                  <h2 className="text-lg font-700 text-[var(--color-on-surface)]">Creative Identity</h2>
+                  <h2 className="text-lg font-700 text-[var(--color-foreground)]">Creative Identity</h2>
                 </div>
 
                 <div className="space-y-5">
                   {/* Instagram */}
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                       Instagram Handle
                     </p>
                     <div className="relative">
-                      <AtSign className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-outline-variant)]" />
+                      <AtSign className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
                       <input
                         type="text"
                         value={creatorProfile.instagram_handle}
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                           }))
                         }
                         placeholder="yourhandle"
-                        className="h-11 w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 pl-10 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all placeholder:text-[var(--color-outline-variant)] focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                        className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 pl-10 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
                         style={{ border: "none" }}
                       />
                     </div>
@@ -386,7 +386,7 @@ export default function SettingsPage() {
 
                   {/* Bio */}
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                       Short Bio
                     </p>
                     <textarea
@@ -398,10 +398,10 @@ export default function SettingsPage() {
                       }}
                       placeholder="Tell brands about yourself and your content style..."
                       rows={4}
-                      className="w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 py-3 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all placeholder:text-[var(--color-outline-variant)] focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)] resize-none leading-relaxed"
+                      className="w-full rounded-xl bg-[var(--color-secondary)] px-4 py-3 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)] resize-none leading-relaxed"
                       style={{ border: "none" }}
                     />
-                    <p className="mt-1.5 text-right text-[11px] text-[var(--color-outline-variant)]">
+                    <p className="mt-1.5 text-right text-[11px] text-[var(--color-muted-foreground)]">
                       {creatorProfile.bio.length}/{BIO_MAX} characters
                     </p>
                   </div>
@@ -410,16 +410,16 @@ export default function SettingsPage() {
 
               {/* Status Card */}
               <section
-                className="flex flex-col items-center justify-center rounded-2xl bg-[var(--color-surface-container-lowest)] p-6 text-center"
+                className="flex flex-col items-center justify-center rounded-2xl bg-[var(--color-card)] p-6 text-center"
                 style={ghostBorder}
               >
                 <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--color-mint)]">
                   <CheckCircle2 className="size-6 text-[#1a6b3c]" />
                 </div>
-                <h3 className="mt-4 text-base font-700 text-[var(--color-on-surface)]">
+                <h3 className="mt-4 text-base font-700 text-[var(--color-foreground)]">
                   Verified Creator
                 </h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-[var(--color-outline)]">
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
                   Your profile is currently featured in the marketplace. Keep your bio updated to maintain conversion rates.
                 </p>
                 <button
@@ -438,20 +438,20 @@ export default function SettingsPage() {
              ══════════════════════════════════════════════════ */}
           {role === "brand" && (
             <section
-              className="rounded-2xl bg-[var(--color-surface-container-lowest)] p-6 lg:p-8"
+              className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
               style={ghostBorder}
             >
               <div className="mb-6 flex items-center gap-2.5">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-ocean)]">
                   <Fingerprint className="size-4 text-[#2a5a8c]" />
                 </div>
-                <h2 className="text-lg font-700 text-[var(--color-on-surface)]">Brand Profile</h2>
+                <h2 className="text-lg font-700 text-[var(--color-foreground)]">Brand Profile</h2>
               </div>
 
               <div className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                       Company Name
                     </p>
                     <input
@@ -461,13 +461,13 @@ export default function SettingsPage() {
                         setBrandProfile((prev) => ({ ...prev, company_name: e.target.value }))
                       }
                       placeholder="Acme Inc."
-                      className="h-11 w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all placeholder:text-[var(--color-outline-variant)] focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
                       style={{ border: "none" }}
                     />
                   </div>
 
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                       Website URL
                     </p>
                     <input
@@ -477,7 +477,7 @@ export default function SettingsPage() {
                         setBrandProfile((prev) => ({ ...prev, website_url: e.target.value }))
                       }
                       placeholder="https://yourcompany.com"
-                      className="h-11 w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all placeholder:text-[var(--color-outline-variant)] focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
                       style={{ border: "none" }}
                     />
                   </div>
@@ -485,23 +485,23 @@ export default function SettingsPage() {
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
-                      GST Number <span className="normal-case text-[var(--color-outline-variant)]">(read-only)</span>
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                      GST Number <span className="normal-case text-[var(--color-muted-foreground)]">(read-only)</span>
                     </p>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-outline-variant)]" />
+                      <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
                       <input
                         type="text"
                         value={brandProfile.gst_number || "Not provided"}
                         disabled
-                        className="h-11 w-full rounded-xl bg-[var(--color-surface-container)] px-4 pl-9 text-[15px] font-500 text-[var(--color-outline)] outline-none"
+                        className="h-11 w-full rounded-xl bg-[var(--color-muted)] px-4 pl-9 text-[15px] font-500 text-[var(--color-muted-foreground)] outline-none"
                         style={{ border: "none" }}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-outline)]">
+                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
                       Industry
                     </p>
                     <select
@@ -509,7 +509,7 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setBrandProfile((prev) => ({ ...prev, industry: e.target.value }))
                       }
-                      className="h-11 w-full rounded-xl bg-[var(--color-surface-container-low)] px-4 text-[15px] font-500 text-[var(--color-on-surface)] outline-none transition-all focus:bg-[var(--color-surface-container-lowest)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
                       style={{ border: "none" }}
                     >
                       <option value="">Select your industry</option>
@@ -526,7 +526,7 @@ export default function SettingsPage() {
           {/* ══════════════════════════════════════════════════
              3. Save Bar
              ══════════════════════════════════════════════════ */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-[var(--color-surface-container-lowest)] px-4 py-4 sm:px-6" style={ghostBorder}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-[var(--color-card)] px-4 py-4 sm:px-6" style={ghostBorder}>
             <div className="flex items-center gap-2 min-w-0">
               {saveStatus === "success" ? (
                 <motion.div
@@ -547,7 +547,7 @@ export default function SettingsPage() {
                   {saveError || "Failed to save"}
                 </motion.div>
               ) : (
-                <p className="text-[13px] text-[var(--color-outline)]">
+                <p className="text-[13px] text-[var(--color-muted-foreground)]">
                   Unsaved changes will be lost if you leave this page.
                 </p>
               )}
@@ -573,17 +573,17 @@ export default function SettingsPage() {
           <div className="grid gap-5 sm:grid-cols-2">
             {/* Session Control */}
             <section
-              className="rounded-2xl bg-[var(--color-surface-container-lowest)] p-6"
+              className="rounded-2xl bg-[var(--color-card)] p-6"
               style={ghostBorder}
             >
-              <h3 className="text-base font-700 text-[var(--color-on-surface)]">Session Control</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-outline)]">
+              <h3 className="text-base font-700 text-[var(--color-foreground)]">Session Control</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
                 Sign out from your current device. Your creator dashboard will be locked until you log in again.
               </p>
               <button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-600 text-[var(--color-on-surface)] transition-colors hover:text-[var(--color-primary)] disabled:opacity-50"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-600 text-[var(--color-foreground)] transition-colors hover:text-[var(--color-primary)] disabled:opacity-50"
               >
                 <LogOut className="size-4" />
                 {isSigningOut ? "Signing out..." : "Sign out of Faiceoff"}
@@ -592,11 +592,11 @@ export default function SettingsPage() {
 
             {/* Danger Zone */}
             <section
-              className="rounded-2xl bg-[var(--color-surface-container-lowest)] p-6"
+              className="rounded-2xl bg-[var(--color-card)] p-6"
               style={{ border: "1px solid rgba(180,19,64,0.12)" }}
             >
               <h3 className="text-base font-700 text-red-600">Danger Zone</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-outline)]">
+              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
                 Deleting your account will permanently remove all models, earnings history, and marketplace listings. This action is irreversible.
               </p>
 
@@ -635,7 +635,7 @@ export default function SettingsPage() {
                       <button
                         onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
                         disabled={isDeleting}
-                        className="flex-1 rounded-xl bg-[var(--color-surface-container-low)] py-2 text-xs font-600 text-[var(--color-on-surface)] transition-colors hover:bg-[var(--color-surface-container)]"
+                        className="flex-1 rounded-xl bg-[var(--color-secondary)] py-2 text-xs font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
                       >
                         Cancel
                       </button>
