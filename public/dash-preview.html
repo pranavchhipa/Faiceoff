@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Faiceoff — Dashboard Direction Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0908;
+    --surface: #141210;
+    --surface-2: #1D1A17;
+    --surface-3: #26211C;
+    --ink: #F2EDE3;
+    --ink-muted: #8B8278;
+    --ink-dim: #5C564F;
+    --accent: #D4A15E;
+    --accent-glow: #E8BC7A;
+    --accent-ink: #0A0908;
+    --success: #7FA88F;
+    --warn: #D4A15E;
+    --danger: #C96E6E;
+    --border: rgba(242,237,227,0.10);
+    --border-strong: rgba(242,237,227,0.18);
+
+    /* role tints */
+    --creator-warm: #1F1814;      /* warmer black for creator */
+    --creator-blush: rgba(232,188,122,0.06);
+    --brand-cool: #12161B;         /* cooler black for brand */
+    --brand-steel: #8DA4BE;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .display { font-family: "Outfit", system-ui, sans-serif; font-weight: 800; letter-spacing: -0.02em; }
+
+  /* ───── Page intro ───── */
+  .page-intro {
+    max-width: 1400px; margin: 0 auto; padding: 60px 40px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent);
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(212,161,94,0.3);
+    background: rgba(212,161,94,0.06);
+  }
+  .page-intro h1 {
+    font-family: "Outfit", system-ui, sans-serif; font-weight: 800;
+    font-size: 48px; letter-spacing: -0.025em; line-height: 1.05;
+    margin-top: 18px;
+  }
+  .page-intro h1 span { color: var(--accent); }
+  .page-intro p {
+    margin-top: 16px; color: var(--ink-muted);
+    font-size: 16px; line-height: 1.6; max-width: 720px;
+  }
+  .jump {
+    margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .jump a {
+    text-decoration: none; color: var(--ink); font-size: 13px; font-weight: 600;
+    padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-strong);
+    background: var(--surface); transition: all 0.2s ease;
+  }
+  .jump a:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+
+  /* ───── Direction section ───── */
+  .dir {
+    max-width: 1400px; margin: 0 auto; padding: 80px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dir-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 40px; margin-bottom: 40px; flex-wrap: wrap;
+  }
+  .dir-head .info { max-width: 720px; }
+  .dir-head .tag {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent);
+  }
+  .dir-head h2 {
+    font-family: "Outfit", system-ui, sans-serif; font-weight: 800;
+    font-size: 42px; letter-spacing: -0.025em; line-height: 1.02;
+    margin-top: 10px;
+  }
+  .dir-head h2 em { color: var(--accent); font-style: normal; }
+  .dir-head p { margin-top: 14px; color: var(--ink-muted); font-size: 15px; line-height: 1.65; }
+  .role-badge {
+    align-self: flex-end; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ───── Mock frame (browser chrome) ───── */
+  .frame {
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    box-shadow: 0 40px 100px -30px rgba(0,0,0,0.8);
+  }
+  .frame-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .frame-dot { width: 10px; height: 10px; border-radius: 999px; }
+  .frame-dot.r { background: #C96E6E; }
+  .frame-dot.y { background: #D4A15E; }
+  .frame-dot.g { background: #7FA88F; }
+  .frame-url {
+    margin-left: 12px; flex: 1; padding: 6px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-muted);
+  }
+  .frame-url em { color: var(--accent); font-style: normal; }
+
+  /* ═══════════════════════════════════════════════════════════
+     DIRECTION A — Linear × Bento (Brand dashboard mock)
+     ═══════════════════════════════════════════════════════════ */
+  .brand-stage { display: grid; grid-template-columns: 56px 1fr; min-height: 720px; }
+  .brand-rail {
+    background: var(--brand-cool); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 14px 0; gap: 6px;
+  }
+  .brand-rail .logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 800; font-size: 14px;
+    font-family: "Outfit", sans-serif;
+    margin-bottom: 14px;
+  }
+  .brand-rail .ri {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: grid; place-items: center; color: var(--ink-muted);
+    transition: all 0.2s ease; cursor: pointer;
+    font-size: 16px;
+  }
+  .brand-rail .ri:hover { background: var(--surface-2); color: var(--ink); }
+  .brand-rail .ri.active {
+    background: var(--surface-2); color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .brand-rail .spacer { flex: 1; }
+
+  .brand-main { display: flex; flex-direction: column; min-width: 0; }
+  .brand-top {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: var(--brand-cool);
+  }
+  .brand-crumb {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--ink-muted);
+  }
+  .brand-crumb span { color: var(--ink); }
+  .brand-search {
+    flex: 1; max-width: 420px; margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface);
+    font-size: 12px; color: var(--ink-dim);
+  }
+  .brand-search .kbd {
+    margin-left: auto; padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--border); font-family: "JetBrains Mono", monospace;
+    font-size: 10px; color: var(--ink-muted);
+  }
+  .brand-top .icon-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    display: grid; place-items: center; color: var(--ink-muted);
+    font-size: 14px; cursor: pointer;
+  }
+  .brand-top .avatar {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--surface-3); display: grid; place-items: center;
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 12px;
+  }
+
+  .brand-canvas { padding: 24px; background: var(--bg); }
+  .brand-canvas h3.title {
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 24px;
+    letter-spacing: -0.015em; margin-bottom: 4px;
+  }
+  .brand-canvas p.sub {
+    color: var(--ink-muted); font-size: 13px; margin-bottom: 20px;
+  }
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+  }
+  .bt {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 12px; padding: 18px; overflow: hidden; position: relative;
+  }
+  .bt .label {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-muted);
+  }
+  .bt .num {
+    font-family: "Outfit", sans-serif; font-weight: 800;
+    font-size: 32px; letter-spacing: -0.02em; margin-top: 6px;
+  }
+  .bt .num em { color: var(--accent); font-style: normal; }
+  .bt .delta {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--success); margin-top: 6px;
+  }
+  .bt .delta.red { color: var(--danger); }
+
+  .bt.span-2 { grid-column: span 2; }
+  .bt.span-2-wide { grid-column: span 2; grid-row: span 2; }
+  .bt.accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+    color: var(--accent-ink); border-color: transparent;
+  }
+  .bt.accent .label { color: rgba(10,9,8,0.65); }
+  .bt.accent .num em { color: var(--accent-ink); }
+  .bt.accent .delta { color: rgba(10,9,8,0.75); }
+
+  /* mini chart */
+  .chart-bars { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 14px; }
+  .chart-bars .bar { flex: 1; background: var(--accent); border-radius: 2px; opacity: 0.4; }
+  .chart-bars .bar.h1 { height: 30%; }
+  .chart-bars .bar.h2 { height: 55%; }
+  .chart-bars .bar.h3 { height: 40%; }
+  .chart-bars .bar.h4 { height: 75%; }
+  .chart-bars .bar.h5 { height: 50%; }
+  .chart-bars .bar.h6 { height: 90%; opacity: 1; }
+  .chart-bars .bar.h7 { height: 65%; opacity: 0.7; }
+
+  /* table row */
+  .tbl { margin-top: 14px; }
+  .tbl .row {
+    display: grid; grid-template-columns: 1fr 90px 80px 80px;
+    gap: 8px; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .tbl .row:last-child { border-bottom: none; }
+  .tbl .row .n { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .tbl .row .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--success); }
+  .tbl .row .v { color: var(--ink-muted); font-family: "JetBrains Mono", monospace; font-size: 11px; }
+  .tbl .row .v.gold { color: var(--accent); }
+
+  /* ═══════════════════════════════════════════════════════════
+     DIRECTION B — Framer × Editorial (Creator dashboard mock)
+     ═══════════════════════════════════════════════════════════ */
+  .creator-stage {
+    background: var(--creator-warm);
+    min-height: 720px; display: flex; flex-direction: column;
+  }
+  .creator-top {
+    display: flex; align-items: center; gap: 18px;
+    padding: 18px 32px; border-bottom: 1px solid var(--border);
+    background: rgba(20,18,16,0.6); backdrop-filter: blur(10px);
+  }
+  .creator-top .logo {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 800; font-size: 15px;
+    font-family: "Outfit", sans-serif;
+  }
+  .creator-top .brand-word {
+    font-family: "Outfit", sans-serif; font-weight: 800; font-size: 16px;
+  }
+  .creator-top .pills {
+    display: flex; gap: 4px; margin-left: 24px;
+    padding: 4px; background: var(--surface); border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .creator-top .pill {
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    color: var(--ink-muted); cursor: pointer; transition: all 0.2s ease;
+  }
+  .creator-top .pill.active { background: var(--surface-2); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .creator-top .pill:hover:not(.active) { color: var(--ink); }
+  .creator-top .spacer { flex: 1; }
+  .creator-top .notif {
+    position: relative;
+    width: 36px; height: 36px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface);
+    display: grid; place-items: center; color: var(--ink-muted);
+  }
+  .creator-top .notif::after {
+    content: ""; position: absolute; top: 8px; right: 8px;
+    width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+  }
+  .creator-top .avatar-sm {
+    width: 36px; height: 36px; border-radius: 999px;
+    background-image: url("/landing/creator-face.jpg");
+    background-size: cover; background-position: center;
+    border: 1px solid var(--accent);
+  }
+
+  .creator-canvas { padding: 32px; background: var(--creator-warm); flex: 1; }
+
+  .creator-hero {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;
+    margin-bottom: 20px;
+  }
+  .ch-portrait {
+    position: relative; border-radius: 20px; overflow: hidden;
+    border: 1px solid var(--border-strong); aspect-ratio: 16/9;
+    background: var(--surface-2);
+  }
+  .ch-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ch-portrait::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(10,9,8,0.9), rgba(10,9,8,0.3) 40%, transparent 70%);
+  }
+  .ch-portrait .badge {
+    position: absolute; top: 16px; left: 16px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-radius: 8px;
+    background: rgba(10,9,8,0.7); backdrop-filter: blur(10px);
+    border: 1px solid rgba(242,237,227,0.1);
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+  }
+  .ch-portrait .badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+  }
+  .ch-portrait .caption {
+    position: absolute; bottom: 24px; left: 24px; right: 24px; z-index: 2;
+  }
+  .ch-portrait .caption h4 {
+    font-family: "Outfit", sans-serif; font-weight: 800; font-size: 28px;
+    letter-spacing: -0.02em; line-height: 1.05; margin-bottom: 6px;
+  }
+  .ch-portrait .caption p {
+    color: var(--ink-muted); font-size: 13px; font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .ch-earn {
+    border-radius: 20px; padding: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+    color: var(--accent-ink); display: flex; flex-direction: column; justify-content: space-between;
+    aspect-ratio: auto;
+  }
+  .ch-earn .label {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .ch-earn .num {
+    font-family: "Outfit", sans-serif; font-weight: 800; font-size: 54px;
+    letter-spacing: -0.03em; line-height: 1; margin-top: 12px;
+  }
+  .ch-earn .foot {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 20px; font-family: "JetBrains Mono", monospace; font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .ch-earn .foot .up { font-weight: 700; }
+
+  .creator-grid {
+    display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;
+  }
+  .card-edit {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 20px; padding: 24px;
+  }
+  .card-edit h5 {
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 18px;
+    letter-spacing: -0.01em; margin-bottom: 4px;
+  }
+  .card-edit .meta {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--ink-muted); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .approval-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .approval-row:last-child { border-bottom: none; }
+  .approval-row .thumb {
+    width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--surface-2);
+    flex-shrink: 0;
+  }
+  .approval-row .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .approval-row .info { flex: 1; min-width: 0; }
+  .approval-row .info .name { font-weight: 700; font-size: 14px; }
+  .approval-row .info .pr {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--ink-muted); margin-top: 2px;
+  }
+  .approval-row .actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .approval-row .btn {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .approval-row .btn.ok { background: var(--accent); color: var(--accent-ink); }
+  .approval-row .btn.no { border: 1px solid var(--border-strong); color: var(--ink-muted); }
+
+  .niche-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+  .niche-chip {
+    padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface-2);
+    font-size: 12px; font-weight: 600;
+    display: flex; justify-content: space-between;
+  }
+  .niche-chip .v { font-family: "JetBrains Mono", monospace; color: var(--accent); font-size: 11px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     DIRECTION C — Split Stage (Admin mock)
+     ═══════════════════════════════════════════════════════════ */
+  .admin-stage {
+    display: grid;
+    grid-template-columns: 220px 1fr 380px;
+    min-height: 620px;
+  }
+  .admin-nav {
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 20px 14px;
+  }
+  .admin-nav .section-label {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim);
+    padding: 12px 10px 6px;
+  }
+  .admin-nav .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    color: var(--ink-muted); font-size: 13px; cursor: pointer;
+    font-weight: 500;
+  }
+  .admin-nav .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .admin-nav .nav-item.active { background: var(--surface-2); color: var(--ink); }
+  .admin-nav .nav-item .count {
+    margin-left: auto; font-family: "JetBrains Mono", monospace; font-size: 10px;
+    color: var(--ink-dim); padding: 2px 6px; border-radius: 4px;
+    background: var(--surface-3);
+  }
+  .admin-nav .nav-item.active .count { background: var(--accent); color: var(--accent-ink); }
+
+  .admin-list {
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .admin-list .list-head {
+    padding: 16px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .admin-list .list-head h4 {
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 15px;
+  }
+  .admin-list .list-head .count {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    color: var(--ink-muted); padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .admin-list .filt {
+    margin-left: auto; font-size: 11px; color: var(--ink-muted);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .admin-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .admin-item:hover { background: var(--surface); }
+  .admin-item.active { background: var(--surface-2); border-left: 2px solid var(--accent); padding-left: 16px; }
+  .admin-item .thumb {
+    width: 44px; height: 44px; border-radius: 10px; overflow: hidden;
+    background: var(--surface-2); border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .admin-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .admin-item .info { flex: 1; min-width: 0; }
+  .admin-item .info .t { font-weight: 600; font-size: 13px; }
+  .admin-item .info .s { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-muted); margin-top: 2px; letter-spacing: 0.08em; }
+  .admin-item .pr {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    padding: 3px 7px; border-radius: 4px; flex-shrink: 0;
+  }
+  .admin-item .pr.ok { background: rgba(127,168,143,0.12); color: var(--success); }
+  .admin-item .pr.warn { background: rgba(212,161,94,0.12); color: var(--accent); }
+  .admin-item .pr.err { background: rgba(201,110,110,0.12); color: var(--danger); }
+
+  .admin-detail { padding: 20px; overflow-y: auto; background: var(--surface); }
+  .admin-detail .image-box {
+    width: 100%; aspect-ratio: 4/5; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  .admin-detail .image-box img { width: 100%; height: 100%; object-fit: cover; }
+  .admin-detail h5 {
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 18px;
+    margin-top: 16px;
+  }
+  .admin-detail .kv {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 20px;
+  }
+  .admin-detail .kv .k { color: var(--ink-muted); font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .admin-detail .kv .v { color: var(--ink); text-align: right; font-size: 12px; }
+  .admin-detail .actions {
+    margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .admin-detail .actions .b {
+    padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 700;
+    text-align: center; font-family: "Plus Jakarta Sans", sans-serif;
+  }
+  .admin-detail .actions .b.ok { background: var(--accent); color: var(--accent-ink); }
+  .admin-detail .actions .b.no { border: 1px solid var(--border-strong); color: var(--ink); }
+
+  /* ───── Mobile preview thumbs (all 3 directions) ───── */
+  .mobile-thumbs {
+    margin-top: 28px; display: grid; grid-template-columns: 280px 1fr; gap: 28px;
+    align-items: start;
+  }
+  .phone {
+    width: 280px; height: 560px;
+    border-radius: 36px; border: 8px solid var(--surface-2);
+    overflow: hidden; background: var(--bg);
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.7);
+    position: relative;
+  }
+  .phone .notch {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 24px; border-radius: 999px; background: var(--surface-2);
+    z-index: 3;
+  }
+  .mobile-thumbs .explainer .lbl {
+    font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--accent);
+    letter-spacing: 0.2em; text-transform: uppercase;
+  }
+  .mobile-thumbs .explainer h4 {
+    font-family: "Outfit", sans-serif; font-weight: 700; font-size: 22px; margin-top: 8px;
+  }
+  .mobile-thumbs .explainer ul {
+    margin-top: 16px; display: flex; flex-direction: column; gap: 10px;
+    list-style: none; font-size: 13px; color: var(--ink-muted);
+    max-width: 480px;
+  }
+  .mobile-thumbs .explainer ul li::before { content: "✦  "; color: var(--accent); }
+
+  /* mobile home mock */
+  .m-top { padding: 48px 16px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .m-top .logo { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 800; font-size: 12px; font-family: "Outfit", sans-serif; }
+  .m-top .word { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 14px; }
+  .m-top .spc { flex: 1; }
+  .m-top .av { width: 28px; height: 28px; border-radius: 999px; background-image: url("/landing/creator-face.jpg"); background-size: cover; }
+  .m-body { padding: 16px; padding-bottom: 80px; overflow-y: auto; height: calc(100% - 66px); }
+  .m-hero { border-radius: 14px; overflow: hidden; position: relative; aspect-ratio: 1/1; }
+  .m-hero img { width: 100%; height: 100%; object-fit: cover; }
+  .m-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,9,8,0.85), transparent 60%); }
+  .m-hero .cap { position: absolute; bottom: 14px; left: 14px; z-index: 2; }
+  .m-hero .cap .n { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 20px; }
+  .m-hero .cap .s { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); margin-top: 4px; }
+  .m-wallet {
+    margin-top: 14px; padding: 18px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+    color: var(--accent-ink);
+  }
+  .m-wallet .l { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.75; }
+  .m-wallet .n { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 30px; margin-top: 4px; }
+  .m-row { display: flex; gap: 10px; margin-top: 14px; }
+  .m-row .tile {
+    flex: 1; padding: 14px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .m-row .tile .l { font-family: "JetBrains Mono", monospace; font-size: 9px; color: var(--ink-muted); letter-spacing: 0.15em; text-transform: uppercase; }
+  .m-row .tile .n { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 18px; margin-top: 4px; }
+  .m-tab {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border-top: 1px solid var(--border); background: var(--surface);
+    padding: 10px 0 14px;
+  }
+  .m-tab .ti {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-muted); font-family: "JetBrains Mono", monospace; font-size: 8px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .m-tab .ti .ic { font-size: 16px; }
+  .m-tab .ti.active { color: var(--accent); }
+  .m-tab .ti.active .fab {
+    width: 40px; height: 40px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 20px;
+    margin-top: -22px; box-shadow: 0 8px 20px -4px rgba(212,161,94,0.6);
+    font-weight: 700;
+  }
+
+  /* ───── Final CTA ───── */
+  .final {
+    max-width: 1400px; margin: 0 auto; padding: 60px 40px 80px;
+    text-align: center;
+  }
+  .final h3 {
+    font-family: "Outfit", sans-serif; font-weight: 800;
+    font-size: 32px; letter-spacing: -0.02em;
+  }
+  .final p { color: var(--ink-muted); margin-top: 10px; font-size: 15px; }
+
+  /* ───── SVG icon style ───── */
+  svg.ic { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<!-- intro -->
+<section class="page-intro">
+  <span class="eyebrow">● Faiceoff · Dashboard direction preview</span>
+  <h1>3 layout directions — <span>pick one.</span></h1>
+  <p>
+    Each mock below shows one design language for the authenticated app. Studio Black palette stays;
+    only chrome, density and vibe differ. Scroll down to compare. Mobile treatment shown at the end.
+  </p>
+  <div class="jump">
+    <a href="#a">→ A · Linear × Bento <span style="color:var(--ink-dim)">(Brand)</span></a>
+    <a href="#b">→ B · Framer × Editorial <span style="color:var(--ink-dim)">(Creator)</span></a>
+    <a href="#c">→ C · Split Stage <span style="color:var(--ink-dim)">(Admin)</span></a>
+    <a href="#mobile">→ Mobile preview</a>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────
+     DIRECTION A — Linear × Bento  (Brand)
+     ─────────────────────────────────────────────────────── -->
+<section class="dir" id="a">
+  <div class="dir-head">
+    <div class="info">
+      <div class="tag">● Direction A</div>
+      <h2>Linear × <em>Bento</em></h2>
+      <p>
+        Thin icon-only left rail. Command palette (⌘K). Top breadcrumb. Bento grid dashboard
+        with dense KPI tiles, a ₹-spend chart, recent invoices table and a "generate now" gold CTA.
+        Feels like Linear meets Vercel meets Meta Ads Manager.
+      </p>
+    </div>
+    <div class="role-badge">Best for · Brand</div>
+  </div>
+
+  <div class="frame">
+    <div class="frame-bar">
+      <span class="frame-dot r"></span><span class="frame-dot y"></span><span class="frame-dot g"></span>
+      <span class="frame-url">faiceoff.com/brand/<em>dashboard</em></span>
+    </div>
+
+    <div class="brand-stage">
+      <!-- icon rail -->
+      <aside class="brand-rail">
+        <div class="logo">F</div>
+        <div class="ri active">⌂</div>
+        <div class="ri">⌕</div>
+        <div class="ri">◫</div>
+        <div class="ri">▤</div>
+        <div class="ri">⊞</div>
+        <div class="ri">₹</div>
+        <div class="spacer"></div>
+        <div class="ri">⚙</div>
+      </aside>
+
+      <!-- main -->
+      <div class="brand-main">
+        <!-- top bar -->
+        <header class="brand-top">
+          <div class="brand-crumb">Brand <span>/</span> <span style="color:var(--ink)">Dashboard</span></div>
+          <div class="brand-search">
+            ⌕ &nbsp;Search creators, campaigns, invoices…
+            <span class="kbd">⌘K</span>
+          </div>
+          <div class="icon-btn">⌕</div>
+          <div class="icon-btn">◉</div>
+          <div class="avatar">R</div>
+        </header>
+
+        <!-- canvas -->
+        <div class="brand-canvas">
+          <h3 class="title">Good evening, Rectangled.</h3>
+          <p class="sub">2 approvals pending · 4 generations this week · ₹12,500 remaining in wallet</p>
+
+          <!-- bento -->
+          <div class="bento">
+
+            <!-- row 1 -->
+            <div class="bt accent">
+              <div class="label">Wallet balance</div>
+              <div class="num">₹12,500</div>
+              <div class="delta">Tap to top up →</div>
+            </div>
+            <div class="bt">
+              <div class="label">Spent this month</div>
+              <div class="num"><em>₹</em>18,400</div>
+              <div class="delta">+12% vs last</div>
+            </div>
+            <div class="bt">
+              <div class="label">Generations</div>
+              <div class="num">27</div>
+              <div class="delta">4 this week</div>
+            </div>
+            <div class="bt">
+              <div class="label">Approval SLA</div>
+              <div class="num">41<span style="font-size:18px;color:var(--ink-muted)">h</span></div>
+              <div class="delta">under 48h window</div>
+            </div>
+
+            <!-- row 2 — wide -->
+            <div class="bt span-2-wide">
+              <div class="label">Spend last 7 days</div>
+              <div class="num"><em>₹</em>8,200 <span style="font-size:14px;color:var(--success);font-family:'JetBrains Mono',monospace;">+24%</span></div>
+              <div class="chart-bars">
+                <div class="bar h1"></div>
+                <div class="bar h2"></div>
+                <div class="bar h3"></div>
+                <div class="bar h4"></div>
+                <div class="bar h5"></div>
+                <div class="bar h6"></div>
+                <div class="bar h7"></div>
+              </div>
+              <div class="tbl" style="margin-top:18px;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;">Recent generations</div>
+                <div class="row">
+                  <div class="n"><span class="dot"></span>Priya · Monsoon sneaker</div>
+                  <div class="v">Approved</div>
+                  <div class="v">41h</div>
+                  <div class="v gold">₹2,500</div>
+                </div>
+                <div class="row">
+                  <div class="n"><span class="dot" style="background:var(--accent)"></span>Arjun · Phone launch</div>
+                  <div class="v">Pending</div>
+                  <div class="v">12h left</div>
+                  <div class="v gold">₹3,000</div>
+                </div>
+                <div class="row">
+                  <div class="n"><span class="dot"></span>Meera · Café shoot</div>
+                  <div class="v">Approved</div>
+                  <div class="v">26h</div>
+                  <div class="v gold">₹2,000</div>
+                </div>
+                <div class="row">
+                  <div class="n"><span class="dot" style="background:var(--accent)"></span>Priya · Serum closeup</div>
+                  <div class="v">Pending</div>
+                  <div class="v">18h left</div>
+                  <div class="v gold">₹2,200</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bt span-2">
+              <div class="label">Vault</div>
+              <div class="num">142 <span style="font-size:14px;color:var(--ink-muted);font-weight:500;">creatives</span></div>
+              <div class="delta">Last added · 2h ago</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:14px;">
+                <div style="aspect-ratio:1;border-radius:6px;background-image:url('/landing/product-sneaker.jpg');background-size:cover;background-position:center;"></div>
+                <div style="aspect-ratio:1;border-radius:6px;background-image:url('/landing/product-phone.jpg');background-size:cover;background-position:center;"></div>
+                <div style="aspect-ratio:1;border-radius:6px;background-image:url('/landing/product-skincare.jpg');background-size:cover;background-position:center;"></div>
+                <div style="aspect-ratio:1;border-radius:6px;background-image:url('/landing/product-food.jpg');background-size:cover;background-position:center;"></div>
+              </div>
+            </div>
+
+            <div class="bt">
+              <div class="label">GST YTD</div>
+              <div class="num"><em>₹</em>3,312</div>
+              <div class="delta">Invoices ready</div>
+            </div>
+            <div class="bt">
+              <div class="label">Avg delivery</div>
+              <div class="num">47<span style="font-size:18px;color:var(--ink-muted)">s</span></div>
+              <div class="delta">P95 · 1m12s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────
+     DIRECTION B — Framer × Editorial (Creator)
+     ─────────────────────────────────────────────────────── -->
+<section class="dir" id="b">
+  <div class="dir-head">
+    <div class="info">
+      <div class="tag">● Direction B</div>
+      <h2>Framer × <em>Editorial</em></h2>
+      <p>
+        No sidebar. Pill-tab nav at the top. Full-bleed portrait hero with name/earnings overlaid
+        glass. Gold wallet panel. Approval queue with big thumbnails. Feels like a creator portfolio
+        + Stripe dashboard. Warm undertones.
+      </p>
+    </div>
+    <div class="role-badge">Best for · Creator</div>
+  </div>
+
+  <div class="frame">
+    <div class="frame-bar">
+      <span class="frame-dot r"></span><span class="frame-dot y"></span><span class="frame-dot g"></span>
+      <span class="frame-url">faiceoff.com/creator/<em>dashboard</em></span>
+    </div>
+
+    <div class="creator-stage">
+      <!-- top nav -->
+      <header class="creator-top">
+        <div class="logo">F</div>
+        <div class="brand-word">Faiceoff</div>
+        <div class="pills">
+          <div class="pill active">Overview</div>
+          <div class="pill">Approvals <span style="color:var(--accent);">·2</span></div>
+          <div class="pill">Likeness</div>
+          <div class="pill">Earnings</div>
+          <div class="pill">Withdraw</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="notif">◉</div>
+        <div class="avatar-sm"></div>
+      </header>
+
+      <!-- canvas -->
+      <div class="creator-canvas">
+
+        <!-- hero row -->
+        <div class="creator-hero">
+          <div class="ch-portrait">
+            <img src="/landing/creator-face.jpg" alt="Priya" />
+            <div class="badge">Live · KYC verified</div>
+            <div class="caption">
+              <h4>Hi Priya —</h4>
+              <p>2 brands are waiting for your tap.</p>
+            </div>
+          </div>
+
+          <div class="ch-earn">
+            <div>
+              <div class="label">Wallet balance</div>
+              <div class="num">₹42,500</div>
+            </div>
+            <div class="foot">
+              <span class="up">+₹12,400 this week</span>
+              <span>Withdraw →</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- grid row -->
+        <div class="creator-grid">
+          <div class="card-edit">
+            <h5>Approval queue</h5>
+            <div class="meta">2 pending · 48h window</div>
+
+            <div class="approval-row">
+              <div class="thumb"><img src="/landing/product-sneaker.jpg" alt=""/></div>
+              <div class="info">
+                <div class="name">Nike India · Monsoon sneaker</div>
+                <div class="pr">prompt → Priya in white sneakers, soft pink backdrop…</div>
+                <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.1em;">+₹2,500 · 41h left</div>
+              </div>
+              <div class="actions">
+                <div class="btn ok">✓</div>
+                <div class="btn no">✕</div>
+              </div>
+            </div>
+
+            <div class="approval-row">
+              <div class="thumb"><img src="/landing/product-phone.jpg" alt=""/></div>
+              <div class="info">
+                <div class="name">OnePlus · Nord launch</div>
+                <div class="pr">prompt → Priya holding phone, neon rim light, night scene</div>
+                <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--danger);letter-spacing:0.1em;">+₹3,000 · 12h left · urgent</div>
+              </div>
+              <div class="actions">
+                <div class="btn ok">✓</div>
+                <div class="btn no">✕</div>
+              </div>
+            </div>
+
+            <div class="approval-row">
+              <div class="thumb"><img src="/landing/product-skincare.jpg" alt=""/></div>
+              <div class="info">
+                <div class="name">The Ordinary · Morning routine</div>
+                <div class="pr">prompt → Priya applying serum, peach morning light</div>
+                <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.1em;">+₹2,200 · 26h left</div>
+              </div>
+              <div class="actions">
+                <div class="btn ok">✓</div>
+                <div class="btn no">✕</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <div class="card-edit">
+              <h5>Likeness</h5>
+              <div class="meta">LoRA trained · 28 ref photos</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                <div style="aspect-ratio:1;border-radius:10px;background-image:url('/landing/creator-face.jpg');background-size:cover;background-position:center;"></div>
+                <div style="aspect-ratio:1;border-radius:10px;background-image:url('/landing/product-food.jpg');background-size:cover;background-position:center;"></div>
+                <div style="aspect-ratio:1;border-radius:10px;background:var(--surface-2);border:1px dashed var(--border-strong);display:grid;place-items:center;color:var(--ink-muted);font-size:20px;">+25</div>
+              </div>
+              <div class="niche-grid">
+                <div class="niche-chip">Fashion <span class="v">₹2,500</span></div>
+                <div class="niche-chip">Beauty <span class="v">₹2,500</span></div>
+                <div class="niche-chip">Lifestyle <span class="v">₹2,000</span></div>
+                <div class="niche-chip" style="opacity:0.5;">+ Add niche</div>
+              </div>
+            </div>
+
+            <div class="card-edit" style="background:var(--creator-blush);border-color:rgba(212,161,94,0.2);">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.18em;text-transform:uppercase;">This month</div>
+              <h5 style="font-size:32px;margin-top:6px;">8 brands shipped</h5>
+              <div class="meta" style="margin-top:6px;">₹18,400 earned · 0 rejected</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────
+     DIRECTION C — Split Stage (Admin)
+     ─────────────────────────────────────────────────────── -->
+<section class="dir" id="c">
+  <div class="dir-head">
+    <div class="info">
+      <div class="tag">● Direction C</div>
+      <h2>Split <em>Stage</em></h2>
+      <p>
+        Three-pane workspace: nav sidebar · list view · detail inspector. Pick any item on the
+        left, inspect on the right. Built for power users and triage flows — approvals, stuck gens,
+        safety review, refunds. Feels like Figma meets Superhuman.
+      </p>
+    </div>
+    <div class="role-badge">Best for · Admin</div>
+  </div>
+
+  <div class="frame">
+    <div class="frame-bar">
+      <span class="frame-dot r"></span><span class="frame-dot y"></span><span class="frame-dot g"></span>
+      <span class="frame-url">faiceoff.com/admin/<em>safety</em></span>
+    </div>
+
+    <div class="admin-stage">
+      <!-- nav -->
+      <nav class="admin-nav">
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 10px 18px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:14px;font-family:'Outfit',sans-serif;">F</div>
+          <div style="font-family:'Outfit',sans-serif;font-weight:800;font-size:14px;">Faiceoff <span style="color:var(--accent);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:0.15em;margin-left:2px;">ADMIN</span></div>
+        </div>
+
+        <div class="section-label">Triage</div>
+        <div class="nav-item">⌂ Overview</div>
+        <div class="nav-item active">⚑ Safety review <span class="count">7</span></div>
+        <div class="nav-item">⏱ Stuck gens <span class="count">3</span></div>
+        <div class="nav-item">⚠ Disputes <span class="count">1</span></div>
+
+        <div class="section-label">Manage</div>
+        <div class="nav-item">◫ Credit packs</div>
+        <div class="nav-item">◉ Creators</div>
+        <div class="nav-item">◉ Brands</div>
+        <div class="nav-item">₹ Revenue</div>
+
+        <div class="section-label">System</div>
+        <div class="nav-item">◈ Audit log</div>
+        <div class="nav-item">⚙ Settings</div>
+      </nav>
+
+      <!-- list -->
+      <div class="admin-list">
+        <div class="list-head">
+          <h4>Safety review</h4>
+          <div class="count">7 pending</div>
+          <div class="filt">sort · newest</div>
+        </div>
+        <div class="admin-item active">
+          <div class="thumb"><img src="/landing/product-phone.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">OnePlus · Nord launch</div>
+            <div class="s">Hive flag · brand logo over-saturation</div>
+          </div>
+          <div class="pr warn">REVIEW</div>
+        </div>
+        <div class="admin-item">
+          <div class="thumb"><img src="/landing/product-skincare.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">The Ordinary · Priya</div>
+            <div class="s">Creator policy · needs approval</div>
+          </div>
+          <div class="pr ok">PASS</div>
+        </div>
+        <div class="admin-item">
+          <div class="thumb"><img src="/landing/product-sneaker.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">Nike · Monsoon drop</div>
+            <div class="s">Auto-passed · bundle delivered</div>
+          </div>
+          <div class="pr ok">PASS</div>
+        </div>
+        <div class="admin-item">
+          <div class="thumb"><img src="/landing/product-food.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">Starbucks India · Café</div>
+            <div class="s">Compliance check · fail</div>
+          </div>
+          <div class="pr err">BLOCK</div>
+        </div>
+        <div class="admin-item">
+          <div class="thumb"><img src="/landing/creator-face.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">Priya · reference re-train</div>
+            <div class="s">LoRA retrain requested</div>
+          </div>
+          <div class="pr warn">REVIEW</div>
+        </div>
+        <div class="admin-item">
+          <div class="thumb"><img src="/landing/creator-2.jpg" alt=""/></div>
+          <div class="info">
+            <div class="t">Arjun · KYC update</div>
+            <div class="s">PAN change submitted</div>
+          </div>
+          <div class="pr warn">REVIEW</div>
+        </div>
+      </div>
+
+      <!-- detail -->
+      <aside class="admin-detail">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-muted);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:12px;">Generation #g_4291</div>
+        <div class="image-box"><img src="/landing/product-phone.jpg" alt=""/></div>
+        <h5>OnePlus · Nord launch</h5>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">Priya · phone · neon rim light · night</div>
+        <div class="kv">
+          <div class="k">Brand</div><div class="v">OnePlus India Pvt Ltd</div>
+          <div class="k">Creator</div><div class="v">Priya (Mumbai)</div>
+          <div class="k">Cost</div><div class="v" style="color:var(--accent);">₹3,000</div>
+          <div class="k">Hive score</div><div class="v" style="color:var(--accent);">0.74 · flagged</div>
+          <div class="k">Queued</div><div class="v">2h ago</div>
+        </div>
+        <div class="actions">
+          <div class="b ok">Approve</div>
+          <div class="b no">Reject · refund</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────
+     MOBILE PREVIEW
+     ─────────────────────────────────────────────────────── -->
+<section class="dir" id="mobile">
+  <div class="dir-head">
+    <div class="info">
+      <div class="tag">● Mobile</div>
+      <h2>Phone — <em>bottom tabs + FAB.</em></h2>
+      <p>
+        On mobile every role collapses to a 5-tab bottom bar with a gold FAB in the center (creator =
+        "+ approve next", brand = "+ new generation", admin = "+ triage"). Top-level content
+        stays identical to desktop — just vertical.
+      </p>
+    </div>
+    <div class="role-badge">All roles · mobile</div>
+  </div>
+
+  <div class="mobile-thumbs">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="m-top">
+        <div class="logo">F</div>
+        <div class="word">Faiceoff</div>
+        <div class="spc"></div>
+        <div class="av"></div>
+      </div>
+      <div class="m-body">
+        <div class="m-hero">
+          <img src="/landing/creator-face.jpg" alt=""/>
+          <div class="cap">
+            <div class="n">Hi Priya —</div>
+            <div class="s">2 approvals waiting</div>
+          </div>
+        </div>
+        <div class="m-wallet">
+          <div class="l">Wallet</div>
+          <div class="n">₹42,500</div>
+        </div>
+        <div class="m-row">
+          <div class="tile"><div class="l">This week</div><div class="n">+₹12,400</div></div>
+          <div class="tile"><div class="l">Approval rate</div><div class="n">98%</div></div>
+        </div>
+        <div class="m-row">
+          <div class="tile" style="flex:1;">
+            <div class="l">Next up</div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <div style="width:36px;height:36px;border-radius:8px;background-image:url('/landing/product-sneaker.jpg');background-size:cover;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;font-weight:700;">Nike India</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink-muted);">41h · ₹2,500</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="m-tab">
+        <div class="ti active"><div class="ic">⌂</div>Home</div>
+        <div class="ti"><div class="ic">◉</div>Inbox</div>
+        <div class="ti"><div class="fab">+</div></div>
+        <div class="ti"><div class="ic">₹</div>Wallet</div>
+        <div class="ti"><div class="ic">◈</div>Me</div>
+      </div>
+    </div>
+
+    <div class="explainer">
+      <div class="lbl">● Shared rules across roles</div>
+      <h4>Same palette · different rhythm.</h4>
+      <ul>
+        <li>Creator: warm-tinted bg, pill nav, full-bleed portraits, gold wallet panel big and proud.</li>
+        <li>Brand: cooler bg, icon rail, ⌘K everywhere, bento of KPIs — ads-manager energy.</li>
+        <li>Admin: three-pane split, list-detail power tool — feels like Figma/Superhuman.</li>
+        <li>Mobile: bottom 5-tab bar + gold FAB. Bottom-sheet drawers for details.</li>
+        <li>Studio Black palette unchanged. Only Chrome + density + rhythm differ per role.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <h3>Which direction lands the plane?</h3>
+  <p>Reply in chat: <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">A · B · C · ya "all three, start phase 1"</span></p>
+</section>
+
+</body>
+</html>

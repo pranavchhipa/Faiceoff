@@ -35,12 +35,12 @@ const products = [
     prompt: "Priya applying serum, peach morning light, close-up beauty shot",
   },
   {
-    id: "food",
-    emoji: "☕",
-    label: "Café",
-    thumb: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80&auto=format&fit=crop",
+    id: "audio",
+    emoji: "🎧",
+    label: "Audio",
+    thumb: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80&auto=format&fit=crop",
     hero: PRIYA_COMPOSITES.food,
-    prompt: "Priya enjoying morning coffee, warm sunlit café, candid lifestyle frame",
+    prompt: "Priya wearing wireless headphones, warm desk lamp light, work-from-home moment",
   },
 ] as const;
 
@@ -199,7 +199,7 @@ export function BrandDemo() {
             ))}
           </div>
 
-          {/* Prompt preview — makes the demo feel like a real generation */}
+          {/* Brief preview — feels like a real campaign card */}
           <AnimatePresence mode="wait">
             {current && (
               <motion.div
@@ -208,9 +208,17 @@ export function BrandDemo() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.25 }}
-                className="mt-4 px-3 py-2 rounded-lg bg-background/60 border border-border/60 text-[11px] font-mono text-muted-foreground"
+                className="mt-4 rounded-xl border border-border bg-background/60 backdrop-blur-sm overflow-hidden"
               >
-                <span className="text-accent">prompt →</span> {current.prompt}
+                <div className="flex items-center gap-2 px-3.5 py-2 border-b border-border/60 bg-secondary/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                    Campaign brief
+                  </span>
+                </div>
+                <p className="px-3.5 py-3 text-sm leading-relaxed text-foreground">
+                  {current.prompt}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

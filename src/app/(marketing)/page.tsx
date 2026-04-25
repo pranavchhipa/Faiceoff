@@ -67,7 +67,6 @@ export default function HomePage() {
       <BrandDemoSection />
       <CreatorInbox />
       <VaultGallery />
-      <Stats />
       <Compliance />
       <FinalCTA />
     </div>
@@ -644,8 +643,8 @@ function CreatorInbox() {
                       <span className="font-display font-bold text-sm">{r.brand}</span>
                       <span className="text-[10px] text-muted-foreground">· {r.campaign}</span>
                     </div>
-                    <p className="text-xs font-mono text-muted-foreground truncate">
-                      <span className="text-accent">prompt →</span> {r.prompt}
+                    <p className="text-xs text-muted-foreground truncate">
+                      <span className="text-foreground/70 font-600">Brief:</span> {r.prompt}
                     </p>
                     <div className="mt-2 flex items-center gap-3 text-[11px]">
                       <span className="font-display font-bold text-accent">{r.fee}</span>
@@ -1039,7 +1038,7 @@ function CTAHalf({
   return (
     <Link
       href={href}
-      className="group relative rounded-3xl overflow-hidden border border-border bg-card aspect-[4/5] md:aspect-[5/6] block"
+      className="group relative rounded-3xl overflow-hidden border border-border bg-card aspect-[4/5] md:aspect-[5/6] block text-foreground hover:text-foreground"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -1051,21 +1050,23 @@ function CTAHalf({
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
 
       <div className="relative h-full flex flex-col justify-end p-8 md:p-12">
-        <p className="text-xs font-mono text-accent uppercase tracking-[0.22em] mb-4">{eyebrow}</p>
-        <h3 className="font-display text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.05] mb-4">
+        <p className="text-xs font-mono text-accent uppercase tracking-[0.22em] mb-4 no-underline">
+          {eyebrow}
+        </p>
+        <h3 className="font-display text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.05] mb-4 text-foreground no-underline">
           {title}
         </h3>
-        <p className="text-muted-foreground mb-8 max-w-md">{sub}</p>
-        <div
-          className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold self-start transition-all ${
+        <p className="text-muted-foreground mb-8 max-w-md no-underline">{sub}</p>
+        <span
+          className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold self-start transition-all no-underline ${
             accent
               ? "bg-primary text-primary-foreground group-hover:shadow-glow"
-              : "border border-border bg-card/60 backdrop-blur group-hover:bg-card"
+              : "border border-border bg-card/60 backdrop-blur text-foreground group-hover:bg-card"
           }`}
         >
           {cta}
           <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-        </div>
+        </span>
       </div>
     </Link>
   );
