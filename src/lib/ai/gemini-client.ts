@@ -306,3 +306,162 @@ export async function generateImage(
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 2: Product refinement
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build the refinement prompt — instructs Gemini to EDIT the previous output
+ * (not regenerate from scratch), correcting only the product packaging while
+ * leaving face / pose / scene untouched.
+ *
+ * Why this works better than asking Gemini to nail the product in one pass:
+ *   - In stage 1, Gemini's attention is split across face anchor, scene, lighting,
+ *     product. Even with strong product anchor language, small text suffers.
+ *   - In stage 2, the model has FAR less to imagine — face/scene already correct,
+ *     only the product needs fixing. With reduced cognitive load, attention
+ *     concentrates on copying product details accurately.
+ *   - Diffusion models are also fundamentally better at "preserve this region
+ *     from reference" than "generate this from scratch."
+ */
+function buildRefinementPrompt(aspectRatio: string): string {
+  return [
+    "REFINEMENT TASK — read carefully:",
+    "You are editing an already-generated lifestyle photograph (the FIRST attached image). Your ONLY job is to correct the product packaging in that image so it pixel-matches the product reference (the SECOND attached image).",
+    "",
+    "STRICT RULES — DO NOT change anything else:",
+    "  ✗ DO NOT change the person's face, hair, skin texture, body, or expression",
+    "  ✗ DO NOT change the pose, hand position, or finger grip on the product",
+    "  ✗ DO NOT change the lighting, shadows, background, or scene at all",
+    "  ✗ DO NOT change the camera angle, framing, or composition",
+    "",
+    "WHAT TO FIX — the product packaging only:",
+    "  ✓ Replace the product with the EXACT packaging from the reference",
+    "  ✓ Brand wordmark — exact font, exact spelling, exact placement, exact colour",
+    "  ✓ ALL text on the package readable, character-for-character match",
+    "  ✓ Pack format unchanged (tube stays tube, jar stays jar, etc.)",
+    "  ✓ Body colour, cap colour, surface finish — all match reference exactly",
+    "  ✓ Every label, tagline, volume marking from reference preserved",
+    "  ✓ Maintain the product's existing position, scale, angle, and lighting in the scene",
+    "",
+    "Think of it as wrapping the reference packaging's surface graphics around the product silhouette already in the image. Same hand grip, same perspective, same shadows — only the labels and colours come from the reference.",
+    "",
+    "If a viewer cannot read the brand name and product variant clearly in your output, you have failed the assignment.",
+    "",
+    `Output: photorealistic image, ${aspectRatio} aspect ratio, IDENTICAL to the first attached image except for the product, which now matches the second attached image.`,
+  ].join("\n");
+}
+
+/**
+ * One refinement call. Throws on any failure. Caller wraps with retry logic.
+ */
+async function callRefineOnce(params: {
+  generatedImage: ImageInput;
+  productImage: ImageInput;
+  aspectRatio: string;
+}): Promise<GenerateImageResult> {
+  const finalPrompt = buildRefinementPrompt(params.aspectRatio);
+
+  const parts: Array<
+    { text: string } | { inlineData: { mimeType: string; data: string } }
+  > = [
+    { text: finalPrompt },
+    {
+      inlineData: {
+        mimeType: params.generatedImage.mimeType,
+        data: bytesToBase64(params.generatedImage.bytes),
+      },
+    },
+    {
+      inlineData: {
+        mimeType: params.productImage.mimeType,
+        data: bytesToBase64(params.productImage.bytes),
+      },
+    },
+  ];
+
+  const client = getClient();
+  const modelName = getModel();
+  let response;
+  try {
+    response = await client.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts }],
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Gemini refinement SDK call failed (model=${modelName}): ${msg.slice(0, 500)}`,
+    );
+  }
+
+  // Walk candidates → content.parts → first inlineData with image MIME.
+  const candidates = response.candidates ?? [];
+  for (const cand of candidates) {
+    const candParts = cand.content?.parts ?? [];
+    for (const part of candParts) {
+      const inline = (
+        part as { inlineData?: { mimeType?: string; data?: string } }
+      ).inlineData;
+      if (inline?.data && inline.mimeType?.startsWith("image/")) {
+        return {
+          bytes: base64ToBytes(inline.data),
+          mimeType: inline.mimeType,
+          finalPrompt,
+        };
+      }
+    }
+  }
+
+  // Surface text response if Gemini refused to produce an image
+  const textParts: string[] = [];
+  for (const cand of candidates) {
+    for (const part of cand.content?.parts ?? []) {
+      const t = (part as { text?: string }).text;
+      if (t) textParts.push(t);
+    }
+  }
+  const textMsg = textParts.join(" ").slice(0, 200);
+  throw new Error(
+    `Gemini refinement returned no image. ${textMsg ? `Reason: ${textMsg}` : "Response empty."}`,
+  );
+}
+
+/**
+ * Stage 2: refine the product packaging in a generated image.
+ *
+ * Takes the stage-1 output + the original product reference, and asks Gemini
+ * to correct ONLY the product (label, text, colours) while preserving every
+ * other pixel of the scene.
+ *
+ * 1 inline retry. Throws on second failure — caller decides whether to fall
+ * back to stage-1 output or surface the error.
+ */
+export async function refineProductInImage(params: {
+  generatedImage: ImageInput;
+  productImage: ImageInput;
+  aspectRatio: string;
+}): Promise<GenerateImageResult> {
+  try {
+    return await callRefineOnce(params);
+  } catch (firstErr) {
+    const firstMsg =
+      firstErr instanceof Error ? firstErr.message : String(firstErr);
+    console.warn(
+      `[gemini-client] Refinement first attempt failed: ${firstMsg}. Retrying once.`,
+    );
+    try {
+      return await callRefineOnce(params);
+    } catch (secondErr) {
+      const secondMsg =
+        secondErr instanceof Error ? secondErr.message : String(secondErr);
+      throw new Error(
+        `Gemini refinement failed after 1 retry. First: ${firstMsg}. Second: ${secondMsg}`,
+      );
+    }
+  }
+}
