@@ -48,13 +48,13 @@ export function PillSection({
 
   return (
     <div className="mb-5">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-700 uppercase tracking-wider text-[var(--color-ink)]">
+      <div className="mb-2 flex items-center gap-2 text-[11px] font-700 uppercase tracking-wider text-[var(--color-foreground)]">
         <span className="flex size-5 items-center justify-center rounded-md bg-[var(--color-blush)] text-[11px]">
           {icon}
         </span>
         {label}
         {optional && (
-          <span className="text-[10px] font-500 normal-case tracking-normal text-[var(--color-neutral-400)]">
+          <span className="text-[10px] font-500 normal-case tracking-normal text-[var(--color-muted-foreground)]">
             • Optional
           </span>
         )}
@@ -69,8 +69,8 @@ export function PillSection({
               onClick={() => selectPreset(o.key)}
               className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
                 active
-                  ? "border-[var(--color-ink)] bg-[var(--color-ink)] font-600 text-white"
-                  : "border-[var(--color-neutral-100)] bg-white text-[var(--color-neutral-600)] hover:border-[var(--color-gold)]"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)] font-700 text-[var(--color-primary-foreground)]"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/50 hover:text-[var(--color-foreground)]"
               }`}
             >
               {o.label}
@@ -83,8 +83,8 @@ export function PillSection({
             onClick={toggleCustom}
             className={`rounded-full border px-3 py-1.5 text-xs font-600 transition-colors ${
               isCustom
-                ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white"
-                : "border-dashed border-[var(--color-gold)] bg-white text-[var(--color-gold)]"
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                : "border-dashed border-[var(--color-primary)]/50 bg-[var(--color-card)] text-[var(--color-primary)] hover:border-[var(--color-primary)]"
             }`}
           >
             + Custom
@@ -99,10 +99,10 @@ export function PillSection({
             onChange={onCustomInput}
             maxLength={80}
             placeholder="Type your own…"
-            className="flex-1 rounded-lg border border-[var(--color-gold)] bg-[#fdf6e7] px-3 py-2 text-sm text-[var(--color-ink)]"
+            className="flex-1 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)]/8 px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:bg-[var(--color-primary)]/12"
             autoFocus
           />
-          <span className="text-[11px] text-[var(--color-neutral-400)]">
+          <span className="text-[11px] text-[var(--color-muted-foreground)]">
             {customText.length} / 80
           </span>
         </div>
