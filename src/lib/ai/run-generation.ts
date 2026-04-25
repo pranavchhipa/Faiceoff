@@ -251,8 +251,10 @@ export async function runGeneration(generationId: string): Promise<void> {
       // Hard fail after retry → refund and mark failed.
       const msg =
         geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+      const stack =
+        geminiErr instanceof Error ? geminiErr.stack?.slice(0, 800) : "";
       console.error(
-        `[run-generation] Gemini failed for gen=${generationId}: ${msg}`,
+        `[run-generation] GEMINI_FAIL gen=${generationId} model=${process.env.NANO_BANANA_MODEL ?? process.env.GEMINI_MODEL ?? "default"} faceRefs=${faceRefs.length} promptLen=${assembledPrompt.length} msg="${msg}" stack="${stack}"`,
       );
       Sentry.captureException(geminiErr, {
         tags: { route: "run-generation", phase: "gemini" },

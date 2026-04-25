@@ -152,13 +152,26 @@ async function callGeminiOnce(
   });
 
   const client = getClient();
-  const response = await client.models.generateContent({
-    model: getModel(),
-    contents: [{ role: "user", parts }],
-    config: {
-      responseModalities: [Modality.IMAGE],
-    },
-  });
+  const modelName = getModel();
+  let response;
+  try {
+    response = await client.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts }],
+      config: {
+        // gemini-*-image-preview models REQUIRE both modalities even if we
+        // only want the image — passing IMAGE alone returns an InvalidArgument.
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      },
+    });
+  } catch (err) {
+    // Re-throw with model name + first part of message so logs make sense
+    // when the Vercel runtime swallows the SDK-level details.
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Gemini SDK call failed (model=${modelName}): ${msg.slice(0, 500)}`,
+    );
+  }
 
   // Walk candidates → content.parts → first inlineData with image MIME.
   const candidates = response.candidates ?? [];
