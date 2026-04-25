@@ -8,7 +8,7 @@ import {
   ShieldCheck, IndianRupee, Clock,
 } from "lucide-react";
 import { CreatorDemo } from "@/components/landing/CreatorDemo";
-import { CREATORS } from "@/components/landing/images";
+import { CREATORS, WATERMARK_MASK } from "@/components/landing/images";
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -189,6 +189,7 @@ function CreatorHeroStack() {
           src={CREATORS.priya.src}
           alt="Priya — Mumbai"
           className="absolute inset-0 w-full h-full object-cover"
+          style={WATERMARK_MASK}
         />
 
         {/* KYC verified chip */}
@@ -228,10 +229,10 @@ function CreatorHeroStack() {
       >
         <div className="flex items-center gap-2 mb-3">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-[10px] font-display font-extrabold tracking-wider">NI</span>
+            <span className="text-primary-foreground text-[10px] font-display font-extrabold tracking-wider">AC</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-display font-bold text-sm truncate">Nike India</div>
+            <div className="font-display font-bold text-sm truncate">Athleisure Co.</div>
             <div className="text-[10px] font-mono text-muted-foreground tracking-widest uppercase">asking approval</div>
           </div>
           <div className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-accent">

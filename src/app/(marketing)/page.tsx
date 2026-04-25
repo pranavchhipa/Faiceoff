@@ -40,7 +40,13 @@ import {
   X,
 } from "lucide-react";
 import { BrandDemo } from "@/components/landing/BrandDemo";
-import { CREATORS, PRIYA_COMPOSITES } from "@/components/landing/images";
+import {
+  CREATORS,
+  PRIYA_COMPOSITES,
+  ARJUN_COMPOSITES,
+  ALL_CREATORS,
+  WATERMARK_MASK,
+} from "@/components/landing/images";
 
 // ── shared motion presets ────────────────────────────────────────────────────
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -62,7 +68,6 @@ export default function HomePage() {
       <CreatorInbox />
       <VaultGallery />
       <Stats />
-      <Pricing />
       <Compliance />
       <FinalCTA />
     </div>
@@ -110,10 +115,13 @@ function Hero() {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mt-7 text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
           >
-            India&apos;s first AI face licensing marketplace. Creators license their face.
-            Brands make ads in minutes. You approve every single image. No shoots. No middlemen.
+            India&apos;s first AI face licensing marketplace. Creators license
+            their face, brands ship ads in minutes — every image
+            creator-approved.
           </motion.p>
 
+          {/* CTA hierarchy: Brand is primary (filled gold), Creator secondary (outlined).
+              Brands drive revenue, so the visual weight goes to "I'm a Brand". */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -121,17 +129,17 @@ function Hero() {
             className="mt-9 flex flex-col sm:flex-row flex-wrap gap-3"
           >
             <Link
-              href="/for-creators"
+              href="/for-brands"
               className="group w-full sm:w-auto justify-center px-7 py-4 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center gap-2 hover:shadow-glow transition-shadow"
             >
-              I&apos;m a Creator
+              I&apos;m a Brand — start a campaign
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
-              href="/for-brands"
+              href="/for-creators"
               className="group w-full sm:w-auto justify-center px-7 py-4 rounded-xl border border-border bg-card/40 backdrop-blur font-semibold inline-flex items-center gap-2 hover:bg-card transition-colors"
             >
-              I&apos;m a Brand
+              I&apos;m a Creator
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </Link>
           </motion.div>
@@ -153,6 +161,33 @@ function Hero() {
               <IndianRupee size={14} className="text-accent" /> INR payouts
             </span>
           </motion.div>
+
+          {/* social-proof strip — quote from a creator on the platform.
+              Real validation > vague stats. Replace name/quote with a real
+              one once a flagship creator is comfortable being on the page. */}
+          <motion.figure
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.6 }}
+            className="mt-8 max-w-md flex items-start gap-3 rounded-2xl border border-border bg-card/40 backdrop-blur p-4"
+          >
+            <div className="h-10 w-10 shrink-0 rounded-full bg-accent/15 ring-1 ring-accent/30 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={CREATORS.priya.src}
+                alt=""
+                className="h-full w-full object-cover"
+                style={WATERMARK_MASK}
+              />
+            </div>
+            <blockquote className="text-sm leading-relaxed text-foreground/90">
+              &ldquo;3 brand campaigns my first month. No shoots, no DMs from
+              middlemen. Just my face, my rules.&rdquo;
+              <footer className="mt-1.5 text-[11px] font-mono tracking-widest uppercase text-muted-foreground">
+                — Priya · Mumbai · Lifestyle creator
+              </footer>
+            </blockquote>
+          </motion.figure>
         </div>
 
         {/* ── Right: big hero card ─────────────────────── */}
@@ -179,6 +214,7 @@ function HeroCard() {
           src={CREATORS.priya.src}
           alt="Priya — Mumbai"
           className="absolute inset-0 w-full h-full object-cover"
+          style={WATERMARK_MASK}
         />
 
         {/* LIVE chip */}
@@ -192,27 +228,20 @@ function HeroCard() {
           AI · FAICEOFF
         </div>
 
-        {/* bottom caption */}
-        <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-background/75 backdrop-blur-md border border-border/60 flex items-end justify-between gap-3">
-          <div>
-            <div className="font-display text-lg font-bold leading-tight">Priya · Mumbai</div>
-            <div className="text-xs text-muted-foreground font-mono tracking-wider uppercase mt-1">
-              Fashion · Beauty · Lifestyle
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">per gen</div>
-            <div className="font-display font-bold text-accent">₹2,500</div>
-          </div>
+        {/* bottom caption — slim single-line so it doesn't cover the watch */}
+        <div className="absolute bottom-3 left-3 right-3 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-md border border-border/60 flex items-center justify-between gap-3">
+          <div className="font-display text-sm font-bold leading-tight truncate">Priya · Mumbai</div>
+          <div className="shrink-0 font-display font-bold text-sm text-accent">₹2,500</div>
         </div>
       </div>
 
-      {/* floating earnings badge */}
+      {/* floating earnings badge — only on lg+ where there's horizontal room
+          to extend outside the card without getting clipped at the edges */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ delay: 1, type: "spring" }}
-        className="hidden sm:flex absolute -top-5 -right-5 items-center gap-2 px-4 py-3 rounded-2xl bg-card border border-accent/30 shadow-glow"
+        className="hidden lg:flex absolute -top-5 -right-5 items-center gap-2 px-4 py-3 rounded-2xl bg-card border border-accent/30 shadow-glow"
       >
         <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
           <IndianRupee size={14} className="text-accent" />
@@ -220,22 +249,6 @@ function HeroCard() {
         <div>
           <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">Just earned</div>
           <div className="font-display font-bold">+₹2,500</div>
-        </div>
-      </motion.div>
-
-      {/* floating approval badge */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8, y: -10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 1.2, type: "spring" }}
-        className="hidden sm:flex absolute -bottom-4 -left-5 items-center gap-2 px-4 py-3 rounded-2xl bg-card border border-border"
-      >
-        <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
-          <CheckCheck size={14} className="text-accent" />
-        </div>
-        <div>
-          <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">Approved by Priya</div>
-          <div className="font-display font-bold">Nike India</div>
         </div>
       </motion.div>
     </div>
@@ -321,7 +334,7 @@ function HowItWorks() {
             Three steps. <span className="text-gradient-primary">That&apos;s it.</span>
           </h2>
           <p className="mt-5 text-muted-foreground text-lg max-w-xl">
-            No shoots. No middlemen. No lawyers. The whole workflow fits on one screen.
+            No shoots. No middlemen. The whole workflow fits on one screen.
           </p>
         </motion.div>
 
@@ -339,7 +352,8 @@ function HowItWorks() {
                 <img
                   src={s.thumb}
                   alt=""
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  style={WATERMARK_MASK}
                 />
                 <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-background/75 backdrop-blur text-[10px] font-mono tracking-widest uppercase">
                   {s.tag}
@@ -372,16 +386,15 @@ type CreatorItem =
   | { placeholder: true; label: string; cta?: boolean };
 
 function CreatorGallery() {
-  // 3 real + 6 placeholder slots — more will be added as creators sign up.
+  // 8 real creators + 1 "you next" slot — drives the marketplace feel.
   const creators: CreatorItem[] = [
-    { name: "Priya", city: "Mumbai", niche: "Fashion · Beauty", price: "₹2,500", img: CREATORS.priya.src },
-    { name: "Arjun", city: "Bengaluru", niche: "Tech · Lifestyle", price: "₹2,000", img: CREATORS.arjun.src },
-    { name: "Meera", city: "Delhi", niche: "Food · Travel", price: "₹1,800", img: CREATORS.meera.src },
-    { placeholder: true, label: "Creator · Hyderabad" },
-    { placeholder: true, label: "Creator · Pune" },
-    { placeholder: true, label: "Creator · Chennai" },
-    { placeholder: true, label: "Creator · Jaipur" },
-    { placeholder: true, label: "Creator · Kolkata" },
+    ...ALL_CREATORS.map((c) => ({
+      name: c.name,
+      city: c.city,
+      niche: c.niche,
+      price: c.price,
+      img: c.src,
+    })),
     { placeholder: true, label: "You next?", cta: true },
   ];
 
@@ -436,7 +449,8 @@ function CreatorCard({
       <img
         src={img}
         alt={name}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.09]"
+        style={WATERMARK_MASK}
       />
 
       {/* KYC chip */}
@@ -538,7 +552,7 @@ function BrandDemoSection() {
 function CreatorInbox() {
   const requests = [
     {
-      brand: "Nike India",
+      brand: "Athleisure Co.",
       initials: "NI",
       campaign: "Monsoon Sneaker Drop",
       prompt: "Priya wearing white sneakers, soft pink backdrop, editorial",
@@ -548,7 +562,7 @@ function CreatorInbox() {
       urgent: false,
     },
     {
-      brand: "OnePlus",
+      brand: "Tech Co.",
       initials: "OP",
       campaign: "Nord 4 launch teaser",
       prompt: "Priya holding new phone, neon blue rim light, night scene",
@@ -615,7 +629,7 @@ function CreatorInbox() {
                   {/* thumb */}
                   <div className="relative h-20 w-20 md:h-24 md:w-24 shrink-0 rounded-xl overflow-hidden border border-border bg-secondary">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={r.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={r.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" style={WATERMARK_MASK} />
                     <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-background/80 text-[8px] font-mono tracking-wider">
                       PREVIEW
                     </div>
@@ -696,25 +710,19 @@ function CreatorInbox() {
    7 · VAULT GALLERY
    ══════════════════════════════════════════════════════════════════════════ */
 
-type VaultItem =
-  | { placeholder?: false; img: string; tag: string; brand: string; price: string }
-  | { placeholder: true; tag: string };
+type VaultItem = { img: string; tag: string; brand: string; price: string };
 
 function VaultGallery() {
-  // 4 real + 8 placeholder slots — this is what brands get back.
+  // 8 real composites — Priya × 5 + Arjun × 3. No empty placeholders.
   const items: VaultItem[] = [
-    { img: PRIYA_COMPOSITES.sneaker, tag: "SNEAKER", brand: "Nike India", price: "₹2,500" },
-    { img: PRIYA_COMPOSITES.phone, tag: "PHONE", brand: "OnePlus", price: "₹3,000" },
-    { img: PRIYA_COMPOSITES.skincare, tag: "SKINCARE", brand: "The Ordinary", price: "₹2,200" },
-    { img: PRIYA_COMPOSITES.food, tag: "CAFÉ", brand: "Starbucks India", price: "₹2,000" },
-    { placeholder: true, tag: "APPAREL" },
-    { placeholder: true, tag: "WATCH" },
-    { placeholder: true, tag: "MAKEUP" },
-    { placeholder: true, tag: "FITNESS" },
-    { placeholder: true, tag: "FRAGRANCE" },
-    { placeholder: true, tag: "JEWELRY" },
-    { placeholder: true, tag: "AUTO" },
-    { placeholder: true, tag: "GADGET" },
+    { img: PRIYA_COMPOSITES.sneaker,    tag: "SNEAKER",    brand: "Athleisure Co.", price: "₹2,500" },
+    { img: PRIYA_COMPOSITES.phone,      tag: "PHONE",      brand: "Tech Co.",       price: "₹3,000" },
+    { img: PRIYA_COMPOSITES.skincare,   tag: "SKINCARE",   brand: "Skincare Co.",   price: "₹2,200" },
+    { img: PRIYA_COMPOSITES.food,       tag: "BEVERAGE",   brand: "Beverage Co.",   price: "₹2,000" },
+    { img: PRIYA_COMPOSITES.lipstick,   tag: "LIPSTICK",   brand: "Beauty Co.",     price: "₹2,300" },
+    { img: ARJUN_COMPOSITES.haldiram,   tag: "SNACK",      brand: "Snack Co.",      price: "₹1,800" },
+    { img: ARJUN_COMPOSITES.smartwatch, tag: "WATCH",      brand: "Wearable Co.",   price: "₹2,400" },
+    { img: ARJUN_COMPOSITES.paperboat,  tag: "BEVERAGE",   brand: "Beverage Co.",   price: "₹1,900" },
   ];
 
   return (
@@ -737,11 +745,7 @@ function VaultGallery() {
               {...fadeUp}
               transition={{ duration: 0.5, delay: i * 0.04, ease }}
             >
-              {it.placeholder ? (
-                <PhotoSlot label={`${it.tag} · slot`} aspect="1/1" />
-              ) : (
-                <VaultCard img={it.img} tag={it.tag} brand={it.brand} price={it.price} />
-              )}
+              <VaultCard img={it.img} tag={it.tag} brand={it.brand} price={it.price} />
             </motion.div>
           ))}
         </div>
@@ -759,7 +763,8 @@ function VaultCard({
       <img
         src={img}
         alt={brand}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.10]"
+        style={WATERMARK_MASK}
       />
       <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-background/80 backdrop-blur text-[10px] font-mono tracking-[0.15em] uppercase">
         {tag}
@@ -1041,6 +1046,7 @@ function CTAHalf({
         src={img}
         alt=""
         className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-55 transition-opacity"
+        style={WATERMARK_MASK}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
 

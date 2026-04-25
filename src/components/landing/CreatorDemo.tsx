@@ -3,12 +3,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Check, X, IndianRupee, Wand2 } from "lucide-react";
-import { CREATOR_PRIYA, PRIYA_COMPOSITES } from "./images";
+import { CREATOR_PRIYA, PRIYA_COMPOSITES, WATERMARK_MASK } from "./images";
 
 const requests = [
-  { id: "nike",        brand: "Nike India",       category: "Sportswear", color: "from-orange-400 to-pink-500", emoji: "👟", img: PRIYA_COMPOSITES.sneaker,  payout: 2500 },
-  { id: "oneplus",     brand: "OnePlus",           category: "Tech",       color: "from-red-500 to-rose-600",    emoji: "📱", img: PRIYA_COMPOSITES.phone,    payout: 3200 },
-  { id: "minimalist",  brand: "The Minimalist",    category: "Skincare",   color: "from-amber-400 to-orange-500",emoji: "🧴", img: PRIYA_COMPOSITES.skincare, payout: 1800 },
+  { id: "athleisure",  brand: "Athleisure Co.",   category: "Sportswear", color: "from-orange-400 to-pink-500", emoji: "👟", img: PRIYA_COMPOSITES.sneaker,  payout: 2500 },
+  { id: "techco",      brand: "Tech Co.",          category: "Tech",       color: "from-red-500 to-rose-600",    emoji: "📱", img: PRIYA_COMPOSITES.phone,    payout: 3200 },
+  { id: "skincareco",  brand: "Skincare Co.",     category: "Skincare",   color: "from-amber-400 to-orange-500",emoji: "🧴", img: PRIYA_COMPOSITES.skincare, payout: 1800 },
 ] as const;
 
 // Priya's already-earned balance (kept consistent with the ₹42,500/month
@@ -48,7 +48,7 @@ export function CreatorDemo() {
         <div className="relative">
           <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-secondary">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={CREATOR_PRIYA} alt="Creator" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={CREATOR_PRIYA} alt="Creator" className="absolute inset-0 h-full w-full object-cover" style={WATERMARK_MASK} />
             <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-background/80 backdrop-blur text-xs font-mono">
               You · Priya
             </div>
@@ -186,9 +186,10 @@ export function CreatorDemo() {
                   src={current.img}
                   alt={current.brand}
                   initial={{ scale: 1.1, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
+                  animate={{ scale: 1.06, opacity: 1 }}
                   transition={{ duration: 0.6 }}
                   className="h-full w-full object-cover"
+                  style={{ transformOrigin: "50% 0%" }}
                 />
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}

@@ -8,7 +8,7 @@ import {
   Clock, FileText,
 } from "lucide-react";
 import { BrandDemo } from "@/components/landing/BrandDemo";
-import { PRIYA_COMPOSITES } from "@/components/landing/images";
+import { PRIYA_COMPOSITES, WATERMARK_MASK } from "@/components/landing/images";
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -251,6 +251,7 @@ function BrandHeroStack() {
           src={PRIYA_COMPOSITES.sneaker}
           alt="Priya with sneakers — AI generated"
           className="absolute inset-0 w-full h-full object-cover"
+          style={WATERMARK_MASK}
         />
 
         {/* Delivered chip */}
@@ -268,7 +269,7 @@ function BrandHeroStack() {
         <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-background/75 backdrop-blur-md border border-border/60">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <div className="font-display text-lg font-bold leading-tight truncate">Nike India</div>
+              <div className="font-display text-lg font-bold leading-tight truncate">Athleisure Co.</div>
               <div className="text-xs text-muted-foreground font-mono tracking-wider uppercase mt-1 truncate">
                 Monsoon Sneaker Drop · Priya
               </div>

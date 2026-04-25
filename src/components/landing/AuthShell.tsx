@@ -124,6 +124,7 @@ export function AuthShell({
                         aria-hidden
                         loading="eager"
                         className="w-full aspect-[3/4] object-cover object-top"
+                        style={{ transform: "scale(1.06)", transformOrigin: "50% 0%" }}
                       />
                       {/* Name overlay */}
                       <div className="absolute inset-x-0 bottom-0 px-3 py-3 bg-gradient-to-t from-black/60 via-black/20 to-transparent">

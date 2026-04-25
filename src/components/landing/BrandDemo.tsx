@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { Sparkles, Loader2, Wand2 } from "lucide-react";
-import { CREATOR_PRIYA, PRIYA_COMPOSITES } from "./images";
+import { CREATOR_PRIYA, PRIYA_COMPOSITES, WATERMARK_MASK } from "./images";
 
 // Each product has:
 //  - thumb: realistic product photo (for the picker tile)
@@ -76,6 +76,7 @@ export function BrandDemo() {
               exit={{ opacity: 0, scale: 0.98, filter: "blur(8px)" }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] as const }}
               className="absolute inset-0 h-full w-full object-cover"
+              style={WATERMARK_MASK}
             />
           </AnimatePresence>
 
@@ -171,7 +172,8 @@ export function BrandDemo() {
                     <img
                       src={p.thumb}
                       alt={p.label}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-110"
+                      style={WATERMARK_MASK}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
