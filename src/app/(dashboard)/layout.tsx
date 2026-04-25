@@ -161,16 +161,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 /* ───────── Left-slot helpers ───────── */
 
 function BrandBreadcrumb() {
-  // Logo mark + current section label.
   return (
-    <span className="hidden items-center gap-2 font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline-flex">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo-mark.png"
-        alt=""
-        aria-hidden
-        className="h-6 w-6 object-contain"
-      />
+    <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
       <PageTitle />
     </span>
   );
@@ -178,14 +170,7 @@ function BrandBreadcrumb() {
 
 function AdminPageTitle() {
   return (
-    <span className="inline-flex items-center gap-2 font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo-mark.png"
-        alt=""
-        aria-hidden
-        className="h-6 w-6 object-contain"
-      />
+    <span className="font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
       <PageTitle />
     </span>
   );
