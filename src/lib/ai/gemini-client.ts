@@ -21,7 +21,18 @@ import { GoogleGenAI, Modality } from "@google/genai";
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MODEL = "gemini-3.1-flash-image-preview";
+// Model name resolves from env in this priority:
+//   1. NANO_BANANA_MODEL  (existing Vercel env from Apr 21)
+//   2. GEMINI_MODEL       (new alias for clarity)
+//   3. hardcoded default
+const DEFAULT_MODEL = "gemini-3.1-flash-image-preview";
+function getModel(): string {
+  return (
+    process.env.NANO_BANANA_MODEL ??
+    process.env.GEMINI_MODEL ??
+    DEFAULT_MODEL
+  );
+}
 
 /**
  * Hardcoded anchor wrapper. The brand's creative brief (LLM-assembled) is
@@ -51,9 +62,14 @@ function buildAnchorPrompt(
 let _client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
   if (_client) return _client;
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Accept either GEMINI_API_KEY (new) or GOOGLE_AI_API_KEY (existing Vercel
+  // env from the legacy Nano-Banana flow). Either works.
+  const apiKey =
+    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing required environment variable: GEMINI_API_KEY");
+    throw new Error(
+      "Missing API key — set GEMINI_API_KEY or GOOGLE_AI_API_KEY",
+    );
   }
   _client = new GoogleGenAI({ apiKey });
   return _client;
@@ -137,7 +153,7 @@ async function callGeminiOnce(
 
   const client = getClient();
   const response = await client.models.generateContent({
-    model: MODEL,
+    model: getModel(),
     contents: [{ role: "user", parts }],
     config: {
       responseModalities: [Modality.IMAGE],
