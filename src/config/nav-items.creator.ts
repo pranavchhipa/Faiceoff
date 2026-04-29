@@ -12,6 +12,7 @@ import {
   Camera,
   Megaphone,
   TrendingUp,
+  MessageSquare,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -25,6 +26,7 @@ export type { NavItem };
 export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Overview", short: "Overview", href: "/creator/dashboard", icon: LayoutDashboard, group: "Primary" },
   { label: "Approvals", href: "/creator/approvals", icon: Inbox, group: "Primary" },
+  { label: "Inbox", href: "/creator/inbox", icon: MessageSquare, group: "Primary" },
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee, group: "Primary" },
   { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },

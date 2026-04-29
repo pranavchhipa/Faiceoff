@@ -10,6 +10,7 @@ import {
   Receipt,
   Settings as SettingsIcon,
   User as UserIcon,
+  MessageSquare,
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,6 +31,7 @@ export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Discover creators", short: "Discover", href: "/brand/discover", icon: Users, group: "Work" },
   { label: "Sessions", href: "/brand/sessions", icon: Megaphone, group: "Work" },
   { label: "Vault", href: "/brand/vault", icon: ImageIcon, group: "Work" },
+  { label: "Inbox", href: "/brand/inbox", icon: MessageSquare, group: "Work" },
   { label: "Licenses", href: "/brand/licenses", icon: FileSignature, group: "Work" },
   { label: "Credits", href: "/brand/credits", icon: CreditCard, group: "Money" },
   { label: "Wallet", href: "/brand/wallet", icon: Wallet, group: "Money" },
