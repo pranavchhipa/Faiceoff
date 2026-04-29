@@ -45,8 +45,11 @@ async function main() {
   loadDotEnvLocal();
 
   // Dynamic imports AFTER env is loaded (same pattern as backfill script).
+  // Inngest was retired — pipeline now fires via Next.js after() inside
+  // /api/campaigns/create. This smoke script just inserts a draft row and
+  // hits the run-generation orchestrator directly.
   const { createAdminClient } = await import("../src/lib/supabase/admin.js");
-  const { inngest } = await import("../src/inngest/client.js");
+  const { runGeneration } = await import("../src/lib/ai/run-generation.js");
 
   const admin = createAdminClient();
   const creatorIdArg = process.argv[2];
@@ -123,15 +126,12 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Inserted generation ${gen.id}. Firing inngest event...`);
+  console.log(`Inserted generation ${gen.id}. Running pipeline directly...`);
 
-  await inngest.send({
-    name: "generation/created",
-    data: { generation_id: gen.id },
-  });
+  await runGeneration(gen.id);
 
   console.log(
-    `\nSmoke test fired. Poll generation row for completion:\n  select status, pipeline_version, quality_scores, generation_attempts, image_url, upscaled_url from generations where id = '${gen.id}';\n`
+    `\nSmoke test complete. Final state:\n  select status, pipeline_version, quality_scores, generation_attempts, image_url, upscaled_url from generations where id = '${gen.id}';\n`
   );
 }
 
