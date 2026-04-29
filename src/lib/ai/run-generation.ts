@@ -36,6 +36,7 @@ import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck } from "@/lib/compliance";
 import { embedFaiceoffMetadata } from "@/lib/ai/image-metadata";
+import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
   generateImage,
   refineProductInImage,
@@ -222,8 +223,42 @@ export async function runGeneration(generationId: string): Promise<void> {
       Boolean(meta?.is_free_retry) && (meta?.retry_count as number) > 0;
 
     if (!isFreeRetry) {
-      await deductCredit({ brandId, generationId });
+      const result = await deductCredit({ brandId, generationId });
       creditDebited = true;
+
+      // Low-credits warning email — fires once when balance crosses 5 going
+      // down. We use a soft anti-spam check: only mail if we just hit the
+      // threshold (newBalance <= 5 and previously > 5). Cheap; no schema
+      // change. Best-effort, never blocks the generation.
+      if (result.newBalance === 5 || result.newBalance === 1) {
+        try {
+          const { data: brandRow } = await admin
+            .from("brands")
+            .select("company_name, user_id")
+            .eq("id", brandId)
+            .maybeSingle();
+          if (brandRow?.user_id) {
+            const { data: usr } = await admin
+              .from("users")
+              .select("email")
+              .eq("id", brandRow.user_id)
+              .maybeSingle();
+            if (usr?.email) {
+              await sendBrandLowCredits({
+                to: usr.email,
+                brandName: brandRow.company_name ?? "Brand",
+                creditsRemaining: result.newBalance,
+              });
+            }
+          }
+        } catch (mailErr) {
+          // Non-fatal
+          console.warn(
+            "[run-generation] low-credits email failed",
+            mailErr,
+          );
+        }
+      }
     }
 
     if (costPaise > 0) {
