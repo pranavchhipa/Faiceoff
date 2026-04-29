@@ -99,7 +99,8 @@ export async function GET(
     .eq("collab_session_id", id)
     .order("created_at", { ascending: false });
 
-  const generationIds = (generations ?? []).map((g) => g.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const generationIds = ((generations ?? []) as any[]).map((g: { id: string }) => g.id);
 
   // ── Creator-only enrichment ──────────────────────────────────────
   // Pull earnings + pending approval count scoped to this campaign so
