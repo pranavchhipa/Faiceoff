@@ -119,13 +119,23 @@ export function briefToAssemblerLines(
 }
 
 /**
- * LLM used for the prompt-assembly step. Overridable via env var for
- * experimentation (e.g., try a newer model without redeploying code).
- * Default: `google/gemini-2.5-pro` — Google's current strongest non-thinking
- * model, ~₹0.20 per prompt assembly.
+ * LLM used for the prompt-assembly step. Overridable via env var.
+ *
+ * Default switched to Groq-hosted Llama 3.1 8B Instant (via OpenRouter):
+ *   • ~10× faster (0.5s vs 2-4s on Gemini 2.5 Pro)
+ *   • ~10× cheaper (₹0.02 vs ₹0.20 per gen)
+ *   • Quality is sufficient for our deterministic template-fill task —
+ *     the system prompt is rigidly structured, so a small fast model
+ *     follows it reliably.
+ *
+ * If output quality regresses on edge cases, set
+ *   PROMPT_ASSEMBLER_MODEL=google/gemini-2.5-pro
+ * via Vercel env to flip back without code change.
  */
+// OpenRouter slug. OpenRouter auto-routes to fastest provider (Groq for
+// Llama 3.1 8B in most regions = ~250 tok/s, sub-second responses).
 const PROMPT_LLM_MODEL =
-  process.env.PROMPT_ASSEMBLER_MODEL ?? "google/gemini-2.5-pro";
+  process.env.PROMPT_ASSEMBLER_MODEL ?? "meta-llama/llama-3.1-8b-instruct";
 
 const SYSTEM_PROMPT = `You are a senior commercial photography art director writing prompts for a multi-reference photorealistic image generator (Gemini 3 Pro Image / Flux Kontext Max). Inputs supplied at generation time: (a) 3-5 face reference photos of ONE specific person, (b) a product reference photo, (c) your text prompt.
 

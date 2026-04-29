@@ -35,6 +35,7 @@ import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck } from "@/lib/compliance";
+import { embedFaiceoffMetadata } from "@/lib/ai/image-metadata";
 import {
   generateImage,
   refineProductInImage,
@@ -458,13 +459,26 @@ export async function runGeneration(generationId: string): Promise<void> {
     // in R2 for admin review).
     const ext = finalImage.mimeType === "image/jpeg" ? "jpg" : "png";
     const r2Key = `generations/${generationId}/raw.${ext}`;
+
+    // Embed Faiceoff EXIF metadata before R2 upload — provenance + license
+    // forever bundled with the bytes (machine-readable, survives downloads).
+    const stampedBytes = await embedFaiceoffMetadata(finalImage.bytes, {
+      generationId,
+      brandId,
+      creatorId,
+      modelName:
+        process.env.NANO_BANANA_MODEL ??
+        process.env.GEMINI_MODEL ??
+        "gemini-3-pro-image-preview",
+    });
+
     let r2Url: string;
     try {
       await r2Client.send(
         new PutObjectCommand({
           Bucket: R2_BUCKET_NAME,
           Key: r2Key,
-          Body: finalImage.bytes,
+          Body: stampedBytes,
           ContentType: finalImage.mimeType,
         }),
       );
