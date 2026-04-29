@@ -152,14 +152,22 @@ export default function ApprovalsPage() {
     setActioningId(approvalId);
 
     try {
-      const res = await fetch(`/api/generations/${generationId}/approve`, {
+      // Hits the canonical approval endpoint which keyed by approval.id.
+      // The route handles spendWallet / releaseReserve / escrow_ledger /
+      // platform_revenue_ledger / license issuance internally.
+      const endpoint =
+        action === "approve"
+          ? `/api/approvals/${approvalId}/approve`
+          : `/api/approvals/${approvalId}/reject`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ...(action === "reject" && feedback ? { feedback } : {}),
-        }),
+        body:
+          action === "reject" && feedback
+            ? JSON.stringify({ feedback })
+            : "{}",
       });
+      void generationId; // unused now; route looks up gen via approval row
 
       if (res.ok) {
         // Remove from list with animation

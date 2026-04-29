@@ -26,7 +26,11 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve } from "@/lib/billing";
+import {
+  releaseReserve,
+  reserveWallet,
+  deductCredit,
+} from "@/lib/billing";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
@@ -198,6 +202,58 @@ export async function runGeneration(generationId: string): Promise<void> {
   const creatorId = claimed.creator_id as string;
   const costPaise = (claimed.cost_paise as number) ?? 0;
   const brief = claimed.structured_brief as Record<string, unknown>;
+
+  // ── 1b. Charge brand: -1 credit + reserve wallet (if cost > 0) ───────────
+  // For free retries (cost_paise=0), we still deduct 1 credit but skip the
+  // wallet reserve. For first-of-its-kind retries (is_free_retry=true on the
+  // row), we skip both — those are truly free.
+  let creditDebited = false;
+  let walletReserved = false;
+  try {
+    // Read the gen row to know if this is a free retry
+    const { data: meta } = await admin
+      .from("generations")
+      .select("is_free_retry, retry_count")
+      .eq("id", generationId)
+      .maybeSingle();
+    const isFreeRetry =
+      Boolean(meta?.is_free_retry) && (meta?.retry_count as number) > 0;
+
+    if (!isFreeRetry) {
+      await deductCredit({ brandId, generationId });
+      creditDebited = true;
+    }
+
+    if (costPaise > 0) {
+      await reserveWallet({
+        brandId,
+        amountPaise: costPaise,
+        generationId,
+      });
+      walletReserved = true;
+    }
+  } catch (billingErr) {
+    const msg =
+      billingErr instanceof Error ? billingErr.message : String(billingErr);
+    console.error(
+      `[run-generation] billing pre-charge failed for gen=${generationId}: ${msg}`,
+    );
+    // Roll back the credit if we managed to debit it before the wallet
+    // reserve failed (insufficient funds, etc.).
+    if (creditDebited) {
+      await rollbackCreditSafe(admin, brandId, generationId);
+    }
+    Sentry.captureException(billingErr, {
+      tags: { route: "run-generation", phase: "pre_charge" },
+      extra: { generation_id: generationId, brand_id: brandId },
+    });
+    await admin
+      .from("generations")
+      .update({ status: "failed" })
+      .eq("id", generationId);
+    return;
+  }
+  void walletReserved; // marker for failure-path readers
 
   try {
     // ── 2. Pick + fetch face refs ───────────────────────────────────────────

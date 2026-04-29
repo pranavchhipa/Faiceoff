@@ -66,18 +66,22 @@ export async function GET() {
     .filter((id): id is string => Boolean(id));
 
   // 3. Bulk-fetch generations
+  // NOTE: Migration 00025 renamed campaign_id → collab_session_id and
+  // campaigns → collab_sessions. Updated everywhere accordingly.
   type Gen = {
     id: string;
     assembled_prompt: string | null;
     image_url: string | null;
     structured_brief: Record<string, unknown> | null;
-    campaign_id: string;
+    collab_session_id: string | null;
   };
   const gensById: Record<string, Gen> = {};
   if (generationIds.length > 0) {
     const { data: gens } = await admin
       .from("generations")
-      .select("id, assembled_prompt, image_url, structured_brief, campaign_id")
+      .select(
+        "id, assembled_prompt, image_url, structured_brief, collab_session_id",
+      )
       .in("id", generationIds);
 
     (gens ?? []).forEach((g) => {
@@ -87,36 +91,38 @@ export async function GET() {
         image_url: g.image_url,
         structured_brief:
           (g.structured_brief as Record<string, unknown> | null) ?? null,
-        campaign_id: g.campaign_id,
+        collab_session_id: g.collab_session_id ?? null,
       };
     });
   }
 
-  // 4. Bulk-fetch campaigns referenced by these generations
-  const campaignIds = Array.from(
+  // 4. Bulk-fetch sessions referenced by these generations
+  const sessionIds = Array.from(
     new Set(
       Object.values(gensById)
-        .map((g) => g.campaign_id)
-        .filter((id): id is string => Boolean(id))
-    )
+        .map((g) => g.collab_session_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
 
-  const campaignsById: Record<string, { id: string; name: string }> = {};
-  if (campaignIds.length > 0) {
-    const { data: campaigns } = await admin
-      .from("campaigns")
+  const sessionsById: Record<string, { id: string; name: string }> = {};
+  if (sessionIds.length > 0) {
+    const { data: sessions } = await admin
+      .from("collab_sessions")
       .select("id, name")
-      .in("id", campaignIds);
+      .in("id", sessionIds);
 
-    (campaigns ?? []).forEach((c) => {
-      campaignsById[c.id] = c;
+    (sessions ?? []).forEach((c) => {
+      sessionsById[c.id] = c;
     });
   }
 
   // 5. Shape the response — match the page's ApprovalItem type
   const approvals = rows.map((row) => {
     const gen = row.generation_id ? gensById[row.generation_id] : undefined;
-    const campaign = gen?.campaign_id ? campaignsById[gen.campaign_id] : null;
+    const campaign = gen?.collab_session_id
+      ? sessionsById[gen.collab_session_id]
+      : null;
 
     return {
       id: row.id,

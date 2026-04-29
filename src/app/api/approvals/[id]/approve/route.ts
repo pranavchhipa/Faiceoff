@@ -72,6 +72,10 @@ export async function POST(
   const creatorId = creator.id as string;
 
   // ── 2b. Fetch approval + join generation ───────────────────────────────────
+  // NOTE: Migration 00025 renamed `campaigns` → `collab_sessions` and
+  // `generations.campaign_id` → `generations.collab_session_id`. We also
+  // can read brand_id / creator_id directly off `generations` (denormalised
+  // there for exactly this kind of fast permission check).
   const { data: approval, error: approvalError } = await admin
     .from("approvals")
     .select(
@@ -81,14 +85,12 @@ export async function POST(
       generation_id,
       generations!approvals_generation_id_fkey (
         id,
-        campaign_id,
+        collab_session_id,
+        brand_id,
+        creator_id,
         status,
         cost_paise,
-        structured_brief,
-        campaigns!generations_campaign_id_fkey (
-          brand_id,
-          creator_id
-        )
+        structured_brief
       )
     `,
     )
@@ -104,17 +106,17 @@ export async function POST(
     return NextResponse.json({ error: "approval_not_found" }, { status: 404 });
   }
 
-  const gen = (approval.generations ?? approval["generations!approvals_generation_id_fkey"]) as {
-    id: string;
-    campaign_id: string;
-    status: string;
-    cost_paise: number;
-    structured_brief: Record<string, unknown> | null;
-    campaigns: {
-      brand_id: string;
-      creator_id: string;
-    } | null;
-  } | null;
+  const gen = approval.generations as
+    | {
+        id: string;
+        collab_session_id: string | null;
+        brand_id: string;
+        creator_id: string;
+        status: string;
+        cost_paise: number;
+        structured_brief: Record<string, unknown> | null;
+      }
+    | null;
 
   if (!gen) {
     return NextResponse.json(
@@ -124,15 +126,11 @@ export async function POST(
   }
 
   // ── 2c. Verify creator owns this generation ────────────────────────────────
-  const campaign = gen.campaigns;
-  if (!campaign || campaign.creator_id !== creatorId) {
-    return NextResponse.json(
-      { error: "forbidden" },
-      { status: 403 },
-    );
+  if (gen.creator_id !== creatorId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const brandId = campaign.brand_id;
+  const brandId = gen.brand_id;
   const generationId = gen.id;
   const costPaise = gen.cost_paise ?? 0;
 
