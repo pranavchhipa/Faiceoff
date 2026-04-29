@@ -30,18 +30,31 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const admin = createAdminClient() as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin2 = createAdminClient() as any;
 
-  // Generations that have been in 'processing' for > 5 minutes
+  // Generations stuck in any in-flight pipeline status for > 5 minutes.
+  // 'processing' was the legacy status name; current statuses are
+  // generating / compliance_check / output_check (per migration 00009).
+  // Including all so admin can triage anywhere the pipeline got stuck.
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const STUCK_STATUSES = [
+    "generating",
+    "compliance_check",
+    "output_check",
+    "processing",
+    "draft",
+  ];
 
-  const { data, error } = await admin
+  const { data, error } = await admin2
     .from("generations")
-    .select("*")
-    .eq("status", "processing")
+    .select(
+      "id, status, brand_id, creator_id, cost_paise, created_at, updated_at, image_url, structured_brief",
+    )
+    .in("status", STUCK_STATUSES)
     .lt("created_at", fiveMinutesAgo)
     .order("created_at", { ascending: true })
-    .limit(50);
+    .limit(100);
 
   if (error) {
     console.error("[admin/stuck-gens] GET error:", error);
