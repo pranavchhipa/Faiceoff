@@ -18,12 +18,13 @@
 // No escrow. No license. No PDF.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { releaseReserve } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
+import { sendBrandRejected } from "@/lib/email/transactional";
 
 // ── Inline Zod schema ─────────────────────────────────────────────────────────
 
@@ -216,6 +217,51 @@ export async function POST(
     },
     user.id,
   );
+
+  // Email brand about rejection + refund (fire-and-forget)
+  after(async () => {
+    try {
+      // Re-fetch brief + brand details for email body
+      const { data: full } = await admin
+        .from("generations")
+        .select(
+          `
+          structured_brief,
+          brands!generations_brand_id_fkey ( company_name, user_id )
+          `,
+        )
+        .eq("id", generationId)
+        .maybeSingle();
+      const { data: creatorUser } = await admin
+        .from("users")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      const brand = full?.brands as
+        | { company_name?: string; user_id?: string }
+        | null;
+      if (!brand?.user_id) return;
+      const { data: bu } = await admin
+        .from("users")
+        .select("email")
+        .eq("id", brand.user_id)
+        .maybeSingle();
+      if (!bu?.email) return;
+      const productName =
+        (full?.structured_brief as { product_name?: string } | null)
+          ?.product_name ?? "your product";
+      await sendBrandRejected({
+        to: bu.email,
+        brandName: brand.company_name ?? "Brand",
+        creatorName: creatorUser?.display_name ?? "the creator",
+        productName,
+        feedback: feedback ?? null,
+        refundPaise: costPaise,
+      });
+    } catch (mailErr) {
+      console.warn("[approvals/reject] email notify failed", mailErr);
+    }
+  });
 
   // ── 8. Return ──────────────────────────────────────────────────────────────
   return NextResponse.json({ status: "rejected" }, { status: 200 });

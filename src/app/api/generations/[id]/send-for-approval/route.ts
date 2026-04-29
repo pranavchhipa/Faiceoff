@@ -9,10 +9,11 @@
  * Idempotent — second call sees status != ready_for_brand_review and exits.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendCreatorApprovalRequest } from "@/lib/email/transactional";
 
 const APPROVAL_EXPIRY_MS = 48 * 60 * 60 * 1000;
 
@@ -109,6 +110,54 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  // ── Notify creator via email (fire-and-forget after response) ──
+  after(async () => {
+    try {
+      // Lookup creator email + display name + brand name + product
+      const { data: meta } = await admin
+        .from("generations")
+        .select(
+          `
+          structured_brief,
+          creators!generations_creator_id_fkey ( user_id ),
+          brands!generations_brand_id_fkey ( company_name )
+          `,
+        )
+        .eq("id", id)
+        .maybeSingle();
+
+      const creatorUserId = (
+        meta?.creators as { user_id?: string } | null
+      )?.user_id;
+      const brandName =
+        (meta?.brands as { company_name?: string } | null)?.company_name ??
+        "A brand";
+      const productName =
+        (meta?.structured_brief as { product_name?: string } | null)
+          ?.product_name ?? "a product";
+
+      if (!creatorUserId) return;
+
+      const { data: cu } = await admin
+        .from("users")
+        .select("email, display_name")
+        .eq("id", creatorUserId)
+        .maybeSingle();
+      if (!cu?.email) return;
+
+      await sendCreatorApprovalRequest({
+        to: cu.email,
+        creatorName: cu.display_name ?? "creator",
+        brandName,
+        productName,
+        generationId: id,
+        expiresInHours: 48,
+      });
+    } catch (mailErr) {
+      console.warn("[send-for-approval] email notify failed", mailErr);
+    }
+  });
 
   return NextResponse.json({
     ok: true,

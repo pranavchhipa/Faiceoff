@@ -19,13 +19,14 @@
 // IDEMPOTENT: if approval is already terminal, return 200 with current status.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { spendWallet } from "@/lib/billing";
 import { issueLicense } from "@/lib/licenses";
 import { PLATFORM_COMMISSION_RATE, GST_ON_COMMISSION_RATE } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
+import { sendBrandApproved } from "@/lib/email/transactional";
 
 // ── Admin client helper ───────────────────────────────────────────────────────
 
@@ -270,6 +271,41 @@ export async function POST(
     },
     user.id,
   );
+
+  // Email brand the good news (fire-and-forget)
+  after(async () => {
+    try {
+      const { data: brand } = await admin
+        .from("brands")
+        .select("company_name, user_id")
+        .eq("id", brandId)
+        .maybeSingle();
+      const { data: creatorUser } = await admin
+        .from("users")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!brand?.user_id) return;
+      const { data: bu } = await admin
+        .from("users")
+        .select("email")
+        .eq("id", brand.user_id)
+        .maybeSingle();
+      if (!bu?.email) return;
+      const productName =
+        (gen.structured_brief as { product_name?: string } | null)
+          ?.product_name ?? "your product";
+      await sendBrandApproved({
+        to: bu.email,
+        brandName: brand.company_name ?? "Brand",
+        creatorName: creatorUser?.display_name ?? "the creator",
+        productName,
+        generationId,
+      });
+    } catch (mailErr) {
+      console.warn("[approvals/approve] email notify failed", mailErr);
+    }
+  });
 
   // ── 5. Return ──────────────────────────────────────────────────────────────
   return NextResponse.json(
