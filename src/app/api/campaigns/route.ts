@@ -42,7 +42,7 @@ export async function GET() {
 
   // ── Fetch campaigns scoped to role ───────────────────────────────
   let campaignsQuery = admin
-    .from("campaigns")
+    .from("collab_sessions")
     .select(
       `id, name, description, status, generation_count, max_generations,
        budget_paise, spent_paise, created_at, creator_id, brand_id`
@@ -82,8 +82,8 @@ export async function GET() {
     // earnings/approval lookups.
     admin
       .from("generations")
-      .select("id, campaign_id, image_url, created_at, status")
-      .in("campaign_id", campaignIds)
+      .select("id, collab_session_id, image_url, created_at, status")
+      .in("collab_session_id", campaignIds)
       .order("created_at", { ascending: false }),
   ]);
 
@@ -117,17 +117,17 @@ export async function GET() {
   // them for creators right now).
   for (const gen of genRows ?? []) {
     if (!gen.image_url) continue;
-    const list = thumbsByCampaign.get(gen.campaign_id) ?? [];
+    const list = thumbsByCampaign.get(gen.collab_session_id) ?? [];
     if (list.length < 4) {
       list.push(gen.image_url);
-      thumbsByCampaign.set(gen.campaign_id, list);
+      thumbsByCampaign.set(gen.collab_session_id, list);
     }
   }
 
   if (isCreator) {
     const genIds = (genRows ?? []).map((g) => g.id);
     const genToCampaign = new Map(
-      (genRows ?? []).map((g) => [g.id, g.campaign_id])
+      (genRows ?? []).map((g) => [g.id, g.collab_session_id])
     );
 
     if (genIds.length > 0) {
@@ -204,8 +204,8 @@ export async function GET() {
   const genCountByCampaign = new Map<string, number>();
   for (const gen of genRows ?? []) {
     genCountByCampaign.set(
-      gen.campaign_id,
-      (genCountByCampaign.get(gen.campaign_id) ?? 0) + 1
+      gen.collab_session_id,
+      (genCountByCampaign.get(gen.collab_session_id) ?? 0) + 1
     );
   }
 

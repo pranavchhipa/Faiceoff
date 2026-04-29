@@ -34,6 +34,7 @@ import {
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
+import { runComplianceCheck } from "@/lib/compliance";
 import {
   generateImage,
   refineProductInImage,
@@ -256,6 +257,54 @@ export async function runGeneration(generationId: string): Promise<void> {
   void walletReserved; // marker for failure-path readers
 
   try {
+    // ── 1c. Compliance check ─────────────────────────────────────────────────
+    // Hard-block briefs that trip the creator's blocked-categories or
+    // semantic vector match. Fail-open on transient errors (Sentry'd).
+    try {
+      const compliance = await runComplianceCheck({
+        creatorId,
+        structuredBrief: brief as {
+          product?: string;
+          scene?: string;
+          mood?: string;
+          aesthetic?: string;
+        },
+      });
+      if (!compliance.passed) {
+        console.warn(
+          `[run-generation] gen=${generationId} blocked at compliance layer ${compliance.layer}: ${compliance.reason}`,
+        );
+        await admin
+          .from("generations")
+          .update({
+            status: "failed",
+            compliance_result: compliance,
+          })
+          .eq("id", generationId);
+        // Refund — the brief was rejected, not a fault of the AI
+        if (costPaise > 0) {
+          await releaseReserve({
+            brandId,
+            amountPaise: costPaise,
+            generationId,
+          }).catch(() => {});
+        }
+        await rollbackCreditSafe(admin, brandId, generationId);
+        return;
+      }
+    } catch (complianceErr) {
+      // Fail-open: log and proceed. Compliance is best-effort here; brand
+      // review gate + Hive safety check still catch issues downstream.
+      console.warn(
+        `[run-generation] compliance check threw, proceeding: gen=${generationId}`,
+        complianceErr,
+      );
+      Sentry.captureException(complianceErr, {
+        tags: { route: "run-generation", phase: "compliance" },
+        extra: { generation_id: generationId },
+      });
+    }
+
     // ── 2. Pick + fetch face refs ───────────────────────────────────────────
     const facePaths = await pickFaceRefStoragePaths(admin, creatorId);
     const faceRefs: ImageInput[] = [];

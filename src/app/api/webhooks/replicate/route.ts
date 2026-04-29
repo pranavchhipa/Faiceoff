@@ -194,7 +194,7 @@ export async function POST(request: Request) {
   const { data: generation, error: genFetchError } = await admin
     .from("generations")
     .select(
-      "id, status, brand_id, creator_id, campaign_id, cost_paise, replicate_prediction_id",
+      "id, status, brand_id, creator_id, collab_session_id, cost_paise, replicate_prediction_id",
     )
     .eq("id", genId)
     .maybeSingle();

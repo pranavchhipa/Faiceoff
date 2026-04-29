@@ -89,7 +89,7 @@ export async function GET() {
         // Campaigns
         Promise.resolve(
           admin
-            .from("campaigns")
+            .from("collab_sessions")
             .select("id, status")
             .eq("creator_id", creator.id),
         )
@@ -157,7 +157,7 @@ export async function GET() {
       const [campaignsResult, walletResult] = await Promise.all([
         Promise.resolve(
           admin
-            .from("campaigns")
+            .from("collab_sessions")
             .select("id, status, generation_count")
             .eq("brand_id", brand.id),
         )

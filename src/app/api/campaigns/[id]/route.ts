@@ -28,7 +28,7 @@ export async function GET(
 
   // Fetch campaign with related data
   const { data: campaign, error: campError } = await admin
-    .from("campaigns")
+    .from("collab_sessions")
     .select(
       `
       id, name, description, status, budget_paise, spent_paise,
@@ -93,7 +93,7 @@ export async function GET(
     .select(
       "id, status, assembled_prompt, structured_brief, image_url, cost_paise, created_at, replicate_prediction_id"
     )
-    .eq("campaign_id", id)
+    .eq("collab_session_id", id)
     .order("created_at", { ascending: false });
 
   const generationIds = (generations ?? []).map((g) => g.id);

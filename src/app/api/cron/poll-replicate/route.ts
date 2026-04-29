@@ -36,7 +36,7 @@ interface StuckGenRow {
   brand_id: string;
   cost_paise: number;
   replicate_prediction_id: string;
-  campaign_id: string;
+  collab_session_id: string;
   creator_id?: string;
 }
 
@@ -174,11 +174,11 @@ async function finalizeGeneration(
 
   // Get creator_id from campaigns if not on gen
   let creatorId = gen.creator_id;
-  if (!creatorId && gen.campaign_id) {
+  if (!creatorId && gen.collab_session_id) {
     const { data: campaign } = await admin
-      .from("campaigns")
+      .from("collab_sessions")
       .select("creator_id")
-      .eq("id", gen.campaign_id)
+      .eq("id", gen.collab_session_id)
       .maybeSingle();
     creatorId = campaign?.creator_id;
   }
@@ -239,7 +239,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await admin
     .from("generations")
-    .select("id, brand_id, cost_paise, replicate_prediction_id, campaign_id, creator_id")
+    .select("id, brand_id, cost_paise, replicate_prediction_id, collab_session_id, creator_id")
     .eq("status", "processing")
     .lt("created_at", fiveMinutesAgo)
     .not("replicate_prediction_id", "is", null)

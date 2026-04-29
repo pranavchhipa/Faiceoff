@@ -40,7 +40,7 @@ export async function POST(
   // Fetch the generation to confirm it exists and get creator_id
   const { data: gen, error: genErr } = await admin
     .from("generations")
-    .select("id, creator_id, campaign_id, status, image_url")
+    .select("id, creator_id, collab_session_id, status, image_url")
     .eq("id", generationId)
     .maybeSingle();
 

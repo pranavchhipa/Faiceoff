@@ -112,7 +112,7 @@ export async function GET() {
   const campaignsLast30d = new Map<string, number>();
   if (creatorIds.length > 0) {
     const { data: campaignRows } = await admin
-      .from("campaigns")
+      .from("collab_sessions")
       .select("creator_id, created_at")
       .in("creator_id", creatorIds)
       .gte("created_at", thirtyDaysAgo);
