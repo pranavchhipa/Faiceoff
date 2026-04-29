@@ -25,7 +25,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // ── Resolve role from DB (source of truth) ───────────────────────
   const [{ data: brandRow }, { data: creatorRow }] = await Promise.all([

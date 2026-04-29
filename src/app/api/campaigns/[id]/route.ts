@@ -24,7 +24,10 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  // Stale Supabase types — collab_sessions (renamed from campaigns in 00025)
+  // isn't in the generated types yet. Cast at boundary.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // Fetch campaign with related data
   const { data: campaign, error: campError } = await admin

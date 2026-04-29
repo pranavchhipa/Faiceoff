@@ -15,7 +15,8 @@ export async function GET() {
     }
 
     const role = user.user_metadata?.role ?? "creator";
-    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
 
     if (role === "creator") {
       // Get creator profile first (needed for other queries)
