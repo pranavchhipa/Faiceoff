@@ -21,7 +21,10 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  // Cast to any — generated Supabase types are stale (haven't been
+  // regenerated after migration 00025 that added collab_session_id).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // 1. Resolve creator.id for this user
   const { data: creator, error: creatorErr } = await admin
