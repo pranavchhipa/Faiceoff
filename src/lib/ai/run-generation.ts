@@ -305,8 +305,11 @@ export async function runGeneration(generationId: string): Promise<void> {
     // Failure mode: if refinement throws, fall back to stage-1 output. The
     // brand still gets a usable image; we just lose the product-fidelity
     // boost. Telemetry is logged so we can see the refinement success rate.
+    // Default OFF on Pro: single Pro pass already produces ~95% product
+    // fidelity, so the second refinement call mostly burns budget without
+    // a quality bump. Set ENABLE_PRODUCT_REFINEMENT=true to force it on.
     const refinementEnabled =
-      (process.env.ENABLE_PRODUCT_REFINEMENT ?? "true") !== "false";
+      (process.env.ENABLE_PRODUCT_REFINEMENT ?? "false") === "true";
 
     let finalImage: { bytes: Uint8Array; mimeType: string } = {
       bytes: geminiResult.bytes,

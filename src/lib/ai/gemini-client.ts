@@ -25,7 +25,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 //   1. NANO_BANANA_MODEL  (existing Vercel env from Apr 21)
 //   2. GEMINI_MODEL       (new alias for clarity)
 //   3. hardcoded default
-const DEFAULT_MODEL = "gemini-3.1-flash-image-preview";
+const DEFAULT_MODEL = "gemini-3-pro-image-preview";
 function getModel(): string {
   return (
     process.env.NANO_BANANA_MODEL ??
