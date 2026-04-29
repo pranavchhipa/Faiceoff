@@ -231,6 +231,25 @@ export async function POST(
     );
   }
 
+  // ── 4e2. Auto-create chat conversation (idempotent upsert) ─────────────
+  // First approval between this brand and creator unlocks DM. Done as
+  // upsert by unique (brand_id, creator_id) so subsequent approvals
+  // don't create duplicates.
+  try {
+    await admin
+      .from("conversations")
+      .upsert(
+        { brand_id: brandId, creator_id: creatorId },
+        { onConflict: "brand_id,creator_id", ignoreDuplicates: true },
+      );
+  } catch (chatErr) {
+    // Non-fatal — chat unlock can be done lazily on first POST too
+    console.warn(
+      "[approvals/approve] conversation upsert failed",
+      chatErr,
+    );
+  }
+
   // ── 4f. Issue license (includes PDF gen + R2 upload) ─────────────────────
   const brief = gen.structured_brief ?? {};
   const scope = (brief.scope as string) ?? "digital";

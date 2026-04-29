@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -74,6 +75,74 @@ export async function POST(request: Request) {
     .from("creators")
     .update({ onboarding_step: "pricing" })
     .eq("user_id", user.id);
+
+  // ── Generate face embeddings in the background ──
+  // Fires after the response so the creator isn't blocked. We embed the
+  // primary photo only — that's the anchor used by the similarity gate
+  // at generation time. Best-effort: if Replicate is down, the row stays
+  // empty and the gate falls open until the next photo upload.
+  after(async () => {
+    try {
+      const primaryPath = storage_paths[0];
+      if (!primaryPath) return;
+
+      // Sign a 10-min URL so Replicate can fetch the photo from Supabase
+      // Storage (private bucket).
+      const { data: signed } = await admin.storage
+        .from("reference-photos")
+        .createSignedUrl(primaryPath, 600);
+      const photoUrl = signed?.signedUrl;
+      if (!photoUrl) return;
+
+      const token = process.env.REPLICATE_API_TOKEN;
+      if (!token) {
+        console.warn("[save-photos] REPLICATE_API_TOKEN missing, skipping embed");
+        return;
+      }
+
+      // ArcFace embedding via Replicate. Stores 512-dim vector on the
+      // creator row; the face-similarity gate compares generated outputs
+      // against this at gen time.
+      const res = await fetch("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "wait=30",
+        },
+        body: JSON.stringify({
+          version: process.env.FACE_EMBED_MODEL_VERSION ?? "",
+          input: { image: photoUrl },
+        }),
+      });
+
+      if (!res.ok) {
+        console.warn(
+          "[save-photos] face embed failed, will retry later",
+          res.status,
+        );
+        return;
+      }
+
+      const json = await res.json();
+      const embedding =
+        Array.isArray(json?.output) ? json.output : json?.output?.embedding;
+      if (!Array.isArray(embedding) || embedding.length === 0) return;
+
+      // Persist on the creator's primary reference photo row
+      await admin
+        .from("creator_reference_photos")
+        .update({ face_embedding: embedding })
+        .eq("creator_id", creator.id)
+        .eq("is_primary", true);
+    } catch (err) {
+      console.warn("[save-photos] face embed background job failed", err);
+      Sentry.captureException(err, {
+        tags: { route: "onboarding/save-photos", phase: "face_embed" },
+        extra: { creator_id: creator.id },
+      });
+    }
+  });
 
   return NextResponse.json({ success: true });
 }
