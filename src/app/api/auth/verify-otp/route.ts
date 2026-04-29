@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/redis/rate-limiter";
 
 /**
  * POST /api/auth/verify-otp
@@ -25,6 +26,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Email and verification code are required" },
       { status: 400 }
+    );
+  }
+
+  // ── Rate limit OTP verification: 10 attempts / 5 min per email ──
+  // Prevents brute-forcing the 8-digit code (10^8 = 100M, but with 10/5min
+  // it would take >5,000 years on average to crack a single email).
+  const rl = await rateLimit(`verify-otp:${email}`, 10, "5 m");
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again in a few minutes." },
+      { status: 429 },
     );
   }
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runGenerationsBatch } from "@/lib/ai/run-generation";
 import { StructuredBriefSchema } from "@/domains/generation/structured-brief";
+import { rateLimit } from "@/lib/redis/rate-limiter";
 import type { Json } from "@/types/supabase";
 
 export async function POST(request: Request) {
@@ -17,6 +18,16 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // --- Rate limit: 5 campaigns per user per minute ---
+  // Stops accidental click-spam and a malicious user from burning the wallet.
+  const rl = await rateLimit(`campaigns-create:${user.id}`, 5, "1 m");
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many campaign creates. Slow down a bit." },
+      { status: 429 },
+    );
   }
 
   // --- Parse body ---
