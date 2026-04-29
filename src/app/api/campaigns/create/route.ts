@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { runGenerationsBatch } from "@/lib/ai/run-generation";
 import { StructuredBriefSchema } from "@/domains/generation/structured-brief";
 import { rateLimit } from "@/lib/redis/rate-limiter";
+import { track } from "@/lib/observability/analytics";
 import type { Json } from "@/types/supabase";
 
 export async function POST(request: Request) {
@@ -320,6 +321,19 @@ export async function POST(request: Request) {
         `${generation_ids.length} draft generations will need manual replay.`,
     );
   }
+
+  track(
+    "campaign_created",
+    {
+      campaign_id,
+      brand_id: brand.id,
+      creator_id: creator.id,
+      count,
+      budget_paise,
+      category,
+    },
+    user.id,
+  );
 
   return NextResponse.json({ campaign_id, generation_ids }, { status: 201 });
 }

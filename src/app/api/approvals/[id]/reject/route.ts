@@ -23,6 +23,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { releaseReserve } from "@/lib/billing";
+import { track } from "@/lib/observability/analytics";
 
 // ── Inline Zod schema ─────────────────────────────────────────────────────────
 
@@ -203,6 +204,18 @@ export async function POST(
       // Non-fatal — reconciliation can handle this; rejection is committed
     }
   }
+
+  track(
+    "generation_rejected",
+    {
+      generation_id: generationId,
+      brand_id: brandId,
+      creator_id: creatorId,
+      cost_paise: costPaise,
+      has_feedback: Boolean(feedback),
+    },
+    user.id,
+  );
 
   // ── 8. Return ──────────────────────────────────────────────────────────────
   return NextResponse.json({ status: "rejected" }, { status: 200 });

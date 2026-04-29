@@ -25,6 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { spendWallet } from "@/lib/billing";
 import { issueLicense } from "@/lib/licenses";
 import { PLATFORM_COMMISSION_RATE, GST_ON_COMMISSION_RATE } from "@/lib/billing";
+import { track } from "@/lib/observability/analytics";
 
 // ── Admin client helper ───────────────────────────────────────────────────────
 
@@ -255,6 +256,20 @@ export async function POST(
     console.error("[approvals/approve] issueLicense failed", err);
     // Non-fatal — approval is committed; license can be re-issued by admin
   }
+
+  track(
+    "generation_approved",
+    {
+      generation_id: generationId,
+      brand_id: brandId,
+      creator_id: creatorId,
+      cost_paise: costPaise,
+      creator_share_paise: creatorShare,
+      platform_share_paise: commission,
+      license_id: licenseId,
+    },
+    user.id,
+  );
 
   // ── 5. Return ──────────────────────────────────────────────────────────────
   return NextResponse.json(
