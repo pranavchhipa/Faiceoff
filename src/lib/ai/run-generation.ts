@@ -210,10 +210,15 @@ export async function runGeneration(generationId: string): Promise<void> {
   // For free retries (cost_paise=0), we still deduct 1 credit but skip the
   // wallet reserve. For first-of-its-kind retries (is_free_retry=true on the
   // row), we skip both — those are truly free.
-  let creditDebited = false;
-  let walletReserved = false;
+  // ── Billing pre-charge: best-effort, never block the pipeline ─────────────
+  // The billing RPCs (deduct_credit, reserve_wallet) live in Postgres and
+  // are still being finalised — schema mismatches between code and DB
+  // shouldn't block real users from generating images. We log + Sentry
+  // failures so ops can fix them, but the generation continues.
+  //
+  // Once billing schema is finalised + tested, flip these back to hard-fail
+  // by removing the inner try/catch blocks.
   try {
-    // Read the gen row to know if this is a free retry
     const { data: meta } = await admin
       .from("generations")
       .select("is_free_retry, retry_count")
@@ -223,66 +228,79 @@ export async function runGeneration(generationId: string): Promise<void> {
       Boolean(meta?.is_free_retry) && (meta?.retry_count as number) > 0;
 
     if (!isFreeRetry) {
-      const result = await deductCredit({ brandId, generationId });
-      creditDebited = true;
+      try {
+        const result = await deductCredit({ brandId, generationId });
 
-      // Low-credits warning email — fires once when balance crosses 5 going
-      // down. We use a soft anti-spam check: only mail if we just hit the
-      // threshold (newBalance <= 5 and previously > 5). Cheap; no schema
-      // change. Best-effort, never blocks the generation.
-      if (result.newBalance === 5 || result.newBalance === 1) {
-        try {
-          const { data: brandRow } = await admin
-            .from("brands")
-            .select("company_name, user_id")
-            .eq("id", brandId)
-            .maybeSingle();
-          if (brandRow?.user_id) {
-            const { data: usr } = await admin
-              .from("users")
-              .select("email")
-              .eq("id", brandRow.user_id)
+        // Low-credits warning email
+        if (result.newBalance === 5 || result.newBalance === 1) {
+          try {
+            const { data: brandRow } = await admin
+              .from("brands")
+              .select("company_name, user_id")
+              .eq("id", brandId)
               .maybeSingle();
-            if (usr?.email) {
-              await sendBrandLowCredits({
-                to: usr.email,
-                brandName: brandRow.company_name ?? "Brand",
-                creditsRemaining: result.newBalance,
-              });
+            if (brandRow?.user_id) {
+              const { data: usr } = await admin
+                .from("users")
+                .select("email")
+                .eq("id", brandRow.user_id)
+                .maybeSingle();
+              if (usr?.email) {
+                await sendBrandLowCredits({
+                  to: usr.email,
+                  brandName: brandRow.company_name ?? "Brand",
+                  creditsRemaining: result.newBalance,
+                });
+              }
             }
+          } catch (mailErr) {
+            console.warn("[run-generation] low-credits email failed", mailErr);
           }
-        } catch (mailErr) {
-          // Non-fatal
-          console.warn(
-            "[run-generation] low-credits email failed",
-            mailErr,
-          );
         }
+      } catch (creditErr) {
+        // Soft-fail — log, surface to Sentry, continue. Generation should
+        // not break because a billing RPC has a stale column reference.
+        console.warn(
+          `[run-generation] deductCredit soft-failed for gen=${generationId} — continuing without charge`,
+          creditErr,
+        );
+        Sentry.captureException(creditErr, {
+          tags: { route: "run-generation", phase: "deduct_credit" },
+          extra: { generation_id: generationId, brand_id: brandId },
+          level: "warning",
+        });
       }
     }
 
     if (costPaise > 0) {
-      await reserveWallet({
-        brandId,
-        amountPaise: costPaise,
-        generationId,
-      });
-      walletReserved = true;
+      try {
+        await reserveWallet({
+          brandId,
+          amountPaise: costPaise,
+          generationId,
+        });
+      } catch (walletErr) {
+        // Soft-fail — same reasoning as above.
+        console.warn(
+          `[run-generation] reserveWallet soft-failed for gen=${generationId} — continuing without reserve`,
+          walletErr,
+        );
+        Sentry.captureException(walletErr, {
+          tags: { route: "run-generation", phase: "reserve_wallet" },
+          extra: { generation_id: generationId, brand_id: brandId, costPaise },
+          level: "warning",
+        });
+      }
     }
-  } catch (billingErr) {
-    const msg =
-      billingErr instanceof Error ? billingErr.message : String(billingErr);
+  } catch (metaErr) {
+    // Failure to read the gen row itself is fatal — that's a real bug.
     console.error(
-      `[run-generation] billing pre-charge failed for gen=${generationId}: ${msg}`,
+      `[run-generation] meta lookup failed for gen=${generationId}`,
+      metaErr,
     );
-    // Roll back the credit if we managed to debit it before the wallet
-    // reserve failed (insufficient funds, etc.).
-    if (creditDebited) {
-      await rollbackCreditSafe(admin, brandId, generationId);
-    }
-    Sentry.captureException(billingErr, {
-      tags: { route: "run-generation", phase: "pre_charge" },
-      extra: { generation_id: generationId, brand_id: brandId },
+    Sentry.captureException(metaErr, {
+      tags: { route: "run-generation", phase: "billing_meta" },
+      extra: { generation_id: generationId },
     });
     await admin
       .from("generations")
@@ -290,7 +308,6 @@ export async function runGeneration(generationId: string): Promise<void> {
       .eq("id", generationId);
     return;
   }
-  void walletReserved; // marker for failure-path readers
 
   try {
     // ── 1c. Compliance check ─────────────────────────────────────────────────
