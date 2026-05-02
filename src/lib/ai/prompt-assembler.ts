@@ -155,7 +155,7 @@ Copy from the face references, pixel-for-pixel:
   • hairline, hair colour, hair texture, hair length, hair style
   • apparent age
 
-Skin texture MUST come FROM the reference photos — do NOT prescribe or invent pores, blemishes, oil, stubble, or wrinkles. If the reference skin is clear, keep it clear. If the reference skin has texture, preserve that exact texture. Do NOT airbrush, smooth, retouch, blur, or otherwise alter the face. Do NOT beautify. Do NOT "fix" asymmetries.
+Skin should look photorealistic — natural healthy glow, visible pores at close range, accurate skin tone matching the references. Premium realism is encouraged. Do NOT plastic-airbrush or doll-ify. Do NOT distort the face structure or change apparent age, ethnicity, or body type.
 
 Never substitute a generic model/stock face. Never blend the references into a different-looking person. Never flip apparent gender. Never age the subject up or down.
 
@@ -171,9 +171,9 @@ Given a structured brief, output ONE prompt string in this exact structure:
 
 "A candid [camera_type_phrase] of the specific person shown in the face reference photos — [subject_gender descriptor only if given] — actively [interaction_verb] [product_name] — [one-sentence physical-action detail per ACTION RULES below]. [One vivid scene sentence derived from the brief.]
 
-Technical: [camera_type_technical_line]. Deep focus — subject AND background both sharp, NO shallow depth of field, NO creamy bokeh, NO heavy cinematic blur (unless the selected camera is an editorial DSLR/mirrorless, in which case a shallow-but-not-creamy f/4 feel is allowed). Natural available light unless the brief specifies a studio setup. [camera_type_grain_line]. The moment should feel real, not posed for a campaign.
+Technical: [camera_type_technical_line]. Ultra-realistic 8K output, sharp detail across subject and background, cinematic natural lighting with accurate shadows and highlights. Realistic depth of field appropriate to the camera (smartphone = wide focus; DSLR = controlled bokeh OK). [camera_type_grain_line]. The image should look like a professional photograph that could pass as real — not flat snapshot, not AI-art aesthetic.
 
-Face and skin rendering: match the face reference photos exactly — copy the specific person's bone structure, skin tone, skin texture, pores, freckles, asymmetries, hairline, and every other identifying feature from those references. Do NOT retouch, airbrush, smooth, or beautify. Do NOT invent new skin features. If the reference face is clear, the output face is clear. If the reference face has texture, the output face has that same texture.
+Face and skin rendering: match the face reference photos for bone structure, skin tone, hairline, eye shape, and identity. Render skin photorealistically — natural healthy glow, visible pores at close range, subsurface scattering. Premium photography quality is the target — sharp, detailed, ultra-realistic 8K. Do NOT plastic-airbrush. Do NOT alter face structure or body proportions. The person should look like the best-photographed version of themselves, not a different person.
 
 Composition: [composition_hint from camera_framing]. Aspect: [aspect_ratio]. Background: sharp and contextual, not blurred.
 
@@ -258,7 +258,7 @@ OUTPUT RULES:
  * Image has no separate negative parameter.
  */
 export const NEGATIVE_PROMPT =
-  "plastic skin, waxy, cgi, 3d render, airbrushed, over-smooth, smooth skin, perfect skin, glossy, artificial, uncanny, porcelain skin, doll-like, symmetric face, flawless, salon-perfect hair, styled hair, no flyaways, professional studio lighting, cinematic bokeh, shallow depth of field, heavy background blur, blurred background, fashion magazine aesthetic, editorial photography, 85mm bokeh look, professional model shot, glamour lighting, retouched, distorted anatomy, extra fingers, six fingers, malformed hands, blurry face, low quality, jpeg artifacts, watermark, text overlay, logo mismatch, product text distortion, sealed bottle cap held near face, closed container posed near mouth, smelling the product without drinking, product dangling without contact, disengaged pose, static posing with product, product floating";
+  "plastic skin, waxy, cgi, 3d render, over-smoothed skin, doll-like, porcelain skin, uncanny valley, distorted anatomy, extra fingers, six fingers, malformed hands, deformed face, blurry face, low quality, low resolution, pixelated, jpeg artifacts, watermark, text overlay, logo mismatch, product text distortion, sealed bottle cap held near face, closed container posed near mouth, smelling the product without drinking, product dangling without contact, disengaged pose, static posing with product, product floating, different person, face swap of stranger, slimmed face, sharpened jaw, body slimming, heightened model proportions";
 
 interface StructuredBrief {
   subject?: string;

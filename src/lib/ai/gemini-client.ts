@@ -54,76 +54,71 @@ function getModel(): string {
  *   "do NOT slim" works better than positive phrasing because the bias is so
  *   strong that the model needs an explicit override.
  */
-function sanitizeBeautyTriggers(text: string): string {
-  // Soften the most aggressive beauty-bias triggers without destroying the
-  // brand's stylistic intent. We're not removing all camera/quality language
-  // (that would override the brand's choice) — we're just pulling the
-  // teeth on the words that most reliably activate fashion-magazine bias.
-  return text
-    .replace(/\bmagazine-quality\b/gi, "high-quality")
-    .replace(/\beditorial portrait\b/gi, "candid portrait")
-    .replace(/\bcommercial-shoot quality\b/gi, "natural realistic quality")
-    .replace(/\bglamour\b/gi, "natural")
-    .replace(/\bflawless\b/gi, "natural");
-}
-
 function buildAnchorPrompt(
   assembledPrompt: string,
   aspectRatio: string,
 ): string {
-  const cleanedBrief = sanitizeBeautyTriggers(assembledPrompt);
-
   return [
     // ── OPENING ANCHOR — IDENTITY ──────────────────────────────────────
     "IDENTITY LOCK (read carefully):",
     "The subject in the final image MUST be the exact same person shown in the first 3 reference images — not a similar-looking person, not an averaged or idealised version, not a model who resembles them.",
     "",
     "Preserve EXACTLY from the face references:",
-    "  • Face shape, including natural cheek fullness and jawline width — DO NOT slim, narrow, or sharpen the face",
-    "  • Body proportions, including shoulder width and natural frame — DO NOT make the body thinner or taller than reference",
-    "  • Skin texture, including pores, natural variation, and any blemishes — DO NOT airbrush, smooth, or retouch",
-    "  • Eye shape, eyebrow shape, lip shape, nose shape — copy from the references",
+    "  • Bone structure, face shape (cheek fullness, jawline width) — DO NOT slim, narrow, or sharpen",
+    "  • Body proportions (shoulder width, natural frame) — DO NOT make thinner or taller than reference",
+    "  • Eye shape, eyebrow shape, lip shape, nose shape, ears — copy from the references",
+    "  • Skin tone, undertone, freckles, moles, birthmarks — keep what's real",
     "  • Hairline, hair texture, hair length, hair colour",
+    "",
+    "Skin can have a natural healthy glow (this is photorealism, not documentary), but the face structure and body proportions stay TRUE to the reference. No 'fashion model' transformation.",
     "",
     // ── OPENING ANCHOR — PRODUCT ───────────────────────────────────────
     "PRODUCT LOCK (read carefully):",
-    "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Treat its packaging like a photograph you must reproduce — every detail copied pixel-for-pixel:",
+    "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Reproduce its packaging exactly:",
     "",
     "  • Brand wordmark / logo — exact spelling, exact font, exact placement, exact colour",
     "  • All text on the packaging — readable in the final image, character-for-character match",
     "  • Pack format (tube, jar, bottle, box, can, tin, sachet) — never swap formats",
-    "  • Pack silhouette and proportions — same width-to-height ratio",
-    "  • Cap / lid / closure colour and material",
-    "  • Body colour(s) of the packaging — exact hue, no substitutions",
+    "  • Pack silhouette, body colour, cap colour, material finish — exact match",
     "  • Any taglines, ingredient callouts, volume markings — all preserved",
     "",
-    "DO NOT invent generic-looking packaging. DO NOT paraphrase the brand name. DO NOT substitute a similar-category product. DO NOT blur or remove the brand text. If you cannot read the brand name clearly in your output, the product is wrong.",
+    "DO NOT invent generic packaging. DO NOT paraphrase the brand name. If you can't read the brand name clearly in your output, the product is wrong.",
     "",
     // ── CREATIVE BRIEF (sandwiched in middle) ──────────────────────────
     "─── SCENE & STYLE ───",
-    cleanedBrief,
+    assembledPrompt,
+    "",
+    // ── REALISM TARGET ─────────────────────────────────────────────────
+    "─── REALISM TARGET ───",
+    "Render quality: ultra-realistic, photorealistic, 8K, sharp detail, full-frame DSLR-grade. Cinematic natural lighting, accurate shadows and highlights, realistic depth of field. The image should look like a professional photograph that could pass as real, not like AI art and not like a flat snapshot.",
+    "",
+    "Skin: photorealistic — natural pores visible at close range, subtle subsurface scattering, realistic skin tone variation. Healthy and natural, never plastic, never airbrushed-flat.",
+    "",
+    "Hair: visible individual strands, natural fall, realistic frizz/movement where appropriate.",
+    "",
+    "Fabric: realistic weave, natural drape, accurate behaviour with body movement / wind / water.",
+    "",
+    "Environment: every element rendered with detail — leaves, raindrops, dust, reflections, ambient occlusion. Background is sharp and contextual, not blurred to hide laziness.",
     "",
     // ── CLOSING ANCHOR — IDENTITY (recency-weighted, MAX attention) ────
     "─── FINAL CHECK #1 — IDENTITY ───",
-    "Look at the face in the references one more time. The output face must:",
-    "  ✓ Have the SAME width, fullness, and shape as the references — not slimmer, not sharper",
+    "Look at the face references one more time. The output face must:",
+    "  ✓ Have the SAME width, fullness, and bone structure as the references — not slimmer, not sharper",
     "  ✓ Have the SAME body proportions — not thinner, not different frame",
-    "  ✓ Have the SAME skin (with all natural texture) — not smoothed, not airbrushed",
-    "  ✓ Look like another candid frame from the same person's same week",
+    "  ✓ Be CLEARLY recognisable as the same person — anyone who knows them should say 'that's her'",
     "",
-    "If your output makes the person look more conventionally attractive than the references, you have failed the assignment. Match what is real, not what is idealised.",
+    "Premium realism is allowed and encouraged. Identity transformation is NOT. Make her look like the best photographed version of herself — not someone else.",
     "",
     // ── CLOSING ANCHOR — PRODUCT (final, max recency weight) ───────────
     "─── FINAL CHECK #2 — PRODUCT FIDELITY ───",
     "Look at the product reference image one more time. The product in your output must:",
     "  ✓ Have the SAME brand wordmark, in the SAME font, in the SAME position — clearly readable",
     "  ✓ Show ALL text from the original packaging — no missing labels, no blurred text, no invented words",
-    "  ✓ Match the exact pack format — never substitute (e.g. don't turn a tube into a jar, a bottle into a can)",
-    "  ✓ Use the exact same body colour, cap colour, and material finish",
+    "  ✓ Match the exact pack format and colours",
     "",
-    "If a viewer cannot read the brand name and product variant clearly in your output, the product is wrong. The packaging is a real commercial SKU — treat it like a logo trademark, not a creative suggestion.",
+    "If a viewer cannot read the brand name and product variant clearly, the product is wrong.",
     "",
-    `Output format: photorealistic image, ${aspectRatio} aspect ratio.`,
+    `Output: ultra-realistic photorealistic image, ${aspectRatio} aspect ratio, 8K detail, professional photography quality.`,
   ].join("\n");
 }
 
