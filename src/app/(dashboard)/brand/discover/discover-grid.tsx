@@ -269,9 +269,6 @@ export function DiscoverGrid({ creators }: Props) {
                     <span className="text-[var(--color-primary)]">
                       {formatINR(c.cheapest_paise)}
                     </span>
-                    <span className="ml-0.5 font-mono text-[10px] font-500 text-[var(--color-muted-foreground)]">
-                      /gen
-                    </span>
                   </span>
                 )}
               </div>

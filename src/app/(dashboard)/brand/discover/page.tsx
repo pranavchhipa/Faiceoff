@@ -27,8 +27,10 @@ async function loadCreators(): Promise<CreatorCard[]> {
       instagram_handle,
       user_id,
       kyc_status,
+      is_live,
       users!inner ( display_name ),
-      creator_categories ( category, price_per_generation_paise, is_active )
+      creator_categories ( category, is_active ),
+      creator_packages ( tier, price_paise, is_active )
     `,
     )
     .eq("is_active", true)
@@ -84,15 +86,16 @@ async function loadCreators(): Promise<CreatorCard[]> {
   return rows.map((c) => {
     const cats = (c.creator_categories ?? [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((cc: any) => cc.is_active) as Array<{
-      category: string;
-      price_per_generation_paise: number;
-    }>;
+      .filter((cc: any) => cc.is_active) as Array<{ category: string }>;
 
-    const cheapest =
-      cats.length > 0
-        ? Math.min(...cats.map((cc) => cc.price_per_generation_paise))
-        : null;
+    // Cheapest active package price (new pricing source)
+    const pkgs = (c.creator_packages ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((p: any) => p.is_active) as Array<{ tier: string; price_paise: number }>;
+
+    const cheapestPkg = pkgs.length > 0
+      ? Math.min(...pkgs.map((p) => p.price_paise))
+      : null;
 
     return {
       id: c.id,
@@ -101,7 +104,7 @@ async function loadCreators(): Promise<CreatorCard[]> {
       instagram_followers: c.instagram_followers ?? null,
       instagram_handle: c.instagram_handle ?? null,
       hero_photo_url: heroByCreator.get(c.id) ?? null,
-      cheapest_paise: cheapest,
+      cheapest_paise: cheapestPkg,
       category_count: cats.length,
       primary_category: cats[0]?.category ?? null,
       categories: cats.map((cc) => cc.category),
@@ -142,10 +145,10 @@ export default async function BrandDiscoverPage() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/brand/sessions"
+            href="/brand/collabs"
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
           >
-            My sessions
+            My collabs
             <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>
