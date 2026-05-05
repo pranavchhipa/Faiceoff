@@ -72,7 +72,7 @@ export default function ConsentPage() {
         throw new Error(body.error || "Failed to update step");
       }
 
-      router.push("/dashboard/onboarding/photos");
+      router.push("/dashboard/onboarding/complete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

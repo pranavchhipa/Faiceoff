@@ -86,5 +86,9 @@ export async function GET() {
     return NextResponse.json({ step: "identity" });
   }
 
-  return NextResponse.json({ step: creator.onboarding_step });
+  // Map legacy steps to complete so old creators don't get stuck
+  const step = creator.onboarding_step as string;
+  const normalizedStep = step === "lora_review" || step === "pricing" ? "complete" : step;
+
+  return NextResponse.json({ step: normalizedStep });
 }

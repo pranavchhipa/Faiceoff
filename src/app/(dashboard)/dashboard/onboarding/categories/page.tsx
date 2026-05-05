@@ -169,7 +169,7 @@ export default function CategoriesPage() {
         throw new Error(body.error || "Failed to save categories");
       }
 
-      router.push("/dashboard/onboarding/compliance");
+      router.push("/dashboard/onboarding/photos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

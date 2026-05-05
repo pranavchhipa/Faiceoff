@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { PartyPopper, ArrowRight, CheckCircle } from "lucide-react";
+import { PartyPopper, ArrowRight, CheckCircle, Tags } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
@@ -151,6 +151,28 @@ export default function CompletePage() {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Packages CTA banner */}
+        <div className="mx-auto mb-6 max-w-md rounded-2xl border border-[var(--color-primary)]/30 bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 px-5 py-4 text-left">
+          <div className="mb-1 flex items-center gap-2">
+            <Tags className="h-4 w-4 text-[var(--color-primary)]" />
+            <span className="font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary)]">
+              Next step
+            </span>
+          </div>
+          <p className="font-display text-[15px] font-800 text-[var(--color-foreground)]">
+            Set up your packages to go live
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">
+            You are not live yet. Create at least one Frame, Feature, or Cover package so brands can find and request you.
+          </p>
+          <button
+            onClick={() => router.push("/creator/packages")}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition hover:-translate-y-0.5"
+          >
+            Set up packages <ArrowRight className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {completeError && (

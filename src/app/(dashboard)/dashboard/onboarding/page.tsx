@@ -6,18 +6,16 @@ import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 
 const STEP_ROUTES: Record<string, string> = {
-  identity: "/dashboard/onboarding/identity",
-  instagram: "/dashboard/onboarding/instagram",
+  identity:   "/dashboard/onboarding/identity",
+  instagram:  "/dashboard/onboarding/instagram",
   categories: "/dashboard/onboarding/categories",
+  photos:     "/dashboard/onboarding/photos",     // moved before compliance
   compliance: "/dashboard/onboarding/compliance",
-  consent: "/dashboard/onboarding/consent",
-  photos: "/dashboard/onboarding/photos",
-  // Backward compat: legacy creators whose DB row still says `lora_review`
-  // land on the lora-review page which then auto-advances them to pricing.
-  // New sign-ups skip this step entirely — save-photos now writes "pricing".
-  lora_review: "/dashboard/onboarding/lora-review",
-  pricing: "/dashboard/onboarding/pricing",
-  complete: "/dashboard/onboarding/complete",
+  consent:    "/dashboard/onboarding/consent",
+  complete:   "/dashboard/onboarding/complete",
+  // Legacy: creators stuck on these steps get forwarded to complete
+  lora_review: "/dashboard/onboarding/complete",
+  pricing:     "/dashboard/onboarding/complete",
 };
 
 /**

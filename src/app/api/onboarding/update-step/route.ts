@@ -6,12 +6,13 @@ const VALID_STEPS = [
   "identity",
   "instagram",
   "categories",
+  "photos",
   "compliance",
   "consent",
-  "photos",
+  "complete",
+  // Legacy values — still accepted so existing creators aren't broken
   "lora_review",
   "pricing",
-  "complete",
 ] as const;
 
 export async function POST(request: Request) {
