@@ -1,0 +1,128 @@
+import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { runGenerationsBatch } from "@/lib/ai/run-generation";
+import { StructuredBriefSchema } from "@/domains/generation/structured-brief";
+import { rateLimit } from "@/lib/redis/rate-limiter";
+import { track } from "@/lib/observability/analytics";
+import type { Json } from "@/types/supabase";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = any;
+
+// POST /api/collabs/[id]/generate
+// Creates one generation for an active collab session, deducting 1 gen credit.
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: collabId } = await params;
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 10 generations per minute per user
+  const rl = await rateLimit(`collab-generate:${user.id}`, 10, "1 m");
+  if (!rl.success) return NextResponse.json({ error: "Too many requests. Slow down." }, { status: 429 });
+
+  const admin = createAdminClient() as Admin;
+
+  // Load session + verify brand ownership
+  const { data: session } = await admin
+    .from("collab_sessions")
+    .select("id, status, brand_id, creator_id, gen_credits_total, gen_credits_used, final_images_target, approved_count, name")
+    .eq("id", collabId)
+    .maybeSingle();
+
+  if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (session.status !== "active") return NextResponse.json({ error: "Collab is not active" }, { status: 400 });
+
+  const { data: brand } = await admin.from("brands").select("id").eq("user_id", user.id).maybeSingle();
+  if (!brand || brand.id !== session.brand_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // Check credits
+  const creditsLeft = (session.gen_credits_total ?? 0) - (session.gen_credits_used ?? 0);
+  if (creditsLeft <= 0) return NextResponse.json({ error: "No generation credits remaining for this collab" }, { status: 400 });
+
+  // Parse + validate brief
+  let rawBrief: unknown;
+  try {
+    const body = await request.json();
+    rawBrief = body.structured_brief;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = StructuredBriefSchema.safeParse(rawBrief);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid brief", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const brief = {
+    ...parsed.data,
+    _meta: { creator_id: session.creator_id },
+  };
+
+  // Fetch creator's active category for cost reference (cheapest active category)
+  const { data: categories } = await admin
+    .from("creator_categories")
+    .select("price_per_generation_paise")
+    .eq("creator_id", session.creator_id)
+    .eq("is_active", true)
+    .order("price_per_generation_paise", { ascending: true })
+    .limit(1);
+
+  const costPaise = categories?.[0]?.price_per_generation_paise ?? 0;
+
+  // Atomically claim one credit
+  const { error: creditErr } = await admin
+    .from("collab_sessions")
+    .update({ gen_credits_used: session.gen_credits_used + 1 })
+    .eq("id", collabId)
+    .eq("gen_credits_used", session.gen_credits_used); // optimistic concurrency
+
+  if (creditErr) return NextResponse.json({ error: "Credit reservation failed, please retry" }, { status: 409 });
+
+  // Insert draft generation
+  const { data: gen, error: genErr } = await admin
+    .from("generations")
+    .insert({
+      collab_session_id: collabId,
+      brand_id: session.brand_id,
+      creator_id: session.creator_id,
+      status: "draft",
+      structured_brief: brief as Json,
+      cost_paise: costPaise,
+      retry_count: 0,
+      pipeline_version: "v3",
+    })
+    .select("id")
+    .single();
+
+  if (genErr || !gen) {
+    // Rollback the credit decrement
+    await admin
+      .from("collab_sessions")
+      .update({ gen_credits_used: session.gen_credits_used })
+      .eq("id", collabId);
+    return NextResponse.json({ error: "Failed to create generation" }, { status: 500 });
+  }
+
+  track("generation_started", {
+    collab_session_id: collabId,
+    generation_id: gen.id,
+    credits_remaining: creditsLeft - 1,
+  }, user.id);
+
+  after(async () => {
+    try {
+      await runGenerationsBatch([gen.id]);
+    } catch (err) {
+      console.error("[collab-generate] runGenerationsBatch failed", err);
+    }
+  });
+
+  return NextResponse.json({ generation_id: gen.id }, { status: 201 });
+}
