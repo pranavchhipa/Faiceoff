@@ -175,6 +175,31 @@ export async function POST(
     // Approval row already flipped — log and continue; reconciliation will catch up
   }
 
+  // ── 4b2. Increment collab_sessions.approved_count + auto-complete ──────────
+  if (gen.collab_session_id) {
+    try {
+      const { data: sess } = await admin
+        .from("collab_sessions")
+        .select("approved_count, final_images_target, status")
+        .eq("id", gen.collab_session_id)
+        .maybeSingle();
+
+      if (sess) {
+        const newCount = (sess.approved_count ?? 0) + 1;
+        const isComplete = sess.final_images_target && newCount >= sess.final_images_target;
+        await admin
+          .from("collab_sessions")
+          .update({
+            approved_count: newCount,
+            ...(isComplete ? { status: "completed" } : {}),
+          })
+          .eq("id", gen.collab_session_id);
+      }
+    } catch (err) {
+      console.error("[approvals/approve] approved_count increment failed", err);
+    }
+  }
+
   // ── 4c. spendWallet ────────────────────────────────────────────────────────
   // Converts the pending reservation to spent on the brand's wallet.
   // credit stays permanently deducted; wallet reservation is converted to spend.
