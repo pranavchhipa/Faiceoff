@@ -1,0 +1,120 @@
+import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { track } from "@/lib/observability/analytics";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = any;
+
+// POST /api/collabs/[id]/confirm-payment
+// [id] = collab_request id. Called by:
+//   - Cashfree webhook (after payment success) via /api/cashfree/webhook
+//   - Manual brand reconciliation if webhook was missed
+// Effect: creates collab_session, sets request.status='paid', gen_credits unlocked
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: requestId } = await params;
+
+  // Can be called from webhook (no user session) or brand UI
+  // We validate identity via admin client + either auth or internal secret
+  const authHeader = request.headers.get("authorization") ?? "";
+  const isWebhook = authHeader === `Bearer ${process.env.CASHFREE_WEBHOOK_SECRET}` ||
+                    authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  let userId: string | null = null;
+  if (!isWebhook) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id ?? null;
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const admin = createAdminClient() as Admin;
+
+  const { data: req } = await admin
+    .from("collab_requests")
+    .select("id, status, brand_id, creator_id, package_id, package_tier, package_price_paise, final_images, gen_credits, usage_scope, license_duration_days, product_name, collab_session_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
+
+  // Idempotency: already paid
+  if (req.status === "paid" && req.collab_session_id) {
+    return NextResponse.json({ ok: true, collab_session_id: req.collab_session_id, status: "already_paid" });
+  }
+
+  if (req.status !== "accepted") {
+    return NextResponse.json({ error: `Cannot confirm payment for a ${req.status} request` }, { status: 400 });
+  }
+
+  // Brand authorization check (non-webhook)
+  if (!isWebhook && userId) {
+    const { data: brand } = await admin.from("brands").select("id").eq("user_id", userId).maybeSingle();
+    if (!brand || brand.id !== req.brand_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  // Create collab_session
+  const gen_credits_total = (req.gen_credits as number) || (req.final_images as number) * 3;
+
+  const { data: session, error: sessionErr } = await admin
+    .from("collab_sessions")
+    .insert({
+      brand_id: req.brand_id,
+      creator_id: req.creator_id,
+      name: req.product_name,
+      description: `${req.package_tier} package · ${req.final_images} images`,
+      budget_paise: req.package_price_paise,
+      max_generations: gen_credits_total,
+      status: "active",
+      // New package fields
+      collab_request_id: req.id,
+      package_id: req.package_id,
+      package_tier: req.package_tier,
+      package_price_paise: req.package_price_paise,
+      final_images_target: req.final_images,
+      gen_credits_total,
+      gen_credits_used: 0,
+      approved_count: 0,
+      usage_scope: req.usage_scope,
+    })
+    .select("id")
+    .single();
+
+  if (sessionErr || !session) {
+    console.error("[confirm-payment] session insert", sessionErr);
+    return NextResponse.json({ error: "Failed to create collab session" }, { status: 500 });
+  }
+
+  // Update request to paid
+  await admin
+    .from("collab_requests")
+    .update({ status: "paid", paid_at: new Date().toISOString(), collab_session_id: session.id })
+    .eq("id", requestId);
+
+  track("collab_payment_confirmed", {
+    request_id: requestId,
+    collab_session_id: session.id,
+    brand_id: req.brand_id,
+    creator_id: req.creator_id,
+    amount_paise: req.package_price_paise,
+    package_tier: req.package_tier,
+  }, userId ?? req.brand_id);
+
+  // Fire-and-forget: notify creator
+  after(async () => {
+    try {
+      console.log(`[confirm-payment] notify creator ${req.creator_id} — payment received, studio unlocked`);
+      // TODO: sendCreatorPaymentReceived email
+    } catch (err) {
+      console.error("[confirm-payment] notification failed", err);
+    }
+  });
+
+  return NextResponse.json({ ok: true, collab_session_id: session.id }, { status: 201 });
+}
