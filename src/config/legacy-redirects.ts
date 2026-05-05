@@ -12,10 +12,10 @@ interface Rule {
 // the user gets a 404 — fall back to `/${r}/dashboard` instead.
 //
 // Existing pages snapshot (keep in sync when adding/removing pages):
-//   brand:   billing, credits, dashboard, discover, discover/[id], licenses,
-//            licenses/[id], sessions, sessions/[id], settings, vault, wallet
-//   creator: analytics, approvals, blocked-categories, collaborations,
-//            dashboard, earnings, licenses, likeness, payouts, settings, withdraw
+//   brand:   billing, collabs, collabs/[id], dashboard, discover, discover/[id],
+//            settings, vault, wallet
+//   creator: analytics, blocked-categories, collabs, collabs/[id], dashboard,
+//            earnings, licenses, likeness, packages, payouts, requests, settings, withdraw
 //   admin:   dashboard (alias), packs, safety, stuck-gens, plus / (overview)
 //
 // Several creator/brand pages (approvals, likeness, settings, analytics,
@@ -30,18 +30,54 @@ const RULES: Rule[] = [
     resolve: (_m, r) => (r === "admin" ? "/admin" : `/${r}/dashboard`),
   },
 
-  // Campaigns → brand: /brand/sessions, creator: /creator/collaborations
+  // Campaigns / Sessions → brand: /brand/collabs, creator: /creator/collabs
   {
     match: /^\/dashboard\/campaigns(?:\/(.+))?$/,
     resolve: (m, r) => {
-      if (r === "brand") return m[1] ? `/brand/sessions/${m[1]}` : "/brand/sessions";
-      if (r === "creator") return "/creator/collaborations";
+      if (r === "brand") return m[1] ? `/brand/collabs/${m[1]}` : "/brand/collabs";
+      if (r === "creator") return "/creator/collabs";
       return `/${r}/dashboard`;
     },
   },
   {
     match: /^\/dashboard\/generations\/(.+)$/,
-    resolve: (m, r) => (r === "brand" ? `/brand/sessions/${m[1]}` : `/${r}/dashboard`),
+    resolve: (m, r) => (r === "brand" ? `/brand/collabs/${m[1]}` : `/${r}/dashboard`),
+  },
+
+  // Old /brand/sessions → /brand/collabs
+  {
+    match: /^\/brand\/sessions(?:\/(.+))?$/,
+    resolve: (m, r) => (r === "brand" ? (m[1] ? `/brand/collabs/${m[1]}` : "/brand/collabs") : `/${r}/dashboard`),
+  },
+
+  // Old /brand/inbox → /brand/collabs
+  {
+    match: /^\/brand\/inbox\/?$/,
+    resolve: (_m, r) => (r === "brand" ? "/brand/collabs" : `/${r}/dashboard`),
+  },
+
+  // Old /brand/credits → /brand/wallet
+  {
+    match: /^\/brand\/credits\/?$/,
+    resolve: (_m, r) => (r === "brand" ? "/brand/wallet" : `/${r}/dashboard`),
+  },
+
+  // Old /creator/approvals → /creator/collabs
+  {
+    match: /^\/creator\/approvals\/?$/,
+    resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
+  },
+
+  // Old /creator/inbox → /creator/collabs
+  {
+    match: /^\/creator\/inbox\/?$/,
+    resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
+  },
+
+  // Old /creator/collaborations → /creator/collabs
+  {
+    match: /^\/creator\/collaborations\/?$/,
+    resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
   },
 
   // Discover creators (brand only) — page lives at /brand/discover, NOT /brand/creators

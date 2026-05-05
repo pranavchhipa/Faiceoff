@@ -1,9 +1,7 @@
 import {
   LayoutDashboard,
   Inbox,
-  ClipboardCheck,
   IndianRupee,
-  Banknote,
   ArrowDownToLine,
   FileSignature,
   ShieldOff,
@@ -12,7 +10,7 @@ import {
   Camera,
   Megaphone,
   TrendingUp,
-  MessageSquare,
+  Tags,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -25,15 +23,14 @@ export type { NavItem };
  */
 export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Overview", short: "Overview", href: "/creator/dashboard", icon: LayoutDashboard, group: "Primary" },
-  { label: "Approvals", href: "/creator/approvals", icon: Inbox, group: "Primary" },
-  { label: "Inbox", href: "/creator/inbox", icon: MessageSquare, group: "Primary" },
-  { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
+  { label: "Requests", href: "/creator/requests", icon: Inbox, group: "Primary" },
+  { label: "Collabs", href: "/creator/collabs", icon: Megaphone, group: "Primary" },
+  { label: "Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee, group: "Primary" },
   { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },
+  { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
   // Secondary — only visible in command palette + overflow menu
-  { label: "Collaborations", href: "/creator/collaborations", icon: Megaphone, group: "Secondary" },
   { label: "Licenses", href: "/creator/licenses", icon: FileSignature, group: "Secondary" },
-  { label: "Payouts", href: "/creator/payouts", icon: Banknote, group: "Secondary" },
   { label: "Analytics", href: "/creator/analytics", icon: TrendingUp, group: "Secondary" },
   { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldOff, group: "Secondary" },
   { label: "Settings", href: "/creator/settings", icon: SettingsIcon, group: "Secondary" },
@@ -41,7 +38,8 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
 
 export const CREATOR_MOBILE_NAV: NavItem[] = [
   { label: "Home", href: "/creator/dashboard", icon: LayoutDashboard },
-  { label: "Approve", href: "/creator/approvals", icon: ClipboardCheck },
+  { label: "Requests", href: "/creator/requests", icon: Inbox },
+  { label: "Collabs", href: "/creator/collabs", icon: Megaphone },
   { label: "Earn", href: "/creator/earnings", icon: IndianRupee },
   { label: "Profile", href: "/creator/settings", icon: UserIcon },
 ];
