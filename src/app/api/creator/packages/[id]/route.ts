@@ -14,6 +14,24 @@ async function getCreatorId(admin: Admin, userId: string): Promise<string | null
   return data?.id ?? null;
 }
 
+// GET /api/creator/packages/[id] — public read of a single package (for request form)
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const admin = createAdminClient() as Admin;
+
+  const { data, error } = await admin
+    .from("creator_packages")
+    .select("id, tier, price_paise, final_images, is_active")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ package: data });
+}
+
 // PATCH /api/creator/packages/[id] — update price, final_images, or is_active
 export async function PATCH(
   request: Request,

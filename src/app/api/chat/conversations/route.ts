@@ -188,7 +188,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // Eligibility: at least one approved approval row between this pair
+  // Eligibility: accepted/paid collab_request (new flow) OR legacy: approved approval
+  const { count: requestCount } = await admin
+    .from("collab_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("brand_id", brand_id)
+    .eq("creator_id", creator_id)
+    .in("status", ["accepted", "paid"]);
+
   const { count: approvedCount } = await admin
     .from("approvals")
     .select("id", { count: "exact", head: true })
@@ -196,11 +203,11 @@ export async function POST(req: Request) {
     .eq("creator_id", creator_id)
     .eq("status", "approved");
 
-  if (!approvedCount || approvedCount < 1) {
+  if ((!requestCount || requestCount < 1) && (!approvedCount || approvedCount < 1)) {
     return NextResponse.json(
       {
         error:
-          "Conversation requires at least one approved license between this brand and creator.",
+          "Conversation requires an accepted collab request or at least one approved license between this brand and creator.",
       },
       { status: 412 },
     );
