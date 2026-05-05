@@ -22,6 +22,9 @@ import {
   Sparkles,
   TrendingUp,
   Wallet,
+  Landmark,
+  Pencil,
+  Loader2,
 } from "lucide-react";
 
 interface EarningsData {
@@ -328,10 +331,21 @@ export default function CreatorEarningsPage() {
           />
           <HowItem
             n="3"
-            title="UPI in 30s"
-            body="Request withdrawal anytime — UPI lands instantly, bank in 2 hours. TDS auto-deducted."
+            title="Bank transfer"
+            body="Request withdrawal — we transfer to your bank account manually. TDS auto-deducted."
           />
         </div>
+      </motion.section>
+
+      {/* ═══════════ Bank Account ═══════════ */}
+      <motion.section
+        variants={fadeUp}
+        initial="initial"
+        animate="animate"
+        transition={{ duration: 0.45, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="mt-4"
+      >
+        <BankAccountSection />
       </motion.section>
     </div>
   );
@@ -469,6 +483,161 @@ function HowItem({ n, title, body }: { n: string; title: string; body: string })
       <p className="text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
         {body}
       </p>
+    </div>
+  );
+}
+
+/* ───────── Bank Account Section ───────── */
+
+interface BankAccount {
+  holder_name: string;
+  account_number_masked: string;
+  ifsc: string;
+  added_at: string | null;
+}
+
+function BankAccountSection() {
+  const [account, setAccount] = useState<BankAccount | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ holder_name: "", account_number: "", ifsc: "" });
+
+  useEffect(() => {
+    fetch("/api/creator/bank-account", { cache: "no-store" })
+      .then((r) => r.ok ? r.json() : { bank_account: null })
+      .then((d) => setAccount(d.bank_account))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave() {
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/creator/bank-account", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Save failed");
+      setAccount(d.bank_account);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Landmark className="h-4 w-4 text-[var(--color-primary)]" />
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+            Bank account for withdrawals
+          </p>
+        </div>
+        {account && !editing && (
+          <button
+            onClick={() => {
+              setForm({ holder_name: account.holder_name, account_number: "", ifsc: account.ifsc });
+              setEditing(true);
+            }}
+            className="flex items-center gap-1 text-[11px] font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+          >
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex h-12 items-center justify-center">
+          <Loader2 className="h-4 w-4 animate-spin text-[var(--color-muted-foreground)]" />
+        </div>
+      ) : !editing && account ? (
+        <div className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-3">
+          <div>
+            <p className="font-mono text-[9px] text-[var(--color-muted-foreground)]">ACCOUNT HOLDER</p>
+            <p className="mt-0.5 font-600 text-[var(--color-foreground)]">{account.holder_name}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] text-[var(--color-muted-foreground)]">ACCOUNT NUMBER</p>
+            <p className="mt-0.5 font-mono font-600 text-[var(--color-foreground)]">{account.account_number_masked}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] text-[var(--color-muted-foreground)]">IFSC</p>
+            <p className="mt-0.5 font-mono font-600 text-[var(--color-foreground)]">{account.ifsc}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[12px] text-[var(--color-muted-foreground)]">
+            Add your bank account. Your earnings will be transferred here manually by the Faiceoff team.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                Account holder name
+              </label>
+              <input
+                type="text"
+                value={form.holder_name}
+                onChange={(e) => setForm((f) => ({ ...f, holder_name: e.target.value }))}
+                placeholder="As per bank records"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2 text-[12px] text-[var(--color-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                Account number
+              </label>
+              <input
+                type="text"
+                value={form.account_number}
+                onChange={(e) => setForm((f) => ({ ...f, account_number: e.target.value.replace(/\D/g, "") }))}
+                placeholder="Digits only"
+                maxLength={20}
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2 text-[12px] font-mono text-[var(--color-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                IFSC code
+              </label>
+              <input
+                type="text"
+                value={form.ifsc}
+                onChange={(e) => setForm((f) => ({ ...f, ifsc: e.target.value.toUpperCase() }))}
+                placeholder="e.g. SBIN0001234"
+                maxLength={11}
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2 text-[12px] font-mono uppercase text-[var(--color-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
+              />
+            </div>
+          </div>
+          {error && <p className="text-[12px] text-red-500">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Save bank account
+            </button>
+            {editing && (
+              <button
+                onClick={() => setEditing(false)}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-[12px] font-600 text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

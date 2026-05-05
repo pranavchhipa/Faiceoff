@@ -3,6 +3,7 @@ import {
   Package,
   ShieldAlert,
   Hourglass,
+  Banknote,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -20,4 +21,5 @@ export const ADMIN_SIDE_NAV: NavItem[] = [
   { label: "Stuck generations", href: "/admin/stuck-gens", icon: Hourglass, group: "Triage" },
   // Manage
   { label: "Credit packs", href: "/admin/packs", icon: Package, group: "Manage" },
+  { label: "Payouts", href: "/admin/payouts", icon: Banknote, group: "Manage" },
 ];
