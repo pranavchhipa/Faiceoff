@@ -242,7 +242,7 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
           </div>
           <div>
             <label className="mb-1.5 block text-[11px] font-700 text-[var(--color-muted-foreground)]">
-              Final images
+              Images to approve
             </label>
             <ImagesInput value={images} onChange={(v) => { setImages(v); setDirty(true); }} />
           </div>
