@@ -68,6 +68,8 @@ export default function SettingsPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -202,6 +204,38 @@ export default function SettingsPage() {
       setSaveError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setAvatarUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  /* ── Cover photo upload ── */
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setSaveStatus("error");
+      setSaveError("Cover photo must be under 8 MB");
+      return;
+    }
+    setCoverUploading(true);
+    // local preview immediately
+    setCoverPreview(URL.createObjectURL(file));
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/creator/upload-cover", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (data.cover_image_url) setCoverPreview(data.cover_image_url);
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (err) {
+      setSaveStatus("error");
+      setSaveError(err instanceof Error ? err.message : "Upload failed");
+      setCoverPreview(null);
+    } finally {
+      setCoverUploading(false);
       e.target.value = "";
     }
   }
@@ -431,6 +465,59 @@ export default function SettingsPage() {
                 </button>
               </section>
             </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════
+             2c. Creator: Discover Cover Photo
+             ══════════════════════════════════════════════════ */}
+          {role === "creator" && (
+            <section className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8" style={ghostBorder}>
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-lilac)]">
+                    <Camera className="size-4 text-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-700 text-[var(--color-foreground)]">Discover Cover Photo</h2>
+                    <p className="text-[11px] text-[var(--color-muted-foreground)]">
+                      Shown on your creator card in Discover. Use a portrait shot that shows your face clearly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <label className="group relative block cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleCoverUpload}
+                  className="hidden"
+                  disabled={coverUploading}
+                />
+                <div className="relative aspect-[4/5] w-[140px] overflow-hidden rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] transition-colors group-hover:border-[var(--color-primary)]/50">
+                  {coverPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={coverPreview} alt="Cover preview" className="h-full w-full object-cover object-top" />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
+                      <Camera className="h-6 w-6 text-[var(--color-muted-foreground)]" />
+                      <p className="text-[11px] text-[var(--color-muted-foreground)]">Upload cover photo</p>
+                    </div>
+                  )}
+                  {coverUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    </div>
+                  )}
+                  {/* Edit overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
+                  JPG / PNG / WebP · max 8 MB
+                </p>
+              </label>
+            </section>
           )}
 
           {/* ══════════════════════════════════════════════════

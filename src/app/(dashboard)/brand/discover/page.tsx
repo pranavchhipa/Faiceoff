@@ -25,6 +25,7 @@ async function loadCreators(): Promise<CreatorCard[]> {
       bio,
       instagram_followers,
       instagram_handle,
+      cover_image_path,
       user_id,
       kyc_status,
       is_live,
@@ -45,40 +46,53 @@ async function loadCreators(): Promise<CreatorCard[]> {
   const rows = data as any[];
   const creatorIds = rows.map((c) => c.id as string);
 
-  // Hero photos via signed URLs
+  // Hero photos — prefer cover_image_path (if set), else primary reference photo
   const heroByCreator = new Map<string, string>();
   if (creatorIds.length > 0) {
-    const { data: photos } = await admin
-      .from("creator_reference_photos")
-      .select("creator_id, storage_path, is_primary")
-      .in("creator_id", creatorIds)
-      .order("is_primary", { ascending: false });
+    // Collect all paths that need signing: cover paths + fallback reference paths
+    const coverPathByCreator = new Map<string, string>();
+    for (const c of rows) {
+      if (c.cover_image_path) coverPathByCreator.set(c.id as string, c.cover_image_path as string);
+    }
 
-    const primaryPath = new Map<string, string>();
-    for (const p of (photos ?? []) as Array<{
-      creator_id: string;
-      storage_path: string;
-      is_primary: boolean;
-    }>) {
-      if (!primaryPath.has(p.creator_id)) {
-        primaryPath.set(p.creator_id, p.storage_path);
+    // Reference photos only for creators without a cover
+    const needsRef = creatorIds.filter((id) => !coverPathByCreator.has(id));
+    const refPathByCreator = new Map<string, string>();
+    if (needsRef.length > 0) {
+      const { data: photos } = await admin
+        .from("creator_reference_photos")
+        .select("creator_id, storage_path, is_primary")
+        .in("creator_id", needsRef)
+        .order("is_primary", { ascending: false });
+      for (const p of (photos ?? []) as Array<{
+        creator_id: string; storage_path: string; is_primary: boolean;
+      }>) {
+        if (!refPathByCreator.has(p.creator_id)) {
+          refPathByCreator.set(p.creator_id, p.storage_path);
+        }
       }
     }
 
-    if (primaryPath.size > 0) {
-      const paths = Array.from(primaryPath.values());
+    // Sign all paths in one batch
+    const allPaths = [
+      ...Array.from(coverPathByCreator.values()),
+      ...Array.from(refPathByCreator.values()),
+    ];
+    if (allPaths.length > 0) {
       const { data: signed } = await admin.storage
         .from("reference-photos")
-        .createSignedUrls(paths, 60 * 60);
-
+        .createSignedUrls(allPaths, 60 * 60);
       const urlByPath = new Map<string, string>();
       for (const s of signed ?? []) {
         if (s.signedUrl && s.path) urlByPath.set(s.path, s.signedUrl);
       }
-
-      for (const [creatorId, path] of primaryPath) {
+      for (const [id, path] of coverPathByCreator) {
         const url = urlByPath.get(path);
-        if (url) heroByCreator.set(creatorId, url);
+        if (url) heroByCreator.set(id, url);
+      }
+      for (const [id, path] of refPathByCreator) {
+        const url = urlByPath.get(path);
+        if (url && !heroByCreator.has(id)) heroByCreator.set(id, url);
       }
     }
   }

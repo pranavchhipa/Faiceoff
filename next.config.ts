@@ -3,10 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      // Supabase Storage (reference photos, avatars)
+      { protocol: "https", hostname: "*.supabase.co" },
+      // Cloudflare R2 public CDN (generated images)
+      { protocol: "https", hostname: "*.r2.dev" },
     ],
   },
   experimental: {
