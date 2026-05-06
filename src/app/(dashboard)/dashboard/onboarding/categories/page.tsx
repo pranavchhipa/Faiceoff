@@ -49,11 +49,11 @@ export default function CategoriesPage() {
     setSaving(true);
     setError(null);
     try {
-      // Save categories with empty subcategories + 0 price — pricing step fills price later
+      // Save categories with ₹1000 default price — creator can update from dashboard
       const categoriesPayload = Array.from(selected).map((cat) => ({
         category: cat,
         subcategories: [],
-        price_paise: 0,
+        price_paise: 100000,
       }));
       const res = await fetch("/api/onboarding/save-categories", {
         method: "POST",

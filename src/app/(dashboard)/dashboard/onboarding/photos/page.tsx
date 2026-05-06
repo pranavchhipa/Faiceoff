@@ -134,7 +134,7 @@ export default function PhotosPage() {
         uploadedPaths.push(path);
       }
 
-      // Save all paths to DB + advance step to "pricing"
+      // Save all paths to DB + advance directly to complete (pricing set from dashboard)
       const saveRes = await fetch("/api/onboarding/save-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,7 +152,14 @@ export default function PhotosPage() {
         throw new Error(msg);
       }
 
-      router.push("/dashboard/onboarding/pricing");
+      const stepRes = await fetch("/api/onboarding/update-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "complete" }),
+      });
+      if (!stepRes.ok) throw new Error("Failed to complete onboarding");
+
+      router.push("/dashboard/onboarding/complete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
