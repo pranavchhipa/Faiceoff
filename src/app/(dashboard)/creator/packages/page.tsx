@@ -20,11 +20,11 @@ const TIERS = [
   {
     id: "frame" as const,
     label: "Frame",
-    badge: "Social Organic",
-    scope: "social_organic",
-    duration: "90 days",
+    badge: "Social · Organic",
+    duration: "90-day license",
     icon: ImageIcon,
-    description: "Single-platform organic posts. Short-term visibility.",
+    forCreator: "Brand uses your AI-generated likeness for organic social posts — no paid ads. Lowest commitment, great for testing a brand fit.",
+    forBrand: "Organic reach only. Post on the brand's social handles for 90 days. No boosting or paid distribution.",
     color: "from-sky-500/10 to-sky-500/5",
     border: "border-sky-500/20",
     iconColor: "text-sky-500",
@@ -32,11 +32,11 @@ const TIERS = [
   {
     id: "feature" as const,
     label: "Feature",
-    badge: "Social Paid",
-    scope: "social_paid",
-    duration: "6 months",
+    badge: "Social · Paid",
+    duration: "6-month license",
     icon: Zap,
-    description: "Paid ads + boosted posts across platforms.",
+    forCreator: "Brand can run paid ads using your likeness — Instagram, YouTube, Google Display. Higher value, more brand visibility for you.",
+    forBrand: "Paid & boosted ads across social platforms. Includes organic too. Valid for 6 months from the date of first use.",
     color: "from-[var(--color-primary)]/12 to-[var(--color-primary)]/5",
     border: "border-[var(--color-primary)]/30",
     iconColor: "text-[var(--color-primary)]",
@@ -44,11 +44,11 @@ const TIERS = [
   {
     id: "cover" as const,
     label: "Cover",
-    badge: "Digital Full",
-    scope: "digital_full",
-    duration: "12 months",
+    badge: "Full Digital",
+    duration: "12-month license",
     icon: Globe,
-    description: "Full digital rights — web, OOH, email, all platforms.",
+    forCreator: "Full digital rights — brand can use your likeness on website, OOH, packaging, email, and all ad platforms. Top-tier engagement.",
+    forBrand: "Unlimited digital usage — web, OOH, email, packaging, all ad platforms. Broadest rights for 12 months.",
     color: "from-violet-500/10 to-violet-500/5",
     border: "border-violet-500/20",
     iconColor: "text-violet-500",
@@ -206,8 +206,15 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
         )}
       </div>
 
-      <p className="mb-4 text-[13px] text-[var(--color-muted-foreground)]">
-        {tier.description}
+      {/* For creator */}
+      <p className="mb-1 text-[11px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">For you</p>
+      <p className="mb-3 text-[13px] text-[var(--color-foreground)] leading-relaxed">
+        {tier.forCreator}
+      </p>
+      {/* For brand */}
+      <p className="mb-1 text-[11px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Brand gets</p>
+      <p className="mb-4 text-[13px] text-[var(--color-muted-foreground)] leading-relaxed">
+        {tier.forBrand}
       </p>
 
       {/* Inputs */}
@@ -234,25 +241,25 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
             onChange={(v) => { setImages(v); setDirty(true); }}
           />
           <p className="mt-1 font-mono text-[10px] text-[var(--color-muted-foreground)]">
-            {images * 3} gen credits
+            brand gets {images * 3} gen attempts
           </p>
         </div>
       </div>
 
-      {/* Per-image calc */}
+      {/* Breakdown */}
       {price >= 150000 && (
         <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]/60 p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12px] text-[var(--color-muted-foreground)]">
-              Per image (approx)
+              Per image
             </span>
             <span className="font-mono text-[13px] font-800 text-[var(--color-foreground)]">
               {fmt(Math.round(price / images))}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-[12px] text-[var(--color-muted-foreground)]">
-              You earn (85%)
+          <div className="mt-1.5 flex items-center justify-between border-t border-[var(--color-border)] pt-1.5">
+            <span className="text-[12px] font-700 text-[var(--color-foreground)]">
+              Your payout
             </span>
             <span className="font-mono text-[13px] font-800 text-emerald-500">
               {fmt(Math.round(price * 0.85))}
@@ -409,7 +416,7 @@ export default function CreatorPackagesPage() {
             Set your packages
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            Brands pick a tier and send you a request. You earn 85% of the package price.
+            Set a price for each tier. Brands pick one and send you a collab request — you approve or decline.
           </p>
         </div>
 
@@ -447,7 +454,7 @@ export default function CreatorPackagesPage() {
         </div>
       </motion.div>
 
-      {/* Earning explainer strip */}
+      {/* How it works strip */}
       <motion.div
         variants={fadeUp}
         initial="initial"
@@ -457,9 +464,7 @@ export default function CreatorPackagesPage() {
       >
         <IndianRupee className="h-5 w-5 shrink-0 text-[var(--color-primary)]" />
         <p className="text-[13px] text-[var(--color-muted-foreground)]">
-          You keep <span className="font-700 text-[var(--color-foreground)]">85%</span> of every package.
-          Faiceoff takes a 15% platform fee.
-          Gen credits = final images × 3 (brand can retry before sending for approval).
+          Brand pays the package price upfront. Funds are held by Faiceoff and released to your balance after you approve the generated images.
         </p>
       </motion.div>
 
@@ -506,13 +511,13 @@ export default function CreatorPackagesPage() {
           />
           <HowItem
             n="2"
-            title="You accept + they pay"
-            body="Review the request, accept if interested. Brand pays upfront — funds held by Faiceoff."
+            title="You accept, brand pays"
+            body="Review the request and accept if it's a good fit. Brand pays the package price upfront — Faiceoff holds it securely."
           />
           <HowItem
             n="3"
-            title="Approve images, earn"
-            body="Brand generates images inside the collab. You approve each one. Earnings released to your balance."
+            title="Collab ends, payout released"
+            body="Brand generates AI images using your likeness. You review each one. Once the collab is complete, your full payout is released to your Faiceoff balance."
           />
         </div>
       </motion.div>
