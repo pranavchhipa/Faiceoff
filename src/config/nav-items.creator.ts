@@ -25,7 +25,7 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Overview", short: "Overview", href: "/creator/dashboard", icon: LayoutDashboard, group: "Primary" },
   { label: "Requests", href: "/creator/requests", icon: Inbox, group: "Primary" },
   { label: "Collabs", href: "/creator/collabs", icon: Megaphone, group: "Primary" },
-  { label: "Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
+  { label: "My Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee, group: "Primary" },
   { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },

@@ -15,6 +15,7 @@ import {
   Wallet,
   CheckCircle2,
   Megaphone,
+  Tags,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -116,12 +117,12 @@ export default function CreatorDashboardPage() {
     pending_count: 0,
   });
   const [approvals, setApprovals] = useState<ApprovalRow[]>([]);
+  const [hasPackages, setHasPackages] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const displayName =
     user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "Creator";
   const firstName = displayName.split(" ")[0];
-  const initial = firstName.charAt(0).toUpperCase();
 
   useEffect(() => {
     if (!user) return;
@@ -129,7 +130,7 @@ export default function CreatorDashboardPage() {
 
     async function load() {
       setLoading(true);
-      const [statsRes, earningsRes, approvalsRes] = await Promise.allSettled([
+      const [statsRes, earningsRes, approvalsRes, pkgRes] = await Promise.allSettled([
         fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
           r.ok ? r.json() : null
         ),
@@ -137,6 +138,9 @@ export default function CreatorDashboardPage() {
           r.ok ? r.json() : null
         ),
         fetch("/api/creator/approvals", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
+        fetch("/api/creator/packages", { cache: "no-store" }).then((r) =>
           r.ok ? r.json() : null
         ),
       ]);
@@ -171,6 +175,9 @@ export default function CreatorDashboardPage() {
           .filter((a) => a.status === "pending")
           .slice(0, 5);
         setApprovals(list);
+      }
+      if (pkgRes.status === "fulfilled" && pkgRes.value?.packages) {
+        setHasPackages((pkgRes.value.packages as unknown[]).length > 0);
       }
 
       setLoading(false);
@@ -217,48 +224,34 @@ export default function CreatorDashboardPage() {
         initial="initial"
         animate="animate"
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }}
+        className="flex items-start justify-between gap-4"
       >
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-700 uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+        <div className="min-w-0">
+          <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[48px]">
+            Hi {firstName} —
+          </h1>
+          <p className="mt-1 font-display text-[18px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[22px]">
+            {pendingCount > 0
+              ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
+              : !isOnboardingComplete
+              ? "finish onboarding to go live."
+              : !hasPackages
+              ? "set up packages to start earning."
+              : earnings.lifetime_earned_paise > 0
+              ? "all caught up. nice work."
+              : "no approvals yet — hang tight."}
           </p>
-          <div className="flex items-center gap-2">
-            {isLive ? (
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Live
-              </span>
-            ) : (
-              <span className="rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
-                Not live
-              </span>
-            )}
-          </div>
         </div>
-
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[52px]">
-              Hi {firstName} —
-            </h1>
-            <p className="mt-1 font-display text-[20px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[26px]">
-              {pendingCount > 0
-                ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
-                : !isOnboardingComplete
-                ? "finish onboarding to go live."
-                : earnings.lifetime_earned_paise > 0
-                ? "all caught up. nice work."
-                : "no approvals yet — hang tight."}
-            </p>
-          </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] font-display text-lg font-800 text-[var(--color-background)] shadow-md lg:h-14 lg:w-14 lg:text-xl">
-            {initial}
-          </div>
-        </div>
+        {isLive ? (
+          <span className="mt-2 flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            Live
+          </span>
+        ) : (
+          <span className="mt-2 shrink-0 rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
+            Not live
+          </span>
+        )}
       </motion.header>
 
       {/* ── ONBOARDING BANNER ── */}
@@ -291,6 +284,38 @@ export default function CreatorDashboardPage() {
             </div>
             <span className="flex items-center gap-1 text-[13px] font-700 text-[var(--color-primary)]">
               Continue <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        </motion.div>
+      )}
+
+      {/* ── PACKAGES CTA — shown when onboarding done but no packages yet ── */}
+      {isOnboardingComplete && !hasPackages && (
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.07 }}
+        >
+          <Link
+            href="/creator/packages"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/8 p-4 no-underline transition-colors hover:bg-[var(--color-primary)]/12"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-foreground)]">
+                <Tags className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  Set up My Packages to go live
+                </p>
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Brands can&apos;t request you until you have at least one package active
+                </p>
+              </div>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-[13px] font-700 text-[var(--color-primary)]">
+              Set up <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </Link>
         </motion.div>
