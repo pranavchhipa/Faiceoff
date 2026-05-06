@@ -51,7 +51,7 @@ export function Nav() {
               href="/login"
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Sign in
+              Log in
             </Link>
             <Link
               href="/auth/signup/creator"
@@ -91,7 +91,7 @@ export function Nav() {
               onClick={() => setOpen(false)}
               className="px-4 py-3 rounded-lg text-sm font-medium hover:bg-secondary"
             >
-              Sign in
+              Log in
             </Link>
             <Link
               href="/auth/signup/creator"

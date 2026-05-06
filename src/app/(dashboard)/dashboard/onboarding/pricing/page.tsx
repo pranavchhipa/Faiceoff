@@ -55,11 +55,10 @@ export default function PricingPage() {
     e.preventDefault();
     if (!user) return;
 
-    // Validate
     for (const cat of categories) {
       const val = Number(prices[cat.id]);
       if (!val || val < 500) {
-        setError(`Minimum price is 500 INR for ${cat.category}`);
+        setError(`Minimum price is ₹500 for ${cat.category}`);
         return;
       }
     }
@@ -68,13 +67,11 @@ export default function PricingPage() {
     setError(null);
 
     try {
-      // Build prices map: category ID -> paise value
       const pricesInPaise: Record<string, number> = {};
       for (const cat of categories) {
         pricesInPaise[cat.id] = Math.round(Number(prices[cat.id]) * 100);
       }
 
-      // Save pricing via server API (bypasses RLS)
       const saveRes = await fetch("/api/onboarding/save-pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +83,6 @@ export default function PricingPage() {
         throw new Error(body.error || "Failed to save pricing");
       }
 
-      // Advance step to complete
       const res = await fetch("/api/onboarding/update-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,7 +105,7 @@ export default function PricingPage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -122,25 +118,25 @@ export default function PricingPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Tag className="size-3.5" />
           Pricing
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Review your pricing
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
+        <p className="text-sm text-[var(--color-muted-foreground)]">
           Final check on your per-generation prices. You can always update these from your dashboard later.
         </p>
       </div>
 
       {/* Scope / exclusivity uplift explainer */}
-      <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline-variant)]/20 bg-[var(--color-blush)]/40 p-4">
+      <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 p-4">
         <div className="flex items-start gap-2.5">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--color-ink)]" />
-          <div className="text-xs leading-relaxed text-[var(--color-ink)]">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--color-primary)]" />
+          <div className="text-xs leading-relaxed text-[var(--color-foreground)]">
             <p className="font-700 mb-1">You earn more on bigger licenses</p>
-            <p className="text-[var(--color-neutral-600)]">
+            <p className="text-[var(--color-muted-foreground)]">
               Your base price is what brands pay for digital-only use. Print
               add-ons earn you <span className="font-600">+₹500</span>, packaging
               earns <span className="font-600">+₹1,000</span>, and exclusive
@@ -153,8 +149,8 @@ export default function PricingPage() {
 
       <form onSubmit={handleSubmit}>
         {categories.length === 0 ? (
-          <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-6 text-center mb-6">
-            <p className="text-sm text-[var(--color-neutral-500)]">
+          <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-center mb-6">
+            <p className="text-sm text-[var(--color-muted-foreground)]">
               No categories found. You may have skipped the categories step.
             </p>
           </div>
@@ -167,9 +163,9 @@ export default function PricingPage() {
               return (
                 <div
                   key={cat.id}
-                  className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
+                  className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-4"
                 >
-                  <p className="text-sm font-600 text-[var(--color-ink)] capitalize mb-3">
+                  <p className="text-sm font-600 text-[var(--color-foreground)] capitalize mb-3">
                     {cat.category}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -180,15 +176,15 @@ export default function PricingPage() {
                         onClick={() => setPrices((prev) => ({ ...prev, [cat.id]: String(p) }))}
                         className={`rounded-[var(--radius-pill)] border px-4 py-2 text-sm font-500 transition-all ${
                           Number(currentPrice) === p
-                            ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white shadow-[var(--shadow-soft)]"
-                            : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)]"
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                            : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/40"
                         }`}
                       >
                         <span className="font-600">{p >= 1000 ? `${p / 1000}K` : p}</span>
                       </button>
                     ))}
                     <div className="relative">
-                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-[var(--color-neutral-400)]" />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-[var(--color-muted-foreground)]" />
                       <input
                         type="number"
                         min={500}
@@ -198,15 +194,15 @@ export default function PricingPage() {
                         onChange={(e) => setPrices((prev) => ({ ...prev, [cat.id]: e.target.value }))}
                         className={`h-[38px] w-28 rounded-[var(--radius-pill)] border pl-7 pr-3 text-sm outline-none transition-all ${
                           isCustom
-                            ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-[var(--color-ink)] font-600"
-                            : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)]"
-                        } focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20`}
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-foreground)] font-600"
+                            : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
+                        } focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20`}
                       />
                     </div>
                   </div>
                   {currentPrice && (
-                    <p className="mt-2 text-xs text-[var(--color-neutral-400)]">
-                      Brands pay <span className="font-600 text-[var(--color-ink)]">{Number(currentPrice).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span> per generation
+                    <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                      Brands pay <span className="font-600 text-[var(--color-foreground)]">{Number(currentPrice).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span> per generation
                     </p>
                   )}
                 </div>
@@ -216,7 +212,7 @@ export default function PricingPage() {
         )}
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
             {error}
           </p>
         )}
@@ -225,10 +221,10 @@ export default function PricingPage() {
           <Button
             type="submit"
             disabled={saving || categories.length === 0}
-            className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
           >
             {saving ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
             ) : (
               <>
                 Finish Setup

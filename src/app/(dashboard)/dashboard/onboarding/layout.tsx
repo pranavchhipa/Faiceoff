@@ -11,7 +11,7 @@ import { type ReactNode } from "react";
 // shim for any legacy creator whose `onboarding_step` is still `lora_review`.
 const STEPS = [
   { key: "identity", label: "Identity", path: "/dashboard/onboarding/identity" },
-  { key: "instagram", label: "Instagram", path: "/dashboard/onboarding/instagram" },
+  { key: "instagram", label: "Socials", path: "/dashboard/onboarding/instagram" },
   { key: "categories", label: "Categories", path: "/dashboard/onboarding/categories" },
   { key: "compliance", label: "Compliance", path: "/dashboard/onboarding/compliance" },
   { key: "consent", label: "Consent", path: "/dashboard/onboarding/consent" },
@@ -44,9 +44,9 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
                   <div
                     className={`
                       flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-600 transition-colors
-                      ${isComplete ? "bg-[var(--color-gold)] text-white" : ""}
-                      ${isCurrent ? "border-2 border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-[var(--color-gold)]" : ""}
-                      ${!isComplete && !isCurrent ? "border border-[var(--color-neutral-300)] bg-white text-[var(--color-neutral-400)]" : ""}
+                      ${isComplete ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]" : ""}
+                      ${isCurrent ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : ""}
+                      ${!isComplete && !isCurrent ? "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)]" : ""}
                     `}
                   >
                     {isComplete ? <Check className="size-4" /> : i + 1}
@@ -54,10 +54,10 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
                   <span
                     className={`text-[10px] font-500 whitespace-nowrap ${
                       isCurrent
-                        ? "text-[var(--color-gold)]"
+                        ? "text-[var(--color-primary)]"
                         : isComplete
-                          ? "text-[var(--color-ink)]"
-                          : "text-[var(--color-neutral-400)]"
+                          ? "text-[var(--color-foreground)]"
+                          : "text-[var(--color-muted-foreground)]"
                     }`}
                   >
                     {step.label}
@@ -69,8 +69,8 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
                   <div
                     className={`mx-1.5 mt-[-18px] h-0.5 flex-1 rounded-full transition-colors ${
                       i < activeIndex
-                        ? "bg-[var(--color-gold)]"
-                        : "bg-[var(--color-neutral-200)]"
+                        ? "bg-[var(--color-primary)]"
+                        : "bg-[var(--color-border)]"
                     }`}
                   />
                 )}
@@ -82,16 +82,16 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
         {/* Mobile stepper */}
         <div className="md:hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-600 text-[var(--color-ink)]">
+            <span className="text-sm font-600 text-[var(--color-foreground)]">
               Step {activeIndex + 1} of {STEPS.length}
             </span>
-            <span className="text-sm font-500 text-[var(--color-gold)]">
+            <span className="text-sm font-500 text-[var(--color-primary)]">
               {STEPS[activeIndex]?.label}
             </span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-[var(--color-neutral-200)]">
+          <div className="h-1.5 w-full rounded-full bg-[var(--color-border)]">
             <div
-              className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-300"
+              className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
               style={{ width: `${((activeIndex + 1) / STEPS.length) * 100}%` }}
             />
           </div>

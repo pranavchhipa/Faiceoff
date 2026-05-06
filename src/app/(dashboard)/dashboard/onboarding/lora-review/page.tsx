@@ -71,7 +71,7 @@ export default function LegacyLoraReviewRedirect() {
         <button
           type="button"
           onClick={() => router.replace("/dashboard/onboarding/pricing")}
-          className="rounded-[var(--radius-button)] bg-[var(--color-gold)] px-5 py-2 text-sm font-600 text-white hover:opacity-90"
+          className="rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2 text-sm font-600 text-[var(--color-primary-foreground)] hover:opacity-90"
         >
           Continue to Pricing
         </button>
@@ -81,7 +81,7 @@ export default function LegacyLoraReviewRedirect() {
 
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+      <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
     </div>
   );
 }

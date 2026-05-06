@@ -59,8 +59,8 @@ export default function LoginPage() {
   return (
     <AuthShell
       eyebrow="Welcome back"
-      title={<>Sign in to <span className="text-gradient-primary">Faiceoff.</span></>}
-      subtitle="Sign in with your email and password."
+      title={<>Log in to <span className="text-gradient-primary">Faiceoff.</span></>}
+      subtitle="Enter your email and password to continue."
       side={{
         tint: "creator",
         heading: "Your face. Your rules.",
@@ -80,7 +80,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
               placeholder="you@example.com"
-              className={`w-full pl-10 pr-4 py-3.5 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.email ? "border-destructive" : "border-input focus:border-ring"}`}
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.email ? "border-destructive" : "border-input focus:border-ring"}`}
             />
           </div>
           {errors.email && (
@@ -100,7 +100,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
               placeholder="Your password"
-              className={`w-full pl-10 pr-11 py-3.5 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.password ? "border-destructive" : "border-input focus:border-ring"}`}
+              className={`w-full pl-10 pr-11 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.password ? "border-destructive" : "border-input focus:border-ring"}`}
             />
             <button
               type="button"
@@ -136,7 +136,7 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
         >
-          {loading ? <><Loader2 size={18} className="animate-spin" /> Signing in…</> : <>Sign in <ArrowRight size={18} /></>}
+          {loading ? <><Loader2 size={18} className="animate-spin" /> Logging in…</> : <>Log in <ArrowRight size={18} /></>}
         </motion.button>
 
         <div className="grid grid-cols-2 gap-3 pt-2">

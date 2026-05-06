@@ -110,10 +110,6 @@ export default function PhotosPage() {
     setError(null);
 
     try {
-      // Upload each photo one-by-one through our API (admin client, no RLS).
-      // We compress client-side first because Vercel's serverless body
-      // limit (4.5 MB) is smaller than a typical phone photo (6-12 MB) —
-      // uncompressed uploads get a 413 before the function even runs.
       const uploadedPaths: string[] = [];
 
       for (let i = 0; i < photos.length; i++) {
@@ -124,9 +120,6 @@ export default function PhotosPage() {
         try {
           uploadFile = await compressImageForUpload(photo.file);
         } catch (compressErr) {
-          // Compression failed (e.g. HEIC on a browser that can't decode).
-          // Fall back to the original — if it's too big the server will
-          // return a specific 413 message below.
           console.warn(
             "[photos] client-side compression failed, uploading original:",
             compressErr,
@@ -161,7 +154,7 @@ export default function PhotosPage() {
         uploadedPaths.push(path);
       }
 
-      // Save all paths to DB + advance step
+      // Save all paths to DB + advance step to "pricing"
       const saveRes = await fetch("/api/onboarding/save-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,10 +172,7 @@ export default function PhotosPage() {
         throw new Error(msg);
       }
 
-      // save-photos now advances onboarding_step straight to "pricing"
-      // (the old lora_review step is gone — current pipeline uses reference
-      // photos as face anchors, no per-creator training needed).
-      router.push("/dashboard/onboarding/compliance");
+      router.push("/dashboard/onboarding/pricing");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -194,7 +184,7 @@ export default function PhotosPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -207,44 +197,44 @@ export default function PhotosPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Camera className="size-3.5" />
           Reference Photos
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Upload your reference photos
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
-          Each photo becomes a face anchor that the AI references on every
-          generation. <span className="font-700 text-[var(--color-ink)]">More variety + sharper photos = sharper output.</span> Aim
-          for 10+ now (minimum 5), and top up to 30 over time for max fidelity.
+        <p className="text-sm text-[var(--color-muted-foreground)]">
+          Each photo becomes a face anchor the AI references on every generation.{" "}
+          <span className="font-700 text-[var(--color-foreground)]">More variety + sharper photos = sharper output.</span>{" "}
+          Aim for 10+ now (minimum 5), and top up to 30 over time for max fidelity.
         </p>
       </div>
 
       {/* Photo Guidelines */}
       <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-mint)] bg-[var(--color-mint)]/10 p-4">
-          <p className="text-sm font-700 text-[var(--color-ink)] mb-2 flex items-center gap-1.5">
-            <Check className="size-4 text-green-600" />
+        <div className="rounded-[var(--radius-card)] border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <p className="text-sm font-700 text-[var(--color-foreground)] mb-2 flex items-center gap-1.5">
+            <Check className="size-4 text-emerald-500" />
             Best for AI generation quality
           </p>
           <ul className="space-y-1.5">
             {PHOTO_DOS.map((item, i) => (
-              <li key={i} className="text-xs text-[var(--color-neutral-600)] leading-relaxed flex gap-1.5">
-                <span className="text-green-500 shrink-0 mt-0.5">•</span>
+              <li key={i} className="text-xs text-[var(--color-muted-foreground)] leading-relaxed flex gap-1.5">
+                <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
                 {item}
               </li>
             ))}
           </ul>
         </div>
-        <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50/50 p-4">
-          <p className="text-sm font-700 text-[var(--color-ink)] mb-2 flex items-center gap-1.5">
+        <div className="rounded-[var(--radius-card)] border border-red-500/20 bg-red-500/5 p-4">
+          <p className="text-sm font-700 text-[var(--color-foreground)] mb-2 flex items-center gap-1.5">
             <AlertTriangle className="size-4 text-red-500" />
             Avoid these
           </p>
           <ul className="space-y-1.5">
             {PHOTO_DONTS.map((item, i) => (
-              <li key={i} className="text-xs text-[var(--color-neutral-600)] leading-relaxed flex gap-1.5">
+              <li key={i} className="text-xs text-[var(--color-muted-foreground)] leading-relaxed flex gap-1.5">
                 <span className="text-red-400 shrink-0 mt-0.5">•</span>
                 {item}
               </li>
@@ -264,21 +254,21 @@ export default function PhotosPage() {
             relative flex flex-col items-center justify-center rounded-[var(--radius-card)] border-2 border-dashed p-8 cursor-pointer transition-all mb-6
             ${
               isDragOver
-                ? "border-[var(--color-gold)] bg-[var(--color-gold)]/5"
-                : "border-[var(--color-neutral-300)] bg-white hover:border-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-50)]"
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
+                : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/40"
             }
             ${photos.length >= 15 ? "opacity-40 pointer-events-none" : ""}
           `}
         >
           <Upload
             className={`size-8 mb-3 ${
-              isDragOver ? "text-[var(--color-gold)]" : "text-[var(--color-neutral-400)]"
+              isDragOver ? "text-[var(--color-primary)]" : "text-[var(--color-muted-foreground)]"
             }`}
           />
-          <p className="text-sm font-600 text-[var(--color-ink)] mb-1">
+          <p className="text-sm font-600 text-[var(--color-foreground)] mb-1">
             Drag & drop photos here
           </p>
-          <p className="text-xs text-[var(--color-neutral-400)]">
+          <p className="text-xs text-[var(--color-muted-foreground)]">
             or click to browse. JPG, PNG, WebP accepted.
           </p>
           <input
@@ -295,8 +285,8 @@ export default function PhotosPage() {
         <p
           className={`text-xs font-500 mb-4 ${
             photos.length < 5
-              ? "text-[var(--color-neutral-400)]"
-              : "text-[var(--color-gold)]"
+              ? "text-[var(--color-muted-foreground)]"
+              : "text-[var(--color-primary)]"
           }`}
         >
           {photos.length}/15 photos selected
@@ -313,7 +303,7 @@ export default function PhotosPage() {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="relative aspect-square rounded-[var(--radius-input)] overflow-hidden border border-[var(--color-neutral-200)] group"
+                  className="relative aspect-square rounded-[var(--radius-input)] overflow-hidden border border-[var(--color-border)] group"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -337,32 +327,32 @@ export default function PhotosPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center aspect-square rounded-[var(--radius-input)] border border-dashed border-[var(--color-neutral-300)] bg-[var(--color-neutral-50)] hover:border-[var(--color-neutral-400)] transition-colors"
+                className="flex flex-col items-center justify-center aspect-square rounded-[var(--radius-input)] border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] hover:border-[var(--color-primary)]/40 transition-colors"
               >
-                <ImagePlus className="size-5 text-[var(--color-neutral-400)]" />
+                <ImagePlus className="size-5 text-[var(--color-muted-foreground)]" />
               </button>
             )}
           </div>
         )}
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
             {error}
           </p>
         )}
 
         {/* Upload progress */}
         {uploading && (
-          <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-4 mb-4">
+          <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-4 mb-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
-              <span className="text-sm text-[var(--color-neutral-500)]">
+              <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+              <span className="text-sm text-[var(--color-muted-foreground)]">
                 Uploading photo {uploadProgress} of {photos.length}...
               </span>
             </div>
-            <div className="h-1.5 rounded-full bg-[var(--color-neutral-200)] overflow-hidden">
+            <div className="h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden">
               <div
-                className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-300"
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
                 style={{ width: `${(uploadProgress / photos.length) * 100}%` }}
               />
             </div>
@@ -373,10 +363,10 @@ export default function PhotosPage() {
           <Button
             type="submit"
             disabled={uploading || photos.length < 5}
-            className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600 disabled:opacity-40"
+            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600 disabled:opacity-40"
           >
             {uploading ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
             ) : (
               <>
                 Upload & Continue

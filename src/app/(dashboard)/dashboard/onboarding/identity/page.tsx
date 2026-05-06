@@ -36,7 +36,6 @@ export default function IdentityPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file: max 5MB, image/pdf only
     if (file.size > 5 * 1024 * 1024) {
       setError("File size must be under 5MB");
       return;
@@ -62,7 +61,6 @@ export default function IdentityPage() {
     setError(null);
 
     try {
-      // Save identity data to auth metadata
       const { error: metaError } = await supabase.auth.updateUser({
         data: {
           full_legal_name: fullName,
@@ -75,7 +73,6 @@ export default function IdentityPage() {
 
       if (metaError) throw metaError;
 
-      // Upload KYC document if provided
       let kycDocPath: string | null = null;
       if (idFile) {
         const ext = idFile.name.split(".").pop() ?? "jpg";
@@ -86,7 +83,6 @@ export default function IdentityPage() {
           .upload(filePath, idFile, { upsert: true });
 
         if (uploadError) {
-          // Storage bucket may not exist yet — save path in metadata for now
           console.warn("KYC upload failed (bucket may not exist):", uploadError.message);
           kycDocPath = `pending:${filePath}`;
         } else {
@@ -94,7 +90,6 @@ export default function IdentityPage() {
         }
       }
 
-      // Advance onboarding step + save KYC data
       const res = await fetch("/api/onboarding/update-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,7 +117,7 @@ export default function IdentityPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -135,14 +130,14 @@ export default function IdentityPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <User className="size-3.5" />
           Identity Verification
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Tell us about yourself
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
+        <p className="text-sm text-[var(--color-muted-foreground)]">
           Required for KYC and DPDP Act compliance. Your information is encrypted and stored securely.
         </p>
       </div>
@@ -152,7 +147,7 @@ export default function IdentityPage() {
         <div className="space-y-2">
           <Label htmlFor="fullName">Full legal name</Label>
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-muted-foreground)]" />
             <Input
               id="fullName"
               type="text"
@@ -183,8 +178,8 @@ export default function IdentityPage() {
                   onClick={() => setGender(opt.value)}
                   className={`rounded-[var(--radius-pill)] px-4 py-2 text-sm font-600 transition-colors ${
                     selected
-                      ? "bg-[var(--color-gold)] text-white"
-                      : "bg-[var(--color-neutral-100)] text-[var(--color-ink)] hover:bg-[var(--color-neutral-200)]"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                      : "bg-[var(--color-secondary)] text-[var(--color-foreground)] hover:bg-[var(--color-border)]"
                   }`}
                 >
                   {opt.label}
@@ -192,7 +187,7 @@ export default function IdentityPage() {
               );
             })}
           </div>
-          <p className="text-xs text-[var(--color-neutral-400)]">
+          <p className="text-xs text-[var(--color-muted-foreground)]">
             Used so AI-generated images match your actual appearance. Required for accurate likeness.
           </p>
         </div>
@@ -205,7 +200,7 @@ export default function IdentityPage() {
               value={dobDay}
               onChange={(e) => setDobDay(e.target.value)}
               required
-              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             >
               <option value="">Day</option>
               {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -216,7 +211,7 @@ export default function IdentityPage() {
               value={dobMonth}
               onChange={(e) => setDobMonth(e.target.value)}
               required
-              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             >
               <option value="">Month</option>
               {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
@@ -227,7 +222,7 @@ export default function IdentityPage() {
               value={dobYear}
               onChange={(e) => setDobYear(e.target.value)}
               required
-              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             >
               <option value="">Year</option>
               {Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - 18 - i).map((y) => (
@@ -242,7 +237,7 @@ export default function IdentityPage() {
           <div className="space-y-2">
             <Label htmlFor="city">City</Label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-neutral-400)]" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-muted-foreground)]" />
               <Input
                 id="city"
                 type="text"
@@ -269,20 +264,19 @@ export default function IdentityPage() {
         </div>
 
         {/* KYC Document */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-5 space-y-4">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <Shield className="size-4 text-[var(--color-gold)]" />
-            <p className="text-sm font-600 text-[var(--color-ink)]">Government ID Verification</p>
+            <Shield className="size-4 text-[var(--color-primary)]" />
+            <p className="text-sm font-600 text-[var(--color-foreground)]">Government ID Verification</p>
           </div>
 
-          {/* ID Type selector */}
           <div className="space-y-2">
             <Label htmlFor="idType">ID type</Label>
             <select
               id="idType"
               value={idType}
               onChange={(e) => setIdType(e.target.value)}
-              className="w-full h-10 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="w-full h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             >
               {ID_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -290,19 +284,18 @@ export default function IdentityPage() {
             </select>
           </div>
 
-          {/* File Upload */}
           <div className="space-y-2">
             <Label>Upload document</Label>
             {!idFile ? (
               <label
                 htmlFor="kycFile"
-                className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed border-[var(--color-neutral-300)] p-6 transition-colors hover:border-[var(--color-gold)] hover:bg-[var(--color-gold)]/5"
+                className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed border-[var(--color-border)] p-6 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
               >
-                <Upload className="size-6 text-[var(--color-neutral-400)]" />
-                <p className="text-sm font-500 text-[var(--color-neutral-600)]">
+                <Upload className="size-6 text-[var(--color-muted-foreground)]" />
+                <p className="text-sm font-500 text-[var(--color-muted-foreground)]">
                   Click to upload your {ID_TYPES.find((t) => t.value === idType)?.label}
                 </p>
-                <p className="text-xs text-[var(--color-neutral-400)]">
+                <p className="text-xs text-[var(--color-muted-foreground)]">
                   JPG, PNG, WebP or PDF — max 5MB
                 </p>
                 <input
@@ -314,18 +307,18 @@ export default function IdentityPage() {
                 />
               </label>
             ) : (
-              <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--color-mint-deep)] bg-[var(--color-mint)]/20 px-4 py-3">
-                <FileCheck className="size-5 shrink-0 text-green-600" />
+              <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                <FileCheck className="size-5 shrink-0 text-emerald-600" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-500 text-[var(--color-ink)]">{idFile.name}</p>
-                  <p className="text-xs text-[var(--color-neutral-500)]">
+                  <p className="truncate text-sm font-500 text-[var(--color-foreground)]">{idFile.name}</p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">
                     {(idFile.size / 1024).toFixed(0)} KB
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIdFile(null)}
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)] hover:text-[var(--color-ink)]"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
                 >
                   <X className="size-4" />
                 </button>
@@ -333,13 +326,13 @@ export default function IdentityPage() {
             )}
           </div>
 
-          <p className="text-xs text-[var(--color-neutral-400)]">
+          <p className="text-xs text-[var(--color-muted-foreground)]">
             Your document is encrypted and stored securely. It will be auto-deleted after 90 days as per our data retention policy.
           </p>
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500">
             {error}
           </p>
         )}
@@ -348,10 +341,10 @@ export default function IdentityPage() {
           <Button
             type="submit"
             disabled={saving}
-            className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
           >
             {saving ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
             ) : (
               <>
                 Continue

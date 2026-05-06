@@ -7,7 +7,6 @@ import { PartyPopper, ArrowRight, CheckCircle, Tags } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
-// Simple confetti dot component
 function ConfettiDot({
   delay,
   x,
@@ -37,13 +36,8 @@ function ConfettiDot({
   );
 }
 
-const CONFETTI_COLORS = [
-  "var(--color-gold)",
-  "var(--color-blush)",
-  "var(--color-ocean)",
-  "var(--color-lilac)",
-  "var(--color-mint)",
-];
+// Use plain hex so confetti renders correctly regardless of CSS var theme
+const CONFETTI_COLORS = ["#c9a96e", "#e8c89a", "#6ec9c9", "#c96ec9", "#6ec986"];
 
 export default function CompletePage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -56,7 +50,6 @@ export default function CompletePage() {
 
     async function markComplete() {
       try {
-        // Mark onboarding complete via server API (bypasses RLS)
         const res = await fetch("/api/onboarding/complete", {
           method: "POST",
         });
@@ -83,7 +76,7 @@ export default function CompletePage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -112,8 +105,8 @@ export default function CompletePage() {
           transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
           className="absolute inset-0 flex items-center justify-center"
         >
-          <div className="flex size-20 items-center justify-center rounded-full bg-[var(--color-gold)]/10">
-            <PartyPopper className="size-10 text-[var(--color-gold)]" />
+          <div className="flex size-20 items-center justify-center rounded-full bg-[var(--color-primary)]/10">
+            <PartyPopper className="size-10 text-[var(--color-primary)]" />
           </div>
         </motion.div>
       </div>
@@ -123,12 +116,12 @@ export default function CompletePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <h2 className="text-3xl font-800 text-[var(--color-ink)] mb-3">
+        <h2 className="text-3xl font-800 text-[var(--color-foreground)] mb-3">
           You are all set!
         </h2>
-        <p className="text-[var(--color-neutral-500)] max-w-md mx-auto mb-8 leading-relaxed">
+        <p className="text-[var(--color-muted-foreground)] max-w-md mx-auto mb-8 leading-relaxed">
           Your creator profile is now under review. Our team will verify your
-          details and activate your account within 24-48 hours.
+          details and activate your account within 24–48 hours.
         </p>
 
         {/* Status cards */}
@@ -140,13 +133,13 @@ export default function CompletePage() {
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4"
+              className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-4"
             >
-              <CheckCircle className="size-5 text-[var(--color-gold)] mx-auto mb-2" />
-              <p className="text-xs font-600 text-[var(--color-ink)]">
+              <CheckCircle className="size-5 text-[var(--color-primary)] mx-auto mb-2" />
+              <p className="text-xs font-600 text-[var(--color-foreground)]">
                 {item.label}
               </p>
-              <p className="text-xs text-[var(--color-neutral-400)]">
+              <p className="text-xs text-[var(--color-muted-foreground)]">
                 {item.status}
               </p>
             </div>
@@ -176,14 +169,14 @@ export default function CompletePage() {
         </div>
 
         {completeError && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4 max-w-md mx-auto">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4 max-w-md mx-auto">
             Error: {completeError}
           </p>
         )}
 
         <Button
           onClick={() => router.push("/dashboard")}
-          className="bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+          className="bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
         >
           Go to Dashboard
           <ArrowRight className="size-4" />

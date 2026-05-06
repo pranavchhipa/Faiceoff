@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   // creator whose DB row still says "lora_review".
   await admin
     .from("creators")
-    .update({ onboarding_step: "compliance" })
+    .update({ onboarding_step: "pricing" })
     .eq("user_id", user.id);
 
   // ── Generate face embeddings in the background ──

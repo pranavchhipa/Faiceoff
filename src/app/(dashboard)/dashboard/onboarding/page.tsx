@@ -5,32 +5,22 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 
+// Maps the DB onboarding_step value → where to redirect the creator
 const STEP_ROUTES: Record<string, string> = {
-  identity:   "/dashboard/onboarding/identity",
-  instagram:  "/dashboard/onboarding/instagram",
-  categories: "/dashboard/onboarding/categories",
-  photos:     "/dashboard/onboarding/photos",     // moved before compliance
-  compliance: "/dashboard/onboarding/compliance",
-  consent:    "/dashboard/onboarding/consent",
-  complete:   "/dashboard/onboarding/complete",
-  // Legacy: creators stuck on these steps get forwarded to complete
-  lora_review: "/dashboard/onboarding/complete",
-  pricing:     "/dashboard/onboarding/complete",
+  identity:    "/dashboard/onboarding/identity",
+  instagram:   "/dashboard/onboarding/instagram",
+  categories:  "/dashboard/onboarding/categories",
+  compliance:  "/dashboard/onboarding/compliance",
+  consent:     "/dashboard/onboarding/consent",
+  photos:      "/dashboard/onboarding/photos",
+  pricing:     "/dashboard/onboarding/pricing",
+  complete:    "/dashboard/onboarding/complete",
+  // Legacy step — forward to pricing (save-photos used to leave step="lora_review")
+  lora_review: "/dashboard/onboarding/pricing",
 };
 
 /**
  * Redirect shim that sends the creator to their current onboarding step.
- *
- * Historic bug: the previous version silently returned early from the effect
- * when `user` was null and never recovered — users saw an infinite spinner
- * when their client-side Supabase session hadn't yet populated (e.g. right
- * after verify-otp) or when /api/onboarding/current-step hung. We now:
- *   1) Wait for `isLoading` to flip false
- *   2) If user is still null after a 4s grace period, send them to /login
- *   3) Use an 8s AbortController timeout on the API call so the spinner
- *      never hangs forever
- *   4) Surface a recoverable error state (retry + go-to-login links)
- *      instead of a spinning div of doom
  */
 export default function OnboardingRedirectPage() {
   const { user, isLoading } = useAuth();
@@ -42,10 +32,6 @@ export default function OnboardingRedirectPage() {
     if (didRedirectRef.current) return;
     if (isLoading) return;
 
-    // If the browser client still hasn't picked up a session after auth
-    // finished loading, give it a short grace window (the cookie set by
-    // verify-otp can take a tick to be visible to createBrowserClient).
-    // If it still isn't there, route to /login instead of spinning.
     if (!user) {
       const timeoutId = setTimeout(() => {
         if (didRedirectRef.current) return;
@@ -56,8 +42,6 @@ export default function OnboardingRedirectPage() {
     }
 
     const controller = new AbortController();
-    // Hard cap on the current-step fetch so we never leave the user on a
-    // spinner if the API is slow or unreachable.
     const fetchTimeoutId = setTimeout(() => controller.abort(), 8000);
 
     async function fetchStep() {
@@ -68,8 +52,6 @@ export default function OnboardingRedirectPage() {
         });
 
         if (!res.ok) {
-          // 401 most likely — session lost between page load and API call.
-          // Anything else: just start from step 1 which is the safest path.
           if (res.status === 401) {
             didRedirectRef.current = true;
             router.replace("/login?redirect=/dashboard/onboarding");
@@ -86,7 +68,6 @@ export default function OnboardingRedirectPage() {
           step ? (STEP_ROUTES[step] ?? "/dashboard/onboarding/identity") : "/dashboard/onboarding/identity",
         );
       } catch (err) {
-        // AbortError on timeout or network error — show recoverable UI
         if ((err as Error).name === "AbortError") {
           setError(
             "This is taking longer than expected. Please try again or sign in again.",
@@ -108,23 +89,21 @@ export default function OnboardingRedirectPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-24">
-        <p className="max-w-md text-center text-sm text-red-600">{error}</p>
+        <p className="max-w-md text-center text-sm text-red-500">{error}</p>
         <div className="flex gap-3">
           <button
             onClick={() => {
               didRedirectRef.current = false;
               setError(null);
-              // Force a re-run of the effect by touching a state — easiest
-              // is to navigate to the same URL via replace.
               router.replace("/dashboard/onboarding");
             }}
-            className="rounded-[var(--radius-button)] bg-[var(--color-gold)] px-5 py-2 text-sm font-600 text-white hover:opacity-90"
+            className="rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2 text-sm font-600 text-[var(--color-primary-foreground)] hover:opacity-90"
           >
             Try again
           </button>
           <Link
             href="/login?redirect=/dashboard/onboarding"
-            className="rounded-[var(--radius-button)] border border-[var(--color-neutral-200)] px-5 py-2 text-sm font-600 text-[var(--color-ink)] no-underline hover:bg-[var(--color-neutral-50)]"
+            className="rounded-[var(--radius-button)] border border-[var(--color-border)] px-5 py-2 text-sm font-600 text-[var(--color-foreground)] no-underline hover:bg-[var(--color-secondary)]"
           >
             Sign in again
           </Link>
@@ -135,7 +114,7 @@ export default function OnboardingRedirectPage() {
 
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+      <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
     </div>
   );
 }

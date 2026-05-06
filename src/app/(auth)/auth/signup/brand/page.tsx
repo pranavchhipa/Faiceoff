@@ -52,7 +52,7 @@ export default function BrandSignupPage() {
       subtitle="Generate ads with verified Indian creators. Full usage rights, GST invoiced."
       side={{ tint: "brand", heading: "Skip the shoot. Ship the campaign.", body: "Verified creators, AI generation, full commercial rights — all in one workflow." }}
     >
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {[
           { key: "companyName", label: "Company name", Icon: Building2, type: "text",  ac: "organization", ph: "Acme India Pvt Ltd",  max: 100 },
           { key: "email",       label: "Work email",   Icon: Mail,      type: "email", ac: "email",         ph: "you@company.com",     max: 255 },
@@ -68,7 +68,7 @@ export default function BrandSignupPage() {
                   value={formState[key as keyof typeof formState]}
                   onChange={(e) => updateField(key, e.target.value)}
                   placeholder={ph}
-                  className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                 />
               </div>
             </FormField>
@@ -86,7 +86,7 @@ export default function BrandSignupPage() {
                 value={formState.password}
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="Create a password"
-                className="w-full pl-10 pr-11 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                className="w-full pl-10 pr-11 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
               />
               <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -106,7 +106,7 @@ export default function BrandSignupPage() {
                 value={formState.confirmPassword}
                 onChange={(e) => updateField("confirmPassword", e.target.value)}
                 placeholder="Re-enter password"
-                className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
               />
             </div>
           </FormField>
@@ -126,14 +126,14 @@ export default function BrandSignupPage() {
           type="submit"
           whileTap={{ scale: 0.98 }}
           disabled={loading || !formState.email || !formState.companyName || !formState.password}
-          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
+          className="w-full py-3 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
         >
           {loading ? <><Loader2 size={18} className="animate-spin" /> Creating account…</> : <>Create brand account <ArrowRight size={18} /></>}
         </motion.button>
 
         <p className="text-sm text-muted-foreground text-center pt-2">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">Sign in</Link>
+          <Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">Log in</Link>
         </p>
       </form>
     </AuthShell>

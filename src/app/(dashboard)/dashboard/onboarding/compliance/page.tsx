@@ -87,7 +87,7 @@ export default function CompliancePage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -104,26 +104,26 @@ export default function CompliancePage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Shield className="size-3.5" />
           Compliance Preferences
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Set your content boundaries
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
-          Choose topics and content types you <span className="font-600 text-[var(--color-ink)]">don't</span> want your likeness associated with.
+        <p className="text-sm text-[var(--color-muted-foreground)]">
+          Choose topics and content types you <span className="font-600 text-[var(--color-foreground)]">don't</span> want your likeness associated with.
           Brands will be blocked from generating content involving these concepts.
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Info banner */}
-        <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 p-4 mb-6">
-          <AlertTriangle className="size-4 shrink-0 text-[var(--color-gold)] mt-0.5" />
+        <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-4 mb-6">
+          <AlertTriangle className="size-4 shrink-0 text-[var(--color-primary)] mt-0.5" />
           <div>
-            <p className="text-sm font-600 text-[var(--color-ink)] mb-0.5">Why this matters</p>
-            <p className="text-xs text-[var(--color-neutral-500)]">
+            <p className="text-sm font-600 text-[var(--color-foreground)] mb-0.5">Why this matters</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">
               During generation, every brand prompt is checked against your blocked concepts using AI similarity matching.
               If a prompt is too close to any blocked concept, the generation is automatically rejected — protecting your image.
             </p>
@@ -131,10 +131,10 @@ export default function CompliancePage() {
         </div>
 
         {/* Preset blocked concepts */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 mb-4">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 mb-4">
           <div className="flex items-center gap-2 mb-3">
             <Ban className="size-4 text-red-500" />
-            <p className="text-sm font-700 text-[var(--color-ink)]">I don't want my face used with...</p>
+            <p className="text-sm font-700 text-[var(--color-foreground)]">I don't want my face used with...</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -147,8 +147,8 @@ export default function CompliancePage() {
                   onClick={() => toggleConcept(concept)}
                   className={`rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-500 transition-all ${
                     isOn
-                      ? "border-red-400 bg-red-50 text-red-700"
-                      : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)]"
+                      ? "border-red-400/50 bg-red-500/10 text-red-500"
+                      : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:border-red-400/40"
                   }`}
                 >
                   {isOn && <X className="mr-1 inline size-3" />}
@@ -165,16 +165,16 @@ export default function CompliancePage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-3 pt-3 border-t border-[var(--color-neutral-100)]"
+                className="mt-3 pt-3 border-t border-[var(--color-border)]"
               >
-                <p className="text-xs font-600 text-[var(--color-neutral-500)] mb-2">Your custom restrictions</p>
+                <p className="text-xs font-600 text-[var(--color-muted-foreground)] mb-2">Your custom restrictions</p>
                 <div className="flex flex-wrap gap-2">
                   {customConcepts.map((concept) => (
                     <button
                       key={concept}
                       type="button"
                       onClick={() => toggleConcept(concept)}
-                      className="rounded-[var(--radius-pill)] border border-red-400 bg-red-50 px-3 py-1.5 text-xs font-500 text-red-700"
+                      className="rounded-[var(--radius-pill)] border border-red-400/50 bg-red-500/10 px-3 py-1.5 text-xs font-500 text-red-500"
                     >
                       <X className="mr-1 inline size-3" />
                       {concept}
@@ -199,24 +199,24 @@ export default function CompliancePage() {
                   addCustom();
                 }
               }}
-              className="h-8 w-full sm:w-56 rounded-[var(--radius-pill)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] px-3 text-xs outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+              className="h-8 w-full sm:w-56 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             />
             <button
               type="button"
               onClick={addCustom}
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-neutral-200)] text-[var(--color-neutral-500)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] transition-colors"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
             >
               <Plus className="size-3.5" />
             </button>
           </div>
         </div>
 
-        <p className="text-xs text-[var(--color-neutral-400)] mb-4">
+        <p className="text-xs text-[var(--color-muted-foreground)] mb-4">
           {blocked.size}/50 restrictions set — you can update these anytime from your dashboard settings.
         </p>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
             {error}
           </p>
         )}
@@ -225,10 +225,10 @@ export default function CompliancePage() {
           <Button
             type="submit"
             disabled={saving || blocked.size === 0}
-            className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
           >
             {saving ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
             ) : (
               <>
                 Continue

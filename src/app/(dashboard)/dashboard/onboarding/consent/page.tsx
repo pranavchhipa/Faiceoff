@@ -48,7 +48,6 @@ export default function ConsentPage() {
     setError(null);
 
     try {
-      // Save consent via server API (bypasses RLS)
       const saveRes = await fetch("/api/onboarding/save-consent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +59,6 @@ export default function ConsentPage() {
         throw new Error(body.error || "Failed to save consent");
       }
 
-      // Advance step
       const res = await fetch("/api/onboarding/update-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +70,7 @@ export default function ConsentPage() {
         throw new Error(body.error || "Failed to update step");
       }
 
-      router.push("/dashboard/onboarding/complete");
+      router.push("/dashboard/onboarding/photos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -83,7 +81,7 @@ export default function ConsentPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -96,14 +94,14 @@ export default function ConsentPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Scale className="size-3.5" />
           DPDP Act 2023
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Biometric data consent
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
+        <p className="text-sm text-[var(--color-muted-foreground)]">
           Under the Digital Personal Data Protection Act 2023, we require your explicit consent before processing biometric data.
         </p>
       </div>
@@ -114,12 +112,12 @@ export default function ConsentPage() {
           {CONSENT_ITEMS.map((item, i) => (
             <div
               key={i}
-              className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5"
+              className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5"
             >
-              <h4 className="text-sm font-700 text-[var(--color-ink)] mb-1.5">
+              <h4 className="text-sm font-700 text-[var(--color-foreground)] mb-1.5">
                 {item.title}
               </h4>
-              <p className="text-sm text-[var(--color-neutral-500)] leading-relaxed">
+              <p className="text-sm text-[var(--color-muted-foreground)] leading-relaxed">
                 {item.description}
               </p>
             </div>
@@ -128,28 +126,28 @@ export default function ConsentPage() {
 
         {/* Version stamp */}
         <div className="flex items-center gap-2 mb-6 px-1">
-          <ShieldCheck className="size-4 text-[var(--color-neutral-400)]" />
-          <span className="text-xs font-500 text-[var(--color-neutral-400)]">
+          <ShieldCheck className="size-4 text-[var(--color-muted-foreground)]" />
+          <span className="text-xs font-500 text-[var(--color-muted-foreground)]">
             Consent version: {CONSENT_VERSION}
           </span>
         </div>
 
         {/* Checkbox */}
-        <label className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-4 cursor-pointer mb-6 select-none">
+        <label className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-4 cursor-pointer mb-6 select-none">
           <input
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 size-4 rounded border-[var(--color-neutral-300)] accent-[var(--color-gold)]"
+            className="mt-0.5 size-4 rounded border-[var(--color-border)] accent-[var(--color-primary)]"
           />
-          <span className="text-sm text-[var(--color-ink)] leading-relaxed">
+          <span className="text-sm text-[var(--color-foreground)] leading-relaxed">
             I have read and agree to the biometric data processing terms under the
             Digital Personal Data Protection Act 2023 (DPDP Act).
           </span>
         </label>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
             {error}
           </p>
         )}
@@ -157,10 +155,10 @@ export default function ConsentPage() {
         <Button
           type="submit"
           disabled={saving || !agreed}
-          className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600 disabled:opacity-40"
+          className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600 disabled:opacity-40"
         >
           {saving ? (
-            <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
           ) : (
             <>
               I Agree & Continue

@@ -169,7 +169,7 @@ export default function CategoriesPage() {
         throw new Error(body.error || "Failed to save categories");
       }
 
-      router.push("/dashboard/onboarding/photos");
+      router.push("/dashboard/onboarding/compliance");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -180,7 +180,7 @@ export default function CategoriesPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -193,15 +193,15 @@ export default function CategoriesPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-blush)] px-3 py-1 text-xs font-600 text-[var(--color-ink)] mb-3">
+        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Heart className="size-3.5" />
           Your Niche
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
           Pick your categories
         </h2>
-        <p className="text-sm text-[var(--color-neutral-500)]">
-          Choose 1-5 categories, pick subcategories, and set a per-generation price for each.
+        <p className="text-sm text-[var(--color-muted-foreground)]">
+          Choose 1–5 categories, pick subcategories, and set a per-generation price for each.
         </p>
       </div>
 
@@ -218,14 +218,14 @@ export default function CategoriesPage() {
                 className={`
                   flex flex-col items-center gap-2 rounded-[var(--radius-card)] border p-4 transition-all cursor-pointer
                   ${isSelected
-                    ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 shadow-[var(--shadow-card)]"
-                    : "border-[var(--color-neutral-200)] bg-white hover:border-[var(--color-neutral-300)] hover:shadow-[var(--shadow-soft)]"
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                    : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/40"
                   }
                   ${!isSelected && selected.size >= 5 ? "opacity-40 cursor-not-allowed" : ""}
                 `}
               >
-                <Icon className={`size-5 ${isSelected ? "text-[var(--color-gold)]" : "text-[var(--color-neutral-400)]"}`} />
-                <span className={`text-xs font-600 ${isSelected ? "text-[var(--color-ink)]" : "text-[var(--color-neutral-500)]"}`}>
+                <Icon className={`size-5 ${isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-muted-foreground)]"}`} />
+                <span className={`text-xs font-600 ${isSelected ? "text-[var(--color-foreground)]" : "text-[var(--color-muted-foreground)]"}`}>
                   {label}
                 </span>
               </button>
@@ -243,7 +243,7 @@ export default function CategoriesPage() {
               transition={{ duration: 0.2 }}
               className="space-y-4 mb-6 overflow-hidden"
             >
-              <div className="border-t border-[var(--color-neutral-200)] pt-6 space-y-5">
+              <div className="border-t border-[var(--color-border)] pt-6 space-y-5">
                 {Array.from(selected).map((catKey) => {
                   const catInfo = CATEGORIES.find((c) => c.key === catKey)!;
                   const selectedSubs = subcategories[catKey] ?? new Set<string>();
@@ -252,17 +252,17 @@ export default function CategoriesPage() {
                   const isCustomPrice = currentPrice !== "" && !presets.includes(Number(currentPrice));
 
                   return (
-                    <div key={catKey} className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 space-y-4">
+                    <div key={catKey} className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 space-y-4">
                       {/* Category header */}
                       <div className="flex items-center gap-2">
-                        <catInfo.icon className="size-4 text-[var(--color-gold)]" />
-                        <p className="text-sm font-700 text-[var(--color-ink)] capitalize">{catInfo.label}</p>
+                        <catInfo.icon className="size-4 text-[var(--color-primary)]" />
+                        <p className="text-sm font-700 text-[var(--color-foreground)] capitalize">{catInfo.label}</p>
                       </div>
 
                       {/* Subcategories */}
                       <div>
-                        <p className="text-xs font-600 text-[var(--color-neutral-500)] mb-2">
-                          Subcategories <span className="font-400 text-[var(--color-neutral-400)]">({selectedSubs.size} selected)</span>
+                        <p className="text-xs font-600 text-[var(--color-muted-foreground)] mb-2">
+                          Subcategories <span className="font-400">({selectedSubs.size} selected)</span>
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {catInfo.subs.map((sub) => {
@@ -274,8 +274,8 @@ export default function CategoriesPage() {
                                 onClick={() => toggleSub(catKey, sub)}
                                 className={`rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-500 transition-all ${
                                   isOn
-                                    ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
-                                    : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)]"
+                                    ? "border-[var(--color-foreground)] bg-[var(--color-foreground)] text-[var(--color-card)]"
+                                    : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/40"
                                 }`}
                               >
                                 {sub}
@@ -289,7 +289,7 @@ export default function CategoriesPage() {
                               key={s}
                               type="button"
                               onClick={() => toggleSub(catKey, s)}
-                              className="rounded-[var(--radius-pill)] border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 py-1.5 text-xs font-500 text-white"
+                              className="rounded-[var(--radius-pill)] border border-[var(--color-foreground)] bg-[var(--color-foreground)] px-3 py-1.5 text-xs font-500 text-[var(--color-card)]"
                             >
                               {s} <X className="ml-1 inline size-3" />
                             </button>
@@ -304,12 +304,12 @@ export default function CategoriesPage() {
                             value={customSub[catKey] ?? ""}
                             onChange={(e) => setCustomSub((p) => ({ ...p, [catKey]: e.target.value }))}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomSub(catKey); } }}
-                            className="h-8 w-40 rounded-[var(--radius-pill)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] px-3 text-xs outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20"
+                            className="h-8 w-40 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                           />
                           <button
                             type="button"
                             onClick={() => addCustomSub(catKey)}
-                            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-neutral-200)] text-[var(--color-neutral-500)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] transition-colors"
+                            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
                           >
                             <Plus className="size-3.5" />
                           </button>
@@ -318,7 +318,7 @@ export default function CategoriesPage() {
 
                       {/* Pricing */}
                       <div>
-                        <p className="text-xs font-600 text-[var(--color-neutral-500)] mb-2">Price per generation</p>
+                        <p className="text-xs font-600 text-[var(--color-muted-foreground)] mb-2">Price per generation</p>
                         <div className="flex flex-wrap gap-2">
                           {presets.map((p) => (
                             <button
@@ -327,15 +327,15 @@ export default function CategoriesPage() {
                               onClick={() => setPrice(catKey, String(p))}
                               className={`rounded-[var(--radius-pill)] border px-4 py-2 text-sm font-500 transition-all ${
                                 Number(currentPrice) === p
-                                  ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white shadow-[var(--shadow-soft)]"
-                                  : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)] hover:border-[var(--color-neutral-300)]"
+                                  ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                                  : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/40"
                               }`}
                             >
                               <span className="font-600">{p >= 1000 ? `${p / 1000}K` : p}</span>
                             </button>
                           ))}
                           <div className="relative">
-                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-[var(--color-neutral-400)]" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-[var(--color-muted-foreground)]" />
                             <input
                               type="number"
                               min={500}
@@ -345,15 +345,15 @@ export default function CategoriesPage() {
                               onChange={(e) => setPrice(catKey, e.target.value)}
                               className={`h-[38px] w-28 rounded-[var(--radius-pill)] border pl-7 pr-3 text-sm outline-none transition-all ${
                                 isCustomPrice
-                                  ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-[var(--color-ink)] font-600"
-                                  : "border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] text-[var(--color-neutral-600)]"
-                              } focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20`}
+                                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-foreground)] font-600"
+                                  : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
+                              } focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20`}
                             />
                           </div>
                         </div>
                         {currentPrice && (
-                          <p className="mt-2 text-xs text-[var(--color-neutral-400)]">
-                            Brands pay <span className="font-600 text-[var(--color-ink)]">{Number(currentPrice).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span> per generation
+                          <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                            Brands pay <span className="font-600 text-[var(--color-foreground)]">{Number(currentPrice).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span> per generation
                           </p>
                         )}
                       </div>
@@ -365,12 +365,12 @@ export default function CategoriesPage() {
           )}
         </AnimatePresence>
 
-        <p className="text-xs text-[var(--color-neutral-400)] mb-4">
+        <p className="text-xs text-[var(--color-muted-foreground)] mb-4">
           {selected.size}/5 categories selected
         </p>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-[var(--radius-input)] px-3 py-2 mb-4">
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
             {error}
           </p>
         )}
@@ -379,10 +379,10 @@ export default function CategoriesPage() {
           <Button
             type="submit"
             disabled={saving || selected.size === 0}
-            className="w-full sm:w-auto bg-[var(--color-gold)] text-white hover:bg-[var(--color-gold-hover)] rounded-[var(--radius-button)] h-11 px-8 font-600"
+            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
           >
             {saving ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
             ) : (
               <>
                 Continue
