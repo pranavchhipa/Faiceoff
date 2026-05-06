@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { User, MapPin, ArrowRight, Shield, Upload, X, FileCheck } from "lucide-react";
@@ -16,21 +16,52 @@ const ID_TYPES = [
   { value: "voter_id", label: "Voter ID" },
 ] as const;
 
+const INDIAN_STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
+  "Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh",
+  "Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan",
+  "Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman & Nicobar Islands","Chandigarh","Dadra & Nagar Haveli and Daman & Diu",
+  "Delhi","Jammu & Kashmir","Ladakh","Lakshadweep","Puducherry",
+];
+
+const DRAFT_KEY = "fco:onboarding:identity";
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveDraft(data: object) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* noop */ }
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+}
+
 export default function IdentityPage() {
   const { user, supabase, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("");
-  const [gender, setGender] = useState<string>("");
-  const [dobDay, setDobDay] = useState("");
-  const [dobMonth, setDobMonth] = useState("");
-  const [dobYear, setDobYear] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [idType, setIdType] = useState<string>("aadhaar");
+  const draft = typeof window !== "undefined" ? loadDraft() : null;
+
+  const [fullName, setFullName] = useState(draft?.fullName ?? "");
+  const [gender, setGender] = useState<string>(draft?.gender ?? "");
+  const [dobDay, setDobDay] = useState(draft?.dobDay ?? "");
+  const [dobMonth, setDobMonth] = useState(draft?.dobMonth ?? "");
+  const [dobYear, setDobYear] = useState(draft?.dobYear ?? "");
+  const [city, setCity] = useState(draft?.city ?? "");
+  const [state, setState] = useState(draft?.state ?? "");
+  const [idType, setIdType] = useState<string>(draft?.idType ?? "aadhaar");
   const [idFile, setIdFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-save draft on every change
+  useEffect(() => {
+    saveDraft({ fullName, gender, dobDay, dobMonth, dobYear, city, state, idType });
+  }, [fullName, gender, dobDay, dobMonth, dobYear, city, state, idType]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -54,6 +85,22 @@ export default function IdentityPage() {
 
     if (!gender) {
       setError("Please select your gender — it's required for accurate likeness generation.");
+      return;
+    }
+
+    if (!dobDay || !dobMonth || !dobYear) {
+      setError("Please enter your complete date of birth.");
+      return;
+    }
+
+    // Validate age ≥ 18
+    const dob = new Date(Number(dobYear), Number(dobMonth) - 1, Number(dobDay));
+    const age = new Date().getFullYear() - dob.getFullYear();
+    const hadBirthdayThisYear =
+      new Date() >= new Date(new Date().getFullYear(), dob.getMonth(), dob.getDate());
+    const actualAge = hadBirthdayThisYear ? age : age - 1;
+    if (actualAge < 18) {
+      setError("You must be at least 18 years old to join Faiceoff.");
       return;
     }
 
@@ -106,6 +153,7 @@ export default function IdentityPage() {
         throw new Error(body.error || "Failed to update step");
       }
 
+      clearDraft();
       router.push("/dashboard/onboarding/instagram");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -129,6 +177,13 @@ export default function IdentityPage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
+      {draft && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 px-3 py-2 text-xs text-[var(--color-primary)] font-500">
+          <FileCheck className="size-3.5 shrink-0" />
+          Draft restored — your previous answers have been saved.
+        </div>
+      )}
+
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <User className="size-3.5" />
@@ -251,23 +306,29 @@ export default function IdentityPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="state">State</Label>
-            <Input
+            <select
               id="state"
-              type="text"
-              required
-              placeholder="e.g. Maharashtra"
               value={state}
               onChange={(e) => setState(e.target.value)}
-              className="rounded-[var(--radius-input)]"
-            />
+              required
+              className="w-full h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+            >
+              <option value="">Select state</option>
+              {INDIAN_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* KYC Document */}
         <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Shield className="size-4 text-[var(--color-primary)]" />
-            <p className="text-sm font-600 text-[var(--color-foreground)]">Government ID Verification</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Shield className="size-4 text-[var(--color-primary)]" />
+              <p className="text-sm font-600 text-[var(--color-foreground)]">Government ID Verification</p>
+            </div>
+            <span className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] bg-[var(--color-border)] px-2 py-0.5 rounded-full">Optional</span>
           </div>
 
           <div className="space-y-2">
