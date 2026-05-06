@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Tags,
   Zap,
@@ -275,6 +275,7 @@ export default function CreatorPackagesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Tier | null>(null);
   const [toggleLiveLoading, setToggleLiveLoading] = useState(false);
+  const [showLiveCelebration, setShowLiveCelebration] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -359,6 +360,7 @@ export default function CreatorPackagesPage() {
         setLiveError(d.error ?? "Failed to update live status");
       } else {
         setIsLive(d.is_live);
+        if (d.is_live) setShowLiveCelebration(true);
       }
     } finally {
       setToggleLiveLoading(false);
@@ -377,6 +379,60 @@ export default function CreatorPackagesPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+
+      {/* ── GO LIVE CELEBRATION OVERLAY ── */}
+      <AnimatePresence>
+        {showLiveCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowLiveCelebration(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative mx-4 w-full max-w-sm overflow-hidden rounded-3xl border border-[var(--color-primary)]/30 bg-[var(--color-card)] p-8 text-center shadow-2xl"
+            >
+              {/* Confetti dots */}
+              {["#c9a96e","#38bdf8","#4ade80","#f472b6","#818cf8"].map((color, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute size-2.5 rounded-full"
+                  style={{ backgroundColor: color, left: `${15 + i * 18}%`, top: "10%" }}
+                  initial={{ y: 0, opacity: 0, scale: 0 }}
+                  animate={{ y: [-20, -60, -100], opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
+                  transition={{ duration: 1.5, delay: i * 0.1, ease: "easeOut" }}
+                />
+              ))}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
+                className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-primary)]/15"
+              >
+                <span className="text-4xl">🎉</span>
+              </motion.div>
+              <h2 className="mb-2 font-display text-[28px] font-800 tracking-tight text-[var(--color-foreground)]">
+                You&apos;re live!
+              </h2>
+              <p className="mb-6 text-[14px] text-[var(--color-muted-foreground)] leading-relaxed">
+                Brands can now discover your profile and send collab requests.
+              </p>
+              <button
+                onClick={() => setShowLiveCelebration(false)}
+                className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-[14px] font-700 text-[var(--color-primary-foreground)] transition hover:opacity-90"
+              >
+                Let&apos;s go →
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header */}
       <motion.div
         variants={fadeUp}
@@ -442,7 +498,7 @@ export default function CreatorPackagesPage() {
       >
         <IndianRupee className="h-5 w-5 shrink-0 text-[var(--color-primary)]" />
         <p className="text-[13px] text-[var(--color-muted-foreground)]">
-          Brand pays the package price upfront. Funds are held by Faiceoff and released to your balance after you approve the generated images.
+          Brand pays the package price upfront. Funds are held by Faiceoff and released to your balance after the collaboration is completed.
         </p>
       </motion.div>
 
