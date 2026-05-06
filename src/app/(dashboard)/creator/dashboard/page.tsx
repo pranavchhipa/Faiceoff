@@ -10,10 +10,8 @@ import {
   IndianRupee,
   Camera,
   Sparkles,
-  ShieldCheck,
   Clock,
   ArrowUpRight,
-  Fingerprint,
   Wallet,
   CheckCircle2,
   Megaphone,
@@ -184,9 +182,15 @@ export default function CreatorDashboardPage() {
     };
   }, [user]);
 
-  const needsOnboarding = profile && profile.onboarding_step !== "complete";
-  const kycVerified = profile?.kyc_status === "approved";
-  const isLive = profile?.is_active === true;
+  const isOnboardingComplete = profile?.onboarding_step === "complete";
+  const needsOnboarding = profile && !isOnboardingComplete;
+  // Only show LIVE if onboarding is complete AND the creator has been activated
+  const isLive = isOnboardingComplete && profile?.is_active === true;
+
+  // Suppress collab counts if onboarding not complete — avoids showing
+  // stale test / seed data to a creator who hasn't gone live yet.
+  const shownActiveCampaigns = isOnboardingComplete ? stats.activeCampaigns : 0;
+  const shownTotalCampaigns = isOnboardingComplete ? stats.totalCampaigns : 0;
 
   const holdingRupees = earnings.holding_paise / 100;
   const photoTarget = 30;
@@ -205,7 +209,7 @@ export default function CreatorDashboardPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
 
       {/* ── HEADER ── */}
       <motion.header
@@ -223,16 +227,14 @@ export default function CreatorDashboardPage() {
             })}
           </p>
           <div className="flex items-center gap-2">
-            {isLive && (
+            {isLive ? (
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                 Live
               </span>
-            )}
-            {kycVerified && (
-              <span className="flex items-center gap-1 rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
-                <ShieldCheck className="h-3 w-3 text-emerald-500" strokeWidth={2.4} />
-                KYC
+            ) : (
+              <span className="rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                Not live
               </span>
             )}
           </div>
@@ -246,9 +248,11 @@ export default function CreatorDashboardPage() {
             <p className="mt-1 font-display text-[20px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[26px]">
               {pendingCount > 0
                 ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
+                : !isOnboardingComplete
+                ? "finish onboarding to go live."
                 : earnings.lifetime_earned_paise > 0
                 ? "all caught up. nice work."
-                : "no approvals yet — brands are looking."}
+                : "no approvals yet — hang tight."}
             </p>
           </div>
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] font-display text-lg font-800 text-[var(--color-background)] shadow-md lg:h-14 lg:w-14 lg:text-xl">
@@ -364,7 +368,7 @@ export default function CreatorDashboardPage() {
               Active collabs
             </p>
             <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {stats.activeCampaigns}
+              {shownActiveCampaigns}
             </p>
             <Link
               href="/creator/collabs"
@@ -521,12 +525,12 @@ export default function CreatorDashboardPage() {
               </div>
               <div>
                 <p className="font-700 text-[14px] text-[var(--color-foreground)]">
-                  {stats.activeCampaigns > 0
-                    ? `${stats.activeCampaigns} active collab${stats.activeCampaigns > 1 ? "s" : ""}`
+                  {shownActiveCampaigns > 0
+                    ? `${shownActiveCampaigns} active collab${shownActiveCampaigns > 1 ? "s" : ""}`
                     : "No active collabs yet"}
                 </p>
                 <p className="text-[12px] text-[var(--color-muted-foreground)]">
-                  {stats.totalCampaigns} total · {earnings.pending_count} pending payout
+                  {shownTotalCampaigns} total · {earnings.pending_count} pending payout
                 </p>
               </div>
             </div>
@@ -668,32 +672,19 @@ export default function CreatorDashboardPage() {
             </div>
           </div>
 
-          {/* Identity / KYC strip */}
-          <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                kycVerified
-                  ? "bg-emerald-500/15 text-emerald-500"
-                  : "bg-amber-500/15 text-amber-500"
-              }`}
-            >
-              <Fingerprint className="h-4 w-4" strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-600 text-[13px] text-[var(--color-foreground)]">
-                {kycVerified ? "Identity verified" : "KYC pending"}
-              </p>
-              <p className="text-[11px] text-[var(--color-muted-foreground)]">
-                {kycVerified
-                  ? "DPDP consent signed · you own every use"
-                  : "Complete KYC to unlock payouts"}
-              </p>
-            </div>
+          {/* Quick links strip */}
+          <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/creator/settings"
-              className="shrink-0 text-[12px] font-600 text-[var(--color-primary)] hover:underline"
+              href="/creator/licenses"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
             >
-              →
+              Licenses
+            </Link>
+            <Link
+              href="/creator/analytics"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
+            >
+              Analytics
             </Link>
           </div>
         </motion.aside>
