@@ -3,18 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { User, MapPin, ArrowRight, Shield, Upload, X, FileCheck } from "lucide-react";
+import { User, MapPin, ArrowRight, FileCheck } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ID_TYPES = [
-  { value: "aadhaar", label: "Aadhaar Card" },
-  { value: "pan", label: "PAN Card" },
-  { value: "passport", label: "Passport" },
-  { value: "voter_id", label: "Voter ID" },
-] as const;
 
 const INDIAN_STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
@@ -53,55 +47,14 @@ export default function IdentityPage() {
   const [dobYear, setDobYear] = useState(draft?.dobYear ?? "");
   const [city, setCity] = useState(draft?.city ?? "");
   const [state, setState] = useState(draft?.state ?? "");
-  const [idType, setIdType] = useState<string>(draft?.idType ?? "aadhaar");
-  const [idFile, setIdFile] = useState<File | null>(null);
-  // Path of an already-uploaded draft document (persisted in localStorage)
-  const [uploadedDocPath, setUploadedDocPath] = useState<string | null>(draft?.uploadedDocPath ?? null);
-  const [uploadedDocName, setUploadedDocName] = useState<string>(draft?.uploadedDocName ?? "");
-  const [docUploading, setDocUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-save draft on every change (including uploaded doc path)
+  // Auto-save draft on every change
   useEffect(() => {
-    saveDraft({ fullName, gender, dobDay, dobMonth, dobYear, city, state, idType, uploadedDocPath, uploadedDocName });
-  }, [fullName, gender, dobDay, dobMonth, dobYear, city, state, idType, uploadedDocPath, uploadedDocName]);
+    saveDraft({ fullName, gender, dobDay, dobMonth, dobYear, city, state });
+  }, [fullName, gender, dobDay, dobMonth, dobYear, city, state]);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (file.size > 5 * 1024 * 1024) { setError("File size must be under 5MB"); return; }
-    if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
-      setError("Only JPG, PNG, WebP or PDF files are accepted"); return;
-    }
-    setError(null);
-    setIdFile(file);
-    setDocUploading(true);
-
-    try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `kyc-draft/${user.id}/${idType}_${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
-        .from("kyc-documents")
-        .upload(path, file, { upsert: true });
-
-      if (uploadErr) throw uploadErr;
-      setUploadedDocPath(path);
-      setUploadedDocName(file.name);
-    } catch {
-      // Upload failed silently — file still in memory, will retry on submit
-      setUploadedDocPath(null);
-    } finally {
-      setDocUploading(false);
-    }
-  }
-
-  function handleRemoveDoc() {
-    setIdFile(null);
-    setUploadedDocPath(null);
-    setUploadedDocName("");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,30 +97,12 @@ export default function IdentityPage() {
 
       if (metaError) throw metaError;
 
-      // Use already-uploaded draft path if available, otherwise upload now
-      let kycDocPath: string | null = uploadedDocPath;
-      if (!kycDocPath && idFile) {
-        const ext = idFile.name.split(".").pop() ?? "jpg";
-        const filePath = `kyc/${user.id}/${idType}_${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("kyc-documents")
-          .upload(filePath, idFile, { upsert: true });
-        if (uploadError) {
-          console.warn("KYC upload failed:", uploadError.message);
-          kycDocPath = `pending:${filePath}`;
-        } else {
-          kycDocPath = filePath;
-        }
-      }
-
       const res = await fetch("/api/onboarding/update-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           step: "instagram",
           gender,
-          kyc_document_url: kycDocPath,
-          kyc_status: kycDocPath ? "pending" : "not_started",
         }),
       });
 
@@ -216,7 +151,7 @@ export default function IdentityPage() {
           Tell us about yourself
         </h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">
-          Required for KYC and DPDP Act compliance. Your information is encrypted and stored securely.
+          This helps us match AI-generated images to your actual appearance. All data is encrypted and DPDP-compliant.
         </p>
       </div>
 
@@ -344,83 +279,6 @@ export default function IdentityPage() {
           </div>
         </div>
 
-        {/* KYC Document */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-5 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Shield className="size-4 text-[var(--color-primary)]" />
-              <p className="text-sm font-600 text-[var(--color-foreground)]">Government ID Verification</p>
-            </div>
-            <span className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)] bg-[var(--color-border)] px-2 py-0.5 rounded-full">Optional</span>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="idType">ID type</Label>
-            <select
-              id="idType"
-              value={idType}
-              onChange={(e) => setIdType(e.target.value)}
-              className="w-full h-10 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-            >
-              {ID_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Upload document</Label>
-            {!idFile && !uploadedDocPath ? (
-              <label
-                htmlFor="kycFile"
-                className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed border-[var(--color-border)] p-6 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
-              >
-                <Upload className="size-6 text-[var(--color-muted-foreground)]" />
-                <p className="text-sm font-500 text-[var(--color-muted-foreground)]">
-                  Click to upload your {ID_TYPES.find((t) => t.value === idType)?.label}
-                </p>
-                <p className="text-xs text-[var(--color-muted-foreground)]">
-                  JPG, PNG, WebP or PDF — max 5MB
-                </p>
-                <input
-                  id="kycFile"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </label>
-            ) : docUploading ? (
-              <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-4 py-3">
-                <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-                <p className="text-sm text-[var(--color-muted-foreground)]">Uploading securely…</p>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-                <FileCheck className="size-5 shrink-0 text-emerald-600" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-500 text-[var(--color-foreground)]">
-                    {uploadedDocName || idFile?.name || "Document uploaded"}
-                  </p>
-                  <p className="text-xs text-emerald-600 font-500">
-                    {uploadedDocPath ? "Saved — safe to leave this page" : `${((idFile?.size ?? 0) / 1024).toFixed(0)} KB`}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveDoc}
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <p className="text-xs text-[var(--color-muted-foreground)]">
-            Your document is encrypted and stored securely. It will be auto-deleted after 90 days as per our data retention policy.
-          </p>
-        </div>
 
         {error && (
           <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500">
