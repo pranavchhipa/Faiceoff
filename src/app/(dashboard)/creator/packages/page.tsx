@@ -24,10 +24,13 @@ const TIERS = [
     duration: "90-day license",
     icon: ImageIcon,
     forCreator: "Brand uses your AI-generated likeness for organic social posts — no paid ads. Lowest commitment, great for testing a brand fit.",
-    forBrand: "Organic reach only. Post on the brand's social handles for 90 days. No boosting or paid distribution.",
-    color: "from-sky-500/10 to-sky-500/5",
-    border: "border-sky-500/20",
-    iconColor: "text-sky-500",
+    forBrand: "Organic reach only. Posts on the brand's social handles for 90 days. No boosting or paid distribution.",
+    band: "from-sky-400 to-sky-600",
+    iconBg: "bg-sky-500/15",
+    iconColor: "text-sky-400",
+    badgeColor: "text-sky-400",
+    forYouBg: "bg-sky-500/8",
+    btnBg: "bg-sky-500 hover:bg-sky-400",
   },
   {
     id: "feature" as const,
@@ -36,10 +39,13 @@ const TIERS = [
     duration: "6-month license",
     icon: Zap,
     forCreator: "Brand can run paid ads using your likeness — Instagram, YouTube, Google Display. Higher value, more brand visibility for you.",
-    forBrand: "Paid & boosted ads across social platforms. Includes organic too. Valid for 6 months from the date of first use.",
-    color: "from-[var(--color-primary)]/12 to-[var(--color-primary)]/5",
-    border: "border-[var(--color-primary)]/30",
+    forBrand: "Paid & boosted ads across social platforms. Includes organic too. Valid for 6 months from date of first use.",
+    band: "from-[#c9a96e] to-[#e8c89a]",
+    iconBg: "bg-[var(--color-primary)]/15",
     iconColor: "text-[var(--color-primary)]",
+    badgeColor: "text-[var(--color-primary)]",
+    forYouBg: "bg-[var(--color-primary)]/8",
+    btnBg: "bg-[var(--color-primary)] hover:opacity-90",
   },
   {
     id: "cover" as const,
@@ -49,9 +55,12 @@ const TIERS = [
     icon: Globe,
     forCreator: "Full digital rights — brand can use your likeness on website, OOH, packaging, email, and all ad platforms. Top-tier engagement.",
     forBrand: "Unlimited digital usage — web, OOH, email, packaging, all ad platforms. Broadest rights for 12 months.",
-    color: "from-violet-500/10 to-violet-500/5",
-    border: "border-violet-500/20",
-    iconColor: "text-violet-500",
+    band: "from-violet-500 to-purple-600",
+    iconBg: "bg-violet-500/15",
+    iconColor: "text-violet-400",
+    badgeColor: "text-violet-400",
+    forYouBg: "bg-violet-500/8",
+    btnBg: "bg-violet-600 hover:bg-violet-500",
   },
 ] as const;
 
@@ -172,126 +181,88 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
       variants={fadeUp}
       initial="initial"
       animate="animate"
-      className={`rounded-2xl border bg-gradient-to-br p-5 ${tier.color} ${tier.border}`}
+      className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden"
     >
-      {/* Header */}
-      <div className="mb-4 flex items-start justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-card)] ${tier.iconColor}`}>
-            <Icon className="h-4.5 w-4.5" />
-          </span>
-          <div>
-            <h3 className="font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
-              {tier.label}
-            </h3>
-            <span className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              {tier.badge} · {tier.duration}
+      {/* Coloured top band */}
+      <div className={`h-1.5 w-full bg-gradient-to-r ${tier.band}`} />
+
+      <div className="flex flex-col flex-1 p-5 gap-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tier.iconBg}`}>
+              <Icon className={`h-5 w-5 ${tier.iconColor}`} />
             </span>
+            <div>
+              <h3 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+                {tier.label}
+              </h3>
+              <span className={`text-[11px] font-600 ${tier.badgeColor}`}>
+                {tier.badge} · {tier.duration}
+              </span>
+            </div>
           </div>
-        </div>
-
-        {exists && (
-          <button
-            type="button"
-            onClick={() => onToggle(tier.id, !isActive)}
-            className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
-          >
-            {isActive ? (
-              <ToggleRight className="h-5 w-5 text-emerald-500" />
-            ) : (
-              <ToggleLeft className="h-5 w-5" />
-            )}
-            {isActive ? "Active" : "Paused"}
-          </button>
-        )}
-      </div>
-
-      {/* For creator */}
-      <p className="mb-1 text-[11px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">For you</p>
-      <p className="mb-3 text-[13px] text-[var(--color-foreground)] leading-relaxed">
-        {tier.forCreator}
-      </p>
-      {/* For brand */}
-      <p className="mb-1 text-[11px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Brand gets</p>
-      <p className="mb-4 text-[13px] text-[var(--color-muted-foreground)] leading-relaxed">
-        {tier.forBrand}
-      </p>
-
-      {/* Inputs */}
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1.5 block font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-            Package price
-          </label>
-          <PriceInput
-            value={price}
-            onChange={(v) => { setPrice(v); setDirty(true); }}
-          />
-          {price < 150000 && (
-            <p className="mt-1 text-[11px] text-red-400">Min ₹1,500</p>
+          {exists && (
+            <button
+              type="button"
+              onClick={() => onToggle(tier.id, !isActive)}
+              className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+            >
+              {isActive
+                ? <ToggleRight className="h-5 w-5 text-emerald-500" />
+                : <ToggleLeft className="h-5 w-5" />}
+              {isActive ? "Active" : "Paused"}
+            </button>
           )}
         </div>
 
-        <div>
-          <label className="mb-1.5 block font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-            Final images
-          </label>
-          <ImagesInput
-            value={images}
-            onChange={(v) => { setImages(v); setDirty(true); }}
-          />
-          <p className="mt-1 font-mono text-[10px] text-[var(--color-muted-foreground)]">
-            brand gets {images * 3} gen attempts
-          </p>
+        {/* Descriptions */}
+        <div className="space-y-3">
+          <div className={`rounded-xl p-3 ${tier.forYouBg}`}>
+            <p className={`text-[10px] font-700 uppercase tracking-[0.14em] mb-1 ${tier.iconColor}`}>For you</p>
+            <p className="text-[13px] text-[var(--color-foreground)] leading-relaxed">{tier.forCreator}</p>
+          </div>
+          <div className="rounded-xl bg-[var(--color-secondary)] p-3">
+            <p className="text-[10px] font-700 uppercase tracking-[0.14em] mb-1 text-[var(--color-muted-foreground)]">Brand gets</p>
+            <p className="text-[13px] text-[var(--color-muted-foreground)] leading-relaxed">{tier.forBrand}</p>
+          </div>
         </div>
+
+        {/* Inputs */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-700 text-[var(--color-muted-foreground)]">
+              Package price
+            </label>
+            <PriceInput value={price} onChange={(v) => { setPrice(v); setDirty(true); }} />
+            {price < 150000 && <p className="mt-1 text-[11px] text-red-400">Min ₹1,500</p>}
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-700 text-[var(--color-muted-foreground)]">
+              Final images
+            </label>
+            <ImagesInput value={images} onChange={(v) => { setImages(v); setDirty(true); }} />
+            <p className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">{images * 3} gen attempts</p>
+          </div>
+        </div>
+
+        {/* Save button */}
+        <button
+          type="button"
+          disabled={saving || price < 150000}
+          onClick={() => { onSave(tier.id, price, images); setDirty(false); }}
+          className={`mt-auto w-full rounded-xl py-3 text-[14px] font-700 transition-all active:scale-[0.98] disabled:opacity-40 ${
+            exists && !dirty
+              ? "border border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
+              : `${tier.btnBg} text-white shadow-lg`
+          }`}
+        >
+          {saving ? <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+            : exists && !dirty ? "✓ Saved"
+            : exists ? "Save changes"
+            : "Add package"}
+        </button>
       </div>
-
-      {/* Breakdown */}
-      {price >= 150000 && (
-        <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]/60 p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-[var(--color-muted-foreground)]">
-              Per image
-            </span>
-            <span className="font-mono text-[13px] font-800 text-[var(--color-foreground)]">
-              {fmt(Math.round(price / images))}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-center justify-between border-t border-[var(--color-border)] pt-1.5">
-            <span className="text-[12px] font-700 text-[var(--color-foreground)]">
-              Your payout
-            </span>
-            <span className="font-mono text-[13px] font-800 text-emerald-500">
-              {fmt(Math.round(price * 0.85))}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Save button */}
-      <button
-        type="button"
-        disabled={saving || price < 150000}
-        onClick={() => {
-          onSave(tier.id, price, images);
-          setDirty(false);
-        }}
-        className={`w-full rounded-xl py-2.5 text-[13px] font-700 transition-all active:scale-[0.98] disabled:opacity-50 ${
-          exists && !dirty
-            ? "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)]"
-            : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)]"
-        }`}
-      >
-        {saving ? (
-          <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-        ) : exists && !dirty ? (
-          "Saved"
-        ) : exists ? (
-          "Save changes"
-        ) : (
-          "Add package"
-        )}
-      </button>
     </motion.div>
   );
 }
