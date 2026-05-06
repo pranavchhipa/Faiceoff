@@ -26,11 +26,12 @@ function getActiveIndex(pathname: string): number {
 export default function OnboardingLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const activeIndex = getActiveIndex(pathname);
+  const isComplete = pathname.startsWith("/dashboard/onboarding/complete");
 
   return (
     <div className="max-w-5xl">
-      {/* ── Progress Stepper ── */}
-      <nav className="mb-10" aria-label="Onboarding progress">
+      {/* ── Progress Stepper — hidden on complete page ── */}
+      {!isComplete && <nav className="mb-8" aria-label="Onboarding progress">
         {/* Desktop stepper */}
         <ol className="hidden md:flex items-center gap-0">
           {STEPS.map((step, i) => {
@@ -95,7 +96,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
             />
           </div>
         </div>
-      </nav>
+      </nav>}
 
       {/* ── Step Content ── */}
       {children}
