@@ -9,33 +9,13 @@ import {
   X,
   ImagePlus,
   ArrowRight,
+  ArrowLeft,
   Check,
-  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { compressImageForUpload } from "@/lib/utils/image-compression";
 
-const PHOTO_DOS = [
-  "Face fills 40%+ of the frame — close-up portraits, not full body",
-  "Sharp focus on the face, eyes clearly visible (no sunglasses or masks)",
-  "Varied angles: front-on, 3/4 profile, slight head tilt — at least one of each",
-  "Varied lighting: bright daylight, indoor warm, soft shade — mix it up",
-  "Varied expressions: neutral, smile, serious, laugh — emotion range matters",
-  "Plain or simple backgrounds where possible — keeps the AI focused on you",
-  "Solo shots only — no other faces, mirrors, or your own reflection",
-  "High resolution (min 1024×1024px), no compression artifacts",
-  "Recent photos (last 6 months) so the AI matches your current look",
-] as const;
-
-const PHOTO_DONTS = [
-  "No heavy filters, Snapchat lenses, AI smoothing, or beauty-mode",
-  "No tiny faces — if your face is less than ~40% of the frame, skip it",
-  "No motion blur, low-light grain, or out-of-focus shots",
-  "No duplicates or near-identical poses — variety beats quantity",
-  "No screenshots, watermarks, or photos with text overlays",
-  "No group photos, even if you're cropping — cropping leaves artifacts",
-] as const;
 
 interface PhotoPreview {
   id: string;
@@ -196,51 +176,35 @@ export default function PhotosPage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
-          <Camera className="size-3.5" />
+      <button
+        type="button"
+        onClick={() => router.push("/dashboard/onboarding/consent")}
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+      >
+        <ArrowLeft className="size-3.5" /> Back
+      </button>
+
+      <div className="mb-5">
+        <div className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 text-[var(--color-muted-foreground)] mb-2">
+          <Camera className="size-3" />
           Reference Photos
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
-          Upload your reference photos
+        <h2 className="text-xl font-800 text-[var(--color-foreground)] mb-1">
+          Upload reference photos
         </h2>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Each photo becomes a face anchor the AI references on every generation.{" "}
-          <span className="font-700 text-[var(--color-foreground)]">More variety + sharper photos = sharper output.</span>{" "}
-          Aim for 10+ now (minimum 5), and top up to 30 over time for max fidelity.
+        <p className="text-[13px] text-[var(--color-muted-foreground)]">
+          Minimum 5 photos. Close-up face, clear eyes, varied angles &amp; lighting.
         </p>
       </div>
 
-      {/* Photo Guidelines */}
-      <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        <div className="rounded-[var(--radius-card)] border border-emerald-500/20 bg-emerald-500/5 p-4">
-          <p className="text-sm font-700 text-[var(--color-foreground)] mb-2 flex items-center gap-1.5">
-            <Check className="size-4 text-emerald-500" />
-            Best for AI generation quality
-          </p>
-          <ul className="space-y-1.5">
-            {PHOTO_DOS.map((item, i) => (
-              <li key={i} className="text-xs text-[var(--color-muted-foreground)] leading-relaxed flex gap-1.5">
-                <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-[var(--radius-card)] border border-red-500/20 bg-red-500/5 p-4">
-          <p className="text-sm font-700 text-[var(--color-foreground)] mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="size-4 text-red-500" />
-            Avoid these
-          </p>
-          <ul className="space-y-1.5">
-            {PHOTO_DONTS.map((item, i) => (
-              <li key={i} className="text-xs text-[var(--color-muted-foreground)] leading-relaxed flex gap-1.5">
-                <span className="text-red-400 shrink-0 mt-0.5">•</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Quick tips */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {["Face fills 40%+ of frame", "No filters or sunglasses", "Varied angles", "Solo shots only", "Recent photos"].map((tip) => (
+          <span key={tip} className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-500 text-[var(--color-muted-foreground)]">
+            <Check className="size-3 text-emerald-500 shrink-0" />
+            {tip}
+          </span>
+        ))}
       </div>
 
       <form onSubmit={handleSubmit}>
