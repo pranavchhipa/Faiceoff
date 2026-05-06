@@ -270,7 +270,7 @@ export default function CreatorEarningsPage() {
                 </p>
                 <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">
                   Once you withdraw, every transfer shows here with its
-                  Cashfree reference.
+                  payment reference.
                 </p>
               </div>
             ) : (

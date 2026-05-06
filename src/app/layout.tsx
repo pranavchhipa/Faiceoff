@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     "brand UGC",
     "consent-first AI",
     "DPDP compliant",
-    "Cashfree payouts",
+    "Razorpay payouts",
   ],
   alternates: { canonical: "/" },
   openGraph: {

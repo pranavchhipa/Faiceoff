@@ -15,10 +15,17 @@ interface Props {
 
 interface TopUpResponse {
   orderId: string;
-  paymentSessionId: string;
+  keyId: string;
   amount_paise: number;
   credits: number;
   bonus_credits: number;
+}
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay?: new (options: Record<string, unknown>) => { open(): void };
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -44,18 +51,21 @@ function discountVsBase(pack: CreditPack, basePerCreditPaise: number): number {
   return Math.round((1 - per / basePerCreditPaise) * 100);
 }
 
-// ── Cashfree SDK loader ────────────────────────────────────────────────────────
+// ── Razorpay SDK loader ────────────────────────────────────────────────────────
 
-function loadCashfreeSDK(): Promise<void> {
+function loadRazorpaySDK(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src*="cashfree.js"]')) {
-      resolve();
+    if (window.Razorpay) { resolve(); return; }
+    if (document.querySelector('script[src*="checkout.razorpay.com"]')) {
+      const existing = document.querySelector('script[src*="checkout.razorpay.com"]') as HTMLScriptElement;
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Razorpay SDK")));
       return;
     }
     const script = document.createElement("script");
-    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Cashfree SDK"));
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
     document.head.appendChild(script);
   });
 }
@@ -178,14 +188,10 @@ function PackCard({
 
 export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
   const [loadingPack, setLoadingPack] = useState<string | null>(null);
-  const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    loadCashfreeSDK()
-      .then(() => setSdkReady(true))
-      .catch(() => {
-        console.warn("Cashfree SDK pre-load failed; will retry on click");
-      });
+    // Pre-load Razorpay SDK on mount (best-effort)
+    loadRazorpaySDK().catch(() => {});
   }, []);
 
   async function handleChoose(pack: CreditPack) {
@@ -193,10 +199,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
     setLoadingPack(pack.code);
 
     try {
-      if (!sdkReady) {
-        await loadCashfreeSDK();
-        setSdkReady(true);
-      }
+      await loadRazorpaySDK();
 
       const res = await fetch("/api/credits/top-up", {
         method: "POST",
@@ -205,14 +208,12 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
       });
 
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         const msg =
           body.error === "pack_inactive"
             ? "This pack is currently unavailable"
             : body.error === "no_brand_profile"
             ? "Brand profile not found — please complete setup"
-            : body.error === "cashfree_unavailable"
-            ? "Payment gateway not configured. Please contact support."
             : body.error === "db_error"
             ? "Database error. Please try again in a moment."
             : "Failed to initiate payment. Please try again.";
@@ -222,23 +223,40 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
 
       const data = (await res.json()) as TopUpResponse;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cf = (window as any).Cashfree?.({
-        mode: process.env.NEXT_PUBLIC_CASHFREE_MODE ?? "sandbox",
-      });
-      if (!cf) {
+      if (!window.Razorpay) {
         toast.error("Payment SDK not loaded. Please refresh and try again.");
         return;
       }
 
-      await cf.checkout({
-        paymentSessionId: data.paymentSessionId,
-        redirectTarget: "_modal",
+      const rzp = new window.Razorpay({
+        key: data.keyId,
+        amount: data.amount_paise,
+        currency: "INR",
+        order_id: data.orderId,
+        name: "Faiceoff",
+        description: `${pack.display_name} — ${data.credits + data.bonus_credits} credits`,
+        theme: { color: "#C9A96E" },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            await fetch("/api/credits/confirm-topup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            toast.success(
+              `${data.credits + data.bonus_credits} credits added to your account!`,
+            );
+          } catch {
+            toast.info("Payment received — credits will appear shortly.");
+          }
+        },
       });
 
-      toast.success(
-        `Payment initiated for ${data.credits + data.bonus_credits} credits. Balance will update shortly.`,
-      );
+      rzp.open();
     } catch (err) {
       console.error("[credits-pack-grid] handleChoose error:", err);
       toast.error("Something went wrong. Please try again.");

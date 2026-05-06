@@ -17,15 +17,19 @@ export async function GET() {
   if (adminUser?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { data: withdrawals, error } = await admin
-    .from("withdrawals")
-    .select("id, amount_paise, status, created_at, creator_id")
-    .in("status", ["requested", "processing"])
+    .from("withdrawal_requests")
+    .select("id, gross_paise, status, created_at, creator_id")
+    .in("status", ["requested", "processing", "deductions_applied"])
     .order("created_at", { ascending: true })
     .limit(50);
 
   if (error) return NextResponse.json({ error: "DB error" }, { status: 500 });
 
-  const rows = withdrawals ?? [];
+  // Normalize field name (gross_paise → amount_paise for frontend compat)
+  const rows = (withdrawals ?? []).map((w: Record<string, unknown>) => ({
+    ...w,
+    amount_paise: w.gross_paise ?? w.amount_paise ?? 0,
+  }));
   const creatorIds = [...new Set(rows.map((w: { creator_id: string }) => w.creator_id))];
 
   const bankMap: Record<string, { holder_name: string; ifsc: string; account_masked: string; user_display_name: string }> = {};
@@ -87,10 +91,10 @@ export async function POST(request: Request) {
   const { withdrawal_id, utr } = parsed.data;
 
   const { error: updateErr } = await admin
-    .from("withdrawals")
-    .update({ status: "success", ...(utr ? { utr_number: utr } : {}), processed_at: new Date().toISOString() })
+    .from("withdrawal_requests")
+    .update({ status: "processing", ...(utr ? { cf_utr: utr } : {}), completed_at: new Date().toISOString() })
     .eq("id", withdrawal_id)
-    .in("status", ["requested", "processing"]);
+    .in("status", ["requested", "deductions_applied", "processing"]);
 
   if (updateErr) return NextResponse.json({ error: "Failed to update withdrawal" }, { status: 500 });
 

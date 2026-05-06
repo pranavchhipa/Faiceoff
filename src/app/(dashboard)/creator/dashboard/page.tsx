@@ -32,7 +32,6 @@ interface CreatorProfile {
 
 interface CategoryInfo {
   category: string;
-  price_per_generation_paise: number;
   subcategories: string[];
 }
 
@@ -61,6 +60,7 @@ interface ApprovalRow {
     structured_brief: { title?: string; category?: string } | null;
   } | null;
   campaign: { id: string; name: string | null } | null;
+  collab_session: { id: string; name: string | null } | null;
 }
 
 const ACCENTS = [
@@ -222,7 +222,7 @@ export default function CreatorDashboardPage() {
       >
         <div className="grid lg:grid-cols-[1.4fr_1fr]">
           {/* Left: greeting on a soft gradient — no full-bleed avatar */}
-          <div className="relative min-h-[280px] bg-gradient-to-br from-[var(--color-blush)] via-[var(--color-card)] to-[var(--color-lilac)] p-6 lg:p-10">
+          <div className="relative min-h-[280px] bg-gradient-to-br from-[var(--color-secondary)] via-[var(--color-card)] to-[var(--color-secondary)] p-6 lg:p-10">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] text-[var(--color-background)] font-display text-lg font-800 ring-2 ring-[var(--color-card)]">
                 {initial}
@@ -322,7 +322,7 @@ export default function CreatorDashboardPage() {
                   UPI payout
                 </p>
                 <p className="mt-0.5 text-[12px] font-600">
-                  Lands in 30 seconds · no fees
+                  Processed within 2 business days
                 </p>
               </div>
             </div>
@@ -404,7 +404,7 @@ export default function CreatorDashboardPage() {
               </div>
             ) : (
               approvals.map((a, idx) => {
-                const brandName = a.campaign?.name ?? "Brief";
+                const brandName = a.collab_session?.name ?? a.campaign?.name ?? "Brief";
                 const category = a.generation?.structured_brief?.category ?? a.generation?.structured_brief?.title ?? "Generation";
                 const accent = ACCENTS[idx % ACCENTS.length];
                 return (
@@ -525,12 +525,9 @@ export default function CreatorDashboardPage() {
                 {categories.slice(0, 3).map((cat) => (
                   <span
                     key={cat.category}
-                    className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600"
+                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 capitalize text-[var(--color-foreground)]"
                   >
-                    <span className="capitalize text-[var(--color-foreground)]">{cat.category}</span>
-                    <span className="font-mono text-[10px] font-700 text-[var(--color-primary)]">
-                      {formatINR(cat.price_per_generation_paise)}
-                    </span>
+                    {cat.category}
                   </span>
                 ))}
               </div>
@@ -551,7 +548,7 @@ export default function CreatorDashboardPage() {
           {/* This month card (creator tint) */}
           <div
             className="overflow-hidden rounded-2xl border border-[var(--color-border)] p-5"
-            style={{ background: "var(--color-blush)" }}
+            style={{ background: "var(--color-secondary)" }}
           >
             <p className="mb-1 text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               Lifetime

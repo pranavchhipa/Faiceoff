@@ -54,7 +54,7 @@ export default async function BrandLicensesPage({ searchParams }: PageProps) {
     <div className="max-w-5xl">
       {/* Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-foreground)]">
           Your licenses
         </h1>
         <p className="mt-1 text-sm text-[var(--color-neutral-500)]">

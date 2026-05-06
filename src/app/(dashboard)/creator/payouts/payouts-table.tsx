@@ -183,7 +183,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
       {!isPending && items.length === 0 && (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-12 text-center">
           <Receipt className="size-10 mx-auto mb-3 text-[var(--color-neutral-300)]" />
-          <p className="font-semibold text-[var(--color-ink)]">No payouts yet</p>
+          <p className="font-semibold text-[var(--color-foreground)]">No payouts yet</p>
           <p className="text-sm text-[var(--color-neutral-500)] mt-1">
             Your withdrawal history will appear here.
           </p>
@@ -210,7 +210,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4 sm:p-5 shadow-[var(--shadow-soft)]"
+                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-4 sm:p-5 shadow-[var(--shadow-soft)]"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   {/* Left: date + status */}
@@ -229,7 +229,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
 
                   {/* Right: amounts */}
                   <div className="text-right space-y-0.5">
-                    <p className="text-base font-bold text-[var(--color-ink)]">
+                    <p className="text-base font-bold text-[var(--color-foreground)]">
                       {fmt(netAmt)}
                     </p>
                     <p className="text-xs text-[var(--color-neutral-500)]">

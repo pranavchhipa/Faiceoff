@@ -6,6 +6,8 @@ import type { Role } from "@/config/routes";
 export interface SessionRoleResult {
   userId: string | null;
   role: Role | null;
+  /** false when the user hasn't finished their onboarding flow */
+  onboardingComplete: boolean;
   /** true when we issued a NEW response to attach refreshed cookies */
   refreshedResponse: NextResponse | null;
 }
@@ -60,7 +62,7 @@ export async function getSessionRole(
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { userId: null, role: null, refreshedResponse: response };
+  if (!user) return { userId: null, role: null, onboardingComplete: true, refreshedResponse: response };
 
   // Use service-role client for the role lookup so RLS misconfiguration on
   // public.users can never silently strip the role and lock users out of
@@ -97,9 +99,46 @@ export async function getSessionRole(
     console.error(`[get-session-role] role lookup failed for ${user.id}: ${roleError}`);
   }
 
+  // Onboarding gate — check completion status for creator/brand
+  // Admins are always considered complete.
+  let onboardingComplete = true;
+  if (role === "creator" && adminUrl && serviceKey) {
+    try {
+      const admin2 = createSupabaseClient(adminUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: creator } = await admin2
+        .from("creators")
+        .select("onboarding_step")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      // "complete" step means done; anything else (or missing row) = gate them
+      onboardingComplete = creator?.onboarding_step === "complete";
+    } catch {
+      // Fail open — never block the user due to a lookup error
+      onboardingComplete = true;
+    }
+  } else if (role === "brand" && adminUrl && serviceKey) {
+    try {
+      const admin2 = createSupabaseClient(adminUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: brand } = await admin2
+        .from("brands")
+        .select("company_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      // Brand is onboarded when company_name is filled in
+      onboardingComplete = Boolean(brand?.company_name);
+    } catch {
+      onboardingComplete = true;
+    }
+  }
+
   return {
     userId: user.id,
     role,
+    onboardingComplete,
     refreshedResponse: response,
   };
 }

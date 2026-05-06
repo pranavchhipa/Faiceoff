@@ -3,13 +3,16 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
+import { verifyRazorpayPaymentSignature } from "@/lib/payments/razorpay/webhook";
+import { sendCreatorPaymentReceived } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
 // POST /api/collabs/[id]/confirm-payment
 // [id] = collab_request id. Called by:
-//   - Cashfree webhook (after payment success) via /api/cashfree/webhook
+//   - Razorpay checkout handler (brand UI) — includes razorpay payment proof
+//   - Razorpay webhook via /api/razorpay/webhook
 //   - Manual brand reconciliation if webhook was missed
 // Effect: creates collab_session, sets request.status='paid', gen_credits unlocked
 export async function POST(
@@ -19,9 +22,9 @@ export async function POST(
   const { id: requestId } = await params;
 
   // Can be called from webhook (no user session) or brand UI
-  // We validate identity via admin client + either auth or internal secret
   const authHeader = request.headers.get("authorization") ?? "";
-  const isWebhook = authHeader === `Bearer ${process.env.CASHFREE_WEBHOOK_SECRET}` ||
+  const isWebhook = authHeader === `Bearer ${process.env.RAZORPAY_WEBHOOK_SECRET}` ||
+                    authHeader === `Bearer ${process.env.CASHFREE_WEBHOOK_SECRET}` ||
                     authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
   let userId: string | null = null;
@@ -56,6 +59,19 @@ export async function POST(
     const { data: brand } = await admin.from("brands").select("id").eq("user_id", userId).maybeSingle();
     if (!brand || brand.id !== req.brand_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Verify Razorpay payment signature if provided
+    let bodyData: Record<string, unknown> = {};
+    try { bodyData = await request.json().catch(() => ({})); } catch { /* ok */ }
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = bodyData as {
+      razorpay_payment_id?: string;
+      razorpay_order_id?: string;
+      razorpay_signature?: string;
+    };
+    if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
+      const valid = verifyRazorpayPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+      if (!valid) return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
     }
   }
 
@@ -106,11 +122,28 @@ export async function POST(
     package_tier: req.package_tier,
   }, userId ?? req.brand_id);
 
-  // Fire-and-forget: notify creator
+  // Fire-and-forget: notify creator payment received + studio is live
   after(async () => {
     try {
-      console.log(`[confirm-payment] notify creator ${req.creator_id} — payment received, studio unlocked`);
-      // TODO: sendCreatorPaymentReceived email
+      const { data: creatorRow } = await admin
+        .from("creators").select("user_id").eq("id", req.creator_id).maybeSingle();
+      if (!creatorRow) return;
+      const [creatorUserRes, brandRes] = await Promise.all([
+        admin.from("users").select("email, display_name").eq("id", creatorRow.user_id).maybeSingle(),
+        admin.from("brands").select("company_name").eq("id", req.brand_id).maybeSingle(),
+      ]);
+      const creatorUser = creatorUserRes.data;
+      const brandData = brandRes.data;
+      if (creatorUser && brandData) {
+        await sendCreatorPaymentReceived({
+          to: creatorUser.email,
+          creatorName: creatorUser.display_name ?? "Creator",
+          brandName: brandData.company_name ?? "Brand",
+          productName: req.product_name as string,
+          pricePaise: req.package_price_paise as number,
+          collabSessionId: session.id,
+        });
+      }
     } catch (err) {
       console.error("[confirm-payment] notification failed", err);
     }

@@ -151,8 +151,8 @@ export default function BlocksManager({
               transition={{ delay: i * 0.04, duration: 0.3 }}
               className={`rounded-[var(--radius-card)] border p-4 transition-all ${
                 isBlocked
-                  ? "border-[var(--color-blush-deep)] bg-[var(--color-blush)]/60"
-                  : "border-[var(--color-neutral-200)] bg-white hover:border-[var(--color-neutral-300)]"
+                  ? "border-[var(--color-blush-deep)] bg-rose-500/10"
+                  : "border-[var(--color-neutral-200)] bg-[var(--color-card)] hover:border-[var(--color-neutral-300)]"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -160,7 +160,7 @@ export default function BlocksManager({
                   <span className="text-xl leading-none" role="img" aria-label={cat.label}>
                     {cat.emoji}
                   </span>
-                  <span className="text-sm font-semibold text-[var(--color-ink)] capitalize">
+                  <span className="text-sm font-semibold text-[var(--color-foreground)] capitalize">
                     {cat.label}
                   </span>
                 </div>
@@ -204,7 +204,7 @@ export default function BlocksManager({
                     placeholder="Reason (optional, max 200 chars)"
                     maxLength={200}
                     rows={2}
-                    className="mt-2 w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 py-1.5 text-xs text-[var(--color-ink)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-accent-gold)] focus:ring-1 focus:ring-[var(--color-accent-gold)]/30 resize-none"
+                    className="mt-2 w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] px-3 py-1.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-accent-gold)] focus:ring-1 focus:ring-[var(--color-accent-gold)]/30 resize-none"
                   />
                 </motion.div>
               )}

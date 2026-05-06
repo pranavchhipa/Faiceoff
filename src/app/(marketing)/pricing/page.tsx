@@ -729,7 +729,7 @@ export default async function PricingPage() {
               </Link>
             </div>
             <p className="font-body text-xs text-surface-variant mt-6 opacity-70">
-              All purchases secured by Cashfree Payments &bull; DPDP Act
+              All purchases secured by Razorpay &bull; DPDP Act
               compliant &bull; GST invoices auto-generated
             </p>
           </div>

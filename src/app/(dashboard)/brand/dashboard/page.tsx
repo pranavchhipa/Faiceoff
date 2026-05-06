@@ -8,7 +8,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   CreditCard,
-  FileText,
+  Layers,
   Plus,
   Receipt,
   Sparkles,
@@ -31,6 +31,7 @@ interface BrandProfile {
 
 interface BrandStats {
   activeCampaigns: number;
+  activeCollabs?: number;
   totalCampaigns: number;
   totalGenerations: number;
   walletBalance: number; // paise
@@ -185,8 +186,8 @@ export default function BrandDashboardPage() {
             <span className="text-[var(--color-primary)]">.</span>
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            {stats.activeCampaigns} active{" "}
-            {stats.activeCampaigns === 1 ? "campaign" : "campaigns"} · {generations}{" "}
+            {stats.activeCollabs ?? stats.activeCampaigns} active{" "}
+            {(stats.activeCollabs ?? stats.activeCampaigns) === 1 ? "collab" : "collabs"} · {generations}{" "}
             {generations === 1 ? "generation" : "generations"} ·{" "}
             <span className="font-600 text-[var(--color-foreground)]">
               {formatINR(walletPaise)}
@@ -197,16 +198,16 @@ export default function BrandDashboardPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/brand/credits"
+            href="/brand/wallet"
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
           >
             <Wallet className="h-3.5 w-3.5" /> Top up
           </Link>
           <Link
-            href="/brand/sessions"
+            href="/brand/discover"
             className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-transform hover:-translate-y-0.5"
           >
-            <Plus className="h-3.5 w-3.5" /> New generation
+            <Users className="h-3.5 w-3.5" /> Discover creators
           </Link>
         </div>
       </motion.div>
@@ -235,9 +236,9 @@ export default function BrandDashboardPage() {
           delay={0.06}
         />
         <BentoStat
-          label="Active campaigns"
-          value={String(stats.activeCampaigns)}
-          delta="48h approval window"
+          label="Active collabs"
+          value={String(stats.activeCollabs ?? stats.activeCampaigns)}
+          delta="Creator reviews in 48h"
           delay={0.09}
         />
 
@@ -278,7 +279,7 @@ export default function BrandDashboardPage() {
             </p>
             {recentGens.length === 0 ? (
               <p className="px-2 py-6 text-center text-[12px] text-[var(--color-muted-foreground)]">
-                No generations yet. Start a campaign to see them here.
+                No generations yet. Start a collab to see them here.
               </p>
             ) : (
               <div className="flex flex-col gap-0.5">
@@ -291,7 +292,7 @@ export default function BrandDashboardPage() {
                   return (
                     <Link
                       key={gen.id}
-                      href={`/brand/sessions`}
+                      href={`/brand/collabs`}
                       className="group flex items-center gap-3 rounded-lg px-2 py-2 text-[13px] transition-colors hover:bg-[var(--color-secondary)]"
                     >
                       <span
@@ -424,16 +425,16 @@ export default function BrandDashboardPage() {
           sub="Browse 240+ licensed faces"
         />
         <QuickAction
-          href="/brand/licenses"
-          icon={FileText}
-          title="Manage licenses"
-          sub="Active · renewal · audit trail"
+          href="/brand/collabs"
+          icon={Layers}
+          title="My collabs"
+          sub="Active · completed · studio"
         />
         <QuickAction
-          href="/brand/credits"
+          href="/brand/wallet"
           icon={CreditCard}
-          title="Top up credits"
-          sub="UPI / NetBanking / Cards"
+          title="Top up wallet"
+          sub="UPI · NetBanking · Cards"
         />
       </motion.div>
 

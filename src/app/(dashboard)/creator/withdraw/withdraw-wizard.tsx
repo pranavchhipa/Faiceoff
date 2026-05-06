@@ -167,7 +167,7 @@ export default function WithdrawWizard({
             Withdraw
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            Move your earnings to UPI or bank — instant via Cashfree.
+            Move your earnings to UPI or bank — processed within 2 business days.
           </p>
         </div>
 

@@ -62,10 +62,10 @@ function daysUntilExpiry(expiresAt: string): number {
 }
 
 function expiryChipColor(days: number): string {
-  if (days < 0) return "bg-[var(--color-blush)] text-red-700";
-  if (days < 30) return "bg-[var(--color-blush)] text-red-700";
+  if (days < 0) return "bg-rose-500/10 text-red-700";
+  if (days < 30) return "bg-rose-500/10 text-red-700";
   if (days < 90) return "bg-yellow-100 text-yellow-700";
-  return "bg-[var(--color-mint)] text-green-700";
+  return "bg-emerald-500/10 text-green-700";
 }
 
 function expiryLabel(days: number, expiresAt: string): string {
@@ -77,8 +77,8 @@ function expiryLabel(days: number, expiresAt: string): string {
 }
 
 const statusPillColors: Record<string, string> = {
-  active: "bg-[var(--color-mint)] text-green-700",
-  expired: "bg-[var(--color-blush)] text-red-700",
+  active: "bg-emerald-500/10 text-green-700",
+  expired: "bg-rose-500/10 text-red-700",
   revoked: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-600)]",
 };
 
@@ -226,7 +226,7 @@ export default function LicensesList({
         <button
           onClick={() => fetchLicenses(page, activeStatus)}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs font-600 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs font-600 text-[var(--color-neutral-500)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
@@ -247,10 +247,10 @@ export default function LicensesList({
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-24 text-center"
         >
-          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[var(--color-ocean)]">
-            <FileText className="size-7 text-[var(--color-ink)]" />
+          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-blue-500/10">
+            <FileText className="size-7 text-[var(--color-foreground)]" />
           </div>
-          <h3 className="text-lg font-700 text-[var(--color-ink)] mb-2">No licenses found</h3>
+          <h3 className="text-lg font-700 text-[var(--color-foreground)] mb-2">No licenses found</h3>
           <p className="text-sm text-[var(--color-neutral-500)] max-w-sm">
             {activeStatus
               ? "No licenses match the selected filter."
@@ -277,15 +277,15 @@ export default function LicensesList({
                 >
                   <Link
                     href={`/brand/licenses/${license.id}`}
-                    className="group flex flex-col gap-3 sm:flex-row sm:items-center rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4 sm:p-5 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] transition-shadow no-underline"
+                    className="group flex flex-col gap-3 sm:flex-row sm:items-center rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-4 sm:p-5 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] transition-shadow no-underline"
                   >
                     {/* Creator avatar + name */}
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-ocean)]">
-                        <User className="size-4 text-[var(--color-ink)]" />
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                        <User className="size-4 text-[var(--color-foreground)]" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-700 text-[var(--color-ink)] truncate">
+                        <p className="text-sm font-700 text-[var(--color-foreground)] truncate">
                           {license.creator_name ?? "Unknown Creator"}
                         </p>
                         <p className="text-xs text-[var(--color-neutral-500)] font-mono">
@@ -300,7 +300,7 @@ export default function LicensesList({
                         {scopeArr.map((s) => (
                           <span
                             key={s}
-                            className="rounded-[var(--radius-pill)] bg-[var(--color-lilac)] px-2.5 py-0.5 text-[10px] font-600 text-[var(--color-ink)] capitalize"
+                            className="rounded-[var(--radius-pill)] bg-[var(--color-primary)]/10 px-2.5 py-0.5 text-[10px] font-600 text-[var(--color-foreground)] capitalize"
                           >
                             {s}
                           </span>
@@ -329,7 +329,7 @@ export default function LicensesList({
 
                     {/* Status + Auto-renew */}
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className={`rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-600 capitalize ${statusPillColors[license.status] ?? "bg-[var(--color-neutral-100)] text-[var(--color-ink)]"}`}>
+                      <span className={`rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-600 capitalize ${statusPillColors[license.status] ?? "bg-[var(--color-neutral-100)] text-[var(--color-foreground)]"}`}>
                         {license.status}
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -354,7 +354,7 @@ export default function LicensesList({
             size="sm"
             disabled={page <= 1}
             onClick={() => handlePage(page - 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] disabled:opacity-40"
+            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-foreground)] disabled:opacity-40"
           >
             <ChevronLeft className="size-4" />
             Previous
@@ -367,7 +367,7 @@ export default function LicensesList({
             size="sm"
             disabled={page >= totalPages}
             onClick={() => handlePage(page + 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-ink)] disabled:opacity-40"
+            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-foreground)] disabled:opacity-40"
           >
             Next
             <ChevronRight className="size-4" />

@@ -139,7 +139,7 @@ function RevokeModal({
         <div className="space-y-3 pt-1">
           <p className="text-sm text-[var(--color-neutral-500)]">
             Revoking will prevent{" "}
-            <span className="font-semibold text-[var(--color-ink)]">
+            <span className="font-semibold text-[var(--color-foreground)]">
               {license.brand_company_name}
             </span>{" "}
             from using this license. This action cannot be undone.
@@ -152,7 +152,7 @@ function RevokeModal({
             {REVOKE_REASONS.map((r) => (
               <label
                 key={r.value}
-                className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--color-ink)]"
+                className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--color-foreground)]"
               >
                 <input
                   type="radio"
@@ -172,7 +172,7 @@ function RevokeModal({
                 placeholder="Describe your reason…"
                 rows={3}
                 maxLength={500}
-                className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-accent-gold)] focus:ring-1 focus:ring-[var(--color-accent-gold)]/30 resize-none"
+                className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-accent-gold)] focus:ring-1 focus:ring-[var(--color-accent-gold)]/30 resize-none"
               />
             )}
           </div>
@@ -293,7 +293,7 @@ export default function LicensesList({ initial }: { initial: ListResponse }) {
       {!isPending && items.length === 0 && (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-12 text-center">
           <FileText className="size-10 mx-auto mb-3 text-[var(--color-neutral-300)]" />
-          <p className="font-semibold text-[var(--color-ink)]">No licenses found</p>
+          <p className="font-semibold text-[var(--color-foreground)]">No licenses found</p>
           <p className="text-sm text-[var(--color-neutral-500)] mt-1">
             Licenses will appear here when brands use your likeness.
           </p>
@@ -317,16 +317,16 @@ export default function LicensesList({ initial }: { initial: ListResponse }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]"
+                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-soft)]"
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   {/* Brand info */}
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-[var(--color-ocean)] flex items-center justify-center shrink-0">
+                    <div className="size-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                       <Building2 className="size-5 text-[var(--color-neutral-600)]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-[var(--color-ink)]">
+                      <p className="font-semibold text-[var(--color-foreground)]">
                         {lic.brand_company_name}
                       </p>
                       <p className="text-xs text-[var(--color-neutral-400)] font-mono">
@@ -350,11 +350,11 @@ export default function LicensesList({ initial }: { initial: ListResponse }) {
                     {SCOPE_LABELS[lic.scope] ?? lic.scope}
                   </span>
                   {lic.is_category_exclusive && lic.exclusive_category && (
-                    <span className="px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--color-lilac)] text-xs font-medium text-[var(--color-neutral-700)]">
+                    <span className="px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--color-primary)]/10 text-xs font-medium text-[var(--color-neutral-700)]">
                       Exclusive: {lic.exclusive_category}
                     </span>
                   )}
-                  <span className="px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--color-blush)] text-xs font-medium text-[var(--color-neutral-700)]">
+                  <span className="px-2 py-0.5 rounded-[var(--radius-pill)] bg-rose-500/10 text-xs font-medium text-[var(--color-neutral-700)]">
                     {fmt(lic.creator_share_paise)} earned
                   </span>
                 </div>

@@ -167,6 +167,101 @@ export async function sendCreatorPayoutSent(opts: {
   });
 }
 
+/** Creator: brand sent a new collab request. */
+export async function sendCreatorCollabRequest(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  packageTier: string;
+  pricePaise: number;
+  requestId: string;
+}): Promise<void> {
+  const rupees = Math.round(opts.pricePaise / 100);
+  const tierLabel = opts.packageTier.charAt(0).toUpperCase() + opts.packageTier.slice(1);
+  await send({
+    to: opts.to,
+    subject: `${opts.brandName} wants to collab — ₹${rupees}`,
+    html: wrap(
+      "New collab request",
+      `<p style="font-size:18px;font-weight:700;margin:0 0 8px;">New request, ${opts.creatorName}!</p>
+       <p><b>${opts.brandName}</b> wants to use your likeness in a campaign for <b>${opts.productName}</b>.</p>
+       <p>${tierLabel} package · <b>₹${rupees}</b></p>
+       <p>Review the brief and accept or decline. Request expires in <b>72 hours</b>.</p>`,
+      { label: "Review request", href: `${APP_URL}/creator/collabs` },
+    ),
+  });
+}
+
+/** Brand: creator accepted their request — prompt to pay. */
+export async function sendBrandRequestAccepted(opts: {
+  to: string;
+  brandName: string;
+  creatorName: string;
+  productName: string;
+  pricePaise: number;
+  requestId: string;
+}): Promise<void> {
+  const rupees = Math.round(opts.pricePaise / 100);
+  await send({
+    to: opts.to,
+    subject: `${opts.creatorName} accepted — complete payment to start`,
+    html: wrap(
+      "Request accepted",
+      `<p style="font-size:18px;font-weight:700;margin:0 0 8px;">You're in!</p>
+       <p><b>${opts.creatorName}</b> accepted your collab request for <b>${opts.productName}</b>.</p>
+       <p>Complete payment of <b>₹${rupees}</b> to unlock the AI studio and start generating images.</p>`,
+      { label: "Pay & start", href: `${APP_URL}/brand/collabs/${opts.requestId}/payment` },
+    ),
+  });
+}
+
+/** Brand: creator declined their request. */
+export async function sendBrandRequestDeclined(opts: {
+  to: string;
+  brandName: string;
+  creatorName: string;
+  productName: string;
+  reason?: string | null;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `${opts.creatorName} declined your collab request`,
+    html: wrap(
+      "Request declined",
+      `<p style="font-size:18px;font-weight:700;margin:0 0 8px;">Not this time.</p>
+       <p><b>${opts.creatorName}</b> was unable to take on your collab for <b>${opts.productName}</b>. No payment was processed.</p>
+       ${opts.reason ? `<p><b>Their note:</b> ${opts.reason}</p>` : ""}
+       <p>There are plenty of other creators ready to work with you.</p>`,
+      { label: "Discover creators", href: `${APP_URL}/brand/discover` },
+    ),
+  });
+}
+
+/** Creator: brand completed payment — studio is now active. */
+export async function sendCreatorPaymentReceived(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  pricePaise: number;
+  collabSessionId: string;
+}): Promise<void> {
+  const rupees = Math.round(opts.pricePaise / 100);
+  await send({
+    to: opts.to,
+    subject: `${opts.brandName} paid — AI studio is live`,
+    html: wrap(
+      "Payment received",
+      `<p style="font-size:18px;font-weight:700;margin:0 0 8px;">Studio unlocked!</p>
+       <p><b>${opts.brandName}</b> completed payment of <b>₹${rupees}</b> for <b>${opts.productName}</b>.</p>
+       <p>The AI generation studio is now active. Once images are generated, they'll land in your approval queue — you'll get another notification then.</p>
+       <p>Your earnings are held in escrow and released when you approve each image.</p>`,
+      { label: "Open inbox", href: `${APP_URL}/creator/inbox` },
+    ),
+  });
+}
+
 /** Brand: low credits warning. */
 export async function sendBrandLowCredits(opts: {
   to: string;

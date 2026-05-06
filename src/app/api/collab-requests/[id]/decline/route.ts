@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
+import { sendBrandRequestDeclined } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -32,7 +33,7 @@ export async function POST(
 
   const { data: req } = await admin
     .from("collab_requests")
-    .select("id, status, brand_id, creator_id, package_tier")
+    .select("id, status, brand_id, creator_id, package_tier, product_name")
     .eq("id", id)
     .maybeSingle();
 
@@ -56,8 +57,24 @@ export async function POST(
 
   after(async () => {
     try {
-      console.log(`[collab-requests/decline] notify brand ${req.brand_id} of decline on request ${req.id}`);
-      // TODO: sendBrandRequestDeclined email via transactional.ts
+      const [creatorUserRes, brandRes] = await Promise.all([
+        admin.from("users").select("display_name").eq("id", user.id).maybeSingle(),
+        admin.from("brands").select("company_name, user_id").eq("id", req.brand_id).maybeSingle(),
+      ]);
+      const creatorUser = creatorUserRes.data;
+      const brandData = brandRes.data;
+      if (!brandData) return;
+      const { data: brandUser } = await admin
+        .from("users").select("email, display_name").eq("id", brandData.user_id).maybeSingle();
+      if (brandUser) {
+        await sendBrandRequestDeclined({
+          to: brandUser.email,
+          brandName: brandUser.display_name ?? brandData.company_name ?? "Brand",
+          creatorName: creatorUser?.display_name ?? "Creator",
+          productName: req.product_name as string,
+          reason,
+        });
+      }
     } catch (err) {
       console.error("[collab-requests/decline] notification failed", err);
     }

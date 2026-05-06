@@ -1,32 +1,21 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/credits/top-up — initiate a Cashfree Collect order for credits
-// Task E10 — Chunk E rewrite: uses new pack codes from credit_packs_catalog
-// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/credits/top-up — create a Razorpay order for a credit pack
 //
 // Flow:
-//   1. Auth (user must be signed in as a brand)
+//   1. Auth (brand only)
 //   2. Parse + validate body: { pack: 'spark'|'flow'|'pro'|'studio'|'enterprise' }
-//   3. Resolve pack from credit_packs_catalog via getActivePacks()
-//   4. Resolve brand by user.id → 404 if none
-//   5. Lookup user email + phone for Cashfree customer_details
-//   6. Insert credit_top_ups row status='initiated'
-//   7. Call createTopUpOrder — Cashfree Collect
-//   8. Update row: cf_order_id + status='processing'
-//   9. Return { orderId, paymentSessionId, amount_paise, credits, bonus_credits }
-//
-// Failure modes:
-//   • 401 unauth, 404 no brand, 400 invalid/inactive pack, 502 Cashfree blow-up
-//   • On Cashfree failure, mark row status='failed' with failure_reason
-// ─────────────────────────────────────────────────────────────────────────────
+//   3. Resolve pack from credit_packs_catalog
+//   4. Resolve brand
+//   5. Insert credit_top_ups row status='initiated'
+//   6. Create Razorpay order
+//   7. Update row: cf_order_id + status='processing'
+//   8. Return { orderId, keyId, amount_paise, credits, bonus_credits }
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createTopUpOrder } from "@/lib/payments/cashfree/collect";
-import { getActivePacks, getPackByCode, BillingError } from "@/lib/billing";
-
-// ── Inline Zod schema ─────────────────────────────────────────────────────────
+import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/payments/razorpay/orders";
+import { getPackByCode, BillingError } from "@/lib/billing";
 
 const PURCHASABLE_PACK_CODES = [
   "spark",
@@ -40,139 +29,57 @@ const TopUpRequestSchema = z.object({
   pack: z.enum(PURCHASABLE_PACK_CODES),
 });
 
-// ── Admin client helper (avoids fighting stale Database types) ────────────────
-
-type AdminUntyped = {
-  from(table: string): {
-    select(cols?: string): {
-      eq(col: string, val: string): {
-        maybeSingle(): Promise<{
-          data: Record<string, unknown> | null;
-          error: { message: string } | null;
-        }>;
-      };
-    };
-    insert(row: Record<string, unknown>): {
-      select(): {
-        single(): Promise<{
-          data: Record<string, unknown> | null;
-          error: { message: string } | null;
-        }>;
-      };
-    };
-    update(patch: Record<string, unknown>): {
-      eq(col: string, val: string): Promise<{
-        error: { message: string } | null;
-      }>;
-    };
-  };
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = any;
 
 export async function POST(req: NextRequest) {
-  // ── 1. Auth ────────────────────────────────────────────────────────────────
+  // 1. Auth
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  // ── 2. Parse + validate body ───────────────────────────────────────────────
+  // 2. Parse body
   let rawBody: unknown;
-  try {
-    rawBody = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
+  try { rawBody = await req.json(); }
+  catch { return NextResponse.json({ error: "invalid_json" }, { status: 400 }); }
 
   const parsed = TopUpRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "invalid_input", details: parsed.error.issues },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid_input", details: parsed.error.issues }, { status: 400 });
   }
   const { pack: packCode } = parsed.data;
 
-  // ── 3. Resolve pack from catalog ───────────────────────────────────────────
+  // 3. Resolve pack
   let packConfig;
   try {
     packConfig = await getPackByCode(packCode);
   } catch (err) {
     if (err instanceof BillingError && err.code === "PACK_NOT_FOUND") {
-      return NextResponse.json(
-        { error: "pack_not_found", pack: packCode },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "pack_not_found", pack: packCode }, { status: 400 });
     }
     console.error("[credits/top-up] getPackByCode failed", err);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
   if (!packConfig.is_active) {
-    return NextResponse.json(
-      { error: "pack_inactive", pack: packCode },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "pack_inactive", pack: packCode }, { status: 400 });
   }
 
-  // ── 4. Resolve brand profile ───────────────────────────────────────────────
-  const admin = createAdminClient();
-  const adminUntyped = admin as unknown as AdminUntyped;
-
-  const { data: brand, error: brandError } = await adminUntyped
-    .from("brands")
-    .select("id, user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (brandError) {
-    console.error("[credits/top-up] brand lookup failed", brandError);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  if (!brand) {
-    return NextResponse.json({ error: "no_brand_profile" }, { status: 404 });
-  }
+  // 4. Resolve brand
+  const admin = createAdminClient() as Admin;
+  const { data: brand } = await admin.from("brands").select("id").eq("user_id", user.id).maybeSingle();
+  if (!brand) return NextResponse.json({ error: "no_brand_profile" }, { status: 404 });
   const brandId = brand.id as string;
 
-  // ── 5. Lookup user email + phone for Cashfree ──────────────────────────────
-  const { data: userProfile, error: userError } = await adminUntyped
-    .from("users")
-    .select("id, email, phone, role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (userError || !userProfile) {
-    console.error("[credits/top-up] user lookup failed", userError);
-    return NextResponse.json(
-      { error: "user_profile_missing" },
-      { status: 500 },
-    );
-  }
-
-  const customerEmail =
-    (userProfile.email as string | null) ?? user.email ?? "";
-  const customerPhone = (userProfile.phone as string | null) ?? "";
-
-  if (!customerEmail) {
-    return NextResponse.json(
-      { error: "missing_customer_email" },
-      { status: 400 },
-    );
-  }
-
-  // ── 6. Insert credit_top_ups row (status=initiated) ────────────────────────
-  const { data: topUpRow, error: insertError } = await adminUntyped
+  // 5. Insert credit_top_ups row
+  const { data: topUpRow, error: insertError } = await admin
     .from("credit_top_ups")
     .insert({
       brand_id: brandId,
       pack: packCode,
       credits: packConfig.credits,
       bonus_credits: packConfig.bonus_credits,
-      credits_granted: 0, // filled on webhook success
+      credits_granted: 0,
       amount_paise: packConfig.price_paise,
       status: "initiated",
     })
@@ -180,68 +87,45 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertError || !topUpRow) {
-    console.error(
-      "[credits/top-up] insert credit_top_ups failed",
-      insertError,
-    );
+    console.error("[credits/top-up] insert failed", insertError);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
   const topUpId = topUpRow.id as string;
 
-  // ── 7. Call Cashfree Collect ───────────────────────────────────────────────
+  // 6. Create Razorpay order
   try {
-    const { orderId, paymentSessionId } = await createTopUpOrder({
-      brandId,
-      // New pack codes are not yet in the legacy collect.ts type union.
-      // Pass through as string — Cashfree only uses it in order_tags metadata.
-      pack: packCode as "small",
-      credits: packConfig.credits,
-      amountPaise: packConfig.price_paise,
-      customerEmail,
-      customerPhone: customerPhone || "9999999999",
+    const order = await createRazorpayOrder({
+      amount_paise: packConfig.price_paise,
+      receipt: topUpId.slice(0, 40),
+      notes: {
+        type: "credit_top_up",
+        credit_top_up_id: topUpId,
+        brand_id: brandId,
+        pack: packCode,
+      },
     });
 
-    // ── 8. Update row → processing, persist cf_order_id ──────────────────────
-    const { error: updateError } = await adminUntyped
+    // 7. Update row with order ID
+    await admin
       .from("credit_top_ups")
-      .update({
-        cf_order_id: orderId,
-        status: "processing",
-      })
+      .update({ cf_order_id: order.id, status: "processing" })
       .eq("id", topUpId);
 
-    if (updateError) {
-      console.error(
-        "[credits/top-up] post-order update failed (row will reconcile)",
-        updateError,
-      );
-    }
-
-    // ── 9. Return ─────────────────────────────────────────────────────────────
-    return NextResponse.json(
-      {
-        orderId,
-        paymentSessionId,
-        amount_paise: packConfig.price_paise,
-        credits: packConfig.credits,
-        bonus_credits: packConfig.bonus_credits,
-      },
-      { status: 200 },
-    );
+    // 8. Return
+    return NextResponse.json({
+      orderId: order.id,
+      keyId: getRazorpayKeyId(),
+      amount_paise: packConfig.price_paise,
+      credits: packConfig.credits,
+      bonus_credits: packConfig.bonus_credits,
+    });
   } catch (err) {
-    const reason = err instanceof Error ? err.message : "cashfree_error";
-    await adminUntyped
+    const reason = err instanceof Error ? err.message : "razorpay_error";
+    await admin
       .from("credit_top_ups")
-      .update({
-        status: "failed",
-        failure_reason: reason.slice(0, 500),
-      })
+      .update({ status: "failed", failure_reason: reason.slice(0, 500) })
       .eq("id", topUpId);
-
-    console.error("[credits/top-up] Cashfree createTopUpOrder failed", err);
-    return NextResponse.json(
-      { error: "cashfree_unavailable", message: reason },
-      { status: 502 },
-    );
+    console.error("[credits/top-up] Razorpay createOrder failed", err);
+    return NextResponse.json({ error: "payment_unavailable", message: reason }, { status: 502 });
   }
 }

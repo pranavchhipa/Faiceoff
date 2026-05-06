@@ -860,7 +860,7 @@ function Pricing() {
             priceSub="starter wallet top-up · 5 free gens"
             features={[
               "First 5 generations free",
-              "Top up from ₹5,000 via Cashfree",
+              "Top up from ₹5,000 via Razorpay",
               "GST invoice auto-generated",
               "Full commercial usage rights",
               "Bulk discount at ₹50k+ top-up",

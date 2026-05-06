@@ -5,10 +5,10 @@ import { isLegacyDashboardPath } from "@/config/routes";
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
-  const { role, userId, refreshedResponse } = await getSessionRole(request, response);
+  const { role, userId, onboardingComplete, refreshedResponse } = await getSessionRole(request, response);
   const pathname = request.nextUrl.pathname;
 
-  const target = decideRedirect(pathname, role);
+  const target = decideRedirect(pathname, role, onboardingComplete);
 
   // Debug logging — temporary, remove once login flow is stable.
   // Skip noisy paths to keep Vercel logs readable.

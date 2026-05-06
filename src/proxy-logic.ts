@@ -19,7 +19,7 @@ import { resolveLegacyRedirect } from "@/config/legacy-redirects";
  *
  * API route short-circuit: /api/* never redirects (handlers manage auth).
  */
-export function decideRedirect(pathname: string, role: Role | null): string | null {
+export function decideRedirect(pathname: string, role: Role | null, onboardingComplete = true): string | null {
   if (pathname.startsWith("/api/")) return null;
   if (pathname.startsWith("/_next/") || pathname.startsWith("/static/")) return null;
 
@@ -33,9 +33,14 @@ export function decideRedirect(pathname: string, role: Role | null): string | nu
   }
 
   // 3. Legacy /dashboard/* — role-aware 308 redirect
+  // resolveLegacyRedirect returns null for paths that should pass through unchanged
+  // (e.g. /dashboard/onboarding/*). In that case, fall through to further checks
+  // rather than bouncing to role home.
   if (isLegacyDashboardPath(pathname)) {
     if (!role) return `/login?redirect=${encodeURIComponent(pathname)}`;
-    return resolveLegacyRedirect(pathname, role) ?? ROLE_HOME[role];
+    const legacyTarget = resolveLegacyRedirect(pathname, role);
+    if (legacyTarget !== null) return legacyTarget; // explicit redirect
+    // null = pass through (e.g. onboarding pages still under /dashboard/)
   }
 
   // 4. Protected — anon gets sent to login
@@ -48,11 +53,18 @@ export function decideRedirect(pathname: string, role: Role | null): string | nu
   if (isCreatorPath(pathname) && role !== "creator") return ROLE_HOME[role];
   if (isAdminPath(pathname) && role !== "admin") return ROLE_HOME[role];
 
-  // 6. TODO(Chunk D): onboarding gate
-  // When onboarding state is wired (creators.onboarding_step, brands.is_verified),
-  // redirect to `/${role}/onboarding` if the user hasn't completed setup AND they
-  // are not already on /{role}/onboarding/*. Intentionally deferred — Chunk B is
-  // scaffolding only.
+  // 6. Onboarding gate — incomplete users get funnelled to their setup flow
+  if (!onboardingComplete) {
+    const creatorOnboardingPaths = ["/dashboard/onboarding", "/creator/onboarding"];
+    const brandOnboardingPath = "/brand/onboarding";
+    const onOnboarding =
+      creatorOnboardingPaths.some((p) => pathname.startsWith(p)) ||
+      pathname.startsWith(brandOnboardingPath);
+    if (!onOnboarding) {
+      if (role === "creator") return "/dashboard/onboarding";
+      if (role === "brand") return brandOnboardingPath;
+    }
+  }
 
   return null;
 }

@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
+import { sendBrandRequestAccepted } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -65,11 +66,28 @@ export async function POST(
     package_tier: req.package_tier,
   }, user.id);
 
-  // Fire-and-forget: notify brand
+  // Fire-and-forget: notify brand to complete payment
   after(async () => {
     try {
-      console.log(`[collab-requests/accept] notify brand ${req.brand_id} to pay for request ${req.id}`);
-      // TODO: sendBrandRequestAccepted email via transactional.ts
+      const [creatorUserRes, brandRes] = await Promise.all([
+        admin.from("users").select("display_name").eq("id", user.id).maybeSingle(),
+        admin.from("brands").select("company_name, user_id").eq("id", req.brand_id).maybeSingle(),
+      ]);
+      const creatorUser = creatorUserRes.data;
+      const brandData = brandRes.data;
+      if (!brandData) return;
+      const { data: brandUser } = await admin
+        .from("users").select("email, display_name").eq("id", brandData.user_id).maybeSingle();
+      if (brandUser) {
+        await sendBrandRequestAccepted({
+          to: brandUser.email,
+          brandName: brandUser.display_name ?? brandData.company_name ?? "Brand",
+          creatorName: creatorUser?.display_name ?? "Creator",
+          productName: req.product_name as string,
+          pricePaise: req.package_price_paise as number,
+          requestId: req.id,
+        });
+      }
     } catch (err) {
       console.error("[collab-requests/accept] notification failed", err);
     }

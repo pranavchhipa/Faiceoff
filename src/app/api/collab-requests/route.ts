@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/redis/rate-limiter";
 import { track } from "@/lib/observability/analytics";
+import { sendCreatorCollabRequest } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
   // Verify creator is live
   const { data: creator } = await admin
     .from("creators")
-    .select("id, is_live")
+    .select("id, is_live, user_id")
     .eq("id", pkg.creator_id)
     .eq("is_active", true)
     .maybeSingle();
@@ -124,11 +125,26 @@ export async function POST(request: Request) {
     price_paise: pkg.price_paise,
   }, user.id);
 
-  // Fire-and-forget: notify creator (email + in-app)
+  // Fire-and-forget: notify creator by email
   after(async () => {
     try {
-      // TODO Phase 5: send creator notification email via transactional.ts
-      console.log(`[collab-requests] notify creator ${creator.id} of request ${reqRow.id}`);
+      const [creatorUserRes, brandRes] = await Promise.all([
+        admin.from("users").select("email, display_name").eq("id", creator.user_id).maybeSingle(),
+        admin.from("brands").select("company_name").eq("id", brand.id).maybeSingle(),
+      ]);
+      const creatorUser = creatorUserRes.data;
+      const brandData = brandRes.data;
+      if (creatorUser && brandData) {
+        await sendCreatorCollabRequest({
+          to: creatorUser.email,
+          creatorName: creatorUser.display_name ?? "Creator",
+          brandName: brandData.company_name ?? "Brand",
+          productName: (product_name as string).trim(),
+          packageTier: pkg.tier as string,
+          pricePaise: pkg.price_paise as number,
+          requestId: reqRow.id,
+        });
+      }
     } catch (err) {
       console.error("[collab-requests] notification failed", err);
     }
