@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Scale, ShieldCheck, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, ShieldCheck, Trash2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
@@ -11,24 +11,28 @@ const CONSENT_VERSION = "DPDP-v1.0-2024";
 
 const CONSENT_ITEMS = [
   {
-    title: "Biometric Data Collection",
-    description:
-      "We collect and process your facial biometric data (reference photos) to use as face references when generating content featuring your likeness. Photos are only used for campaigns you have explicitly approved.",
+    icon: Camera,
+    color: "#818cf8",
+    bg: "rgba(129,140,248,0.15)",
+    title: "Face photos used only for approved campaigns",
   },
   {
-    title: "Usage Rights",
-    description:
-      "Generated content using your likeness will only be produced for campaigns you have explicitly approved. You retain the right to revoke consent at any time.",
+    icon: CheckCircle2,
+    color: "#4ade80",
+    bg: "rgba(74,222,128,0.15)",
+    title: "You approve every image before it's published",
   },
   {
-    title: "90-Day KYC Retention",
-    description:
-      "Your identity verification documents (KYC) are retained for 90 days as required by applicable regulations, after which they are permanently deleted.",
+    icon: ShieldCheck,
+    color: "#38bdf8",
+    bg: "rgba(56,189,248,0.15)",
+    title: "Revoke consent anytime from your settings",
   },
   {
-    title: "30-Day Deletion SLA",
-    description:
-      "Upon request for data deletion, all your biometric data and reference photos will be permanently removed within 30 calendar days, and no further content can be generated using your likeness.",
+    icon: Trash2,
+    color: "#fb923c",
+    bg: "rgba(251,146,60,0.15)",
+    title: "Data deleted within 30 days on request",
   },
 ];
 
@@ -53,22 +57,14 @@ export default function ConsentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consent_version: CONSENT_VERSION }),
       });
-
-      if (!saveRes.ok) {
-        const body = await saveRes.json();
-        throw new Error(body.error || "Failed to save consent");
-      }
+      if (!saveRes.ok) throw new Error((await saveRes.json()).error || "Failed to save consent");
 
       const res = await fetch("/api/onboarding/update-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step: "photos" }),
       });
-
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || "Failed to update step");
-      }
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to update step");
 
       router.push("/dashboard/onboarding/photos");
     } catch (err) {
@@ -92,57 +88,67 @@ export default function ConsentPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
+      className="max-w-lg"
     >
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
-          <Scale className="size-3.5" />
+      {/* Back */}
+      <button
+        type="button"
+        onClick={() => router.push("/dashboard/onboarding/compliance")}
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+      >
+        <ArrowLeft className="size-3.5" /> Back
+      </button>
+
+      {/* Header */}
+      <div className="mb-5">
+        <div className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 text-[var(--color-muted-foreground)] mb-2">
+          <ShieldCheck className="size-3" />
           DPDP Act 2023
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
-          Biometric data consent
-        </h2>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Under the Digital Personal Data Protection Act 2023, we require your explicit consent before processing biometric data.
+        <h2 className="text-xl font-800 text-[var(--color-foreground)] mb-1">Biometric data consent</h2>
+        <p className="text-[13px] text-[var(--color-muted-foreground)]">
+          Required under Indian law before we process your face data.
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Consent items */}
-        <div className="space-y-4 mb-6">
-          {CONSENT_ITEMS.map((item, i) => (
-            <div
-              key={i}
-              className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5"
-            >
-              <h4 className="text-sm font-700 text-[var(--color-foreground)] mb-1.5">
-                {item.title}
-              </h4>
-              <p className="text-sm text-[var(--color-muted-foreground)] leading-relaxed">
-                {item.description}
-              </p>
-            </div>
-          ))}
+        {/* Compact consent rows */}
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] divide-y divide-[var(--color-border)] mb-5 overflow-hidden">
+          {CONSENT_ITEMS.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: item.bg }}>
+                  <Icon className="size-3.5" style={{ color: item.color }} strokeWidth={2} />
+                </div>
+                <p className="text-[13px] font-500 text-[var(--color-foreground)]">{item.title}</p>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Version stamp */}
-        <div className="flex items-center gap-2 mb-6 px-1">
-          <ShieldCheck className="size-4 text-[var(--color-muted-foreground)]" />
-          <span className="text-xs font-500 text-[var(--color-muted-foreground)]">
-            Consent version: {CONSENT_VERSION}
-          </span>
-        </div>
-
-        {/* Checkbox */}
-        <label className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-secondary)] p-4 cursor-pointer mb-6 select-none">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 size-4 rounded border-[var(--color-border)] accent-[var(--color-primary)]"
-          />
-          <span className="text-sm text-[var(--color-foreground)] leading-relaxed">
-            I have read and agree to the biometric data processing terms under the
-            Digital Personal Data Protection Act 2023 (DPDP Act).
+        {/* Agree checkbox */}
+        <label className="flex items-start gap-3 cursor-pointer select-none mb-5 group">
+          <div className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border-2 transition-all ${
+            agreed
+              ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
+              : "border-[var(--color-border)] bg-transparent group-hover:border-[var(--color-primary)]/50"
+          }`}>
+            {agreed && (
+              <svg className="size-3 text-[var(--color-primary-foreground)]" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="sr-only"
+            />
+          </div>
+          <span className="text-[13px] text-[var(--color-muted-foreground)] leading-relaxed">
+            I agree to biometric data processing under the DPDP Act 2023.{" "}
+            <span className="text-[11px] font-500 text-[var(--color-muted-foreground)]/60">v{CONSENT_VERSION}</span>
           </span>
         </label>
 
@@ -155,7 +161,7 @@ export default function ConsentPage() {
         <Button
           type="submit"
           disabled={saving || !agreed}
-          className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600 disabled:opacity-40"
+          className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-10 px-8 font-600 disabled:opacity-40"
         >
           {saving ? (
             <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
