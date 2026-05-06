@@ -24,7 +24,6 @@ export async function POST(
   // Can be called from webhook (no user session) or brand UI
   const authHeader = request.headers.get("authorization") ?? "";
   const isWebhook = authHeader === `Bearer ${process.env.RAZORPAY_WEBHOOK_SECRET}` ||
-                    authHeader === `Bearer ${process.env.CASHFREE_WEBHOOK_SECRET}` ||
                     authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
   let userId: string | null = null;

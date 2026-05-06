@@ -57,7 +57,7 @@ function scopeChips(scope: LicenseScope): React.ReactNode {
       {items.map(({ label, icon }) => (
         <span
           key={label}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-ocean)] text-[var(--color-ink)] text-xs font-600"
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-[var(--color-foreground)] text-xs font-600"
         >
           {icon}
           {label}
@@ -73,7 +73,7 @@ function StatusBadge({ status }: { status: PublicLicenseStatus["status"] | "not_
   if (status === "active") {
     return (
       <div className="flex flex-col items-center gap-2">
-        <div className="flex size-16 items-center justify-center rounded-full bg-[var(--color-mint)]">
+        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
           <ShieldCheck className="size-8 text-green-600" />
         </div>
         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-100 text-green-700 text-sm font-700">
@@ -101,7 +101,7 @@ function StatusBadge({ status }: { status: PublicLicenseStatus["status"] | "not_
   if (status === "revoked") {
     return (
       <div className="flex flex-col items-center gap-2">
-        <div className="flex size-16 items-center justify-center rounded-full bg-[var(--color-blush)]">
+        <div className="flex size-16 items-center justify-center rounded-full bg-rose-500/10">
           <ShieldAlert className="size-8 text-red-500" />
         </div>
         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-100 text-red-600 text-sm font-700">

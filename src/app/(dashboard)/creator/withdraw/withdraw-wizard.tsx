@@ -71,7 +71,7 @@ function Breakdown({ grossPaise }: BreakdownProps) {
         <span className="text-red-500">-{fmt(fee)}</span>
       </div>
       <Separator />
-      <div className="flex justify-between font-bold text-[var(--color-ink)]">
+      <div className="flex justify-between font-bold text-[var(--color-foreground)]">
         <span>Net to bank</span>
         <span>{fmt(net)}</span>
       </div>
@@ -270,7 +270,7 @@ export default function WithdrawWizard({
     >
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--color-ink)]">Withdraw</h1>
+        <h1 className="text-2xl font-bold text-[var(--color-foreground)]">Withdraw</h1>
         <p className="text-sm text-[var(--color-neutral-500)] mt-1">
           Available: {fmt(available_paise)}
         </p>
@@ -318,7 +318,7 @@ export default function WithdrawWizard({
               className="space-y-5"
             >
               <div>
-                <label className="block text-sm font-semibold text-[var(--color-ink)] mb-3">
+                <label className="block text-sm font-semibold text-[var(--color-foreground)] mb-3">
                   Withdraw{" "}
                   <span className="text-[var(--color-accent-gold)]">{fmt(grossPaise)}</span>
                 </label>
@@ -361,11 +361,11 @@ export default function WithdrawWizard({
             >
               {primaryAccount ? (
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-5 flex items-center gap-4">
-                  <div className="size-10 rounded-full bg-[var(--color-ocean)] flex items-center justify-center">
+                  <div className="size-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                     <Building2 className="size-5 text-[var(--color-neutral-600)]" />
                   </div>
                   <div>
-                    <p className="font-semibold text-[var(--color-ink)]">
+                    <p className="font-semibold text-[var(--color-foreground)]">
                       ●●●● ●●●● ●●●● {primaryAccount.account_number_last4}
                     </p>
                     <p className="text-xs text-[var(--color-neutral-500)]">
@@ -374,7 +374,7 @@ export default function WithdrawWizard({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-blush)]/40 p-5 text-center">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-rose-500/10 p-5 text-center">
                   <p className="text-sm text-[var(--color-neutral-600)]">
                     No bank account linked. Please add one in settings.
                   </p>
@@ -422,10 +422,10 @@ export default function WithdrawWizard({
                   animate={{ scale: 1, opacity: 1 }}
                   className="text-center py-8"
                 >
-                  <div className="size-16 mx-auto mb-4 rounded-full bg-[var(--color-mint)] flex items-center justify-center">
+                  <div className="size-16 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
                     <CheckCircle2 className="size-8 text-green-600" />
                   </div>
-                  <h2 className="text-xl font-bold text-[var(--color-ink)] mb-2">
+                  <h2 className="text-xl font-bold text-[var(--color-foreground)] mb-2">
                     Processing…
                   </h2>
                   <p className="text-sm text-[var(--color-neutral-500)]">
@@ -435,7 +435,7 @@ export default function WithdrawWizard({
               ) : (
                 <>
                   <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-5 space-y-3">
-                    <h3 className="text-sm font-bold text-[var(--color-ink)]">Summary</h3>
+                    <h3 className="text-sm font-bold text-[var(--color-foreground)]">Summary</h3>
                     <Breakdown grossPaise={grossPaise} />
                     {primaryAccount && (
                       <div className="flex items-center gap-3 pt-2">
@@ -448,7 +448,7 @@ export default function WithdrawWizard({
                     )}
                   </div>
 
-                  <p className="text-xs text-[var(--color-neutral-400)] bg-[var(--color-ocean)]/30 rounded-xl px-4 py-3">
+                  <p className="text-xs text-[var(--color-neutral-400)] bg-blue-500/10 rounded-xl px-4 py-3">
                     Funds usually arrive in 24-48 hours via IMPS. TDS at 1% is deducted
                     per Income Tax Act Section 194-O.
                   </p>

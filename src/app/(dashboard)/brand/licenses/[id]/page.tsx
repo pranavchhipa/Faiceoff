@@ -60,8 +60,8 @@ function getScopeArray(scope: string | string[] | null): string[] {
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-  active: { label: "Active", bg: "bg-[var(--color-mint)]", text: "text-green-700" },
-  expired: { label: "Expired", bg: "bg-[var(--color-blush)]", text: "text-red-700" },
+  active: { label: "Active", bg: "bg-emerald-500/10", text: "text-green-700" },
+  expired: { label: "Expired", bg: "bg-rose-500/10", text: "text-red-700" },
   revoked: { label: "Revoked", bg: "bg-[var(--color-neutral-100)]", text: "text-[var(--color-neutral-600)]" },
 };
 
@@ -97,7 +97,7 @@ function AutoRenewToggle({
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm font-600 text-[var(--color-ink)]">
+      <span className="text-sm font-600 text-[var(--color-foreground)]">
         Auto-renew
       </span>
       <button
@@ -176,10 +176,10 @@ export default function LicenseDetailPage({
   if (notFound || !license) {
     return (
       <div className="max-w-2xl py-24 text-center">
-        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-[var(--color-blush)]">
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-500/10">
           <AlertTriangle className="size-7 text-red-500" />
         </div>
-        <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">License not found</h2>
+        <h2 className="text-xl font-700 text-[var(--color-foreground)] mb-2">License not found</h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-6">
           This license does not exist or you don't have access to it.
         </p>
@@ -212,13 +212,13 @@ export default function LicenseDetailPage({
       >
         <Link
           href="/brand/licenses"
-          className="inline-flex items-center gap-1.5 text-sm font-500 text-[var(--color-neutral-500)] hover:text-[var(--color-ink)] transition-colors no-underline"
+          className="inline-flex items-center gap-1.5 text-sm font-500 text-[var(--color-neutral-500)] hover:text-[var(--color-foreground)] transition-colors no-underline"
         >
           <ArrowLeft className="size-4" />
           Licenses
         </Link>
         <span className="mx-2 text-[var(--color-neutral-300)]">/</span>
-        <span className="text-sm font-600 text-[var(--color-ink)] font-mono">
+        <span className="text-sm font-600 text-[var(--color-foreground)] font-mono">
           {license.id.slice(0, 8)}
         </span>
       </motion.div>
@@ -230,11 +230,11 @@ export default function LicenseDetailPage({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5 sm:p-6 shadow-[var(--shadow-card)] flex flex-col gap-5"
+          className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-5 sm:p-6 shadow-[var(--shadow-card)] flex flex-col gap-5"
         >
           {/* Status big pill */}
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-ink)]">
+            <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-foreground)]">
               License Agreement
             </h1>
             <span className={`shrink-0 rounded-[var(--radius-pill)] px-3.5 py-1 text-sm font-700 ${cfg.bg} ${cfg.text}`}>
@@ -244,18 +244,18 @@ export default function LicenseDetailPage({
 
           {/* Parties */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-[var(--color-ocean)]/30 p-3">
-              <User className="size-4 text-[var(--color-ink)] mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-blue-500/10 p-3">
+              <User className="size-4 text-[var(--color-foreground)] mt-0.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Creator</p>
-                <p className="text-sm font-700 text-[var(--color-ink)]">{license.creator_name ?? "—"}</p>
+                <p className="text-sm font-700 text-[var(--color-foreground)]">{license.creator_name ?? "—"}</p>
               </div>
             </div>
-            <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-[var(--color-blush)]/30 p-3">
-              <Building2 className="size-4 text-[var(--color-ink)] mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-rose-500/10 p-3">
+              <Building2 className="size-4 text-[var(--color-foreground)] mt-0.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Brand</p>
-                <p className="text-sm font-700 text-[var(--color-ink)]">{license.brand_name ?? "—"}</p>
+                <p className="text-sm font-700 text-[var(--color-foreground)]">{license.brand_name ?? "—"}</p>
               </div>
             </div>
           </div>
@@ -266,7 +266,7 @@ export default function LicenseDetailPage({
               <Calendar className="size-4 text-[var(--color-neutral-400)] mt-0.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-700 uppercase tracking-widest text-[var(--color-neutral-400)] mb-0.5">Issued</p>
-                <p className="text-sm font-600 text-[var(--color-ink)]">{formatDate(license.issued_at)}</p>
+                <p className="text-sm font-600 text-[var(--color-foreground)]">{formatDate(license.issued_at)}</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
@@ -293,7 +293,7 @@ export default function LicenseDetailPage({
                 {scopeArr.map((s) => (
                   <span
                     key={s}
-                    className="rounded-[var(--radius-pill)] bg-[var(--color-lilac)] px-2.5 py-0.5 text-xs font-600 text-[var(--color-ink)] capitalize"
+                    className="rounded-[var(--radius-pill)] bg-[var(--color-primary)]/10 px-2.5 py-0.5 text-xs font-600 text-[var(--color-foreground)] capitalize"
                   >
                     {s}
                   </span>
@@ -331,7 +331,7 @@ export default function LicenseDetailPage({
             </a>
             <Link
               href={`/brand/vault`}
-              className="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-neutral-200)] px-4 py-2 text-sm font-600 text-[var(--color-ink)] hover:bg-[var(--color-neutral-50)] transition-colors no-underline"
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-neutral-200)] px-4 py-2 text-sm font-600 text-[var(--color-foreground)] hover:bg-[var(--color-neutral-50)] transition-colors no-underline"
             >
               View in vault
             </Link>
@@ -358,7 +358,7 @@ export default function LicenseDetailPage({
           ) : (
             <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] h-[700px] text-center p-8">
               <FileText className="size-12 text-[var(--color-neutral-300)] mb-3" />
-              <p className="text-sm font-600 text-[var(--color-ink)] mb-1">PDF not available</p>
+              <p className="text-sm font-600 text-[var(--color-foreground)] mb-1">PDF not available</p>
               <p className="text-xs text-[var(--color-neutral-500)] mb-4">
                 The certificate could not be loaded in the viewer.
               </p>
