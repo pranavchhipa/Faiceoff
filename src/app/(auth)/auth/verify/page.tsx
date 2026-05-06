@@ -113,7 +113,7 @@ function VerifyForm() {
       eyebrow="One last step"
       title={<>Enter the <span className="text-gradient-primary">8-digit code.</span></>}
       subtitle={<>We sent a verification code to <span className="text-foreground font-semibold">{masked}</span>. It expires in 10 minutes.</>}
-      side={{ tint: "success", heading: "Secure by default.", body: "Every new account gets a fresh one-time code. No passwords to guess. Just click your inbox." }}
+      side={{ tint: "success", heading: "Almost in.", body: "One tap and you're part of India's first AI face licensing platform." }}
     >
       <form onSubmit={verify} className="space-y-6" noValidate>
         <div className="grid grid-cols-8 gap-1.5 sm:gap-2.5">
