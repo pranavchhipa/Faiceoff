@@ -302,19 +302,24 @@ export default function CreatorPackagesPage() {
 
   const handleSave = async (tier: Tier, price_paise: number, final_images: number) => {
     setSaving(tier);
+    setLiveError(null);
     try {
       const res = await fetch("/api/creator/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier, price_paise, final_images }),
       });
-      if (res.ok) {
-        const d = await res.json();
-        setPackages((prev) => {
-          const filtered = prev.filter((p) => p.tier !== tier);
-          return [...filtered, d.package];
-        });
+      const d = await res.json();
+      if (!res.ok) {
+        setLiveError(d.error ?? `Failed to save ${tier} package`);
+        return;
       }
+      setPackages((prev) => {
+        const filtered = prev.filter((p) => p.tier !== tier);
+        return [...filtered, d.package];
+      });
+    } catch (err) {
+      setLiveError(err instanceof Error ? err.message : "Network error");
     } finally {
       setSaving(null);
     }
