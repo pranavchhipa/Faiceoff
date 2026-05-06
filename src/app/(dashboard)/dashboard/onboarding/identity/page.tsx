@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { User, MapPin, ArrowRight, FileCheck } from "lucide-react";
+import { User, MapPin, ArrowRight } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,7 +91,6 @@ export default function IdentityPage() {
           date_of_birth: `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`,
           city,
           state,
-          kyc_id_type: idType,
         },
       });
 
@@ -135,14 +134,7 @@ export default function IdentityPage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
-      {draft && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 px-3 py-2 text-xs text-[var(--color-primary)] font-500">
-          <FileCheck className="size-3.5 shrink-0" />
-          Draft restored — your previous answers have been saved.
-        </div>
-      )}
-
-      <div className="mb-8">
+<div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <User className="size-3.5" />
           Identity Verification
