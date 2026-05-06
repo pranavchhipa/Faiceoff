@@ -264,7 +264,7 @@ function TrustMarquee() {
     "Consent first",
     "INR payouts",
     "DPDP Act compliant",
-    "KYC verified",
+    "Identity verified",
     "Made in India",
     "GST auto-invoiced",
     "Full commercial rights",
@@ -407,7 +407,7 @@ function CreatorGallery() {
               Real Indian creators. <span className="text-gradient-primary">Verified faces.</span>
             </h2>
             <p className="mt-5 text-muted-foreground text-lg">
-              KYC-verified. DPDP-consented. Set their own price. Browse and pick in seconds.
+              Verified, DPDP-consented. Set their own price. Browse and pick in seconds.
             </p>
           </div>
           <Link
@@ -452,7 +452,7 @@ function CreatorCard({
         style={WATERMARK_MASK}
       />
 
-      {/* KYC chip */}
+      {/* verified chip */}
       <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-background/75 backdrop-blur text-[10px] font-mono tracking-widest uppercase flex items-center gap-1.5">
         <ShieldCheck size={11} className="text-accent" /> Verified
       </div>

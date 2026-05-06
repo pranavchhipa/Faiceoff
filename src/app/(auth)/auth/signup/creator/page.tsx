@@ -50,7 +50,7 @@ export default function CreatorSignupPage() {
       eyebrow="Create your account"
       title={<>Join as a <span className="text-gradient-primary">Creator.</span></>}
       subtitle="License your AI face. Approve every image. Get paid in INR."
-      side={{ tint: "creator", heading: "Your face is the IP.", body: "You approve every image. You set every price. You earn in INR." }}
+      side={{ tint: "creator", heading: "Your face earns while you sleep.", body: "Brands pay to use your likeness. You approve every image. Withdraw in INR anytime." }}
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {[

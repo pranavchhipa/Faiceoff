@@ -12,8 +12,7 @@ export function Footer() {
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="px-2 py-1 rounded-md bg-secondary">DPDP Act compliant</span>
-            <span className="px-2 py-1 rounded-md bg-secondary">KYC verified</span>
-            <span className="px-2 py-1 rounded-md bg-secondary">Made in India 🇮🇳</span>
+<span className="px-2 py-1 rounded-md bg-secondary">Made in India 🇮🇳</span>
           </div>
         </div>
         <div>

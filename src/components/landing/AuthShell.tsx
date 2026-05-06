@@ -142,15 +142,6 @@ export function AuthShell({
                       <span className="text-xs font-mono font-semibold">+₹2,500</span>
                     </motion.div>
 
-                    {/* Verified badge */}
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      transition={{ delay: 0.8, type: "spring", stiffness: 260, damping: 20 }}
-                      className="absolute -left-10 bottom-8 px-2 py-1.5 rounded-lg bg-background/90 backdrop-blur border border-border text-[11px] font-semibold whitespace-nowrap flex items-center gap-1"
-                    >
-                      <span className="text-green-600">✓</span> KYC Verified
-                    </motion.div>
                   </div>
                 </div>
               )}

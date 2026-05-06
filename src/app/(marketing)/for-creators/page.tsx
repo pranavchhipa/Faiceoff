@@ -132,7 +132,7 @@ export default function CreatorsPage() {
           </motion.div>
           <Steps
             items={[
-              { icon: Upload,     t: "Sign up & upload",     d: "Quick onboarding. Upload 20–30 reference photos. KYC in 5 minutes." },
+              { icon: Upload,     t: "Sign up & upload",     d: "Quick onboarding. Upload 20–30 reference photos. Done in minutes." },
               { icon: Brain,      t: "We train your AI",     d: "A private model is trained on your face. Only you control it." },
               { icon: Tags,       t: "Set your price",       d: "Decide your rate per generation. Change it anytime." },
               { icon: Ban,        t: "Pick your no-go zones",d: "Permanently block alcohol, politics, adult, or anything you choose." },
@@ -192,9 +192,9 @@ function CreatorHeroStack() {
           style={WATERMARK_MASK}
         />
 
-        {/* KYC verified chip */}
+        {/* verified chip */}
         <div className="absolute top-4 left-4 px-3 py-1.5 rounded-md bg-background/75 backdrop-blur-md border border-border/80 text-xs font-mono tracking-[0.15em] uppercase flex items-center gap-2">
-          <ShieldCheck size={12} className="text-accent" /> KYC Verified
+          <ShieldCheck size={12} className="text-accent" /> Verified
         </div>
 
         {/* LoRA trained badge */}

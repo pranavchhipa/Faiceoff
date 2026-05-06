@@ -101,7 +101,7 @@ export default function BrandsPage() {
               className="mt-10 grid grid-cols-2 gap-2 max-w-md"
             >
               {[
-                "KYC-verified creators",
+                "Verified creators",
                 "Full commercial rights",
                 "Auto GST invoice",
                 "48h creator approval",
