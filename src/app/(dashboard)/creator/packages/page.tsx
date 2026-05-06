@@ -242,7 +242,6 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
               Final images
             </label>
             <ImagesInput value={images} onChange={(v) => { setImages(v); setDirty(true); }} />
-            <p className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">{images * 3} gen attempts</p>
           </div>
         </div>
 
