@@ -35,10 +35,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  createTransfer,
-  mapTransferStatus,
-} from "@/lib/payments/cashfree/payouts";
-import {
   commitWithdrawalDeductions,
   commitWithdrawalFailure,
   LedgerError,
@@ -273,69 +269,26 @@ export async function POST(req: NextRequest) {
     netPaise = (afterDeductionsRaw as { net_paise: number }).net_paise;
   }
 
-  // ── 9. Call Cashfree transfer ──────────────────────────────────────────────
-  let cfTransferIdToSave: string | null = null;
-  let cfMode: string | null = null;
+  // ── 9. Payout provider not configured ─────────────────────────────────────
+  // Razorpay payout (RazorpayX) integration pending. Reverse deductions and
+  // inform the creator to contact support.
   try {
-    const transfer = await createTransfer({
-      transferId: withdrawalId,
-      beneficiaryId,
-      amountPaise: netPaise,
-      mode: "IMPS",
-      remarks: `Faiceoff withdrawal ${withdrawalId}`,
+    await commitWithdrawalFailure({
+      withdrawalRequestId: withdrawalId,
+      reason: "payout_provider_not_configured",
     });
-    cfTransferIdToSave =
-      (transfer as { cf_transfer_id?: string; transfer_id?: string })
-        .cf_transfer_id ??
-      (transfer as { transfer_id?: string }).transfer_id ??
-      null;
-    cfMode =
-      (transfer as { transfer_mode?: string }).transfer_mode ?? "IMPS";
-    // Normalise for sanity — not required for the write.
-    mapTransferStatus(
-      (transfer as { status?: string }).status ?? "PROCESSING",
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "cashfree_error";
-    console.error("[withdrawals/create] createTransfer failed", message);
-    try {
-      await commitWithdrawalFailure({
-        withdrawalRequestId: withdrawalId,
-        reason: `cashfree_createTransfer: ${message}`,
-      });
-    } catch (reverseErr) {
-      console.error(
-        "[withdrawals/create] reversal failed",
-        reverseErr instanceof Error ? reverseErr.message : reverseErr,
-      );
-    }
-    return NextResponse.json(
-      { error: "cashfree_unavailable", message, withdrawal_id: withdrawalId },
-      { status: 502 },
+  } catch (reverseErr) {
+    console.error(
+      "[withdrawals/create] reversal failed",
+      reverseErr instanceof Error ? reverseErr.message : reverseErr,
     );
   }
-
-  // ── 10. Mark processing ────────────────────────────────────────────────────
-  const nowIso = new Date().toISOString();
-  await admin
-    .from("withdrawal_requests")
-    .update({
-      status: "processing",
-      cf_transfer_id: cfTransferIdToSave,
-      cf_mode: cfMode,
-      processing_at: nowIso,
-    })
-    .eq("id", withdrawalId);
-
-  // ── 11. Response ───────────────────────────────────────────────────────────
   return NextResponse.json(
     {
+      error: "payouts_unavailable",
+      message: "Payouts are processed manually. Contact support@faiceoff.com to request a withdrawal.",
       withdrawal_id: withdrawalId,
-      status: "processing",
-      gross_paise: amount_paise,
-      net_paise: netPaise,
-      cf_transfer_id: cfTransferIdToSave,
     },
-    { status: 202 },
+    { status: 503 },
   );
 }

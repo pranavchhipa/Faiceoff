@@ -29,8 +29,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { pennyDrop } from "@/lib/payments/cashfree/kyc";
-import { createBeneficiary } from "@/lib/payments/cashfree/payouts";
 import { encryptKycValue } from "@/lib/kyc/crypto";
 import { SubmitBankSchema } from "@/domains/kyc/types";
 
@@ -147,157 +145,12 @@ export async function POST(req: NextRequest) {
       ?.cf_beneficiary_id ?? null;
 
   // ── 5. Encrypt + call Cashfree penny-drop ──────────────────────────────────
-  const accountEncrypted = encryptKycValue(account_number);
-
-  let pennySuccess = false;
-  let actualName: string | undefined;
-  let matchScore: number | undefined;
-  let bankName: string | undefined;
-  try {
-    const result = await pennyDrop({
-      verificationId: `bank_${creatorId}_${randomUUID()}`,
-      accountNumber: account_number,
-      ifsc,
-      expectedName: account_holder_name,
-    });
-    pennySuccess = result.success;
-    actualName = result.actualName;
-    matchScore = result.matchScore;
-    bankName =
-      (result.raw as { bank_name?: string } | undefined)?.bank_name ??
-      undefined;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "cashfree_error";
-    console.error("[kyc/bank] pennyDrop failed", message);
-    return NextResponse.json(
-      { error: "cashfree_unavailable", message },
-      { status: 502 },
-    );
-  }
-
-  if (!pennySuccess) {
-    return NextResponse.json(
-      {
-        bank_verified: false,
-        name_match_score: matchScore ?? null,
-        actual_name_at_bank: actualName ?? null,
-      },
-      { status: 422 },
-    );
-  }
-
-  // ── 6. Register / reuse Cashfree beneficiary ───────────────────────────────
-  // Use user_id as the stable caller-provided id — idempotent per creator.
-  let beneficiaryId: string | null = existingBeneficiaryId;
-  if (!beneficiaryId) {
-    try {
-      const result = await createBeneficiary({
-        beneficiaryId: user.id,
-        name: account_holder_name,
-        bankAccountNumber: account_number,
-        bankIfsc: ifsc,
-        email: user.email ?? undefined,
-      });
-      beneficiaryId = result.beneficiary_id ?? user.id;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "cashfree_error";
-      console.error("[kyc/bank] createBeneficiary failed", message);
-      return NextResponse.json(
-        { error: "cashfree_unavailable", message },
-        { status: 502 },
-      );
-    }
-  }
-
-  const now = new Date().toISOString();
-
-  // ── 7. Deactivate any previously-active bank row ───────────────────────────
-  // Partial UNIQUE index demands at most one active row per creator.
-  const currentActive = (await admin
-    .from("creator_bank_accounts")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_id", creatorId)) as unknown as CountQueryResult;
-  if ((currentActive.count ?? 0) > 0) {
-    await admin
-      .from("creator_bank_accounts")
-      .update({ is_active: false })
-      .eq("creator_id", creatorId);
-  }
-
-  // ── 8. Insert new bank row ─────────────────────────────────────────────────
-  const insertRow: Record<string, unknown> = {
-    creator_id: creatorId,
-    account_number_encrypted: accountEncrypted,
-    account_number_last4: account_number.slice(-4),
-    ifsc,
-    bank_name: bankName ?? "",
-    account_holder_name,
-    penny_drop_verified_at: now,
-    penny_drop_verified_name: actualName ?? null,
-    name_match_score: matchScore ?? null,
-    is_active: true,
-    cf_beneficiary_id: beneficiaryId,
-  };
-  if (nickname) {
-    insertRow.nickname = nickname;
-  }
-
-  const { data: insertedBank, error: insertError } = await admin
-    .from("creator_bank_accounts")
-    .insert(insertRow)
-    .select()
-    .maybeSingle();
-  if (insertError) {
-    console.error("[kyc/bank] bank insert failed", insertError);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  // ── 9. Persist beneficiary id onto creator_kyc (for future withdrawals) ────
-  await admin
-    .from("creator_kyc")
-    .upsert(
-      {
-        creator_id: creatorId,
-        cf_beneficiary_id: beneficiaryId,
-      },
-      { onConflict: "creator_id" },
-    );
-
-  // ── 10. 3/3 rollup ─────────────────────────────────────────────────────────
-  const allThree = await has3of3Verified(
-    admin,
-    creatorId,
-    panVerified,
-    aadhaarVerifiedAt,
-    true,
+  // ── 5 onward: KYC provider not configured ─────────────────────────────────
+  // Bank penny-drop and beneficiary registration via external KYC API pending.
+  void encryptKycValue(account_number);
+  void randomUUID();
+  return NextResponse.json(
+    { error: "kyc_provider_unavailable", message: "KYC verification is not available yet. Contact support@faiceoff.com." },
+    { status: 503 },
   );
-  if (allThree) {
-    await admin
-      .from("creators")
-      .update({ kyc_status: "verified", kyc_verified_at: now })
-      .eq("id", creatorId);
-    await admin
-      .from("creator_kyc")
-      .update({ status: "verified" })
-      .eq("creator_id", creatorId);
-  } else {
-    const currentStatus =
-      (creatorRow as { kyc_status?: string | null }).kyc_status ?? "not_started";
-    if (currentStatus === "not_started") {
-      await admin
-        .from("creators")
-        .update({ kyc_status: "in_progress" })
-        .eq("id", creatorId);
-    }
-  }
-
-  // ── 11. Response ───────────────────────────────────────────────────────────
-  const payload = {
-    bank_verified: true,
-    bank_account_id: (insertedBank as { id?: string } | null)?.id ?? null,
-    last4: account_number.slice(-4),
-    bank_name: bankName ?? null,
-    name_match_score: matchScore ?? null,
-  };
-  return NextResponse.json(payload, { status: 200 });
 }

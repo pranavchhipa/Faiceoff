@@ -18,6 +18,7 @@ import {
   Globe,
   ArrowRight,
   Clock,
+  Video,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -36,6 +37,8 @@ interface CreatorDetail {
   bio: string | null;
   instagram_handle: string | null;
   instagram_followers: number | null;
+  youtube_handle: string | null;
+  youtube_subscribers: number | null;
   kyc_status: string | null;
   hero_photo_url: string | null;
   is_live: boolean;
@@ -97,7 +100,7 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
 
   const { data, error } = await admin
     .from("creators")
-    .select(`id, bio, instagram_handle, instagram_followers, kyc_status, user_id, is_live, users!inner ( display_name )`)
+    .select(`id, bio, instagram_handle, instagram_followers, youtube_handle, youtube_subscribers, kyc_status, user_id, is_live, users!inner ( display_name )`)
     .eq("id", id)
     .eq("is_active", true)
     .maybeSingle();
@@ -135,6 +138,8 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     bio: data.bio ?? null,
     instagram_handle: data.instagram_handle ?? null,
     instagram_followers: data.instagram_followers ?? null,
+    youtube_handle: data.youtube_handle ?? null,
+    youtube_subscribers: data.youtube_subscribers ?? null,
     kyc_status: data.kyc_status ?? null,
     hero_photo_url: heroPhotoUrl,
     is_live: data.is_live ?? false,
@@ -209,14 +214,25 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-[var(--color-muted-foreground)]">
               {creator.instagram_handle && (
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1.5">
                   <AtSign className="h-3.5 w-3.5" />
-                  {creator.instagram_handle}
+                  <span>{creator.instagram_handle}</span>
+                  {fmtFollowers(creator.instagram_followers) && (
+                    <span className="font-700 text-[var(--color-foreground)]">
+                      {fmtFollowers(creator.instagram_followers)}
+                    </span>
+                  )}
                 </span>
               )}
-              {fmtFollowers(creator.instagram_followers) && (
-                <span className="font-600 text-[var(--color-foreground)]">
-                  {fmtFollowers(creator.instagram_followers)} followers
+              {creator.youtube_handle && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Video className="h-3.5 w-3.5 text-red-500" />
+                  <span>{creator.youtube_handle}</span>
+                  {fmtFollowers(creator.youtube_subscribers) && (
+                    <span className="font-700 text-[var(--color-foreground)]">
+                      {fmtFollowers(creator.youtube_subscribers)}
+                    </span>
+                  )}
                 </span>
               )}
             </div>

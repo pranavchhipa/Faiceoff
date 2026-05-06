@@ -7,15 +7,14 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   ArrowUpRight,
-  CreditCard,
-  Layers,
-  Plus,
-  Receipt,
-  Sparkles,
-  Timer,
-  Users,
   Wallet,
-  Zap,
+  Layers,
+  Sparkles,
+  Users,
+  ImageIcon,
+  CreditCard,
+  Receipt,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -27,6 +26,7 @@ interface BrandProfile {
   gst_number: string | null;
   industry: string | null;
   is_verified: boolean | null;
+  credits_balance_paise?: number | null;
 }
 
 interface BrandStats {
@@ -37,15 +37,34 @@ interface BrandStats {
   walletBalance: number; // paise
 }
 
+interface CollabSession {
+  id: string;
+  status: string;
+  created_at: string;
+  max_generations: number | null;
+  approved_count?: number | null;
+  brand?: { company_name?: string | null } | null;
+  creator?: { display_name?: string | null } | null;
+  name?: string | null;
+}
+
 interface VaultItem {
   id: string;
   image_url: string | null;
   delivered_at: string | null;
   created_at: string;
-  structured_brief: { title?: string; category?: string } | null;
-  cost_paise: number | null;
   status: string;
-  creator?: { display_name?: string | null } | null;
+}
+
+/* ───────── Utilities ───────── */
+
+function formatINR(paise: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(paise / 100);
 }
 
 function relativeFrom(iso: string): string {
@@ -57,19 +76,24 @@ function relativeFrom(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-/* ───────── Helpers ───────── */
+const STATUS_LABEL: Record<string, string> = {
+  active: "Active",
+  completed: "Done",
+  pending: "Pending",
+  draft: "Draft",
+  cancelled: "Cancelled",
+};
 
-function formatINR(paise: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
-}
+const STATUS_DOT: Record<string, string> = {
+  active: "bg-emerald-500",
+  completed: "bg-[var(--color-primary)]",
+  pending: "bg-amber-500",
+  draft: "bg-[var(--color-muted-foreground)]/50",
+  cancelled: "bg-red-400",
+};
 
 const fadeUp = {
-  initial: { opacity: 0, y: 14 },
+  initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
 };
 
@@ -84,511 +108,570 @@ export default function BrandDashboardPage() {
     totalGenerations: 0,
     walletBalance: 0,
   });
+  const [collabs, setCollabs] = useState<CollabSession[]>([]);
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
-  const [vaultTotal, setVaultTotal] = useState(0);
+  const [creditsBalance, setCreditsBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const displayName =
     user?.user_metadata?.display_name ??
     user?.email?.split("@")[0] ??
     "Brand";
+  const companyInitial = displayName.charAt(0).toUpperCase();
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+
     async function load() {
       setLoading(true);
-      try {
-        const [statsRes, vaultRes] = await Promise.allSettled([
-          fetch("/api/dashboard/stats", { cache: "no-store" }),
-          fetch("/api/vault?pageSize=8", { cache: "no-store" }),
+      const [statsRes, collabsRes, creditsRes, vaultRes] =
+        await Promise.allSettled([
+          fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
+            r.ok ? r.json() : null
+          ),
+          fetch("/api/collabs", { cache: "no-store" }).then((r) =>
+            r.ok ? r.json() : null
+          ),
+          fetch("/api/credits/balance", { cache: "no-store" }).then((r) =>
+            r.ok ? r.json() : null
+          ),
+          fetch("/api/vault?pageSize=4", { cache: "no-store" }).then((r) =>
+            r.ok ? r.json() : null
+          ),
         ]);
 
-        if (!cancelled && statsRes.status === "fulfilled" && statsRes.value.ok) {
-          const data = await statsRes.value.json();
-          if (data.brand) setProfile(data.brand);
-          if (data.stats) {
-            setStats({
-              activeCampaigns: data.stats.activeCampaigns ?? 0,
-              totalCampaigns: data.stats.totalCampaigns ?? 0,
-              totalGenerations: data.stats.totalGenerations ?? 0,
-              walletBalance: data.stats.walletBalance ?? 0,
-            });
-          }
-        }
+      if (cancelled) return;
 
-        if (!cancelled && vaultRes.status === "fulfilled" && vaultRes.value.ok) {
-          const v = await vaultRes.value.json();
-          setVaultItems((v.items as VaultItem[]) ?? []);
-          setVaultTotal(v.total ?? 0);
+      if (statsRes.status === "fulfilled" && statsRes.value) {
+        const d = statsRes.value;
+        if (d.brand) setProfile(d.brand);
+        if (d.stats) {
+          setStats({
+            activeCampaigns: d.stats.activeCampaigns ?? 0,
+            activeCollabs: d.stats.activeCollabs,
+            totalCampaigns: d.stats.totalCampaigns ?? 0,
+            totalGenerations: d.stats.totalGenerations ?? 0,
+            walletBalance: d.stats.walletBalance ?? 0,
+          });
         }
-      } catch (err) {
-        console.error("Brand dashboard fetch failed:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
       }
+
+      if (collabsRes.status === "fulfilled" && collabsRes.value) {
+        const list: CollabSession[] = Array.isArray(collabsRes.value)
+          ? collabsRes.value
+          : (collabsRes.value.collabs ?? collabsRes.value.sessions ?? []);
+        setCollabs(list.slice(0, 5));
+      }
+
+      if (creditsRes.status === "fulfilled" && creditsRes.value) {
+        setCreditsBalance(
+          creditsRes.value.credits_balance_paise ??
+            creditsRes.value.balance ??
+            0
+        );
+      }
+
+      if (vaultRes.status === "fulfilled" && vaultRes.value) {
+        setVaultItems(
+          (vaultRes.value.items as VaultItem[])?.slice(0, 4) ?? []
+        );
+      }
+
+      setLoading(false);
     }
+
     load();
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  // Real values — empty state when zero.
   const walletPaise = stats.walletBalance;
-  const spentThisMonthPaise = vaultItems
-    .filter((g) => {
-      const t = new Date(g.delivered_at ?? g.created_at).getTime();
-      return t >= Date.now() - 30 * 24 * 60 * 60 * 1000;
-    })
-    .reduce((sum, g) => sum + (g.cost_paise ?? 0), 0);
-  const spent7dPaise = vaultItems
-    .filter((g) => {
-      const t = new Date(g.delivered_at ?? g.created_at).getTime();
-      return t >= Date.now() - 7 * 24 * 60 * 60 * 1000;
-    })
-    .reduce((sum, g) => sum + (g.cost_paise ?? 0), 0);
-  const generations = stats.totalGenerations;
-  const recentGens = vaultItems.slice(0, 5);
-  const vaultCount = vaultTotal || vaultItems.length;
-  const lastAddedIso =
-    vaultItems[0]?.delivered_at ?? vaultItems[0]?.created_at ?? null;
-
-  // Greeting computed in an effect (NOT in render) to avoid SSR/CSR
-  // hydration mismatch — server timezone != client timezone, so a
-  // useMemo here would fire React error #418/#425 in production and
-  // surface as "Something went wrong" via error.tsx.
-  const [greeting, setGreeting] = useState("Welcome back");
-  useEffect(() => {
-    setGreeting(greetingByHour(new Date()));
-  }, []);
-
+  const activeCount = stats.activeCollabs ?? stats.activeCampaigns;
   const companyName = profile?.company_name ?? displayName;
 
   if (loading) return <BrandDashboardSkeleton />;
 
   return (
-    <div className="w-full max-w-[1320px]">
-      {/* ═══════════ Heading ═══════════ */}
-      <motion.div
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+
+      {/* ── HEADER ── */}
+      <motion.header
         variants={fadeUp}
         initial="initial"
         animate="animate"
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between"
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }}
       >
-        <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-            {greeting}
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-700 uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
-            {companyName}
-            <span className="text-[var(--color-primary)]">.</span>
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            {stats.activeCollabs ?? stats.activeCampaigns} active{" "}
-            {(stats.activeCollabs ?? stats.activeCampaigns) === 1 ? "collab" : "collabs"} · {generations}{" "}
-            {generations === 1 ? "generation" : "generations"} ·{" "}
-            <span className="font-600 text-[var(--color-foreground)]">
-              {formatINR(walletPaise)}
-            </span>{" "}
-            in wallet
-          </p>
+          <div className="flex items-center gap-2">
+            {profile?.is_verified ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Verified
+              </span>
+            ) : (
+              <span className="rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                Unverified
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/brand/wallet"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
-          >
-            <Wallet className="h-3.5 w-3.5" /> Top up
-          </Link>
-          <Link
-            href="/brand/discover"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-transform hover:-translate-y-0.5"
-          >
-            <Users className="h-3.5 w-3.5" /> Discover creators
-          </Link>
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[52px]">
+              Hi {companyName} —
+            </h1>
+            <p className="mt-1 font-display text-[20px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[26px]">
+              {activeCount > 0
+                ? `${activeCount} ${activeCount === 1 ? "collab" : "collabs"} active`
+                : stats.totalCampaigns > 0
+                ? "all collabs wrapped up."
+                : "no collabs yet — discover creators."}
+            </p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] font-display text-lg font-800 text-[var(--color-background)] shadow-md lg:h-14 lg:w-14 lg:text-xl">
+            {companyInitial}
+          </div>
         </div>
-      </motion.div>
+      </motion.header>
 
-      {/* ═══════════ Bento Grid ═══════════ */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-        {/* Row 1 */}
-        <BentoStat
-          variant="accent"
-          label="Wallet balance"
-          value={formatINR(walletPaise)}
-          delta="Tap to top up →"
-          href="/brand/credits"
-          delay={0}
-        />
-        <BentoStat
-          label="Spent (30d)"
-          value={spentThisMonthPaise > 0 ? formatINR(spentThisMonthPaise) : "—"}
-          delta="From delivered generations"
-          delay={0.03}
-        />
-        <BentoStat
-          label="Generations"
-          value={String(generations)}
-          delta={`${stats.totalCampaigns} ${stats.totalCampaigns === 1 ? "collab" : "collabs"} total`}
-          delay={0.06}
-        />
-        <BentoStat
-          label="Active collabs"
-          value={String(stats.activeCollabs ?? stats.activeCampaigns)}
-          delta="Creator reviews in 48h"
-          delay={0.09}
-        />
+      {/* ── METRIC STRIP ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-        {/* Row 2 — wide chart + table */}
+        {/* Wallet balance — gold */}
         <motion.div
           variants={fadeUp}
           initial="initial"
           animate="animate"
-          transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-          className="col-span-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 md:col-span-2 lg:col-span-2 lg:row-span-2"
+          transition={{ duration: 0.4, delay: 0.07, ease: [0.22, 1, 0.36, 1] as const }}
         >
-          <div className="mb-1 flex items-center justify-between">
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              Spend last 7 days
+          <div className="relative overflow-hidden rounded-2xl bg-[var(--color-primary)] p-4 lg:p-5">
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-20"
+              style={{
+                background: "radial-gradient(circle, white, transparent 60%)",
+              }}
+            />
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]/70">
+              Wallet
+            </p>
+            <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-primary-foreground)] lg:text-[26px]">
+              {formatINR(walletPaise)}
             </p>
             <Link
-              href="/brand/billing"
-              className="inline-flex items-center gap-1 text-[11px] font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              href="/brand/wallet"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary-foreground)] opacity-90 hover:opacity-100"
             >
-              View ledger <ArrowRight className="h-3 w-3" />
+              Top up <ArrowUpRight className="h-3 w-3" />
             </Link>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <p className="font-display text-[30px] font-800 tracking-tight text-[var(--color-foreground)]">
-              {spent7dPaise > 0 ? formatINR(spent7dPaise) : "₹0"}
-            </p>
-          </div>
-          <p className="mt-1 font-mono text-[11px] text-[var(--color-muted-foreground)]">
-            {spent7dPaise > 0
-              ? `${recentGens.length} ${recentGens.length === 1 ? "generation" : "generations"} delivered`
-              : "No spend in the last 7 days."}
-          </p>
-
-          {/* Recent generations */}
-          <div className="mt-6 border-t border-[var(--color-border)] pt-4">
-            <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              Recent generations
-            </p>
-            {recentGens.length === 0 ? (
-              <p className="px-2 py-6 text-center text-[12px] text-[var(--color-muted-foreground)]">
-                No generations yet. Start a collab to see them here.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {recentGens.map((gen) => {
-                  const title =
-                    gen.structured_brief?.title ??
-                    gen.structured_brief?.category ??
-                    "Generation";
-                  const isApproved = gen.status === "approved";
-                  return (
-                    <Link
-                      key={gen.id}
-                      href={`/brand/collabs`}
-                      className="group flex items-center gap-3 rounded-lg px-2 py-2 text-[13px] transition-colors hover:bg-[var(--color-secondary)]"
-                    >
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          isApproved
-                            ? "bg-[var(--color-primary)]"
-                            : "bg-[var(--color-muted-foreground)]/40"
-                        }`}
-                      />
-                      <span className="flex-1 truncate font-600 text-[var(--color-foreground)]">
-                        {typeof gen.creator?.display_name === "string" &&
-                        gen.creator.display_name
-                          ? gen.creator.display_name
-                          : "Creator"}{" "}
-                        ·{" "}
-                        <span className="font-500 text-[var(--color-muted-foreground)]">
-                          {typeof title === "string" ? title : "Generation"}
-                        </span>
-                      </span>
-                      <span className="hidden font-mono text-[11px] capitalize text-[var(--color-muted-foreground)] sm:inline">
-                        {gen.status}
-                      </span>
-                      <span className="hidden font-mono text-[11px] text-[var(--color-muted-foreground)] md:inline">
-                        {relativeFrom(gen.delivered_at ?? gen.created_at)}
-                      </span>
-                      <span className="font-mono text-[12px] font-700 text-[var(--color-primary)]">
-                        {formatINR(gen.cost_paise ?? 0)}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </motion.div>
 
-        {/* Vault tile — span 2 */}
+        {/* Active collabs */}
         <motion.div
           variants={fadeUp}
           initial="initial"
           animate="animate"
-          transition={{ duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="col-span-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 md:col-span-2 lg:col-span-2"
+          transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] as const }}
         >
-          <div className="mb-1 flex items-center justify-between">
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              Vault
+          <div
+            className={`rounded-2xl border p-4 lg:p-5 ${
+              activeCount > 0
+                ? "border-emerald-400/40 bg-emerald-500/8"
+                : "border-[var(--color-border)] bg-[var(--color-card)]"
+            }`}
+          >
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Active collabs
+            </p>
+            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {activeCount}
+            </p>
+            <Link
+              href="/brand/collabs"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Total generations */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.13, ease: [0.22, 1, 0.36, 1] as const }}
+        >
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Generations
+            </p>
+            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {stats.totalGenerations}
             </p>
             <Link
               href="/brand/vault"
-              className="inline-flex items-center gap-1 text-[11px] font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
             >
-              Open vault <ArrowUpRight className="h-3 w-3" />
+              Open vault <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <div className="flex items-baseline gap-2">
-            <p className="font-display text-[30px] font-800 tracking-tight text-[var(--color-foreground)]">
-              {vaultCount}
-            </p>
-            <span className="text-[13px] font-500 text-[var(--color-muted-foreground)]">
-              creatives
-            </span>
-          </div>
-          <p className="mt-1 font-mono text-[11px] text-[var(--color-muted-foreground)]">
-            {lastAddedIso
-              ? `Last added · ${relativeFrom(lastAddedIso)}`
-              : "Approved generations land here."}
-          </p>
+        </motion.div>
 
-          <div className="mt-4 grid grid-cols-4 gap-1.5">
-            {vaultItems.length > 0
-              ? vaultItems.slice(0, 4).map((item) => (
+        {/* Credits */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] as const }}
+        >
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Credits
+            </p>
+            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {Math.round(creditsBalance / 100)}
+            </p>
+            <Link
+              href="/brand/credits"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+            >
+              Manage <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── MAIN 2-COL ── */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+
+        {/* LEFT: Recent collabs list */}
+        <motion.section
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] as const }}
+        >
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                Recent collabs
+              </p>
+              <h2 className="mt-1 font-display text-[22px] font-700 tracking-tight text-[var(--color-foreground)]">
+                Your campaigns at a glance.
+              </h2>
+            </div>
+            <Link
+              href="/brand/collabs"
+              className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-primary)] hover:underline"
+            >
+              See all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {collabs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] px-6 py-14 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-secondary)]">
+                <Layers
+                  className="h-6 w-6 text-[var(--color-muted-foreground)]"
+                  strokeWidth={1.8}
+                />
+              </div>
+              <p className="font-700 text-[15px] text-[var(--color-foreground)]">
+                No collabs yet
+              </p>
+              <p className="mt-1 max-w-xs text-[13px] text-[var(--color-muted-foreground)]">
+                Discover creators to start your first campaign. All your active
+                and past collabs will appear here.
+              </p>
+              <Link
+                href="/brand/discover"
+                className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+              >
+                <Users className="h-3.5 w-3.5" /> Discover creators
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {collabs.map((collab, idx) => {
+                const creatorName =
+                  collab.creator?.display_name ?? `Collab ${idx + 1}`;
+                const status = collab.status ?? "draft";
+                const dotClass =
+                  STATUS_DOT[status] ?? "bg-[var(--color-muted-foreground)]/40";
+                const statusLabel = STATUS_LABEL[status] ?? status;
+                const approved = collab.approved_count ?? 0;
+                const total = collab.max_generations ?? 0;
+
+                return (
+                  <Link
+                    key={collab.id}
+                    href={`/brand/collabs`}
+                    className="group flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:border-[var(--color-primary)]/30 hover:-translate-y-0.5"
+                  >
+                    {/* Avatar initial */}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-secondary)] font-display text-[16px] font-800 text-[var(--color-foreground)]">
+                      {creatorName.charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-700 text-[14px] text-[var(--color-foreground)]">
+                        {creatorName}
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`}
+                        />
+                        <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                          {statusLabel}
+                        </span>
+                        {total > 0 && (
+                          <>
+                            <span className="text-[var(--color-border)]">·</span>
+                            <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                              {approved}/{total} approved
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="font-mono text-[11px] text-[var(--color-muted-foreground)]">
+                        {relativeFrom(collab.created_at)}
+                      </span>
+                      {total > 0 && (
+                        <div className="flex items-center gap-1">
+                          <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--color-secondary)]">
+                            <div
+                              className="h-full rounded-full bg-[var(--color-primary)] transition-all"
+                              style={{
+                                width: `${Math.min(100, Math.round((approved / total) * 100))}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Vault preview teaser */}
+          {vaultItems.length > 0 && (
+            <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+                    <ImageIcon className="h-4 w-4" strokeWidth={2.2} />
+                  </div>
+                  <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                    Vault preview
+                  </p>
+                </div>
+                <Link
+                  href="/brand/vault"
+                  className="flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
+                >
+                  Open <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {vaultItems.map((item) => (
                   <div
                     key={item.id}
-                    className="relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]"
+                    className="relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]"
                   >
                     {item.image_url ? (
                       <Image
                         src={item.image_url}
                         alt=""
                         fill
-                        sizes="120px"
+                        sizes="100px"
                         className="object-cover"
                         unoptimized
                       />
                     ) : null}
                   </div>
-                ))
-              : Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="aspect-square rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)]/30"
-                  />
                 ))}
-          </div>
-        </motion.div>
-
-        {/* Row 3 — Vault total + Pending approvals */}
-        <BentoStat
-          label="Vault"
-          value={String(vaultCount)}
-          delta={vaultCount > 0 ? "Approved creatives" : "Empty"}
-          icon={Receipt}
-          href="/brand/vault"
-          delay={0.18}
-        />
-        <BentoStat
-          label="Pending approvals"
-          value={String(
-            vaultItems.filter((g) => g.status === "pending_approval").length,
+              </div>
+            </div>
           )}
-          delta="Awaiting creator response"
-          icon={Timer}
-          delay={0.21}
-        />
+        </motion.section>
+
+        {/* RIGHT: Sidebar */}
+        <motion.aside
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.45, delay: 0.25, ease: [0.22, 1, 0.36, 1] as const }}
+          className="space-y-4"
+        >
+          {/* Wallet card */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+                <Wallet className="h-4 w-4" strokeWidth={2.4} />
+              </div>
+              <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
+                Wallet
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Available balance
+                </span>
+                <span className="font-800 text-[16px] text-[var(--color-foreground)]">
+                  {formatINR(walletPaise)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-3">
+                <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Credits remaining
+                </span>
+                <span className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  {Math.round(creditsBalance / 100)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Link
+                href="/brand/wallet"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] py-2.5 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+              >
+                Top up <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/brand/billing"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
+              >
+                <Receipt className="h-3.5 w-3.5" />
+                Ledger
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+            <p className="mb-4 font-display text-[15px] font-700 text-[var(--color-foreground)]">
+              Quick actions
+            </p>
+            <div className="space-y-2">
+              <Link
+                href="/brand/discover"
+                className="group flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-3 transition-all hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)]"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-[var(--color-foreground)] transition-colors group-hover:bg-[var(--color-primary)] group-hover:text-[var(--color-primary-foreground)]">
+                  <Users className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-700 text-[13px] text-[var(--color-foreground)]">
+                    Discover creators
+                  </p>
+                  <p className="truncate text-[11px] text-[var(--color-muted-foreground)]">
+                    Find licensed faces for your brief
+                  </p>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5" />
+              </Link>
+
+              <Link
+                href="/brand/licenses"
+                className="group flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-3 transition-all hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)]"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-[var(--color-foreground)] transition-colors group-hover:bg-[var(--color-primary)] group-hover:text-[var(--color-primary-foreground)]">
+                  <CreditCard className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-700 text-[13px] text-[var(--color-foreground)]">
+                    View licenses
+                  </p>
+                  <p className="truncate text-[11px] text-[var(--color-muted-foreground)]">
+                    Download approved license PDFs
+                  </p>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick links strip */}
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href="/brand/sessions"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
+            >
+              Studio
+            </Link>
+            <Link
+              href="/brand/settings"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
+            >
+              Settings
+            </Link>
+          </div>
+        </motion.aside>
       </div>
 
-      {/* ═══════════ Quick actions ═══════════ */}
-      <motion.div
-        variants={fadeUp}
-        initial="initial"
-        animate="animate"
-        transition={{ duration: 0.45, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3 lg:gap-4"
-      >
-        <QuickAction
-          href="/brand/discover"
-          icon={Users}
-          title="Discover creators"
-          sub="Browse 240+ licensed faces"
-        />
-        <QuickAction
-          href="/brand/collabs"
-          icon={Layers}
-          title="My collabs"
-          sub="Active · completed · studio"
-        />
-        <QuickAction
-          href="/brand/wallet"
-          icon={CreditCard}
-          title="Top up wallet"
-          sub="UPI · NetBanking · Cards"
-        />
-      </motion.div>
-
-      {/* Footer note */}
-      <p className="mt-8 text-center font-mono text-[10px] text-[var(--color-muted-foreground)]">
-        <Sparkles className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
-        All generations are consented, audited, and paid on delivery. Every rupee traceable.
+      {/* ── FOOTER ── */}
+      <p className="flex items-center gap-2 text-[11px] text-[var(--color-muted-foreground)]">
+        <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        <span>
+          <Sparkles className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
+          All generations are consented, audited, and paid on delivery.
+          Credits deducted per generation — unused credits do not expire.
+        </span>
       </p>
     </div>
   );
-}
-
-/* ───────── Pieces ───────── */
-
-function BentoStat({
-  label,
-  value,
-  delta,
-  deltaTone,
-  href,
-  variant,
-  icon: Icon,
-  delay = 0,
-}: {
-  label: string;
-  value: React.ReactNode;
-  delta?: string;
-  deltaTone?: "up" | "down";
-  href?: string;
-  variant?: "accent";
-  icon?: React.ComponentType<{ className?: string }>;
-  delay?: number;
-}) {
-  const accent = variant === "accent";
-  const Wrapper: React.ElementType = href ? Link : "div";
-  const wrapperProps = href ? { href } : {};
-
-  return (
-    <motion.div
-      variants={fadeUp}
-      initial="initial"
-      animate="animate"
-      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <Wrapper
-        {...wrapperProps}
-        className={`group block rounded-2xl border p-5 transition-all ${
-          accent
-            ? "border-[var(--color-primary)]/30 bg-gradient-to-br from-[var(--color-primary)]/12 to-[var(--color-primary)]/4 hover:border-[var(--color-primary)]/50"
-            : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-muted-foreground)]/30"
-        }`}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <p
-            className={`font-mono text-[10px] font-700 uppercase tracking-[0.22em] ${
-              accent
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-muted-foreground)]"
-            }`}
-          >
-            {label}
-          </p>
-          {Icon && (
-            <Icon
-              className={`h-3.5 w-3.5 ${
-                accent
-                  ? "text-[var(--color-primary)]"
-                  : "text-[var(--color-muted-foreground)]"
-              }`}
-            />
-          )}
-          {accent && !Icon && (
-            <Zap className="h-3.5 w-3.5 text-[var(--color-primary)]" />
-          )}
-        </div>
-
-        <p className="font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-          {value}
-        </p>
-
-        {delta && (
-          <p
-            className={`mt-2 font-mono text-[11px] ${
-              deltaTone === "up"
-                ? "text-emerald-500"
-                : accent
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-muted-foreground)]"
-            }`}
-          >
-            {delta}
-          </p>
-        )}
-      </Wrapper>
-    </motion.div>
-  );
-}
-
-function QuickAction({
-  href,
-  icon: Icon,
-  title,
-  sub,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-[var(--color-foreground)] transition-colors group-hover:bg-[var(--color-primary)] group-hover:text-[var(--color-primary-foreground)]">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-display text-[14px] font-700 text-[var(--color-foreground)]">
-          {title}
-        </p>
-        <p className="truncate text-[11px] text-[var(--color-muted-foreground)]">
-          {sub}
-        </p>
-      </div>
-      <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-foreground)]" />
-    </Link>
-  );
-}
-
-/* ───────── Helpers ───────── */
-
-function greetingByHour(d: Date): string {
-  const h = d.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
 }
 
 /* ───────── Skeleton ───────── */
 
 function BrandDashboardSkeleton() {
   return (
-    <div className="w-full max-w-[1320px] animate-pulse">
-      <div className="mb-8 h-16 w-72 rounded-lg bg-[var(--color-secondary)]" />
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-[110px] rounded-2xl bg-[var(--color-secondary)]" />
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+      <div className="space-y-3">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
+        <div className="h-12 w-72 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+        <div className="h-7 w-56 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-[100px] animate-pulse rounded-2xl bg-[var(--color-secondary)]"
+          />
         ))}
-        <div className="h-[380px] rounded-2xl bg-[var(--color-secondary)] md:col-span-2 lg:col-span-2 lg:row-span-2" />
-        <div className="h-[240px] rounded-2xl bg-[var(--color-secondary)] md:col-span-2 lg:col-span-2" />
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="h-[110px] rounded-2xl bg-[var(--color-secondary)]" />
-        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-[80px] animate-pulse rounded-2xl bg-[var(--color-secondary)]"
+            />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="h-[200px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+          <div className="h-[180px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+        </div>
       </div>
     </div>
   );

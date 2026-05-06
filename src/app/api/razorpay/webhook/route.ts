@@ -17,7 +17,7 @@ import {
 import {
   handleWalletTopUpSuccess,
   handleWalletTopUpFailed,
-} from "@/app/api/cashfree/webhook/handlers";
+} from "@/app/api/wallet/handlers";
 import { addCredits } from "@/lib/billing/credits-service";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -16,12 +16,6 @@ export {
   getMinPayoutPaise,
 } from "./payout-service";
 
-export {
-  ensureBeneficiary,
-  submitTransfer,
-  pollTransferStatus,
-} from "./cashfree-payout-adapter";
-
 export { PayoutError } from "./types";
 export type {
   PayoutErrorCode,
@@ -35,9 +29,4 @@ export type {
   PayoutWebhookEvent,
   ListPayoutsInput,
   ListPayoutsResult,
-  SubmitTransferResult,
-  EnsureBeneficiaryInput,
-  SubmitTransferInput,
-  PollTransferStatusInput,
-  PollTransferStatusResult,
 } from "./types";

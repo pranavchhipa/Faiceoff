@@ -28,7 +28,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyPan } from "@/lib/payments/cashfree/kyc";
 import { encryptKycValue } from "@/lib/kyc/crypto";
 import { SubmitPanSchema } from "@/domains/kyc/types";
 
@@ -139,98 +138,13 @@ export async function POST(req: NextRequest) {
     (existingKyc as { aadhaar_verified_at?: string | null } | null)
       ?.aadhaar_verified_at ?? null;
 
-  // ── 5. Encrypt PAN in-memory ───────────────────────────────────────────────
-  // The plaintext leaves this function body only in the Cashfree fetch call.
-  const panEncrypted = encryptKycValue(pan_number);
-
-  // ── 6. Call Cashfree ───────────────────────────────────────────────────────
-  let verified = false;
-  let nameMatch = false;
-  let panName: string | undefined;
-  try {
-    const result = await verifyPan({
-      verificationId: `pan_${creatorId}_${randomUUID()}`,
-      pan: pan_number,
-      name: name_as_per_pan,
-    });
-    verified = result.verified;
-    nameMatch = result.nameMatch;
-    panName = result.panName;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "cashfree_error";
-    console.error("[kyc/pan] Cashfree verify failed", message);
-    return NextResponse.json(
-      { error: "cashfree_unavailable", message },
-      { status: 502 },
-    );
-  }
-
-  // ── 7. Persist creator_kyc ─────────────────────────────────────────────────
-  const now = new Date().toISOString();
-  const panStatus: "verified" | "failed" | "mismatch" = verified
-    ? "verified"
-    : nameMatch === false && panName
-      ? "mismatch"
-      : "failed";
-
-  const kycRow: Record<string, unknown> = {
-    creator_id: creatorId,
-    pan_number_encrypted: panEncrypted,
-    pan_name: name_as_per_pan,
-    pan_verification_status: panStatus,
-    is_gstin_registered,
-    gstin: is_gstin_registered ? gstin ?? null : null,
-  };
-  if (verified) kycRow.pan_verified_at = now;
-  // Advance the internal machine if the row is new.
-  if (!existingKyc) {
-    kycRow.status = verified ? "aadhaar_pending" : "pan_pending";
-  }
-
-  const { error: upsertError } = await admin
-    .from("creator_kyc")
-    .upsert(kycRow, { onConflict: "creator_id" });
-  if (upsertError) {
-    console.error("[kyc/pan] creator_kyc upsert failed", upsertError);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  // ── 8. 3/3 rollup ──────────────────────────────────────────────────────────
-  if (verified) {
-    const allThree = await has3of3Verified(
-      admin,
-      creatorId,
-      true,
-      aadhaarVerifiedAt,
-    );
-    if (allThree) {
-      await admin
-        .from("creators")
-        .update({ kyc_status: "verified", kyc_verified_at: now })
-        .eq("id", creatorId);
-      await admin
-        .from("creator_kyc")
-        .update({ status: "verified" })
-        .eq("creator_id", creatorId);
-    } else {
-      // Keep creators.kyc_status on 'in_progress' as we advance steps.
-      const currentStatus =
-        (creatorRow as { kyc_status?: string | null }).kyc_status ??
-        "not_started";
-      if (currentStatus === "not_started") {
-        await admin
-          .from("creators")
-          .update({ kyc_status: "in_progress" })
-          .eq("id", creatorId);
-      }
-    }
-  }
-
-  // ── 9. Response ────────────────────────────────────────────────────────────
-  const payload = {
-    pan_verified: verified,
-    name_match: nameMatch,
-    pan_name: panName ?? null,
-  };
-  return NextResponse.json(payload, { status: verified ? 200 : 422 });
+  // ── 5 onward: KYC provider not configured ─────────────────────────────────
+  // PAN verification via external KYC API pending (Razorpay/Signzy TBD).
+  // Encrypt the PAN so the stub path mirrors the final shape.
+  void encryptKycValue(pan_number);
+  void randomUUID();
+  return NextResponse.json(
+    { error: "kyc_provider_unavailable", message: "KYC verification is not available yet. Contact support@faiceoff.com." },
+    { status: 503 },
+  );
 }

@@ -30,7 +30,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyAadhaar } from "@/lib/payments/cashfree/kyc";
 import { hashAadhaar } from "@/lib/kyc/crypto";
 import { SubmitAadhaarSchema } from "@/domains/kyc/types";
 
@@ -143,93 +142,12 @@ export async function POST(req: NextRequest) {
     (existingKyc as { pan_verification_status?: string | null } | null)
       ?.pan_verification_status === "verified";
 
-  // ── 5. Hash Aadhaar in-memory ──────────────────────────────────────────────
-  // HMAC-SHA256 with the KYC key as secret — deterministic (for the UNIQUE
-  // index) but unrecoverable without the key.
-  const aadhaarHash = hashAadhaar(full_aadhaar);
-
-  // ── 6. Call Cashfree ───────────────────────────────────────────────────────
-  let verified = false;
-  let nameMatch = false;
-  let confidence: number | undefined;
-  try {
-    const result = await verifyAadhaar({
-      verificationId: `aadhaar_${creatorId}_${randomUUID()}`,
-      aadhaarNumber: full_aadhaar,
-      name: name_as_per_aadhaar,
-    });
-    verified = result.verified;
-    nameMatch = result.nameMatch;
-    confidence = result.confidence;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "cashfree_error";
-    console.error("[kyc/aadhaar] Cashfree verify failed", message);
-    return NextResponse.json(
-      { error: "cashfree_unavailable", message },
-      { status: 502 },
-    );
-  }
-
-  // ── 7. Persist creator_kyc ─────────────────────────────────────────────────
-  const now = new Date().toISOString();
-
-  const kycRow: Record<string, unknown> = {
-    creator_id: creatorId,
-    aadhaar_last4,
-    aadhaar_hash: aadhaarHash,
-  };
-  if (verified) {
-    kycRow.aadhaar_verified_at = now;
-  }
-  // Advance the internal machine if the row is new.
-  if (!existingKyc) {
-    kycRow.status = verified ? "bank_pending" : "aadhaar_pending";
-  }
-
-  const { error: upsertError } = await admin
-    .from("creator_kyc")
-    .upsert(kycRow, { onConflict: "creator_id" });
-  if (upsertError) {
-    console.error("[kyc/aadhaar] creator_kyc upsert failed", upsertError);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  // ── 8. 3/3 rollup ──────────────────────────────────────────────────────────
-  if (verified) {
-    const allThree = await has3of3Verified(
-      admin,
-      creatorId,
-      panAlreadyVerified,
-      true,
-    );
-    if (allThree) {
-      await admin
-        .from("creators")
-        .update({ kyc_status: "verified", kyc_verified_at: now })
-        .eq("id", creatorId);
-      await admin
-        .from("creator_kyc")
-        .update({ status: "verified" })
-        .eq("creator_id", creatorId);
-    } else {
-      // Keep creators.kyc_status moving towards 'in_progress'.
-      const currentStatus =
-        (creatorRow as { kyc_status?: string | null }).kyc_status ??
-        "not_started";
-      if (currentStatus === "not_started") {
-        await admin
-          .from("creators")
-          .update({ kyc_status: "in_progress" })
-          .eq("id", creatorId);
-      }
-    }
-  }
-
-  // ── 9. Response ────────────────────────────────────────────────────────────
-  const payload = {
-    aadhaar_verified: verified,
-    name_match: nameMatch,
-    confidence: confidence ?? null,
-  };
-  return NextResponse.json(payload, { status: verified ? 200 : 422 });
+  // ── 5 onward: KYC provider not configured ─────────────────────────────────
+  // Aadhaar verification via external KYC API pending (Razorpay/Signzy TBD).
+  void hashAadhaar(full_aadhaar);
+  void randomUUID();
+  return NextResponse.json(
+    { error: "kyc_provider_unavailable", message: "KYC verification is not available yet. Contact support@faiceoff.com." },
+    { status: 503 },
+  );
 }

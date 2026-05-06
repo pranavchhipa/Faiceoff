@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { instagram_handle, instagram_followers, bio } = await request.json();
+  const { instagram_handle, instagram_followers, youtube_handle, youtube_subscribers, bio } = await request.json();
 
   const admin = createAdminClient();
 
@@ -35,18 +35,27 @@ export async function POST(request: Request) {
     );
   }
 
-  // Clean handle (strip leading @)
+  // Clean handles (strip leading @)
   const cleanHandle =
     typeof instagram_handle === "string" && instagram_handle.startsWith("@")
       ? instagram_handle.slice(1)
       : instagram_handle || null;
 
-  // Update instagram handle and bio
-  const { error: updateErr } = await admin
+  const cleanYoutubeHandle =
+    typeof youtube_handle === "string" && youtube_handle.startsWith("@")
+      ? youtube_handle
+      : youtube_handle
+      ? `@${youtube_handle}`
+      : null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateErr } = await (admin as any)
     .from("creators")
     .update({
       instagram_handle: cleanHandle,
       instagram_followers: instagram_followers ? Number(instagram_followers) : null,
+      youtube_handle: cleanYoutubeHandle,
+      youtube_subscribers: youtube_subscribers ? Number(youtube_subscribers) : null,
       bio: bio || null,
     })
     .eq("id", creator.id);

@@ -24,10 +24,6 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  ensureBeneficiary,
-  submitTransfer,
-} from "./cashfree-payout-adapter";
 import { PayoutError } from "./types";
 import type {
   PayoutRow,
@@ -237,73 +233,27 @@ export async function requestPayout(
 
   const payoutRow = rpcResult as PayoutRow;
 
-  // ── Step 8: Ensure beneficiary exists in Cashfree ───────────────────────
-  await ensureBeneficiary({
-    creatorId: bankAccount.cf_beneficiary_id ?? creatorId,
-    name: bankAccount.account_holder_name,
-    // Note: actual account number is encrypted in the DB and not selected here.
-    // In production this would be decrypted via the KYC_ENCRYPTION_KEY path;
-    // for the payout flow Cashfree already has the account from the penny-drop
-    // registration, so we register with cf_beneficiary_id if present.
-    // If cf_beneficiary_id is set on the bank account, beneficiary already exists.
-    bankAccountNumber: bankAccount.cf_beneficiary_id
-      ? "EXISTING"
-      : `****${bankAccount.account_number_last4}`,
-    bankIfsc: bankAccount.ifsc,
-  });
-
-  // ── Step 9: Submit Cashfree transfer ────────────────────────────────────
-  let cfTransferId: string;
-  try {
-    const transferResult = await submitTransfer({
-      payoutId: payoutRow.id,
-      beneficiaryId: bankAccount.cf_beneficiary_id ?? creatorId,
-      amountPaise: net, // Cashfree receives NET (after deductions) amount
-      remarks: `Faiceoff creator payout — ₹${(net / 100).toFixed(2)}`,
-    });
-    cfTransferId = transferResult.cfTransferId;
-  } catch (err) {
-    // Cashfree submission failed — roll back payout status to failed so creator can retry.
-    await supabase
-      .from("creator_payouts")
-      .update({
-        status: "failed",
-        failure_reason:
-          err instanceof Error ? err.message : "Cashfree submission failed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", payoutRow.id);
-
-    // Release escrow locks so the amount is available for a retry.
-    await supabase
-      .from("escrow_ledger")
-      .update({ payout_id: null })
-      .eq("payout_id", payoutRow.id);
-
-    throw err; // Re-throw so the API route can respond 502.
-  }
-
-  // ── Step 10: Update payout to 'processing' with cf_transfer_id ──────────
-  const { data: updatedPayout, error: updateErr } = await supabase
+  // ── Step 8 & 9: Submit to payout provider ───────────────────────────────
+  // Razorpay payout integration pending. Mark payout row as failed so creator
+  // knows the submission didn't go through, and release escrow locks.
+  await supabase
     .from("creator_payouts")
     .update({
-      status: "processing",
-      cf_transfer_id: cfTransferId,
+      status: "failed",
+      failure_reason: "Payout provider not configured. Payouts are processed manually — contact support.",
+      completed_at: new Date().toISOString(),
     })
-    .eq("id", payoutRow.id)
-    .select()
-    .single();
+    .eq("id", payoutRow.id);
 
-  if (updateErr) {
-    // Non-fatal — Cashfree already has the transfer, webhook will arrive.
-    // Log and return the partially-updated row.
-    console.error(
-      `[payout-service] Failed to update payout ${payoutRow.id} to processing: ${updateErr.message}`,
-    );
-    return payoutRow;
-  }
+  await supabase
+    .from("escrow_ledger")
+    .update({ payout_id: null })
+    .eq("payout_id", payoutRow.id);
 
-  return updatedPayout as PayoutRow;
+  throw new PayoutError(
+    "CASHFREE_ERROR",
+    "Payouts processed manually. Contact support@faiceoff.com to request a withdrawal.",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

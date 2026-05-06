@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyRazorpayPaymentSignature } from "@/lib/payments/razorpay/webhook";
-import { handleWalletTopUpSuccess } from "@/app/api/cashfree/webhook/handlers";
+import { handleWalletTopUpSuccess } from "@/app/api/wallet/handlers";
 import { z } from "zod";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
