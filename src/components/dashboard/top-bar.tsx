@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { UserMenu } from "./user-menu";
 import { BalanceChip } from "./balance-chip";
@@ -77,7 +76,6 @@ export function TopBar({
         </button>
 
         <BalanceChip role={role} />
-        <ThemeToggle />
         <NotificationBell count={0} />
         <UserMenu
           displayName={displayName}
