@@ -20,9 +20,16 @@ interface Props {
 
 interface WalletTopUpResponse {
   orderId: string;
-  paymentSessionId: string;
+  keyId: string;
   amount_paise: number;
   bonus_paise: number;
+}
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay?: new (options: Record<string, unknown>) => { open(): void };
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -60,16 +67,20 @@ function computeBonus(amountRupees: number): { rate: number; bonusRupees: number
   return { rate, bonusRupees: Math.floor(amountRupees * rate) };
 }
 
-function loadCashfreeSDK(): Promise<void> {
+function loadRazorpaySDK(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src*="cashfree.js"]')) {
-      resolve();
+    if (window.Razorpay) { resolve(); return; }
+    if (document.querySelector('script[src*="checkout.razorpay.com"]')) {
+      // Already injected, wait for load
+      const existing = document.querySelector('script[src*="checkout.razorpay.com"]') as HTMLScriptElement;
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Razorpay SDK")));
       return;
     }
     const script = document.createElement("script");
-    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Cashfree SDK"));
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
     document.head.appendChild(script);
   });
 }
@@ -94,7 +105,7 @@ export function WalletTopup({ initialBalance }: Props) {
   const sliderPct = ((amountRupees - 500) / (500_000 - 500)) * 100;
 
   useEffect(() => {
-    loadCashfreeSDK().catch(() => {
+    loadRazorpaySDK().catch(() => {
       // pre-load is best-effort
     });
   }, []);
@@ -121,7 +132,7 @@ export function WalletTopup({ initialBalance }: Props) {
     setIsLoading(true);
 
     try {
-      await loadCashfreeSDK();
+      await loadRazorpaySDK();
 
       const amountPaise = amountRupees * 100;
       const res = await fetch("/api/wallet/top-up", {
@@ -133,15 +144,12 @@ export function WalletTopup({ initialBalance }: Props) {
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
-          message?: string;
         };
         const msg =
           body.error === "no_brand_profile"
             ? "Brand profile not found — please complete setup first"
             : body.error === "invalid_input"
             ? "Invalid amount. Minimum ₹500, maximum ₹5,00,000."
-            : body.error === "cashfree_unavailable"
-            ? "Payment gateway not configured. Please contact support."
             : body.error === "db_error"
             ? "Database error. Please try again in a moment."
             : "Payment initiation failed. Please try again.";
@@ -151,27 +159,43 @@ export function WalletTopup({ initialBalance }: Props) {
 
       const data = (await res.json()) as WalletTopUpResponse;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cf = (window as any).Cashfree?.({
-        mode: process.env.NEXT_PUBLIC_CASHFREE_MODE ?? "sandbox",
-      });
-      if (!cf) {
+      if (!window.Razorpay) {
         toast.error("Payment SDK not loaded. Please refresh and try again.");
         return;
       }
 
-      await cf.checkout({
-        paymentSessionId: data.paymentSessionId,
-        redirectTarget: "_modal",
+      const rzp = new window.Razorpay({
+        key: data.keyId,
+        amount: data.amount_paise,
+        currency: "INR",
+        order_id: data.orderId,
+        name: "Faiceoff",
+        description: "Wallet top-up",
+        theme: { color: "#C9A96E" },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            // Immediately credit wallet — don't wait for webhook
+            await fetch("/api/wallet/confirm-topup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            toast.success(
+              `Wallet topped up with ${formatINR(data.amount_paise + data.bonus_paise)}!`,
+            );
+            setTimeout(refreshBalance, 1000);
+          } catch {
+            toast.info("Payment received — balance will update shortly.");
+            setTimeout(refreshBalance, 3000);
+          }
+        },
       });
 
-      toast.success(
-        `Wallet top-up initiated: ${formatINR(
-          data.amount_paise + data.bonus_paise,
-        )} total (incl. bonus). Balance will update shortly.`,
-      );
-
-      setTimeout(refreshBalance, 2000);
+      rzp.open();
     } catch (err) {
       console.error("[wallet-topup] handleTopUp error:", err);
       toast.error("Something went wrong. Please try again.");
@@ -336,7 +360,7 @@ export function WalletTopup({ initialBalance }: Props) {
 
           <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-[var(--color-muted-foreground)]">
             <ShieldCheck className="h-3 w-3" />
-            Secured by Cashfree · UPI · NetBanking · Cards
+            Secured by Razorpay · UPI · NetBanking · Cards
           </p>
         </motion.div>
 

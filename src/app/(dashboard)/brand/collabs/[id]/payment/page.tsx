@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,7 +14,7 @@ import {
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Cashfree?: any;
+    Razorpay?: new (options: Record<string, unknown>) => { open(): void };
   }
 }
 
@@ -40,15 +40,12 @@ function fmt(paise: number) {
 
 export default function CollabPaymentPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const requestId = params.id as string;
-  const returnStatus = searchParams.get("status");
 
   const [req, setReq] = useState<CollabRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
 
@@ -67,42 +64,63 @@ export default function CollabPaymentPage() {
 
   useEffect(() => { loadRequest(); }, [loadRequest]);
 
-  // After Cashfree redirects back with status=done, confirm payment
-  useEffect(() => {
-    if (returnStatus === "done" && req?.status === "accepted" && !confirming) {
-      setConfirming(true);
-      fetch(`/api/collabs/${requestId}/confirm-payment`, { method: "POST" })
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.ok) {
-            setPaid(true);
-            router.replace(`/brand/collabs/${d.collab_session_id}`);
-          }
-        })
-        .catch(console.error)
-        .finally(() => setConfirming(false));
-    }
-  }, [returnStatus, req, requestId, confirming, router]);
-
   async function handlePay() {
     setError(null);
     setPaying(true);
     try {
+      // 1. Create Razorpay order
       const res = await fetch(`/api/collabs/${requestId}/start-payment`, { method: "POST" });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Payment failed");
 
-      // Load Cashfree SDK and open checkout
-      if (!window.Cashfree) {
-        await new Promise<void>((resolve) => {
+      // 2. Load Razorpay SDK if needed
+      if (!window.Razorpay) {
+        await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
-          script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
           script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load payment SDK"));
           document.head.appendChild(script);
         });
       }
-      const cashfree = window.Cashfree({ mode: process.env.NEXT_PUBLIC_CASHFREE_MODE ?? "production" });
-      cashfree.checkout({ paymentSessionId: d.payment_session_id });
+
+      if (!window.Razorpay) throw new Error("Payment SDK not available");
+
+      // 3. Open Razorpay modal
+      const rzp = new window.Razorpay({
+        key: d.key_id,
+        amount: d.amount_paise,
+        currency: "INR",
+        order_id: d.order_id,
+        name: "Faiceoff",
+        description: req?.product_name ?? "Collab payment",
+        theme: { color: "#C9A96E" },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            // 4. Confirm payment + create collab session
+            const confirmRes = await fetch(`/api/collabs/${requestId}/confirm-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            const confirmData = await confirmRes.json();
+            if (confirmData.ok) {
+              setPaid(true);
+              router.replace(`/brand/collabs/${confirmData.collab_session_id}`);
+            } else {
+              setError("Payment confirmed but session creation failed. Contact support.");
+            }
+          } catch {
+            setError("Payment received — please refresh the page.");
+          }
+        },
+      });
+
+      rzp.open();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment failed");
     } finally {
@@ -110,11 +128,10 @@ export default function CollabPaymentPage() {
     }
   }
 
-  if (loading || confirming) {
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
-        {confirming && <span className="ml-2 text-sm text-[var(--color-muted-foreground)]">Confirming payment…</span>}
       </div>
     );
   }
