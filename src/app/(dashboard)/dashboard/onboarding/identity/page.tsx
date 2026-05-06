@@ -55,28 +55,52 @@ export default function IdentityPage() {
   const [state, setState] = useState(draft?.state ?? "");
   const [idType, setIdType] = useState<string>(draft?.idType ?? "aadhaar");
   const [idFile, setIdFile] = useState<File | null>(null);
+  // Path of an already-uploaded draft document (persisted in localStorage)
+  const [uploadedDocPath, setUploadedDocPath] = useState<string | null>(draft?.uploadedDocPath ?? null);
+  const [uploadedDocName, setUploadedDocName] = useState<string>(draft?.uploadedDocName ?? "");
+  const [docUploading, setDocUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-save draft on every change
+  // Auto-save draft on every change (including uploaded doc path)
   useEffect(() => {
-    saveDraft({ fullName, gender, dobDay, dobMonth, dobYear, city, state, idType });
-  }, [fullName, gender, dobDay, dobMonth, dobYear, city, state, idType]);
+    saveDraft({ fullName, gender, dobDay, dobMonth, dobYear, city, state, idType, uploadedDocPath, uploadedDocName });
+  }, [fullName, gender, dobDay, dobMonth, dobYear, city, state, idType, uploadedDocPath, uploadedDocName]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError("File size must be under 5MB");
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { setError("File size must be under 5MB"); return; }
     if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
-      setError("Only JPG, PNG, WebP or PDF files are accepted");
-      return;
+      setError("Only JPG, PNG, WebP or PDF files are accepted"); return;
     }
     setError(null);
     setIdFile(file);
+    setDocUploading(true);
+
+    try {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `kyc-draft/${user.id}/${idType}_${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("kyc-documents")
+        .upload(path, file, { upsert: true });
+
+      if (uploadErr) throw uploadErr;
+      setUploadedDocPath(path);
+      setUploadedDocName(file.name);
+    } catch {
+      // Upload failed silently — file still in memory, will retry on submit
+      setUploadedDocPath(null);
+    } finally {
+      setDocUploading(false);
+    }
+  }
+
+  function handleRemoveDoc() {
+    setIdFile(null);
+    setUploadedDocPath(null);
+    setUploadedDocName("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -120,17 +144,16 @@ export default function IdentityPage() {
 
       if (metaError) throw metaError;
 
-      let kycDocPath: string | null = null;
-      if (idFile) {
+      // Use already-uploaded draft path if available, otherwise upload now
+      let kycDocPath: string | null = uploadedDocPath;
+      if (!kycDocPath && idFile) {
         const ext = idFile.name.split(".").pop() ?? "jpg";
         const filePath = `kyc/${user.id}/${idType}_${Date.now()}.${ext}`;
-
         const { error: uploadError } = await supabase.storage
           .from("kyc-documents")
           .upload(filePath, idFile, { upsert: true });
-
         if (uploadError) {
-          console.warn("KYC upload failed (bucket may not exist):", uploadError.message);
+          console.warn("KYC upload failed:", uploadError.message);
           kycDocPath = `pending:${filePath}`;
         } else {
           kycDocPath = filePath;
@@ -144,7 +167,7 @@ export default function IdentityPage() {
           step: "instagram",
           gender,
           kyc_document_url: kycDocPath,
-          kyc_status: idFile ? "pending" : "not_started",
+          kyc_status: kycDocPath ? "pending" : "not_started",
         }),
       });
 
@@ -347,7 +370,7 @@ export default function IdentityPage() {
 
           <div className="space-y-2">
             <Label>Upload document</Label>
-            {!idFile ? (
+            {!idFile && !uploadedDocPath ? (
               <label
                 htmlFor="kycFile"
                 className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed border-[var(--color-border)] p-6 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
@@ -367,18 +390,25 @@ export default function IdentityPage() {
                   className="hidden"
                 />
               </label>
+            ) : docUploading ? (
+              <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-4 py-3">
+                <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+                <p className="text-sm text-[var(--color-muted-foreground)]">Uploading securely…</p>
+              </div>
             ) : (
               <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                 <FileCheck className="size-5 shrink-0 text-emerald-600" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-500 text-[var(--color-foreground)]">{idFile.name}</p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    {(idFile.size / 1024).toFixed(0)} KB
+                  <p className="truncate text-sm font-500 text-[var(--color-foreground)]">
+                    {uploadedDocName || idFile?.name || "Document uploaded"}
+                  </p>
+                  <p className="text-xs text-emerald-600 font-500">
+                    {uploadedDocPath ? "Saved — safe to leave this page" : `${((idFile?.size ?? 0) / 1024).toFixed(0)} KB`}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIdFile(null)}
+                  onClick={handleRemoveDoc}
                   className="flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
                 >
                   <X className="size-4" />
