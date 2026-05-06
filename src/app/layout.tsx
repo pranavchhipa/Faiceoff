@@ -100,7 +100,13 @@ export default function RootLayout({
       className={`${outfit.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} ${manrope.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-[var(--color-background)] text-[var(--color-ink)] antialiased">
+      <head>
+        {/* Preload critical above-fold landing images */}
+        <link rel="preload" as="image" href="/landing/creator-face.jpg" />
+        <link rel="preload" as="image" href="/landing/creator-2.jpg" />
+        <link rel="preload" as="image" href="/landing/logo-dark.png" />
+      </head>
+      <body className="min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)] antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

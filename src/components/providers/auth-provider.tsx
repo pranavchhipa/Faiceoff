@@ -63,6 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     string | null
   >(null);
 
+  // ── Role cache helpers (sessionStorage) ──────────────────────────────────
+  // Caches resolved role by userId so returning users skip the whoami round
+  // trip on every page load — eliminates the "Loading workspace..." flash.
+  const ROLE_CACHE_KEY = "fco:role";
+  function readRoleCache(userId: string): Role | null {
+    try {
+      const raw = sessionStorage.getItem(ROLE_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { uid: string; role: Role };
+      return parsed.uid === userId ? parsed.role : null;
+    } catch { return null; }
+  }
+  function writeRoleCache(userId: string, r: Role) {
+    try { sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ uid: userId, role: r })); }
+    catch { /* storage unavailable */ }
+  }
+  function clearRoleCache() {
+    try { sessionStorage.removeItem(ROLE_CACHE_KEY); } catch { /* noop */ }
+  }
+
   const handleAuthChange = useCallback(
     (_event: string, newSession: Session | null) => {
       // Always keep the latest session (access_token may have rotated).
@@ -105,15 +125,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Resolve role from the DB whenever user identity changes.
   // Source of truth order:
-  //   1. `has_brand_row` / `has_creator_row` from /api/whoami (authoritative)
-  //   2. `public_users_row.role` (secondary — role column on users table)
-  //   3. null → UI shows spinner
+  //   1. sessionStorage cache (instant — skips whoami on returning visits)
+  //   2. `has_brand_row` / `has_creator_row` from /api/whoami (authoritative)
+  //   3. `public_users_row.role` (secondary — role column on users table)
+  //   4. null → UI shows spinner
   useEffect(() => {
     if (!user) {
       setRole(null);
       setRoleResolvedForUserId(null);
+      clearRoleCache();
       return;
     }
+
+    // Fast path: cached role for this user — resolve instantly, skip spinner
+    const cached = readRoleCache(user.id);
+    if (cached) {
+      setRole(cached);
+      setRoleResolvedForUserId(user.id);
+      // Still refresh in background to pick up any role changes, but don't block UI
+      fetch("/api/whoami", { cache: "no-store" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (!data) return;
+          let resolved: Role = null;
+          if (data.public_users_row?.role === "admin") resolved = "admin";
+          else if (data.has_brand_row) resolved = "brand";
+          else if (data.has_creator_row) resolved = "creator";
+          else if (data.public_users_row?.role === "brand") resolved = "brand";
+          else if (data.public_users_row?.role === "creator") resolved = "creator";
+          if (resolved && resolved !== cached) {
+            setRole(resolved);
+            writeRoleCache(user.id, resolved);
+          }
+        })
+        .catch(() => { /* silent — cached value still in use */ });
+      return;
+    }
+
+    // Slow path: no cache — fetch whoami and show spinner until resolved
     let cancelled = false;
     (async () => {
       try {
@@ -127,9 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         if (cancelled) return;
         let resolved: Role = null;
-        // Admin ALWAYS wins — even if the user happens to have a creator/brand
-        // row lying around, the role column on public.users is authoritative
-        // for admin. Otherwise fall back to the row-existence heuristic.
         if (data.public_users_row?.role === "admin") resolved = "admin";
         else if (data.has_brand_row) resolved = "brand";
         else if (data.has_creator_row) resolved = "creator";
@@ -137,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (data.public_users_row?.role === "creator") resolved = "creator";
         setRole(resolved);
         setRoleResolvedForUserId(user.id);
+        writeRoleCache(user.id, resolved);
       } catch (err) {
         console.error("[auth-provider] role resolve failed", err);
         if (!cancelled) {
@@ -149,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Derived synchronously — no useEffect lag. Critical for preventing the
