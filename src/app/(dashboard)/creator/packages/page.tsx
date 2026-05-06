@@ -25,7 +25,7 @@ const TIERS = [
     icon: ImageIcon,
     forCreator: "Brand uses your AI-generated likeness for organic social posts — no paid ads. Lowest commitment, great for testing a brand fit.",
     forBrand: "Organic reach only. Posts on the brand's social handles for 90 days. No boosting or paid distribution.",
-    defaultPrice: 300000,  // ₹3,000
+    defaultPrice: 500000,  // ₹5,000
     band: "from-sky-400 to-sky-600",
     iconBg: "bg-sky-500/15",
     iconColor: "text-sky-400",
@@ -41,7 +41,7 @@ const TIERS = [
     icon: Zap,
     forCreator: "Brand can run paid ads using your likeness — Instagram, YouTube, Google Display. Higher value, more brand visibility for you.",
     forBrand: "Paid & boosted ads across social platforms. Includes organic too. Valid for 6 months from date of first use.",
-    defaultPrice: 750000,  // ₹7,500
+    defaultPrice: 2000000, // ₹20,000
     band: "from-[#c9a96e] to-[#e8c89a]",
     iconBg: "bg-[var(--color-primary)]/15",
     iconColor: "text-[var(--color-primary)]",
@@ -57,7 +57,7 @@ const TIERS = [
     icon: Globe,
     forCreator: "Full digital rights — brand can use your likeness on website, OOH, packaging, email, and all ad platforms. Top-tier engagement.",
     forBrand: "Unlimited digital usage — web, OOH, email, packaging, all ad platforms. Broadest rights for 12 months.",
-    defaultPrice: 1500000, // ₹15,000
+    defaultPrice: 5000000, // ₹50,000
     band: "from-violet-500 to-purple-600",
     iconBg: "bg-violet-500/15",
     iconColor: "text-violet-400",
