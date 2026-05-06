@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Tags,
@@ -270,6 +271,7 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
 }
 
 export default function CreatorPackagesPage() {
+  const router = useRouter();
   const [packages, setPackages] = useState<Package[]>([]);
   const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -424,7 +426,7 @@ export default function CreatorPackagesPage() {
                 Brands can now discover your profile and send collab requests.
               </p>
               <button
-                onClick={() => setShowLiveCelebration(false)}
+                onClick={() => { setShowLiveCelebration(false); router.push("/creator/dashboard"); }}
                 className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-[14px] font-700 text-[var(--color-primary-foreground)] transition hover:opacity-90"
               >
                 Let&apos;s go →
