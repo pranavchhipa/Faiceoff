@@ -68,11 +68,8 @@ export default function AnalyticsPage() {
       return;
     }
 
-    const [txRes, campaignRes, genRes] = await Promise.all([
+    const [txRes, campaignRes] = await Promise.all([
       // Reads wallet_transactions_archive (renamed in migration 00027).
-      // Chunk D will rebuild analytics against escrow_ledger +
-      // platform_revenue_ledger; until then the archive gives us historical
-      // earnings charts without regressing the current UX.
       (supabase as unknown as {
         from(t: string): {
           select(c: string): {
@@ -85,7 +82,6 @@ export default function AnalyticsPage() {
                   direction: "credit" | "debit";
                   created_at: string;
                 }> | null;
-                count?: number;
               }>;
             };
           };
@@ -100,15 +96,15 @@ export default function AnalyticsPage() {
         .select("id, name, status, spent_paise, generation_count, max_generations, created_at")
         .eq("creator_id", creator.id)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("generations")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "delivered"),
     ]);
 
+    const sessions = (campaignRes.data ?? []) as CampaignRow[];
     if (txRes.data) setTransactions(txRes.data as WalletTx[]);
-    if (campaignRes.data) setCampaigns(campaignRes.data as CampaignRow[]);
-    setGenerationCount(genRes.count ?? 0);
+    setCampaigns(sessions);
+    // Derive total generations from session generation_count sums
+    setGenerationCount(
+      sessions.reduce((s, c) => s + ((c as unknown as { generation_count?: number }).generation_count ?? 0), 0)
+    );
     setLoading(false);
   }, [user, supabase]);
 
