@@ -232,7 +232,7 @@ export default function BrandDashboardPage() {
         <BentoStat
           label="Generations"
           value={String(generations)}
-          delta={`${stats.totalCampaigns} ${stats.totalCampaigns === 1 ? "campaign" : "campaigns"} total`}
+          delta={`${stats.totalCampaigns} ${stats.totalCampaigns === 1 ? "collab" : "collabs"} total`}
           delay={0.06}
         />
         <BentoStat

@@ -262,7 +262,7 @@ export default function CreatorDashboardPage() {
                   Lifetime earnings <span className="font-700 text-[var(--color-foreground)]">{formatRupees(lifetimeRupees)}</span>. Every approval unlocks a payout.
                 </>
               ) : (
-                <>You haven&apos;t received any briefs yet. Complete onboarding and brands will start finding you.</>
+                <>No approvals yet. Brands will find you on Discover once you&apos;re live — approvals land here automatically.</>
               )}
             </p>
           </div>
@@ -554,11 +554,11 @@ export default function CreatorDashboardPage() {
               Lifetime
             </p>
             <p className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {stats.totalCampaigns} {stats.totalCampaigns === 1 ? "brief" : "briefs"} shipped
+              {stats.totalCampaigns} {stats.totalCampaigns === 1 ? "collab" : "collabs"} total
             </p>
             <p className="mt-2 text-[12px] text-[var(--color-muted-foreground)]">
               {lifetimeRupees > 0 ? (
-                <>You&apos;ve earned <span className="font-700 text-[var(--color-foreground)]">{formatRupees(lifetimeRupees)}</span> after the platform&apos;s 25% fee.</>
+                <>Lifetime earnings: <span className="font-700 text-[var(--color-foreground)]">{formatRupees(lifetimeRupees)}</span> after platform commission.</>
               ) : (
                 <>Your earnings show here once approvals are paid out.</>
               )}
@@ -596,7 +596,7 @@ export default function CreatorDashboardPage() {
       {/* Footer note */}
       <p className="mt-10 flex items-center gap-2 text-[12px] text-[var(--color-muted-foreground)]">
         <Clock className="h-3.5 w-3.5" />
-        Approval requests expire 48 hours after brief submission. Missing the window won&apos;t cost you — the brand requests a fresh one.
+        Approval requests expire 48 hours after a generation is sent to you. Missing the window won&apos;t cost you — the brand can send a fresh one.
       </p>
     </div>
   );
