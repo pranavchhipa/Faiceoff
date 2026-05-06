@@ -34,6 +34,7 @@ import {
   TrendingUp,
   FileSignature,
   HelpCircle,
+  Tags,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -112,7 +113,7 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
         { label: "Collabs", href: "/creator/collabs", icon: Megaphone },
         { label: "Requests", href: "/creator/requests", icon: Inbox },
         { label: "Earnings", href: "/creator/earnings", icon: IndianRupee },
-        { label: "Payouts", href: "/creator/payouts", icon: Wallet },
+        { label: "Packages", href: "/creator/packages", icon: Tags },
         { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine },
         { label: "Analytics", href: "/creator/analytics", icon: TrendingUp },
         { label: "Licenses", href: "/creator/licenses", icon: FileSignature },

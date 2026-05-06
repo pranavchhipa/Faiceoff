@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Check,
@@ -11,11 +11,12 @@ import {
   Camera,
   Sparkles,
   ShieldCheck,
-  TrendingUp,
   Clock,
-  Wallet,
   ArrowUpRight,
   Fingerprint,
+  Wallet,
+  CheckCircle2,
+  Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -37,7 +38,7 @@ interface CategoryInfo {
 
 interface CreatorStats {
   pendingApprovals: number;
-  walletBalance: number; // paise
+  walletBalance: number;
   totalCampaigns: number;
   activeCampaigns: number;
 }
@@ -63,12 +64,14 @@ interface ApprovalRow {
   collab_session: { id: string; name: string | null } | null;
 }
 
+/* ───────── Utilities ───────── */
+
 const ACCENTS = [
   "from-orange-400 to-rose-500",
-  "from-red-500 to-rose-600",
+  "from-sky-500 to-indigo-600",
   "from-amber-400 to-orange-500",
   "from-fuchsia-500 to-pink-600",
-  "from-sky-500 to-indigo-600",
+  "from-emerald-400 to-teal-500",
 ];
 
 function formatINR(paise: number): string {
@@ -78,15 +81,6 @@ function formatINR(paise: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(paise / 100);
-}
-
-function formatRupees(rupees: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rupees);
 }
 
 function timeUntil(iso: string | null): string {
@@ -100,7 +94,7 @@ function timeUntil(iso: string | null): string {
 }
 
 const fadeUp = {
-  initial: { opacity: 0, y: 14 },
+  initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
 };
 
@@ -126,7 +120,8 @@ export default function CreatorDashboardPage() {
   const [approvals, setApprovals] = useState<ApprovalRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const displayName = user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "Creator";
+  const displayName =
+    user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "Creator";
   const firstName = displayName.split(" ")[0];
   const initial = firstName.charAt(0).toUpperCase();
 
@@ -137,9 +132,15 @@ export default function CreatorDashboardPage() {
     async function load() {
       setLoading(true);
       const [statsRes, earningsRes, approvalsRes] = await Promise.allSettled([
-        fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) => r.ok ? r.json() : null),
-        fetch("/api/earnings/dashboard", { cache: "no-store" }).then((r) => r.ok ? r.json() : null),
-        fetch("/api/creator/approvals", { cache: "no-store" }).then((r) => r.ok ? r.json() : null),
+        fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
+        fetch("/api/earnings/dashboard", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
+        fetch("/api/creator/approvals", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
       ]);
 
       if (cancelled) return;
@@ -185,199 +186,232 @@ export default function CreatorDashboardPage() {
 
   const needsOnboarding = profile && profile.onboarding_step !== "complete";
   const kycVerified = profile?.kyc_status === "approved";
+  const isLive = profile?.is_active === true;
 
-  // Real wallet (available payout balance from earnings ledger).
-  const walletRupees = earnings.available_paise / 100;
-  const lifetimeRupees = earnings.lifetime_earned_paise / 100;
   const holdingRupees = earnings.holding_paise / 100;
   const photoTarget = 30;
   const photoPct = Math.min(100, Math.round((photoCount / photoTarget) * 100));
-
   const pendingCount = stats.pendingApprovals || approvals.length;
 
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
+  if (loading) return <DashboardSkeleton />;
 
   async function decideApproval(id: string, decision: "approve" | "reject") {
-    // Optimistic remove
     setApprovals((a) => a.filter((x) => x.id !== id));
     try {
-      const path = decision === "approve" ? "approve" : "reject";
-      await fetch(`/api/approvals/${id}/${path}`, { method: "POST" });
+      await fetch(`/api/approvals/${id}/${decision}`, { method: "POST" });
     } catch (err) {
       console.error("approval decision failed", err);
     }
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-10">
-      {/* ═══════════ Editorial Hero ═══════════ */}
-      <motion.section
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+
+      {/* ── HEADER ── */}
+      <motion.header
         variants={fadeUp}
         initial="initial"
         animate="animate"
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mb-8 overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-card)]"
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] as const }}
       >
-        <div className="grid lg:grid-cols-[1.4fr_1fr]">
-          {/* Left: greeting on a soft gradient — no full-bleed avatar */}
-          <div className="relative min-h-[280px] bg-gradient-to-br from-[var(--color-secondary)] via-[var(--color-card)] to-[var(--color-secondary)] p-6 lg:p-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] text-[var(--color-background)] font-display text-lg font-800 ring-2 ring-[var(--color-card)]">
-                {initial}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-[var(--color-card)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-foreground)] shadow-sm">
-                  Creator
-                </span>
-                {kycVerified && (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
-                    <ShieldCheck className="h-3 w-3" strokeWidth={2.4} />
-                    KYC verified
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <p className="mt-8 text-[11px] font-700 uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-              {new Date().toLocaleDateString("en-IN", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </p>
-            <h1 className="mt-2 font-display text-[32px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[44px]">
-              Hi {firstName} —
-              <br />
-              <span className="text-[var(--color-primary)]">
-                {pendingCount > 0
-                  ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
-                  : "no approvals waiting"}
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-700 uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+          <div className="flex items-center gap-2">
+            {isLive && (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
               </span>
-            </h1>
-            <p className="mt-3 max-w-md text-sm text-[var(--color-muted-foreground)]">
-              {lifetimeRupees > 0 ? (
-                <>
-                  Lifetime earnings <span className="font-700 text-[var(--color-foreground)]">{formatRupees(lifetimeRupees)}</span>. Every approval unlocks a payout.
-                </>
-              ) : (
-                <>No approvals yet. Brands will find you on Discover once you&apos;re live — approvals land here automatically.</>
-              )}
-            </p>
-          </div>
-
-          {/* Right: gold wallet panel */}
-          <div className="relative overflow-hidden bg-[var(--color-primary)] p-6 lg:p-8">
-            <div
-              className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-30"
-              style={{
-                background:
-                  "radial-gradient(circle at center, rgba(255,255,255,0.6), transparent 60%)",
-              }}
-            />
-            <div className="relative">
-              <div className="mb-6 flex items-center justify-between text-[var(--color-primary-foreground)]">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4" strokeWidth={2.4} />
-                  <span className="text-[11px] font-700 uppercase tracking-[0.18em]">
-                    Available to withdraw
-                  </span>
-                </div>
-                <span className="rounded-full bg-[var(--color-primary-foreground)]/15 px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider">
-                  Live
-                </span>
-              </div>
-              <div className="text-[var(--color-primary-foreground)]">
-                <div className="flex items-baseline gap-1 font-display text-[54px] font-800 leading-none tracking-tight lg:text-[64px]">
-                  <IndianRupee className="h-[34px] w-[34px] lg:h-[44px] lg:w-[44px]" strokeWidth={2.6} />
-                  <span>{walletRupees.toLocaleString("en-IN")}</span>
-                </div>
-                <div className="mt-2 flex items-center gap-2 text-xs font-600">
-                  <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  <span>
-                    {holdingRupees > 0
-                      ? `${formatRupees(holdingRupees)} clearing escrow`
-                      : `Lifetime ${formatRupees(lifetimeRupees)}`}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-2 gap-2">
-                <Link
-                  href="/creator/withdraw"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary-foreground)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary)] transition-transform hover:-translate-y-0.5"
-                >
-                  Withdraw
-                  <ArrowUpRight className="h-4 w-4" strokeWidth={2.4} />
-                </Link>
-                <Link
-                  href="/creator/earnings"
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-primary-foreground)]/30 px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] backdrop-blur transition-colors hover:bg-[var(--color-primary-foreground)]/10"
-                >
-                  Earnings
-                </Link>
-              </div>
-              <div className="mt-4 rounded-xl bg-[var(--color-primary-foreground)]/10 p-3 text-[var(--color-primary-foreground)]">
-                <p className="text-[10px] font-700 uppercase tracking-wider opacity-70">
-                  UPI payout
-                </p>
-                <p className="mt-0.5 text-[12px] font-600">
-                  Processed within 2 business days
-                </p>
-              </div>
-            </div>
+            )}
+            {kycVerified && (
+              <span className="flex items-center gap-1 rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                <ShieldCheck className="h-3 w-3 text-emerald-500" strokeWidth={2.4} />
+                KYC
+              </span>
+            )}
           </div>
         </div>
-      </motion.section>
 
-      {/* ═══════════ Onboarding CTA ═══════════ */}
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[52px]">
+              Hi {firstName} —
+            </h1>
+            <p className="mt-1 font-display text-[20px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[26px]">
+              {pendingCount > 0
+                ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
+                : earnings.lifetime_earned_paise > 0
+                ? "all caught up. nice work."
+                : "no approvals yet — brands are looking."}
+            </p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] font-display text-lg font-800 text-[var(--color-background)] shadow-md lg:h-14 lg:w-14 lg:text-xl">
+            {initial}
+          </div>
+        </div>
+      </motion.header>
+
+      {/* ── ONBOARDING BANNER ── */}
       {needsOnboarding && (
         <motion.div
           variants={fadeUp}
           initial="initial"
           animate="animate"
           transition={{ duration: 0.4, delay: 0.05 }}
-          className="mb-8"
         >
           <Link
             href="/dashboard/onboarding"
-            className="group flex flex-col gap-4 rounded-[20px] border border-[var(--color-primary)]/40 bg-gradient-to-br from-[var(--color-primary)]/10 via-[var(--color-card)] to-[var(--color-card)] p-5 no-underline md:flex-row md:items-center md:justify-between"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/8 p-4 no-underline transition-colors hover:bg-[var(--color-primary)]/12"
           >
-            <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-foreground)]">
-                <Sparkles className="h-5 w-5" />
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-foreground)]">
+                <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <p className="font-display text-[17px] font-700 text-[var(--color-foreground)]">
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
                   Finish onboarding to go live
                 </p>
-                <p className="mt-0.5 text-[13px] text-[var(--color-muted-foreground)]">
-                  Current step:{" "}
-                  <span className="rounded bg-[var(--color-secondary)] px-1.5 py-0.5 font-mono text-[11px] font-600 text-[var(--color-foreground)]">
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Step:{" "}
+                  <span className="font-600 text-[var(--color-foreground)]">
                     {profile?.onboarding_step?.replace(/_/g, " ") ?? "photos"}
                   </span>
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 self-start rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform group-hover:-translate-y-0.5 md:self-auto">
-              Continue <ArrowRight className="h-4 w-4" />
+            <span className="flex items-center gap-1 text-[13px] font-700 text-[var(--color-primary)]">
+              Continue <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </Link>
         </motion.div>
       )}
 
-      {/* ═══════════ Main two-column ═══════════ */}
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-        {/* LEFT: Approval queue */}
+      {/* ── METRIC STRIP ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* Available to withdraw — gold */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.07 }}
+        >
+          <div className="relative overflow-hidden rounded-2xl bg-[var(--color-primary)] p-4 lg:p-5">
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-20"
+              style={{
+                background: "radial-gradient(circle, white, transparent 60%)",
+              }}
+            />
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]/70">
+              Available
+            </p>
+            <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-primary-foreground)] lg:text-[26px]">
+              {formatINR(earnings.available_paise)}
+            </p>
+            <Link
+              href="/creator/withdraw"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary-foreground)] opacity-90 hover:opacity-100"
+            >
+              Withdraw <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Pending approvals */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <div
+            className={`rounded-2xl border p-4 lg:p-5 ${
+              pendingCount > 0
+                ? "border-amber-400/40 bg-amber-500/8"
+                : "border-[var(--color-border)] bg-[var(--color-card)]"
+            }`}
+          >
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Pending
+            </p>
+            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {pendingCount}
+            </p>
+            <Link
+              href="/creator/approvals"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+            >
+              Review all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Active collabs */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.13 }}
+        >
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Active collabs
+            </p>
+            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+              {stats.activeCampaigns}
+            </p>
+            <Link
+              href="/creator/collabs"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Lifetime earned */}
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.16 }}
+        >
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
+            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Lifetime earned
+            </p>
+            <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-foreground)] lg:text-[24px]">
+              {formatINR(earnings.lifetime_earned_paise)}
+            </p>
+            <Link
+              href="/creator/earnings"
+              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+            >
+              Full history <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── MAIN 2-COL ── */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+
+        {/* LEFT: Approval Queue */}
         <motion.section
           variants={fadeUp}
           initial="initial"
           animate="animate"
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ duration: 0.45, delay: 0.2 }}
         >
-          <div className="mb-4 flex items-end justify-between">
+          <div className="mb-5 flex items-end justify-between">
             <div>
-              <p className="text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                 Approval queue
               </p>
               <h2 className="mt-1 font-display text-[22px] font-700 tracking-tight text-[var(--color-foreground)]">
@@ -386,7 +420,7 @@ export default function CreatorDashboardPage() {
             </div>
             <Link
               href="/creator/approvals"
-              className="flex items-center gap-1 text-[13px] font-600 text-[var(--color-primary)] hover:underline"
+              className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-primary)] hover:underline"
             >
               See all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
@@ -394,127 +428,159 @@ export default function CreatorDashboardPage() {
 
           <div className="space-y-3">
             {approvals.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
-                <p className="font-display text-lg font-700 text-[var(--color-foreground)]">
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] px-6 py-14 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-secondary)]">
+                  <CheckCircle2
+                    className="h-6 w-6 text-[var(--color-muted-foreground)]"
+                    strokeWidth={1.8}
+                  />
+                </div>
+                <p className="font-700 text-[15px] text-[var(--color-foreground)]">
                   Queue empty
                 </p>
-                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                  No pending approvals right now. New briefs land here as soon as a brand submits one.
+                <p className="mt-1 max-w-xs text-[13px] text-[var(--color-muted-foreground)]">
+                  No pending approvals right now. New requests land here as soon
+                  as a brand sends one.
                 </p>
               </div>
             ) : (
-              approvals.map((a, idx) => {
-                const brandName = a.collab_session?.name ?? a.campaign?.name ?? "Brief";
-                const category = a.generation?.structured_brief?.category ?? a.generation?.structured_brief?.title ?? "Generation";
-                const accent = ACCENTS[idx % ACCENTS.length];
-                return (
-                  <motion.div
-                    key={a.id}
-                    layout
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25, delay: idx * 0.04 }}
-                    className="group flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-colors hover:border-[var(--color-primary)]/40"
-                  >
-                    <div
-                      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent} text-white`}
+              <AnimatePresence>
+                {approvals.map((a, idx) => {
+                  const brandName =
+                    a.collab_session?.name ?? a.campaign?.name ?? "Brand";
+                  const category =
+                    a.generation?.structured_brief?.category ??
+                    a.generation?.structured_brief?.title ??
+                    "Generation";
+                  const accent = ACCENTS[idx % ACCENTS.length];
+                  return (
+                    <motion.div
+                      key={a.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] transition-colors hover:border-[var(--color-primary)]/30"
                     >
-                      <span className="font-display text-lg font-800">
-                        {brandName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-600 text-[15px] text-[var(--color-foreground)]">
-                        {brandName}
-                      </p>
-                      <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
-                        {category}
-                      </p>
-                      <p className="mt-1 flex items-center gap-1 text-[11px] font-600 text-[var(--color-primary)]">
-                        <Clock className="h-3 w-3" strokeWidth={2.4} />
-                        Expires in {timeUntil(a.expires_at)}
-                      </p>
-                    </div>
-                    <div className="hidden shrink-0 flex-col items-end gap-1.5 sm:flex">
-                      <Link
-                        href={`/creator/approvals`}
-                        className="text-[11px] font-600 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-                      >
-                        Review →
-                      </Link>
-                      <div className="flex gap-1.5">
+                      <div className="flex items-center gap-4 p-4">
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent} text-white`}
+                        >
+                          <span className="font-display text-[18px] font-800">
+                            {brandName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-700 text-[15px] text-[var(--color-foreground)]">
+                            {brandName}
+                          </p>
+                          <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                            {category}
+                          </p>
+                          <div className="mt-1 flex items-center gap-1 text-[11px] font-600 text-amber-600">
+                            <Clock className="h-3 w-3" strokeWidth={2.4} />
+                            Expires in {timeUntil(a.expires_at)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 border-t border-[var(--color-border)] px-4 py-3">
+                        <Link
+                          href="/creator/approvals"
+                          className="flex-1 text-center text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+                        >
+                          View image →
+                        </Link>
                         <button
                           onClick={() => decideApproval(a.id, "reject")}
-                          aria-label="Reject"
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
+                          className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:border-red-400 hover:text-red-500"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
+                          Decline
                         </button>
                         <button
                           onClick={() => decideApproval(a.id, "approve")}
-                          aria-label="Approve"
-                          className="flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+                          className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
                         >
-                          <Check className="h-4 w-4" strokeWidth={2.4} />
+                          <Check className="h-3.5 w-3.5" strokeWidth={2.4} />
                           Approve
                         </button>
                       </div>
-                    </div>
-                    <div className="flex shrink-0 gap-1 sm:hidden">
-                      <button
-                        onClick={() => decideApproval(a.id, "reject")}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)]"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => decideApproval(a.id, "approve")}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-                      >
-                        <Check className="h-4 w-4" strokeWidth={2.4} />
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             )}
+          </div>
+
+          {/* Active collabs teaser — below queue */}
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]">
+                <Megaphone className="h-4 w-4" strokeWidth={2.2} />
+              </div>
+              <div>
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  {stats.activeCampaigns > 0
+                    ? `${stats.activeCampaigns} active collab${stats.activeCampaigns > 1 ? "s" : ""}`
+                    : "No active collabs yet"}
+                </p>
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  {stats.totalCampaigns} total · {earnings.pending_count} pending payout
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/creator/collabs"
+              className="flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
+            >
+              View <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </motion.section>
 
-        {/* RIGHT: Likeness + summary */}
-        <motion.section
+        {/* RIGHT: Sidebar */}
+        <motion.aside
           variants={fadeUp}
           initial="initial"
           animate="animate"
-          transition={{ duration: 0.5, delay: 0.15 }}
-          className="space-y-6"
+          transition={{ duration: 0.45, delay: 0.25 }}
+          className="space-y-4"
         >
           {/* Likeness card */}
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
-                  <Camera className="h-4 w-4" />
+                  <Camera className="h-4 w-4" strokeWidth={2.4} />
                 </div>
                 <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
                   My Likeness
                 </p>
               </div>
-              {photoCount >= 3 && (
-                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-emerald-500">
+              {photoCount >= 3 ? (
+                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-emerald-600">
                   Ready
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-amber-600">
+                  Incomplete
                 </span>
               )}
             </div>
-            <div className="mb-4 space-y-1.5">
+
+            <div className="mb-4 space-y-2">
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-[var(--color-muted-foreground)]">Reference photos</span>
-                <span className="font-600 text-[var(--color-foreground)]">{photoCount} / {photoTarget}</span>
+                <span className="text-[var(--color-muted-foreground)]">
+                  Reference photos
+                </span>
+                <span className="font-700 text-[var(--color-foreground)]">
+                  {photoCount} / {photoTarget}
+                </span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
                 <div
-                  className="h-full rounded-full bg-[var(--color-primary)] transition-all"
+                  className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-500"
                   style={{ width: `${photoPct}%` }}
                 />
               </div>
@@ -522,10 +588,10 @@ export default function CreatorDashboardPage() {
 
             {categories.length > 0 ? (
               <div className="mb-4 flex flex-wrap gap-1.5">
-                {categories.slice(0, 3).map((cat) => (
+                {categories.slice(0, 4).map((cat) => (
                   <span
                     key={cat.category}
-                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 capitalize text-[var(--color-foreground)]"
+                    className="rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 capitalize text-[var(--color-foreground)]"
                   >
                     {cat.category}
                   </span>
@@ -533,103 +599,146 @@ export default function CreatorDashboardPage() {
               </div>
             ) : (
               <p className="mb-4 text-[12px] text-[var(--color-muted-foreground)]">
-                No categories set yet. Add them during onboarding to start receiving briefs.
+                Add categories during onboarding to start receiving brand requests.
               </p>
             )}
 
             <Link
               href="/creator/likeness"
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[13px] font-600 text-[var(--color-foreground)] transition-all hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             >
               Manage likeness <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          {/* This month card (creator tint) */}
-          <div
-            className="overflow-hidden rounded-2xl border border-[var(--color-border)] p-5"
-            style={{ background: "var(--color-secondary)" }}
-          >
-            <p className="mb-1 text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              Lifetime
-            </p>
-            <p className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {stats.totalCampaigns} {stats.totalCampaigns === 1 ? "collab" : "collabs"} total
-            </p>
-            <p className="mt-2 text-[12px] text-[var(--color-muted-foreground)]">
-              {lifetimeRupees > 0 ? (
-                <>Lifetime earnings: <span className="font-700 text-[var(--color-foreground)]">{formatRupees(lifetimeRupees)}</span> after platform commission.</>
-              ) : (
-                <>Your earnings show here once approvals are paid out.</>
+          {/* Earnings breakdown */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+                <Wallet className="h-4 w-4" strokeWidth={2.4} />
+              </div>
+              <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
+                Earnings
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Available to withdraw
+                </span>
+                <span className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  {formatINR(earnings.available_paise)}
+                </span>
+              </div>
+              {holdingRupees > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                    In escrow (clearing)
+                  </span>
+                  <span className="font-700 text-[14px] text-amber-600">
+                    {formatINR(earnings.holding_paise)}
+                  </span>
+                </div>
               )}
-            </p>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <Stat label="Active" value={String(stats.activeCampaigns)} />
-              <Stat label="Pending" value={String(earnings.pending_count)} />
-              <Stat label="Holding" value={holdingRupees > 0 ? formatRupees(holdingRupees) : "—"} />
+              <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-3">
+                <span className="text-[12px] font-700 text-[var(--color-muted-foreground)]">
+                  Lifetime total
+                </span>
+                <span className="font-800 text-[15px] text-[var(--color-foreground)]">
+                  {formatINR(earnings.lifetime_earned_paise)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Link
+                href="/creator/withdraw"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] py-2.5 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+              >
+                Withdraw <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/creator/earnings"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
+              >
+                <IndianRupee className="h-3.5 w-3.5" />
+                History
+              </Link>
             </div>
           </div>
 
-          {/* KYC badge card */}
+          {/* Identity / KYC strip */}
           <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
-              <Fingerprint className="h-4 w-4" />
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                kycVerified
+                  ? "bg-emerald-500/15 text-emerald-500"
+                  : "bg-amber-500/15 text-amber-500"
+              }`}
+            >
+              <Fingerprint className="h-4 w-4" strokeWidth={2.2} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-600 text-[13px] text-[var(--color-foreground)]">
-                {kycVerified ? "KYC verified · DPDP consent signed" : "KYC verification pending"}
+                {kycVerified ? "Identity verified" : "KYC pending"}
               </p>
               <p className="text-[11px] text-[var(--color-muted-foreground)]">
-                {kycVerified ? "You own every use of your face, always." : "Complete KYC to start earning."}
+                {kycVerified
+                  ? "DPDP consent signed · you own every use"
+                  : "Complete KYC to unlock payouts"}
               </p>
             </div>
             <Link
               href="/creator/settings"
               className="shrink-0 text-[12px] font-600 text-[var(--color-primary)] hover:underline"
             >
-              Review
+              →
             </Link>
           </div>
-        </motion.section>
+        </motion.aside>
       </div>
 
-      {/* Footer note */}
-      <p className="mt-10 flex items-center gap-2 text-[12px] text-[var(--color-muted-foreground)]">
-        <Clock className="h-3.5 w-3.5" />
-        Approval requests expire 48 hours after a generation is sent to you. Missing the window won&apos;t cost you — the brand can send a fresh one.
+      {/* ── FOOTER ── */}
+      <p className="flex items-center gap-2 text-[11px] text-[var(--color-muted-foreground)]">
+        <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        Approvals expire 48h after a brand sends them. Missing the window is fine
+        — the brand can always resend.
       </p>
     </div>
   );
 }
 
-/* ───────── Helpers ───────── */
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
-        {value}
-      </p>
-      <p className="text-[10px] font-600 uppercase tracking-wider text-[var(--color-muted-foreground)]">
-        {label}
-      </p>
-    </div>
-  );
-}
+/* ───────── Skeleton ───────── */
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-10">
-      <div className="mb-8 h-[340px] animate-pulse rounded-[28px] bg-[var(--color-secondary)]" />
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+      <div className="space-y-3">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
+        <div className="h-12 w-72 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+        <div className="h-7 w-56 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-[100px] animate-pulse rounded-2xl bg-[var(--color-secondary)]"
+          />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+            <div
+              key={i}
+              className="h-[110px] animate-pulse rounded-2xl bg-[var(--color-secondary)]"
+            />
           ))}
         </div>
-        <div className="space-y-6">
-          <div className="h-48 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
-          <div className="h-40 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+        <div className="space-y-4">
+          <div className="h-[200px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
+          <div className="h-[180px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
         </div>
       </div>
     </div>
