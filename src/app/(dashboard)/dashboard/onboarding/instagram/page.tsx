@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Users } from "lucide-react";
@@ -46,18 +46,28 @@ function YtIcon() {
   );
 }
 
+const DRAFT_KEY = "fco:onboarding:socials";
+function loadDraft() { try { const r = localStorage.getItem(DRAFT_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
+function saveDraft(d: object) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch {} }
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+
 const SELECT_CLS = "w-full h-9 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-3 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 appearance-none";
 
 export default function InstagramPage() {
   const router = useRouter();
 
-  const [igHandle, setIgHandle] = useState("");
-  const [igFollowers, setIgFollowers] = useState("");
-  const [ytHandle, setYtHandle] = useState("");
-  const [ytSubscribers, setYtSubscribers] = useState("");
-  const [bio, setBio] = useState("");
+  const draft = typeof window !== "undefined" ? loadDraft() : null;
+  const [igHandle, setIgHandle] = useState(draft?.igHandle ?? "");
+  const [igFollowers, setIgFollowers] = useState(draft?.igFollowers ?? "");
+  const [ytHandle, setYtHandle] = useState(draft?.ytHandle ?? "");
+  const [ytSubscribers, setYtSubscribers] = useState(draft?.ytSubscribers ?? "");
+  const [bio, setBio] = useState(draft?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    saveDraft({ igHandle, igFollowers, ytHandle, ytSubscribers, bio });
+  }, [igHandle, igFollowers, ytHandle, ytSubscribers, bio]);
 
   async function advanceStep() {
     const res = await fetch("/api/onboarding/update-step", {
@@ -85,6 +95,7 @@ export default function InstagramPage() {
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to save");
       await advanceStep();
+      clearDraft();
       router.push("/dashboard/onboarding/categories");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -93,7 +104,7 @@ export default function InstagramPage() {
 
   async function handleSkip() {
     setSaving(true); setError(null);
-    try { await advanceStep(); router.push("/dashboard/onboarding/categories"); }
+    try { clearDraft(); await advanceStep(); router.push("/dashboard/onboarding/categories"); }
     catch (err) { setError(err instanceof Error ? err.message : "Something went wrong"); }
     finally { setSaving(false); }
   }
