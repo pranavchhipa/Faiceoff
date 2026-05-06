@@ -16,7 +16,6 @@ const STEPS = [
   { key: "compliance", label: "Compliance", path: "/dashboard/onboarding/compliance" },
   { key: "consent", label: "Consent", path: "/dashboard/onboarding/consent" },
   { key: "photos", label: "Photos", path: "/dashboard/onboarding/photos" },
-  { key: "pricing", label: "Pricing", path: "/dashboard/onboarding/pricing" },
 ] as const;
 
 function getActiveIndex(pathname: string): number {
