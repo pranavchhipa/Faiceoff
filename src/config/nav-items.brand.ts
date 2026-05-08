@@ -8,6 +8,7 @@ import {
   Receipt,
   Settings as SettingsIcon,
   User as UserIcon,
+  Send,
 } from "lucide-react";
 
 export interface NavItem {
@@ -26,6 +27,7 @@ export interface NavItem {
 export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Dashboard", short: "Home", href: "/brand/dashboard", icon: LayoutDashboard, group: "Work" },
   { label: "Discover creators", short: "Discover", href: "/brand/discover", icon: Users, group: "Work" },
+  { label: "Requests", href: "/brand/requests", icon: Send, group: "Work" },
   { label: "Collabs", href: "/brand/collabs", icon: Megaphone, group: "Work" },
   { label: "Vault", href: "/brand/vault", icon: ImageIcon, group: "Work" },
   { label: "Wallet", href: "/brand/wallet", icon: Wallet, group: "Money" },
@@ -37,7 +39,7 @@ export const BRAND_SIDE_NAV: NavItem[] = [
 export const BRAND_MOBILE_NAV: NavItem[] = [
   { label: "Home", href: "/brand/dashboard", icon: LayoutDashboard },
   { label: "Discover", href: "/brand/discover", icon: Users },
+  { label: "Requests", href: "/brand/requests", icon: Send },
   { label: "Collabs", href: "/brand/collabs", icon: Megaphone },
-  { label: "Vault", href: "/brand/vault", icon: ImageIcon },
   { label: "Profile", href: "/brand/settings", icon: UserIcon },
 ];
