@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data: rows, error } = await admin
     .from("collab_requests")
-    .select("id, status, package_tier, package_price_paise, final_images, product_name, brief_one_liner, expires_at, created_at, brand_id")
+    .select("id, status, package_tier, package_price_paise, final_images, product_name, product_image_url, brief_one_liner, expires_at, created_at, brand_id")
     .eq("creator_id", creator.id)
     .order("created_at", { ascending: false })
     .limit(50);

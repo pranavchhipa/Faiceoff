@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Megaphone,
   Tags,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -118,6 +119,7 @@ export default function CreatorDashboardPage() {
   });
   const [approvals, setApprovals] = useState<ApprovalRow[]>([]);
   const [hasPackages, setHasPackages] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const displayName =
@@ -130,7 +132,7 @@ export default function CreatorDashboardPage() {
 
     async function load() {
       setLoading(true);
-      const [statsRes, earningsRes, approvalsRes, pkgRes] = await Promise.allSettled([
+      const [statsRes, earningsRes, approvalsRes, pkgRes, reqRes] = await Promise.allSettled([
         fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
           r.ok ? r.json() : null
         ),
@@ -141,6 +143,9 @@ export default function CreatorDashboardPage() {
           r.ok ? r.json() : null
         ),
         fetch("/api/creator/packages", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
+        fetch("/api/creator/requests", { cache: "no-store" }).then((r) =>
           r.ok ? r.json() : null
         ),
       ]);
@@ -179,6 +184,10 @@ export default function CreatorDashboardPage() {
       if (pkgRes.status === "fulfilled" && pkgRes.value?.packages) {
         setHasPackages((pkgRes.value.packages as unknown[]).length > 0);
       }
+      if (reqRes.status === "fulfilled" && reqRes.value?.requests) {
+        const pendingReqs = (reqRes.value.requests as { status: string }[]).filter((r) => r.status === "pending");
+        setPendingRequestsCount(pendingReqs.length);
+      }
 
       setLoading(false);
     }
@@ -203,6 +212,7 @@ export default function CreatorDashboardPage() {
   const photoTarget = 30;
   const photoPct = Math.min(100, Math.round((photoCount / photoTarget) * 100));
   const pendingCount = stats.pendingApprovals || approvals.length;
+  const totalPending = pendingCount + pendingRequestsCount;
 
   if (loading) return <DashboardSkeleton />;
 
@@ -231,7 +241,9 @@ export default function CreatorDashboardPage() {
             Hi {firstName} —
           </h1>
           <p className="mt-1 font-display text-[18px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[22px]">
-            {pendingCount > 0
+            {pendingRequestsCount > 0
+              ? `${pendingRequestsCount} brand request${pendingRequestsCount > 1 ? "s" : ""} waiting for you`
+              : pendingCount > 0
               ? `${pendingCount} ${pendingCount === 1 ? "approval" : "approvals"} waiting`
               : !isOnboardingComplete
               ? "finish onboarding to go live."
@@ -284,6 +296,41 @@ export default function CreatorDashboardPage() {
             </div>
             <span className="flex items-center gap-1 text-[13px] font-700 text-[var(--color-primary)]">
               Continue <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        </motion.div>
+      )}
+
+      {/* ── COLLAB REQUESTS BANNER ── */}
+      {pendingRequestsCount > 0 && (
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.04 }}
+        >
+          <Link
+            href="/creator/requests"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-amber-400/40 bg-amber-500/8 p-4 no-underline transition-colors hover:bg-amber-500/12"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <Inbox className="h-4 w-4" />
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-800 text-amber-600">
+                  {pendingRequestsCount}
+                </span>
+              </div>
+              <div>
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  {pendingRequestsCount} brand request{pendingRequestsCount > 1 ? "s" : ""} waiting
+                </p>
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Accept to unlock the collab. Brand pays only after you accept.
+                </p>
+              </div>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-[13px] font-700 text-amber-600">
+              Review <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </Link>
         </motion.div>
@@ -361,7 +408,7 @@ export default function CreatorDashboardPage() {
         >
           <div
             className={`rounded-2xl border p-4 lg:p-5 ${
-              pendingCount > 0
+              totalPending > 0
                 ? "border-amber-400/40 bg-amber-500/8"
                 : "border-[var(--color-border)] bg-[var(--color-card)]"
             }`}
@@ -370,10 +417,10 @@ export default function CreatorDashboardPage() {
               Pending
             </p>
             <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {pendingCount}
+              {totalPending}
             </p>
             <Link
-              href="/creator/approvals"
+              href={pendingRequestsCount > 0 ? "/creator/requests" : "/creator/approvals"}
               className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
             >
               Review all <ArrowRight className="h-3 w-3" />
