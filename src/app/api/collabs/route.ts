@@ -72,5 +72,34 @@ export async function GET() {
     is_legacy: !(s.package_tier), // old sessions without package linkage
   }));
 
-  return NextResponse.json({ collabs, role: roleFilter.role });
+  // For brands: also return accepted requests awaiting payment
+  let pendingPayments: unknown[] = [];
+  if (brand) {
+    const { data: acceptedReqs } = await admin
+      .from("collab_requests")
+      .select("id, status, package_tier, package_price_paise, final_images, product_name, product_image_url, brief_one_liner, creator_id, created_at")
+      .eq("brand_id", brand.id)
+      .in("status", ["pending", "accepted"])
+      .order("created_at", { ascending: false });
+
+    // Enrich with creator names
+    const creatorIds = [...new Set((acceptedReqs ?? []).map((r: { creator_id: string }) => r.creator_id))];
+    const creatorNameMap: Record<string, string> = {};
+    if (creatorIds.length > 0) {
+      const { data: cRows } = await admin.from("creators").select("id, user_id").in("id", creatorIds);
+      const cUserIds = (cRows ?? []).map((c: { user_id: string }) => c.user_id);
+      if (cUserIds.length > 0) {
+        const { data: cUsers } = await admin.from("users").select("id, display_name").in("id", cUserIds);
+        const cuMap: Record<string, string> = {};
+        for (const u of cUsers ?? []) cuMap[u.id] = u.display_name;
+        for (const c of cRows ?? []) creatorNameMap[c.id] = cuMap[c.user_id] ?? "Creator";
+      }
+    }
+    pendingPayments = (acceptedReqs ?? []).map((r: Record<string, unknown>) => ({
+      ...r,
+      creator_name: creatorNameMap[r.creator_id as string] ?? "Creator",
+    }));
+  }
+
+  return NextResponse.json({ collabs, role: roleFilter.role, pending_payments: pendingPayments });
 }

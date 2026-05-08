@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Megaphone, Loader2, Plus, Clock, CheckCircle2, Zap } from "lucide-react";
+import {
+  Megaphone, Loader2, Plus, Clock, CheckCircle2, Zap,
+  ArrowRight, IndianRupee, Image as ImageIcon, FileImage,
+} from "lucide-react";
+import Image from "next/image";
 
 interface Collab {
   id: string;
@@ -20,13 +24,31 @@ interface Collab {
   created_at: string;
 }
 
+interface PendingPayment {
+  id: string;             // collab_request id
+  status: "pending" | "accepted";
+  package_tier: string;
+  package_price_paise: number;
+  final_images: number;
+  product_name: string;
+  product_image_url: string;
+  brief_one_liner: string;
+  creator_name: string;
+  created_at: string;
+}
+
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
   active:    { label: "Active",    color: "text-emerald-600", bg: "bg-emerald-500/10", icon: Zap },
   completed: { label: "Completed", color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", icon: CheckCircle2 },
-  paused:    { label: "Paused",    color: "text-yellow-600", bg: "bg-yellow-500/10", icon: Clock },
+  paused:    { label: "Paused",    color: "text-yellow-600",  bg: "bg-yellow-500/10",  icon: Clock },
 };
 
 const TIER_LABELS: Record<string, string> = { frame: "Frame", feature: "Feature", cover: "Cover" };
+const TIER_COLORS: Record<string, { color: string; bg: string }> = {
+  frame:   { color: "text-sky-500",                   bg: "bg-sky-500/10" },
+  feature: { color: "text-[var(--color-primary)]",    bg: "bg-[var(--color-primary)]/10" },
+  cover:   { color: "text-violet-500",                bg: "bg-violet-500/10" },
+};
 
 function fmt(paise: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -37,19 +59,20 @@ function fmt(paise: number) {
   }).format(paise / 100);
 }
 
-const fadeUp = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-};
+const fadeUp = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
 
 export default function BrandCollabsPage() {
   const [collabs, setCollabs] = useState<Collab[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/collabs", { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : { collabs: [] })
-      .then((d) => setCollabs(d.collabs ?? []))
+      .then((r) => r.ok ? r.json() : { collabs: [], pending_payments: [] })
+      .then((d) => {
+        setCollabs(d.collabs ?? []);
+        setPendingPayments(d.pending_payments ?? []);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -61,8 +84,13 @@ export default function BrandCollabsPage() {
     );
   }
 
-  const active = collabs.filter((c) => c.status === "active");
+  const active    = collabs.filter((c) => c.status === "active");
   const completed = collabs.filter((c) => c.status !== "active");
+
+  const accepted = pendingPayments.filter((p) => p.status === "accepted");
+  const pending  = pendingPayments.filter((p) => p.status === "pending");
+
+  const hasAnything = collabs.length > 0 || pendingPayments.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
@@ -94,7 +122,7 @@ export default function BrandCollabsPage() {
         </Link>
       </motion.div>
 
-      {collabs.length === 0 ? (
+      {!hasAnything ? (
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
           <Megaphone className="mx-auto mb-3 h-10 w-10 text-[var(--color-muted-foreground)]" />
           <p className="font-display text-[16px] font-700 text-[var(--color-foreground)]">No collabs yet</p>
@@ -110,6 +138,40 @@ export default function BrandCollabsPage() {
         </div>
       ) : (
         <>
+          {/* ── Awaiting payment (accepted by creator) ── */}
+          {accepted.length > 0 && (
+            <section className="mb-8">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                  Awaiting payment
+                </span>
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-primary)] px-1.5 font-mono text-[10px] font-700 text-[var(--color-primary-foreground)]">
+                  {accepted.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {accepted.map((p, i) => (
+                  <PendingPaymentCard key={p.id} req={p} delay={i * 0.06} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Sent, waiting for creator ── */}
+          {pending.length > 0 && (
+            <section className="mb-8">
+              <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                Awaiting creator response
+              </p>
+              <div className="space-y-3">
+                {pending.map((p, i) => (
+                  <PendingPaymentCard key={p.id} req={p} delay={i * 0.05} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Active collab sessions ── */}
           {active.length > 0 && (
             <section className="mb-6">
               <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
@@ -120,6 +182,8 @@ export default function BrandCollabsPage() {
               </div>
             </section>
           )}
+
+          {/* ── Completed sessions ── */}
           {completed.length > 0 && (
             <section>
               <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
@@ -136,6 +200,109 @@ export default function BrandCollabsPage() {
   );
 }
 
+/* ── Pending payment / awaiting creator card ── */
+function PendingPaymentCard({ req, delay }: { req: PendingPayment; delay: number }) {
+  const tierColor = TIER_COLORS[req.package_tier] ?? TIER_COLORS.frame;
+  const isAccepted = req.status === "accepted";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.38, delay, ease: [0.22, 1, 0.36, 1] }}
+      className={`overflow-hidden rounded-2xl border bg-[var(--color-card)] ${
+        isAccepted
+          ? "border-[var(--color-primary)]/40 shadow-[0_0_0_1px_rgba(201,169,110,0.1)]"
+          : "border-[var(--color-border)]"
+      }`}
+    >
+      {/* Gold top accent for accepted */}
+      {isAccepted && <div className="h-0.5 w-full bg-[var(--color-primary)]" />}
+
+      <div className="flex gap-0">
+        {/* Product image */}
+        <div className="relative w-[120px] shrink-0 sm:w-[140px]">
+          {req.product_image_url ? (
+            <Image
+              src={req.product_image_url}
+              alt={req.product_name}
+              fill
+              sizes="140px"
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[var(--color-secondary)]">
+              <FileImage className="h-8 w-8 text-[var(--color-muted-foreground)]" />
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex min-w-0 flex-1 flex-col p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-display text-[16px] font-800 text-[var(--color-foreground)]">
+                {req.product_name}
+              </p>
+              <p className="mt-0.5 text-[12px] text-[var(--color-muted-foreground)]">
+                with {req.creator_name}
+              </p>
+            </div>
+            {isAccepted ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[10px] font-700 text-emerald-600">
+                <CheckCircle2 className="h-3 w-3" /> Accepted
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 font-mono text-[10px] font-700 text-amber-600">
+                <Clock className="h-3 w-3" /> Pending
+              </span>
+            )}
+          </div>
+
+          {/* Package info chips */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-700 ${tierColor.bg} ${tierColor.color}`}>
+              <ImageIcon className="h-3 w-3" />
+              {TIER_LABELS[req.package_tier] ?? req.package_tier}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-secondary)] px-2.5 py-0.5 text-[11px] font-600 text-[var(--color-muted-foreground)]">
+              <IndianRupee className="h-3 w-3" />
+              {fmt(req.package_price_paise)}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-secondary)] px-2.5 py-0.5 text-[11px] font-600 text-[var(--color-muted-foreground)]">
+              <FileImage className="h-3 w-3" />
+              {req.final_images} images
+            </span>
+          </div>
+
+          {/* Brief */}
+          <p className="mt-2.5 line-clamp-1 text-[12px] text-[var(--color-muted-foreground)]">
+            &ldquo;{req.brief_one_liner}&rdquo;
+          </p>
+
+          {/* Action */}
+          <div className="mt-3">
+            {isAccepted ? (
+              <Link
+                href={`/brand/collabs/${req.id}/payment`}
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+              >
+                Pay {fmt(req.package_price_paise)} to activate <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            ) : (
+              <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                Waiting for creator to accept or decline (72h window).
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Active / completed collab session card ── */
 function CollabCard({ collab, delay }: { collab: Collab; delay: number }) {
   const statusMeta = STATUS_META[collab.status] ?? STATUS_META.active;
   const StatusIcon = statusMeta.icon;
@@ -163,7 +330,7 @@ function CollabCard({ collab, delay }: { collab: Collab; delay: number }) {
               with {collab.counterpart_name}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-700 uppercase ${statusMeta.bg} ${statusMeta.color}`}>
               <StatusIcon className="h-2.5 w-2.5" />
               {statusMeta.label}
@@ -188,7 +355,7 @@ function CollabCard({ collab, delay }: { collab: Collab; delay: number }) {
             <div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-muted-foreground)]">
               <span>{collab.approved_count}/{collab.final_images_target} approved</span>
               {collab.gen_credits_total && (
-                <span>{(collab.gen_credits_total) - collab.gen_credits_used} credits left</span>
+                <span>{collab.gen_credits_total - collab.gen_credits_used} credits left</span>
               )}
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
