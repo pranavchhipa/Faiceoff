@@ -128,6 +128,50 @@ export async function POST(
     .update({ status: "paid", paid_at: new Date().toISOString(), collab_session_id: session.id })
     .eq("id", requestId);
 
+  // ── Single-pool model: add package credits to brand's global wallet ──
+  // The collab session still tracks gen_credits_total/used for per-collab cap,
+  // but actual debit happens against brands.credits_remaining when generating.
+  // Idempotency: this block runs only when status flips accepted → paid (above
+  // we already short-circuit if req.status === 'paid').
+  try {
+    const { data: brandRow } = await admin
+      .from("brands")
+      .select("credits_remaining, credits_lifetime_purchased")
+      .eq("id", req.brand_id)
+      .maybeSingle();
+
+    if (brandRow) {
+      const currentRemaining = (brandRow.credits_remaining ?? 0) as number;
+      const currentLifetime  = (brandRow.credits_lifetime_purchased ?? 0) as number;
+      const newRemaining = currentRemaining + gen_credits_total;
+      const newLifetime  = currentLifetime + gen_credits_total;
+
+      await admin
+        .from("brands")
+        .update({
+          credits_remaining: newRemaining,
+          credits_lifetime_purchased: newLifetime,
+        })
+        .eq("id", req.brand_id);
+
+      await admin
+        .from("credit_transactions")
+        .insert({
+          brand_id: req.brand_id,
+          type: "topup",
+          credits: gen_credits_total,
+          balance_after: newRemaining,
+          reference_type: "collab_session",
+          reference_id: session.id,
+          description: `${req.package_tier} package · ${gen_credits_total} credits unlocked`,
+        });
+    }
+  } catch (err) {
+    // Non-fatal — collab is already created. Credits can be reconciled
+    // by an admin if this fails. Logged for observability.
+    console.error("[confirm-payment] global credit grant failed (non-fatal)", err);
+  }
+
   track("collab_payment_confirmed", {
     request_id: requestId,
     collab_session_id: session.id,

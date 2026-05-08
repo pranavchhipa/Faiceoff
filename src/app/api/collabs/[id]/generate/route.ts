@@ -42,9 +42,20 @@ export async function POST(
   const { data: brand } = await admin.from("brands").select("id").eq("user_id", user.id).maybeSingle();
   if (!brand || brand.id !== session.brand_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // Check credits
-  const creditsLeft = (session.gen_credits_total ?? 0) - (session.gen_credits_used ?? 0);
-  if (creditsLeft <= 0) return NextResponse.json({ error: "No generation credits remaining for this collab" }, { status: 400 });
+  // Per-collab cap check (so brand can't exceed package iterations limit)
+  const collabCapLeft = (session.gen_credits_total ?? 0) - (session.gen_credits_used ?? 0);
+  if (collabCapLeft <= 0) return NextResponse.json({ error: "Per-collab generation limit reached. All package iterations used." }, { status: 400 });
+
+  // Global wallet check (single-pool model)
+  const { data: brandWallet } = await admin
+    .from("brands")
+    .select("credits_remaining")
+    .eq("id", brand.id)
+    .maybeSingle();
+  const globalCredits = (brandWallet?.credits_remaining ?? 0) as number;
+  if (globalCredits < 1) {
+    return NextResponse.json({ error: "Out of credits. Top up to continue generating." }, { status: 400 });
+  }
 
   // Parse + validate brief
   let rawBrief: unknown;
@@ -76,14 +87,49 @@ export async function POST(
 
   const costPaise = categories?.[0]?.price_per_generation_paise ?? 0;
 
-  // Atomically claim one credit
+  // Atomically deduct from BOTH:
+  //  1) brands.credits_remaining (global wallet — single-pool source of truth)
+  //  2) collab_sessions.gen_credits_used (per-collab progress + cap counter)
+  // Use optimistic concurrency on each so concurrent requests don't double-spend.
+
+  const { data: globalUpd, error: globalErr } = await admin
+    .from("brands")
+    .update({ credits_remaining: globalCredits - 1 })
+    .eq("id", brand.id)
+    .eq("credits_remaining", globalCredits) // optimistic
+    .select("id")
+    .maybeSingle();
+  if (globalErr || !globalUpd) {
+    return NextResponse.json({ error: "Wallet update conflict, please retry" }, { status: 409 });
+  }
+
   const { error: creditErr } = await admin
     .from("collab_sessions")
     .update({ gen_credits_used: session.gen_credits_used + 1 })
     .eq("id", collabId)
     .eq("gen_credits_used", session.gen_credits_used); // optimistic concurrency
 
-  if (creditErr) return NextResponse.json({ error: "Credit reservation failed, please retry" }, { status: 409 });
+  if (creditErr) {
+    // Rollback the global deduction so balance stays correct
+    await admin
+      .from("brands")
+      .update({ credits_remaining: globalCredits })
+      .eq("id", brand.id);
+    return NextResponse.json({ error: "Credit reservation failed, please retry" }, { status: 409 });
+  }
+
+  // Audit: log the spend in credit_transactions
+  await admin.from("credit_transactions").insert({
+    brand_id: brand.id,
+    type: "spend",
+    credits: -1,
+    balance_after: globalCredits - 1,
+    reference_type: "collab_session",
+    reference_id: collabId,
+    description: `Generation in collab "${session.name}"`,
+  }).then(() => null).catch((e: unknown) => {
+    console.error("[collabs/generate] ledger insert failed (non-fatal)", e);
+  });
 
   // Insert draft generation
   const { data: gen, error: genErr } = await admin
@@ -102,18 +148,23 @@ export async function POST(
     .single();
 
   if (genErr || !gen) {
-    // Rollback the credit decrement
+    // Rollback BOTH counters
     await admin
       .from("collab_sessions")
       .update({ gen_credits_used: session.gen_credits_used })
       .eq("id", collabId);
+    await admin
+      .from("brands")
+      .update({ credits_remaining: globalCredits })
+      .eq("id", brand.id);
     return NextResponse.json({ error: "Failed to create generation" }, { status: 500 });
   }
 
   track("generation_started", {
     collab_session_id: collabId,
     generation_id: gen.id,
-    credits_remaining: creditsLeft - 1,
+    collab_cap_left: collabCapLeft - 1,
+    global_credits_left: globalCredits - 1,
   }, user.id);
 
   after(async () => {

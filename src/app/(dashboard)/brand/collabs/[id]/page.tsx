@@ -287,11 +287,13 @@ export default function BrandCollabWorkspacePage() {
         </div>
       </motion.div>
 
-      {/* ── Stats row (4 metrics) ── */}
+      {/* ── Stats row (4 metrics) ──
+          Single-pool model: actual credit balance lives in topbar (brands.credits_remaining).
+          Workspace stats track per-collab progress only. */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
           icon={Zap}
-          label="Credits left"
+          label="Iterations left"
           value={creditsLeft != null ? creditsLeft.toString() : "—"}
           sub={creditsLeft != null && session.gen_credits_total != null ? `of ${session.gen_credits_total}` : undefined}
           tone="primary"
@@ -300,7 +302,7 @@ export default function BrandCollabWorkspacePage() {
           icon={Sparkles}
           label="Generated"
           value={session.gen_credits_used.toString()}
-          sub="total"
+          sub="in this collab"
           tone="default"
         />
         <Stat
@@ -527,7 +529,7 @@ function StudioTab({
             </p>
           </div>
           <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-muted-foreground)]">
-            You get 3 generations per final image. Iterate freely, then send the keeper to the creator.
+            Each generation deducts 1 credit from your wallet. This collab is capped at {session.gen_credits_total ?? "—"} iterations — pick the keeper from each batch and send for approval.
           </p>
         </div>
       </div>
