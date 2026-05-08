@@ -67,17 +67,35 @@ export default function SendRequestPage() {
     setUploading(true);
     setError(null);
     try {
-      const compressed = await compressImageForUpload(file, 800);
+      // Aggressive compression — Vercel body limit is 4.5 MB. Start at 1600px /
+      // q=0.82, retry tighter if still over 3.8 MB.
+      let compressed = await compressImageForUpload(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+        passThroughByteThreshold: 800_000,
+      });
+      if (compressed.size > 3_800_000) {
+        compressed = await compressImageForUpload(compressed, {
+          maxDimension: 1280,
+          quality: 0.7,
+          passThroughByteThreshold: 0,
+        });
+      }
+      if (compressed.size > 3_800_000) {
+        throw new Error("Image is too large even after compression. Try a smaller original.");
+      }
+
       const formData = new FormData();
       formData.append("file", compressed);
       const res = await fetch("/api/campaigns/upload-product-image", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const { url } = await res.json();
-      setProductImageUrl(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setProductImageUrl(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
+      e.target.value = ""; // allow re-selecting the same file
     }
   }
 
@@ -184,22 +202,52 @@ export default function SendRequestPage() {
           <label className="mb-1.5 block font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Main product image *
           </label>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] px-4 py-4 transition hover:border-[var(--color-primary)]/50">
-            {uploading ? (
-              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-muted-foreground)]" />
-            ) : productImageUrl ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            ) : (
-              <Upload className="h-5 w-5 text-[var(--color-muted-foreground)]" />
-            )}
-            <span className="text-[13px] text-[var(--color-muted-foreground)]">
-              {uploading ? "Uploading…" : productImageUrl ? "Image uploaded" : "Click to upload product photo"}
-            </span>
-            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-          </label>
+
+          {productImageUrl ? (
+            // Preview state
+            <div className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-3">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={productImageUrl}
+                  alt="Product preview"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="flex flex-1 flex-col justify-between min-w-0">
+                <div>
+                  <p className="inline-flex items-center gap-1.5 text-[12px] font-700 text-emerald-500">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Uploaded
+                  </p>
+                  <p className="mt-1 truncate text-[11px] text-[var(--color-muted-foreground)]">
+                    Looks good? This is what the creator will see.
+                  </p>
+                </div>
+                <label className="inline-flex w-fit cursor-pointer items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2.5 py-1 text-[11px] font-600 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40">
+                  <Upload className="h-3 w-3" />
+                  {uploading ? "Replacing…" : "Replace"}
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+                </label>
+              </div>
+            </div>
+          ) : (
+            // Empty state
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] px-4 py-5 transition hover:border-[var(--color-primary)]/50">
+              {uploading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--color-muted-foreground)]" />
+              ) : (
+                <Upload className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+              )}
+              <span className="text-[13px] text-[var(--color-muted-foreground)]">
+                {uploading ? "Uploading…" : "Click to upload product photo"}
+              </span>
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+            </label>
+          )}
+
           <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-muted-foreground)]">
             <span className="font-700 text-[var(--color-foreground)]">One main product image to evaluate the brief.</span>{" "}
-            After the creator accepts + payment, you can swap in variants of the same product (e.g. different colors of the same shoe) for each generation in Studio — within the agreed product family.
+            After the creator accepts + payment, you can swap in variants of the same product (e.g. different colors of the same shoe) for each generation in Studio — within the agreed product family. JPG / PNG / WebP, any size — we compress automatically.
           </p>
         </div>
 
