@@ -114,7 +114,10 @@ export async function POST(request: Request) {
 
   if (insertErr || !reqRow) {
     console.error("[collab-requests POST]", insertErr);
-    return NextResponse.json({ error: "Failed to create request" }, { status: 500 });
+    return NextResponse.json({
+      error: "Failed to create request",
+      detail: insertErr?.message ?? insertErr?.code ?? "unknown",
+    }, { status: 500 });
   }
 
   track("collab_request_created", {

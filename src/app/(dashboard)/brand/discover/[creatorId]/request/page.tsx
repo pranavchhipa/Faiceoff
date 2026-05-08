@@ -116,7 +116,7 @@ export default function SendRequestPage() {
         }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? "Failed to send request");
+      if (!res.ok) throw new Error(d.detail ? `${d.error}: ${d.detail}` : (d.error ?? "Failed to send request"));
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
