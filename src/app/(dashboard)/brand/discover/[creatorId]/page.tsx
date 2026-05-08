@@ -1,7 +1,8 @@
 /**
- * /brand/discover/[creatorId] — Creator profile + Package cards
+ * /brand/discover/[creatorId] — Creator profile + Packages
  *
- * Portrait photo layout. Package cards on the right (sticky).
+ * Hero-first layout: large portrait + identity stack on the right.
+ * Packages render as a 3-up grid below the hero with expandable detail.
  */
 
 import Link from "next/link";
@@ -10,16 +11,18 @@ import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft,
   ShieldCheck,
-  Image as ImageIcon,
-  Zap,
-  Globe,
-  ArrowRight,
-  Clock,
+  Users,
+  Tag,
+  Send,
+  CreditCard,
+  Wand2,
+  FileBadge,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PackageList } from "./package-list";
 
-/* ── Inline brand icon SVGs (lucide doesn't have these) ── */
+/* ── Brand SVG icons ── */
 function InstagramIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -27,7 +30,6 @@ function InstagramIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
 function YouTubeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -59,55 +61,9 @@ interface CreatorDetail {
   packages: CreatorPackageRow[];
 }
 
-// Strip a leading @ so the UI can prepend its own consistently
 function cleanHandle(h: string | null): string | null {
   if (!h) return null;
   return h.replace(/^@+/, "");
-}
-
-const TIER_META = {
-  frame: {
-    label: "Frame",
-    badge: "Social Organic",
-    duration: "90 days",
-    icon: ImageIcon,
-    color: "from-sky-500/10 to-sky-500/5",
-    border: "border-sky-500/20",
-    iconBg: "bg-sky-500/15",
-    iconColor: "text-sky-500",
-    description: "Organic social posts on a single platform. Short-term visibility boost.",
-  },
-  feature: {
-    label: "Feature",
-    badge: "Social Paid",
-    duration: "6 months",
-    icon: Zap,
-    color: "from-[var(--color-primary)]/12 to-[var(--color-primary)]/5",
-    border: "border-[var(--color-primary)]/30",
-    iconBg: "bg-[var(--color-primary)]/15",
-    iconColor: "text-[var(--color-primary)]",
-    description: "Paid + boosted ads across social platforms. Full 6-month run.",
-  },
-  cover: {
-    label: "Cover",
-    badge: "Full Digital",
-    duration: "12 months",
-    icon: Globe,
-    color: "from-violet-500/10 to-violet-500/5",
-    border: "border-violet-500/20",
-    iconBg: "bg-violet-500/15",
-    iconColor: "text-violet-500",
-    description: "Unlimited digital usage — web, OOH, email, packaging, all ad platforms.",
-  },
-} as const;
-
-function fmt(paise: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
 }
 
 function fmtFollowers(n: number | null): string | null {
@@ -141,10 +97,8 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     .filter((c) => c.is_active)
     .map((c) => c.category as string);
 
-  // Prefer cover_image_path; fall back to primary reference photo
   let heroPhotoUrl: string | null = null;
-  const heroPath: string | null = data.cover_image_path ?? null;
-  let finalPath = heroPath;
+  let finalPath: string | null = data.cover_image_path ?? null;
 
   if (!finalPath) {
     const { data: primaryPhoto } = await admin
@@ -193,7 +147,6 @@ interface PageProps {
 
 export default async function BrandCreatorDetailPage({ params }: PageProps) {
   const { creatorId } = await params;
-
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -201,213 +154,227 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
   const creator = await loadCreator(creatorId);
   if (!creator) notFound();
 
+  const totalReach =
+    (creator.instagram_followers ?? 0) + (creator.youtube_subscribers ?? 0);
+  const totalReachStr = fmtFollowers(totalReach);
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-      {/* Back */}
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+      {/* Back link */}
       <Link
         href="/brand/discover"
-        className="mb-6 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+        className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to discover
       </Link>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
-        {/* ── Left: profile ── */}
-        <div>
-          {/* Photo + identity row */}
-          <div className="flex gap-5 items-start mb-6">
-            {/* Portrait photo */}
-            <div className="relative shrink-0 w-[120px] aspect-[3/4] overflow-hidden rounded-2xl bg-[var(--color-secondary)] sm:w-[160px]">
-              {creator.hero_photo_url ? (
-                <Image
-                  src={creator.hero_photo_url}
-                  alt={creator.display_name}
-                  fill
-                  className="object-cover object-top"
-                  sizes="160px"
-                  priority
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center font-display text-[48px] font-800 text-[var(--color-muted-foreground)]/30">
-                  {creator.display_name[0]?.toUpperCase() ?? "?"}
-                </div>
-              )}
+      {/* ═══════════ HERO ═══════════ */}
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-[280px_1fr] lg:grid-cols-[340px_1fr] lg:gap-10">
+        {/* Photo */}
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl bg-[var(--color-secondary)] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.5)]">
+          {creator.hero_photo_url ? (
+            <Image
+              src={creator.hero_photo_url}
+              alt={creator.display_name}
+              fill
+              className="object-cover object-top"
+              sizes="(max-width: 768px) 100vw, 340px"
+              priority
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center font-display text-[88px] font-800 text-[var(--color-muted-foreground)]/30">
+              {creator.display_name[0]?.toUpperCase() ?? "?"}
             </div>
-
-            {/* Name + handles + badges */}
-            <div className="flex-1 min-w-0 pt-1">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <h1 className="font-display text-2xl font-800 tracking-tight text-[var(--color-foreground)] sm:text-3xl leading-tight">
-                  {creator.display_name}
-                </h1>
-                {creator.is_live && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-700 text-emerald-600">
-                    ● Live
-                  </span>
-                )}
-                {creator.kyc_status === "verified" && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2 py-0.5 text-[10px] font-700 text-[var(--color-muted-foreground)]">
-                    <ShieldCheck className="h-3 w-3" /> KYC
-                  </span>
-                )}
-              </div>
-
-              {/* Social handles */}
-              <div className="flex flex-col gap-1.5 mt-2">
-                {creator.instagram_handle && (
-                  <div className="flex items-center gap-2 text-[13px] text-[var(--color-muted-foreground)]">
-                    <InstagramIcon className="h-3.5 w-3.5 shrink-0 text-[#E1306C]" />
-                    <span>@{creator.instagram_handle}</span>
-                    {fmtFollowers(creator.instagram_followers) && (
-                      <span className="font-700 text-[var(--color-foreground)]">
-                        {fmtFollowers(creator.instagram_followers)}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {creator.youtube_handle && (
-                  <div className="flex items-center gap-2 text-[13px] text-[var(--color-muted-foreground)]">
-                    <YouTubeIcon className="h-3.5 w-3.5 shrink-0 text-[#FF0000]" />
-                    <span>@{creator.youtube_handle}</span>
-                    {fmtFollowers(creator.youtube_subscribers) && (
-                      <span className="font-700 text-[var(--color-foreground)]">
-                        {fmtFollowers(creator.youtube_subscribers)}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {creator.bio && (
-                <p className="mt-3 text-[13px] leading-relaxed text-[var(--color-foreground)] line-clamp-4">
-                  {creator.bio}
-                </p>
-              )}
-
-              {/* Categories / niches */}
-              {creator.categories.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {creator.categories.map((cat) => (
-                    <span
-                      key={cat}
-                      className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-0.5 font-mono text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]"
-                    >
-                      {cat}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* How it works */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              How it works
-            </p>
-            <div className="space-y-2.5">
-              {[
-                { n: "1", text: "Pick a package and send a collab request with your product photo" },
-                { n: "2", text: "Creator reviews and accepts (72h window)" },
-                { n: "3", text: "Pay upfront — Faiceoff holds funds until collab completes" },
-                { n: "4", text: "AI generates images using creator's likeness → creator approves → license issued" },
-              ].map((s) => (
-                <div key={s.n} className="flex items-start gap-2.5">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] font-mono text-[9px] font-800 text-[var(--color-primary-foreground)]">
-                    {s.n}
-                  </span>
-                  <p className="text-[13px] text-[var(--color-muted-foreground)]">{s.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
+          {/* Gradient overlay for badge contrast */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent" />
+          {/* KYC badge */}
+          {creator.kyc_status === "verified" && (
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-white backdrop-blur-md">
+              <ShieldCheck className="h-3 w-3" /> KYC verified
+            </span>
+          )}
+          {/* Live status */}
+          {creator.is_live && (
+            <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/95 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-white shadow-lg backdrop-blur-sm">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+              </span>
+              Live
+            </span>
+          )}
         </div>
 
-        {/* ── Right: package cards ── */}
-        <aside className="self-start lg:sticky lg:top-6">
-          <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-            Packages
+        {/* Info column */}
+        <div className="flex flex-col">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+            Creator profile
           </p>
+          <h1 className="mt-1 font-display text-[40px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[52px] lg:text-[64px]">
+            {creator.display_name}
+          </h1>
 
-          {!creator.is_live && (
-            <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/8 px-4 py-3 text-[13px] text-yellow-700">
-              This creator is not currently accepting requests.
+          {creator.bio && (
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
+              {creator.bio}
+            </p>
+          )}
+
+          {/* Stats strip */}
+          <div className="mt-5 grid grid-cols-3 gap-3 sm:max-w-md">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
+              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+                {totalReachStr ?? "—"}
+              </p>
+              <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                Total reach
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
+              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+                {creator.categories.length || 0}
+              </p>
+              <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                Niches
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
+              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+                {creator.packages.length}
+              </p>
+              <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                Packages
+              </p>
+            </div>
+          </div>
+
+          {/* Social handles */}
+          {(creator.instagram_handle || creator.youtube_handle) && (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {creator.instagram_handle && (
+                <a
+                  href={`https://instagram.com/${creator.instagram_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-[12px] text-[var(--color-foreground)] transition-all hover:border-[#E1306C]/50 hover:bg-[#E1306C]/5"
+                >
+                  <InstagramIcon className="h-3.5 w-3.5 text-[#E1306C]" />
+                  <span className="font-600">@{creator.instagram_handle}</span>
+                  {fmtFollowers(creator.instagram_followers) && (
+                    <span className="font-700 text-[var(--color-muted-foreground)]">
+                      · {fmtFollowers(creator.instagram_followers)}
+                    </span>
+                  )}
+                </a>
+              )}
+              {creator.youtube_handle && (
+                <a
+                  href={`https://youtube.com/@${creator.youtube_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-[12px] text-[var(--color-foreground)] transition-all hover:border-[#FF0000]/50 hover:bg-[#FF0000]/5"
+                >
+                  <YouTubeIcon className="h-3.5 w-3.5 text-[#FF0000]" />
+                  <span className="font-600">@{creator.youtube_handle}</span>
+                  {fmtFollowers(creator.youtube_subscribers) && (
+                    <span className="font-700 text-[var(--color-muted-foreground)]">
+                      · {fmtFollowers(creator.youtube_subscribers)}
+                    </span>
+                  )}
+                </a>
+              )}
             </div>
           )}
 
-          {creator.packages.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-8 text-center">
-              <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
-                No packages yet
-              </p>
-              <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">
-                This creator hasn&apos;t set up packages yet. Check back soon.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {(["frame", "feature", "cover"] as const).map((tier) => {
-                const pkg = creator.packages.find((p) => p.tier === tier);
-                if (!pkg) return null;
-                const meta = TIER_META[tier];
-                const Icon = meta.icon;
-                return (
-                  <div
-                    key={tier}
-                    className={`rounded-2xl border bg-gradient-to-br p-4 ${meta.color} ${meta.border}`}
-                  >
-                    <div className="mb-2.5 flex items-center gap-2.5">
-                      <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${meta.iconBg} ${meta.iconColor}`}>
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
-                          {meta.label}
-                        </p>
-                        <p className="font-mono text-[9px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                          {meta.badge}
-                        </p>
-                      </div>
-                      <div className="ml-auto text-right">
-                        <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
-                          {fmt(pkg.price_paise)}
-                        </p>
-                        <p className="font-mono text-[9px] text-[var(--color-muted-foreground)]">
-                          {pkg.final_images} images
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="mb-3 text-[12px] text-[var(--color-muted-foreground)] leading-relaxed">
-                      {meta.description}
-                    </p>
-
-                    <div className="mb-3 flex items-center gap-3 text-[11px] text-[var(--color-muted-foreground)]">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {meta.duration} license
-                      </span>
-                      <span>{pkg.final_images * 3} gen credits</span>
-                    </div>
-
-                    <Link
-                      href={creator.is_live ? `/brand/discover/${creatorId}/request?package=${pkg.id}` : "#"}
-                      className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-700 transition-all ${
-                        creator.is_live
-                          ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] hover:-translate-y-0.5"
-                          : "pointer-events-none bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] opacity-60"
-                      }`}
-                    >
-                      Send request <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                );
-              })}
+          {/* Categories */}
+          {creator.categories.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {creator.categories.map((cat) => (
+                <span
+                  key={cat}
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]"
+                >
+                  <Tag className="h-2.5 w-2.5" />
+                  {cat}
+                </span>
+              ))}
             </div>
           )}
-        </aside>
-      </div>
+        </div>
+      </section>
+
+      {/* ═══════════ HOW IT WORKS — horizontal timeline ═══════════ */}
+      <section className="mt-10">
+        <p className="mb-4 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          How a collab works
+        </p>
+        <div className="relative grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-0">
+          {/* Connecting line — desktop only */}
+          <div className="absolute left-0 right-0 top-5 hidden h-px bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent md:block" />
+
+          {[
+            { icon: Send, title: "Pick + send", body: "Choose a package and send a request with your product photo + brief." },
+            { icon: CreditCard, title: "Creator accepts", body: "72-hour window. You only pay after they accept." },
+            { icon: Wand2, title: "Generate", body: "Faiceoff AI creates branded images using the creator's likeness." },
+            { icon: FileBadge, title: "Approve + license", body: "Creator approves each image. License PDF + audit log issued." },
+          ].map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <div
+                key={step.title}
+                className="relative flex flex-col items-start gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 md:items-center md:border-0 md:bg-transparent md:p-3 md:text-center"
+              >
+                <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-primary)] shadow-sm">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="md:mt-1">
+                  <p className="flex items-center gap-2 font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)] md:justify-center">
+                    <span className="font-mono text-[10px] font-700 text-[var(--color-primary)]">
+                      0{i + 1}
+                    </span>
+                    {step.title}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
+                    {step.body}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ═══════════ PACKAGES ═══════════ */}
+      <section className="mt-10">
+        <div className="mb-5 flex items-end justify-between">
+          <div>
+            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+              Packages
+            </p>
+            <h2 className="mt-1 font-display text-[26px] font-800 tracking-tight text-[var(--color-foreground)]">
+              Pick the right tier for your campaign
+            </h2>
+          </div>
+          <p className="hidden text-[12px] text-[var(--color-muted-foreground)] sm:block">
+            Tap <span className="font-700 text-[var(--color-foreground)]">View full info</span> on any tier
+          </p>
+        </div>
+
+        {!creator.is_live && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-[13px] text-amber-600">
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            This creator is paused right now. You can still browse their packages.
+          </div>
+        )}
+
+        <PackageList
+          creatorId={creatorId}
+          packages={creator.packages}
+          isLive={creator.is_live}
+        />
+      </section>
     </div>
   );
 }
