@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/redis/rate-limiter";
+import { freeSignupGrant } from "@/lib/billing/credits-service";
 
 /**
  * POST /api/auth/verify-otp
@@ -153,6 +155,30 @@ export async function POST(request: Request) {
           { error: "Couldn't set up your brand profile. Please try again." },
           { status: 500 },
         );
+      }
+
+      // ── Free 10 credits on NEW brand signup (fire-and-forget via after()) ──
+      // existingUser === null means this is a first-time signup, not a re-login.
+      // Idempotent: freeSignupGrant no-ops if credits were already granted.
+      if (!existingUser) {
+        after(async () => {
+          try {
+            // brands.id ≠ auth user id — fetch the actual brands row id.
+            const grantAdmin = createAdminClient() as any;
+            const { data: brandRow } = await grantAdmin
+              .from("brands")
+              .select("id")
+              .eq("user_id", authUserId)
+              .maybeSingle();
+            if (brandRow?.id) {
+              await freeSignupGrant(brandRow.id);
+              console.log("[verify-otp] free signup grant applied for brand", brandRow.id);
+            }
+          } catch (err) {
+            // Non-fatal — log and move on. Brand can still use the app.
+            console.error("[verify-otp] freeSignupGrant failed (non-fatal):", err);
+          }
+        });
       }
     }
   }

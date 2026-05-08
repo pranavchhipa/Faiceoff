@@ -284,21 +284,23 @@ function RequestCard({ req, delay }: { req: BrandRequest; delay: number }) {
           </div>
 
           {/* Row 2: package details strip */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2">
-            <span className="font-mono text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Package</span>
-            <span className="flex items-center gap-1 text-[12px] font-700 text-[var(--color-foreground)]">
-              <IndianRupee className="h-3 w-3 text-[var(--color-primary)]" />
-              {fmt(req.package_price_paise)}
-            </span>
-            <span className="text-[var(--color-muted-foreground)]">·</span>
-            <span className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-foreground)]">
-              <FileImage className="h-3 w-3 text-[var(--color-muted-foreground)]" />
-              {req.final_images} final images
-            </span>
-            <span className="text-[var(--color-muted-foreground)]">·</span>
-            <span className="text-[12px] font-600 text-[var(--color-muted-foreground)]">
-              {req.final_images * 3} gen credits
-            </span>
+          <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2">
+            <span className="font-mono text-[9px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Package</span>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span className="flex items-center gap-1 text-[12px] font-700 text-[var(--color-foreground)]">
+                <IndianRupee className="h-3 w-3 text-[var(--color-primary)]" />
+                {fmt(req.package_price_paise)}
+              </span>
+              <span className="text-[10px] text-[var(--color-muted-foreground)]">·</span>
+              <span className="flex items-center gap-1 text-[12px] font-600 text-[var(--color-foreground)]">
+                <FileImage className="h-3 w-3 text-[var(--color-muted-foreground)]" />
+                {req.final_images} images
+              </span>
+              <span className="text-[10px] text-[var(--color-muted-foreground)]">·</span>
+              <span className="text-[12px] font-600 text-[var(--color-muted-foreground)]">
+                {req.final_images * 3} credits
+              </span>
+            </div>
           </div>
 
           {/* Row 3: brief */}

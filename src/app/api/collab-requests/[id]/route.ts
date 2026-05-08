@@ -34,7 +34,35 @@ export async function GET(
 
   if (!isBrand && !isCreator) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  return NextResponse.json({ request: req });
+  // Enrich with creator + brand profile (display_name, avatar)
+  let creator_name: string | null = null;
+  let creator_avatar_url: string | null = null;
+  let creator_handle: string | null = null;
+
+  const { data: cRow } = await admin
+    .from("creators")
+    .select("user_id, instagram_handle")
+    .eq("id", req.creator_id)
+    .maybeSingle();
+  if (cRow?.user_id) {
+    const { data: cUser } = await admin
+      .from("users")
+      .select("display_name, avatar_url")
+      .eq("id", cRow.user_id)
+      .maybeSingle();
+    creator_name = cUser?.display_name ?? null;
+    creator_avatar_url = cUser?.avatar_url ?? null;
+    creator_handle = cRow.instagram_handle ?? null;
+  }
+
+  return NextResponse.json({
+    request: {
+      ...req,
+      creator_name,
+      creator_avatar_url,
+      creator_handle,
+    },
+  });
 }
 
 // PATCH /api/collab-requests/[id] — brand cancels
