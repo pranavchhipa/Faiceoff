@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function BrandInboxPage() {
   return (
-    <div className="w-full max-w-6xl">
+    <div className="w-full max-w-6xl pt-6 lg:pt-8">
       <div className="mb-5">
         <h1 className="text-2xl font-800 tracking-tight text-[var(--color-foreground)]">
           Inbox

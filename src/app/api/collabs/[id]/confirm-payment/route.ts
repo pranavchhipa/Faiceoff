@@ -102,8 +102,24 @@ export async function POST(
     .single();
 
   if (sessionErr || !session) {
-    console.error("[confirm-payment] session insert", sessionErr);
-    return NextResponse.json({ error: "Failed to create collab session" }, { status: 500 });
+    console.error("[confirm-payment] session insert FAILED", {
+      requestId,
+      brand_id: req.brand_id,
+      creator_id: req.creator_id,
+      package_id: req.package_id,
+      error: sessionErr,
+    });
+    return NextResponse.json(
+      {
+        error: "Failed to create collab session",
+        // Surface DB error to help debug. If a migration is missing, message
+        // will include "column does not exist" or similar.
+        detail: sessionErr?.message ?? "Unknown error",
+        code: sessionErr?.code ?? null,
+        hint: "If this persists, your payment is captured by Razorpay. The webhook will retry automatically — refresh in 1 minute. If it still fails, contact support with this request ID: " + requestId,
+      },
+      { status: 500 }
+    );
   }
 
   // Update request to paid

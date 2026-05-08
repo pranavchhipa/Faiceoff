@@ -286,7 +286,7 @@ export default function SettingsPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-5xl"
+      className="max-w-5xl pt-6 lg:pt-8"
     >
       {/* ══════════ Page Header ══════════ */}
       <div className="mb-6">

@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="max-w-5xl space-y-4 pt-6 lg:pt-8">
       {/* Header */}
       <div>
         <h1 className="text-xl font-700 text-[var(--color-foreground)]">Analytics</h1>

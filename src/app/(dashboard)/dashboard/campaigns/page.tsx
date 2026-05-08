@@ -106,7 +106,7 @@ export default function CampaignsListPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-4xl"
+      className="max-w-4xl pt-6 lg:pt-8"
     >
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">

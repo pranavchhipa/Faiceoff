@@ -15,7 +15,6 @@ import {
   Zap,
   Globe,
   Sparkles,
-  RefreshCw,
   FileCheck2,
   MessageSquare,
   Lock,
@@ -47,22 +46,15 @@ interface CollabRequest {
 }
 
 const TIER_META = {
-  frame:   { label: "Frame",   icon: ImageIcon, color: "text-sky-500",                bg: "bg-sky-500/10",                ring: "ring-sky-500/30",                bar: "bg-sky-500" },
-  feature: { label: "Feature", icon: Zap,       color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", ring: "ring-[var(--color-primary)]/30", bar: "bg-[var(--color-primary)]" },
-  cover:   { label: "Cover",   icon: Globe,     color: "text-violet-500",             bg: "bg-violet-500/10",             ring: "ring-violet-500/30",             bar: "bg-violet-500" },
+  frame:   { label: "Frame",   icon: ImageIcon, badgeBg: "bg-sky-500",                badgeText: "text-white",                              bar: "bg-sky-500" },
+  feature: { label: "Feature", icon: Zap,       badgeBg: "bg-[var(--color-primary)]", badgeText: "text-[var(--color-primary-foreground)]",  bar: "bg-[var(--color-primary)]" },
+  cover:   { label: "Cover",   icon: Globe,     badgeBg: "bg-violet-500",             badgeText: "text-white",                              bar: "bg-violet-500" },
 } as const;
 
 function fmt(paise: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
-}
-
-function fmtPlain(paise: number) {
-  return new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(paise / 100);
@@ -138,10 +130,17 @@ export default function CollabPaymentPage() {
               setPaid(true);
               router.replace(`/brand/collabs/${confirmData.collab_session_id}`);
             } else {
-              setError("Payment confirmed but session creation failed. Contact support.");
+              // Surface server detail + Razorpay payment ID so support can
+              // reconcile manually if the webhook also fails.
+              const detail = confirmData.detail ? ` (${confirmData.detail})` : "";
+              const hint = confirmData.hint ?? "Your payment is safe — refresh in a minute or contact support.";
+              setError(
+                `${confirmData.error ?? "Session creation failed"}${detail}. ${hint} Razorpay payment ID: ${response.razorpay_payment_id}`
+              );
             }
-          } catch {
-            setError("Payment received — please refresh the page.");
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : "network error";
+            setError(`Payment was received by Razorpay (${response.razorpay_payment_id}) but we couldn't confirm it (${msg}). Please refresh in a minute — the webhook will reconcile automatically.`);
           }
         },
       });
@@ -200,9 +199,8 @@ export default function CollabPaymentPage() {
   const TierIcon = tier.icon;
 
   // Pricing breakup
-  const subtotal     = req.package_price_paise;
-  const perImage     = Math.round(subtotal / Math.max(1, req.final_images));
-  const genCredits   = req.final_images * 3;
+  const subtotal   = req.package_price_paise;
+  const genCredits = req.final_images * 3;
 
   return (
     <div className="mx-auto max-w-[920px] px-4 py-6 sm:px-6 sm:py-10">
@@ -263,7 +261,7 @@ export default function CollabPaymentPage() {
                     <ImageIcon className="h-10 w-10 text-[var(--color-muted-foreground)]" />
                   </div>
                 )}
-                <span className={`absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-700 backdrop-blur-md ${tier.bg} ${tier.color} ring-1 ${tier.ring}`}>
+                <span className={`absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-700 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.4)] ${tier.badgeBg} ${tier.badgeText}`}>
                   <TierIcon className="h-3 w-3" />
                   {tier.label} package
                 </span>
@@ -344,12 +342,7 @@ export default function CollabPaymentPage() {
               <Perk
                 icon={Zap}
                 label={`${genCredits} generation credits`}
-                sub="3× per final image — to iterate before sending for approval"
-              />
-              <Perk
-                icon={RefreshCw}
-                label="1st retry free per image"
-                sub="Subsequent retries cost 1 credit each"
+                sub={`3× per final image — iterate freely until you pick the keeper`}
               />
               <Perk
                 icon={FileCheck2}
@@ -365,6 +358,11 @@ export default function CollabPaymentPage() {
                 icon={Lock}
                 label="Compliance gate"
                 sub="Creator's blocked categories enforced automatically"
+              />
+              <Perk
+                icon={Receipt}
+                label="GST invoice"
+                sub="Compliant tax invoice generated for your accounting"
               />
             </div>
           </motion.div>
@@ -427,11 +425,11 @@ export default function CollabPaymentPage() {
 
             <div className="space-y-2.5 px-5 py-4">
               <Row label={`${tier.label} package`} value={fmt(subtotal)} />
-              <Row label={`${req.final_images} final images`} value={`@ ₹${fmtPlain(perImage)} each`} muted />
+              <Row label="Final images" value={`${req.final_images} included`} muted />
               <Row label="Generation credits" value={`${genCredits} included`} muted />
-              <Row label="Free retries" value="1 per image" muted />
               <Row label="License PDF" value="Included" muted />
-              <Row label="Platform & taxes" value="Included" muted />
+              <Row label="Direct chat" value="Included" muted />
+              <Row label="GST & platform fee" value="Included" muted />
             </div>
 
             <div className="border-t border-[var(--color-border)] px-5 py-4">

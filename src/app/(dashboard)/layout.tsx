@@ -132,7 +132,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             ultra-wide displays. Pages with their own (smaller) max-w
             still win because their max-w is more restrictive. */}
         <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
-          <div className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8 [&>*]:mx-auto">
+          {/* Top padding intentionally removed (2026-05-08): pages own their
+              vertical spacing. Previously `py-6 lg:py-8` here stacked with
+              page-level `py-6/8/10`, producing ~70px ghost gaps below the
+              top bar across the entire site. Bare pages without their own
+              `py-` add it inline. */}
+          <div className="mx-auto w-full max-w-[1400px] px-4 pb-6 lg:px-8 lg:pb-8 [&>*]:mx-auto">
             {children}
           </div>
         </main>
