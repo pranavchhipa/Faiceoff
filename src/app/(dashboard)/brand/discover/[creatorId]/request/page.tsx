@@ -236,21 +236,21 @@ export default function SendRequestPage() {
           <ol className="space-y-1.5 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
             <li className="flex gap-2">
               <span className="font-700 text-[var(--color-primary)]">1.</span>
-              <span>Creator gets your brief + product image. They have <span className="font-700 text-[var(--color-foreground)]">72 hours to accept or decline</span> — if they don&apos;t reply in that window, the request auto-expires and you&apos;re not charged.</span>
+              <span>Creator gets your brief + product image. They have <span className="font-700 text-[var(--color-foreground)]">72 hours to accept or decline</span> — if no reply, request auto-expires and nothing is charged.</span>
             </li>
             <li className="flex gap-2">
               <span className="font-700 text-[var(--color-primary)]">2.</span>
-              <span>If they accept, you pay <span className="font-700 text-[var(--color-foreground)]">{pkg ? fmt(pkg.price_paise) : "the package price"}</span> — funds go into Faiceoff escrow.</span>
+              <span>When they accept, you&apos;ll see a <span className="font-700 text-[var(--color-foreground)]">Pay button</span> on the collab page. Click it to pay <span className="font-700 text-[var(--color-foreground)]">{pkg ? fmt(pkg.price_paise) : "the package price"}</span> via Razorpay — nothing is auto-deducted, you pay only when ready.</span>
             </li>
             <li className="flex gap-2">
               <span className="font-700 text-[var(--color-primary)]">3.</span>
-              <span>You generate {pkg?.final_images ?? "your"} final images in Studio. Each image goes to the creator for approval before delivery.</span>
+              <span>Funds sit in Faiceoff escrow. You generate {pkg?.final_images ?? "your"} final images in Studio — each one goes to the creator for approval before delivery. Escrow releases to creator after collab completes.</span>
             </li>
           </ol>
         </div>
 
         <p className="text-[11px] text-[var(--color-muted-foreground)]">
-          By sending you agree to Faiceoff&apos;s Terms of Service. No charge until acceptance.
+          By sending you agree to Faiceoff&apos;s Terms of Service. No charge happens automatically — payment only when you click Pay after acceptance.
         </p>
 
         <button

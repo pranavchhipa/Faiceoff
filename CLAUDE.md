@@ -4,8 +4,8 @@
 
 > **For incoming agent (Antigravity / future Claude):** This file is the
 > source of truth for the current state of the codebase. Read it before
-> touching anything. Critical sections: **Current State**, **Known Issues**,
-> **Pending Work**, **Anti-Patterns to Avoid**.
+> touching anything. Critical sections: **Current State**, **Canonical Flows**,
+> **Known Issues**, **Pending Work**, **Anti-Patterns to Avoid**.
 
 ---
 
@@ -211,6 +211,77 @@ src/
 - Trigger: `handle_message_insert` bumps conversations.last_message_at
 - RLS enabled — both sides only read their own threads
 - **Realtime publication MUST be enabled**: `alter publication supabase_realtime add table public.conversations, public.conversation_messages;`
+
+---
+
+## 🔁 Canonical Brand → Creator Collab Flow (DO NOT FORGET)
+
+This was brainstormed end-to-end. **Nothing auto-deducts. Brand pays manually after acceptance.**
+The previous "wallet auto-debit on session start" model is dead — don't reintroduce it.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  1. Brand sends request                                             │
+│     POST /api/collab-requests                                       │
+│     → Inserts collab_requests row { status: 'pending', expires_at } │
+│     → 72h TTL. Brand is NOT charged. No order created.              │
+│     → Email creator (sendCreatorCollabRequest)                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  2. Creator decides (within 72h)                                    │
+│     a) Accept: POST /api/collab-requests/[id]/accept                │
+│        → status = 'accepted', decided_at = now                      │
+│        → Auto-creates conversations row (idempotent)                │
+│        → Email brand (sendBrandRequestAccepted) with "Pay" CTA      │
+│     b) Decline: POST /api/collab-requests/[id]/decline              │
+│        → status = 'declined'. Email brand. Brand never charged.     │
+│     c) Silence past 72h: cron flips status = 'expired'              │
+├─────────────────────────────────────────────────────────────────────┤
+│  3. Brand pays manually (THIS IS A USER ACTION, NOT AUTOMATIC)      │
+│     Brand sees Pay button on /brand/collabs/[id]                    │
+│     POST /api/collabs/[id]/start-payment                            │
+│     → Creates Razorpay order, returns { order_id, key_id, amount }  │
+│     Browser opens Razorpay Checkout modal                           │
+│     User clicks Pay in Razorpay UI → bank/UPI/card                  │
+│     Razorpay redirects + sends webhook                              │
+│     POST /api/collabs/[id]/confirm-payment                          │
+│     → Verifies HMAC signature                                       │
+│     → Creates collab_sessions row (status='active')                 │
+│     → Funds enter Faiceoff escrow (escrow_ledger reserved)          │
+│     → Generation credits unlocked = final_images × 3                │
+├─────────────────────────────────────────────────────────────────────┤
+│  4. Brand generates in Studio (per-image cycle)                     │
+│     For each generation slot in the package:                        │
+│     a) Brand picks product image (main OR same-family variant)      │
+│     b) Brand writes optional brief tweak                            │
+│     c) Brand clicks Generate → run-generation.ts pipeline           │
+│     d) Compliance check, Gemini 3 Pro, Hive safety, R2 upload       │
+│     e) Status: ready_for_brand_review                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  5. Brand review gate (per image)                                   │
+│     Send to creator | Retry (1st free, 2nd+ = 1 credit) | Discard   │
+├─────────────────────────────────────────────────────────────────────┤
+│  6. Creator approval gate (per image)                               │
+│     Approve → license PDF issued, escrow credit (70% to creator)    │
+│     Reject  → wallet refund + credit rollback                       │
+│     48h silence → cron auto-approves                                │
+├─────────────────────────────────────────────────────────────────────┤
+│  7. Collab completes when all final_images approved                 │
+│     → collab_sessions.status = 'completed'                          │
+│     → Escrow releases creator's full payout                         │
+│     → Email both sides                                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What this means for UI copy
+- ✅ "Click **Pay** to settle the package price after acceptance"
+- ✅ "Funds held in escrow — released when the collab completes"
+- ❌ "You'll be charged when the creator accepts" (sounds auto)
+- ❌ "Auto-deduct from wallet" (the wallet-debit model is dead)
+- ❌ "Pay upfront when sending" (no — payment happens AFTER acceptance only)
+
+### Studio multi-product workflow
+- Request stage: brand uploads **1 main product image** → creator evaluates the brief
+- After acceptance + payment: brand can swap in **same-family variants** per generation in Studio (e.g. 5 different shoe colors of the same model). Switching to an unrelated product (shoes → cars) is a contract break and should require a new collab request.
 
 ---
 
