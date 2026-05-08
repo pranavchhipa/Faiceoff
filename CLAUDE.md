@@ -21,32 +21,37 @@ Two-sided marketplace where **creators license their face** and **brands generat
 ## 🚨 CRITICAL CURRENT STATE (read this first)
 
 ### What's working in production right now
-- ✅ Brand signup/login → wallet top-up (Cashfree path; Razorpay swap pending)
-- ✅ Brand discovers creator → starts campaign → Gemini 3 Pro Image generates
-- ✅ Brand review gate (Approve / Retry / Discard) before creator sees image
+- ✅ Brand signup/login → wallet top-up (Razorpay)
+- ✅ Brand discovers creator → sends collab request → creator accepts/declines (72h TTL)
+- ✅ Brand pays after acceptance → Razorpay checkout → collab_session created + credits unlocked
+- ✅ Brand generates in Studio → Gemini 3 Pro Image
+- ✅ Brand review gate (Send to creator / Retry / Discard) before creator sees image
 - ✅ Creator approval flow → license PDF + escrow credit + email notification
 - ✅ 48h auto-approve cron (daily, due to Vercel Hobby tier cron limit)
-- ✅ Brand ↔ Creator chat (realtime via Supabase channels) — gated behind 1st approval
+- ✅ Brand ↔ Creator chat (realtime via Supabase channels) — unlocked after payment
 - ✅ Vault with single + bulk download (ZIP)
 - ✅ Compliance vector check enforces creator's blocked categories
 - ✅ Sentry, PostHog (3 funnel events), rate limits, EXIF metadata embed
+- ✅ Brand requests page (`/brand/requests`) — all sent requests with Pay / timer / Open Studio
+- ✅ Creator requests page (`/creator/requests`) — product image, tier, brief, Accept/Decline
 
 ### What's BROKEN / soft-failing right now
 | Issue | Impact | Fix |
 |---|---|---|
 | **Upstash Redis stale** | Rate limiter returns "fail-open" — no actual rate limiting | User must rotate `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` from console.upstash.com |
-| **`deduct_credit` RPC schema mismatch** | Soft-failed via try/catch — generations effectively run free | Postgres RPC references column `credits` of `credit_transactions` that doesn't exist. Need DB migration to fix RPC OR add column |
-| **Cashfree integration** | Half-wired — top-up uses Cashfree, payouts incomplete | Will be ripped out and replaced with Razorpay (see Pending Work) |
-| **Stale Supabase types** | TypeScript build errors — fixed by `ignoreBuildErrors: true` in `next.config.ts` | Run `supabase gen types typescript` after migrations 00025, 00040 are reflected; remove the flag |
+| **Stale Supabase types** | TypeScript build errors — fixed by `ignoreBuildErrors: true` in `next.config.ts` | Run `supabase gen types typescript` after migrations applied; remove the flag |
+| **Razorpay test keys only** | Pay flow will work in test mode only; live keys needed for real money | User adds `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` (live) to Vercel when ready |
 
 ### What needs the user (cannot do without their input)
-1. **Razorpay 7 keys** — for payment swap (4h work after I have keys)
-2. **GST registration** — required for B2B invoicing
-3. **Resend domain DNS** — emails currently work but from test address
-4. **Sentry account + DSN** — error monitoring not active in prod
-5. **PostHog account + key** — events fire but no dashboard
-6. **Legal copy** (T&C / Privacy / Refund / DPDP) — required before public launch
-7. **Mobile QA testing** — needs to be done on real phone, screenshots back to agent
+1. **Razorpay live keys** — test keys work now; live keys for real transactions
+2. **RazorpayX keys** — for automated creator payouts
+3. **Upstash Redis rotate** — rate limits currently fail-open
+4. **GST registration** — required for B2B invoicing
+5. **Resend domain DNS** — emails currently work but from test address
+6. **Sentry account + DSN** — error monitoring not active in prod
+7. **PostHog account + key** — events fire but no dashboard
+8. **Legal copy** (T&C / Privacy / Refund / DPDP) — required before public launch
+9. **Mobile QA testing** — needs to be done on real phone, screenshots back to agent
 
 ---
 
@@ -55,7 +60,7 @@ Two-sided marketplace where **creators license their face** and **brands generat
 - **Framework**: Next.js 16 App Router (React 19)
 - **Database**: Supabase PostgreSQL + pgvector (1536-dim embeddings)
 - **Auth**: Supabase Auth — email OTP (8-digit) via Resend SMTP
-- **Payments** (CURRENT, will change): Cashfree partial; **MUST swap to Razorpay** when keys land
+- **Payments**: Razorpay (orders + checkout + webhook + HMAC verify). Cashfree fully removed. RazorpayX for payouts (keys pending)
 - **AI Pipeline**: Gemini 3 Pro Image (Nano Banana Pro) via `@google/genai` SDK; OpenRouter (Llama 3.1 8B for prompt assembly); Hive (content moderation)
 - **Storage**: Cloudflare R2 (S3-compatible CDN) — for generated images; Supabase Storage — for product/reference photos
 - **Background tasks**: Next.js `after()` (Inngest was deleted — see Anti-Patterns)
@@ -95,18 +100,22 @@ src/
 │   │   ├── layout.tsx         # Switches CREATOR_NAV / BRAND_NAV / ADMIN_NAV by role
 │   │   ├── dashboard/         # Legacy role-aware pages (kept; re-exported from /creator|/brand)
 │   │   ├── admin/             # /admin, /admin/safety, /admin/stuck-gens, /admin/packs
-│   │   ├── brand/             # /brand/dashboard, /discover, /sessions, /vault, /licenses,
-│   │   │                      # /credits, /wallet, /billing, /settings, /inbox (NEW: chat)
-│   │   └── creator/           # /creator/dashboard, /approvals, /likeness, /earnings,
-│   │                          # /withdraw, /collaborations, /licenses, /payouts, /analytics,
-│   │                          # /blocked-categories, /settings, /inbox (NEW: chat)
+│   │   ├── brand/             # /brand/dashboard, /discover, /requests (NEW), /collabs,
+│   │   │                      # /collabs/[id]/payment, /vault, /licenses,
+│   │   │                      # /credits, /wallet, /billing, /settings, /inbox
+│   │   └── creator/           # /creator/dashboard, /requests (NEW), /approvals, /likeness,
+│   │                          # /earnings, /withdraw, /collaborations, /licenses, /payouts,
+│   │                          # /analytics, /blocked-categories, /settings, /inbox
 │   ├── (marketing)/           # Landing, /for-brands, /for-creators, /pricing, /verify/[license_id]
 │   ├── api/
 │   │   ├── auth/              # sign-up, sign-in, verify-otp, sign-out, delete-account
-│   │   ├── credits/           # top-up (Cashfree, swap to Razorpay), balance
-│   │   ├── cashfree/          # webhook receiver (REMOVE after Razorpay swap)
-│   │   ├── razorpay/          # NEW (TODO) — webhook + order creation
-│   │   ├── chat/              # NEW: conversations + messages
+│   │   ├── credits/           # top-up (Razorpay), balance
+│   │   ├── razorpay/          # webhook receiver
+│   │   ├── collab-requests/   # POST create request; [id]/accept, [id]/decline
+│   │   ├── brand/requests/    # GET all brand's sent requests (all statuses)
+│   │   ├── creator/requests/  # GET creator's incoming pending requests
+│   │   ├── collabs/           # GET sessions list + pending_payments; [id]/start-payment, [id]/confirm-payment
+│   │   ├── chat/              # conversations + messages
 │   │   │   ├── conversations/route.ts        # GET list, POST create (eligibility-gated)
 │   │   │   └── conversations/[id]/messages/route.ts  # GET paginated, POST send
 │   │   ├── creator/           # likeness-data, approvals
@@ -115,7 +124,7 @@ src/
 │   │   ├── onboarding/        # 8 routes (save-photos triggers face embedding)
 │   │   ├── settings/          # GET/PUT profile, avatar upload
 │   │   ├── vault/             # list, [id], [id]/download, bulk-download (NEW)
-│   │   ├── webhooks/          # Cashfree + Replicate (Cashfree to be removed)
+│   │   ├── webhooks/          # Replicate webhook
 │   │   ├── whoami/            # Role/profile resolver
 │   │   ├── withdrawals/       # create, list, [id]
 │   │   ├── cron/              # auto-approve (NEW), license-renewals, etc.
@@ -156,9 +165,9 @@ src/
 │   │   └── index.ts                # runComplianceCheck()
 │   ├── email/
 │   │   ├── send-otp.ts             # Resend OTP via Supabase admin
-│   │   └── transactional.ts        # NEW: 5 templates (creator approval req, brand approved/rejected, payout, low credits)
+│   │   └── transactional.ts        # 7 templates: approval req/approved/rejected, collab req/accepted/declined, payment received
 │   ├── licenses/                   # issueLicense + cert-pdf + verify
-│   ├── payments/cashfree/          # CURRENT (to be deleted on Razorpay swap)
+│   ├── payments/razorpay/          # client.ts, orders.ts, webhook.ts (HMAC verify for both checkout + server webhook)
 │   ├── observability/
 │   │   ├── sentry.ts               # initSentry + withSentryContext helper
 │   │   ├── posthog.ts              # Browser client
@@ -178,19 +187,20 @@ src/
 
 ## Database Tables
 
-### Core (existing pre-this-session)
+### Core
 1. `users` — id, email, phone, role, display_name, avatar_url
 2. `creators` — user_id, instagram_handle, bio, kyc_status, onboarding_step (9 steps), is_active, dpdp_consent, face_anchor_pack
 3. `brands` — user_id, company_name, gst_number, website_url, industry, is_verified, credits_balance_paise, credits_reserved_paise
 4. `creator_categories` — creator_id, category, subcategories[], price_per_generation_paise, is_active
 5. `creator_compliance_vectors` — creator_id, blocked_concept, embedding (1536-dim)
 6. `creator_reference_photos` — creator_id, storage_path, is_primary, **face_embedding (512-dim)** ← populated by onboarding/save-photos
-7. `collab_sessions` — RENAMED from `campaigns` in migration 00025. brand_id, creator_id, budget_paise, max_generations, status, license_request_id
-8. `generations` — collab_session_id (renamed from campaign_id), structured_brief (JSONB), **status check constraint** includes: `draft, compliance_check, generating, output_check, ready_for_brand_review, ready_for_approval, approved, rejected, failed, discarded`. Plus: assembled_prompt, image_url, cost_paise, retry_count, is_free_retry, base_image_url, upscaled_url, quality_scores, generation_attempts, provider_prediction_id, pipeline_version
-9. `approvals` — generation_id, creator_id, brand_id, status, feedback, expires_at (48h)
-10. `wallet_transactions_archive` — legacy ledger, sealed read-only
-11. `disputes` — generation_id, raised_by, status, resolution_notes
-12. `licenses` — issued on approval, has cert PDF + R2 URL
+7. **`collab_requests`** — migration 00043 (applied in prod). brand_id, creator_id, package_tier, package_price_paise, final_images, product_name, product_image_url, brief_one_liner, status (`pending/accepted/declined/paid/expired/cancelled`), expires_at (72h), decided_at, paid_at, collab_session_id (set after payment)
+8. `collab_sessions` — RENAMED from `campaigns` in migration 00025. brand_id, creator_id, budget_paise, max_generations, status, collab_request_id (FK to collab_requests)
+9. `generations` — collab_session_id (renamed from campaign_id), structured_brief (JSONB), **status check constraint** includes: `draft, compliance_check, generating, output_check, ready_for_brand_review, ready_for_approval, approved, rejected, failed, discarded`. Plus: assembled_prompt, image_url, cost_paise, retry_count, is_free_retry, base_image_url, upscaled_url, quality_scores, generation_attempts, provider_prediction_id, pipeline_version
+10. `approvals` — generation_id, creator_id, brand_id, status, feedback, expires_at (48h)
+11. `wallet_transactions_archive` — legacy ledger, sealed read-only
+12. `disputes` — generation_id, raised_by, status, resolution_notes
+13. `licenses` — issued on approval, has cert PDF + R2 URL
 
 ### Money ledgers (00020-00023)
 - `credit_top_ups` — Cashfree/Razorpay order lifecycle
