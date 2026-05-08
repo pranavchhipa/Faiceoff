@@ -135,13 +135,15 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      const { error: brandUpsertErr } = await admin.from("brands").upsert(
-        {
-          user_id: authUserId,
-          company_name: meta?.display_name ?? "Unnamed Brand",
-        },
-        { onConflict: "user_id" },
-      );
+      // Insert with null fields — brand onboarding will fill them.
+      // Use insert + onConflict.do_nothing so re-verify on existing brand
+      // doesn't blank-out their already-filled company_name.
+      const { error: brandUpsertErr } = await admin
+        .from("brands")
+        .upsert(
+          { user_id: authUserId },
+          { onConflict: "user_id", ignoreDuplicates: true },
+        );
       if (brandUpsertErr) {
         console.error(
           "[verify-otp] brands upsert failed:",
