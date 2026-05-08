@@ -55,7 +55,14 @@ interface CreatorDetail {
   kyc_status: string | null;
   hero_photo_url: string | null;
   is_live: boolean;
+  categories: string[];
   packages: CreatorPackageRow[];
+}
+
+// Strip a leading @ so the UI can prepend its own consistently
+function cleanHandle(h: string | null): string | null {
+  if (!h) return null;
+  return h.replace(/^@+/, "");
 }
 
 const TIER_META = {
@@ -120,13 +127,19 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
       id, bio, instagram_handle, instagram_followers,
       youtube_handle, youtube_subscribers, kyc_status,
       user_id, is_live, cover_image_path,
-      users!inner ( display_name )
+      users!inner ( display_name ),
+      creator_categories ( category, is_active )
     `)
     .eq("id", id)
     .eq("is_active", true)
     .maybeSingle();
 
   if (error || !data) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categories = ((data.creator_categories ?? []) as any[])
+    .filter((c) => c.is_active)
+    .map((c) => c.category as string);
 
   // Prefer cover_image_path; fall back to primary reference photo
   let heroPhotoUrl: string | null = null;
@@ -162,13 +175,14 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     id: data.id as string,
     display_name: data.users?.display_name ?? "Creator",
     bio: data.bio ?? null,
-    instagram_handle: data.instagram_handle ?? null,
+    instagram_handle: cleanHandle(data.instagram_handle ?? null),
     instagram_followers: data.instagram_followers ?? null,
-    youtube_handle: data.youtube_handle ?? null,
+    youtube_handle: cleanHandle(data.youtube_handle ?? null),
     youtube_subscribers: data.youtube_subscribers ?? null,
     kyc_status: data.kyc_status ?? null,
     hero_photo_url: heroPhotoUrl,
     is_live: data.is_live ?? false,
+    categories,
     packages: (packages ?? []) as CreatorPackageRow[],
   };
 }
@@ -269,6 +283,20 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
                 <p className="mt-3 text-[13px] leading-relaxed text-[var(--color-foreground)] line-clamp-4">
                   {creator.bio}
                 </p>
+              )}
+
+              {/* Categories / niches */}
+              {creator.categories.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {creator.categories.map((cat) => (
+                    <span
+                      key={cat}
+                      className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-0.5 font-mono text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]"
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
