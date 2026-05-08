@@ -115,7 +115,7 @@ export default function SendRequestPage() {
           Request sent!
         </h2>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-          The creator has 72 hours to accept. You will be notified when they respond.
+          The creator has 72 hours to accept or decline. We&apos;ll email you the moment they respond — no charge until they accept.
         </p>
         <button
           onClick={() => router.push("/brand/collabs")}
@@ -182,7 +182,7 @@ export default function SendRequestPage() {
         {/* Product image */}
         <div>
           <label className="mb-1.5 block font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-            Product image *
+            Main product image *
           </label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] px-4 py-4 transition hover:border-[var(--color-primary)]/50">
             {uploading ? (
@@ -197,6 +197,10 @@ export default function SendRequestPage() {
             </span>
             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
           </label>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-muted-foreground)]">
+            <span className="font-700 text-[var(--color-foreground)]">One main product image to evaluate the brief.</span>{" "}
+            After the creator accepts + payment, you can swap in variants of the same product (e.g. different colors of the same shoe) for each generation in Studio — within the agreed product family.
+          </p>
         </div>
 
         {/* Brief one-liner */}
@@ -224,10 +228,29 @@ export default function SendRequestPage() {
           </p>
         )}
 
-        {/* Agreement note */}
-        <p className="text-[12px] text-[var(--color-muted-foreground)]">
-          By sending this request you agree to Faiceoff&apos;s Terms of Service.
-          Payment is due only after the creator accepts. Creator has 72 hours to respond.
+        {/* What happens next */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/40 px-4 py-3">
+          <p className="mb-2 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            What happens after you click Send
+          </p>
+          <ol className="space-y-1.5 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
+            <li className="flex gap-2">
+              <span className="font-700 text-[var(--color-primary)]">1.</span>
+              <span>Creator gets your brief + product image. They have <span className="font-700 text-[var(--color-foreground)]">72 hours to accept or decline</span> — if they don&apos;t reply in that window, the request auto-expires and you&apos;re not charged.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-700 text-[var(--color-primary)]">2.</span>
+              <span>If they accept, you pay <span className="font-700 text-[var(--color-foreground)]">{pkg ? fmt(pkg.price_paise) : "the package price"}</span> — funds go into Faiceoff escrow.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-700 text-[var(--color-primary)]">3.</span>
+              <span>You generate {pkg?.final_images ?? "your"} final images in Studio. Each image goes to the creator for approval before delivery.</span>
+            </li>
+          </ol>
+        </div>
+
+        <p className="text-[11px] text-[var(--color-muted-foreground)]">
+          By sending you agree to Faiceoff&apos;s Terms of Service. No charge until acceptance.
         </p>
 
         <button
