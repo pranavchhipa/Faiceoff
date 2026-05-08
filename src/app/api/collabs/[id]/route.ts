@@ -59,10 +59,47 @@ export async function GET(
     .order("created_at", { ascending: false })
     .limit(100);
 
+  // Enrich with creator + brand profile + collab_request snapshot
+  const [creatorRowRes, brandRowRes, requestRes] = await Promise.all([
+    admin.from("creators").select("user_id, instagram_handle").eq("id", session.creator_id).maybeSingle(),
+    admin.from("brands").select("user_id, company_name").eq("id", session.brand_id).maybeSingle(),
+    session.collab_request_id
+      ? admin.from("collab_requests").select("product_image_url, brief_one_liner").eq("id", session.collab_request_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  let creator_name: string | null = null;
+  let creator_avatar_url: string | null = null;
+  let creator_handle: string | null = null;
+  if (creatorRowRes.data?.user_id) {
+    const { data: cu } = await admin
+      .from("users")
+      .select("display_name, avatar_url")
+      .eq("id", creatorRowRes.data.user_id)
+      .maybeSingle();
+    creator_name = cu?.display_name ?? null;
+    creator_avatar_url = cu?.avatar_url ?? null;
+    creator_handle = creatorRowRes.data.instagram_handle ?? null;
+  }
+
   return NextResponse.json({
     session,
     role: isBrand ? "brand" : "creator",
     conversation_id: conv?.id ?? null,
     generations: generations ?? [],
+    creator: {
+      name: creator_name,
+      avatar_url: creator_avatar_url,
+      handle: creator_handle,
+    },
+    brand: {
+      company_name: brandRowRes.data?.company_name ?? null,
+    },
+    request: requestRes.data
+      ? {
+          product_image_url: requestRes.data.product_image_url ?? null,
+          brief_one_liner: requestRes.data.brief_one_liner ?? null,
+        }
+      : null,
   });
 }
