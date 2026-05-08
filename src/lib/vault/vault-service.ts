@@ -101,11 +101,8 @@ export async function listVaultImages(input: ListVaultImagesInput): Promise<Vaul
   const to = from + pageSize - 1;
 
   // Build query
-  // We join creators via FK but Supabase REST doesn't support aliases or LEFT JOIN
-  // so we select the nested creator object via the FK relationship name.
-  // Use `as never` on the table name to bypass the generated column type
-  // since `download_count_jsonb`, `cert_url`, and `license_id` were added
-  // in migrations 00032+ but supabase.ts has not been regenerated.
+  // CRITICAL: scope to the requesting brand. Without this filter the query
+  // returns generations across ALL brands → data leak (#vault-leak-2026).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (admin as any)
     .from('generations')
@@ -127,7 +124,8 @@ export async function listVaultImages(input: ListVaultImagesInput): Promise<Vaul
       )
       `,
       { count: 'exact' },
-    );
+    )
+    .eq('brand_id', brandId);
 
   // Status filter
   if (status !== 'all') {
