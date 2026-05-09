@@ -28,7 +28,7 @@ export async function GET() {
       brand_id, creator_id,
       package_tier, package_price_paise, final_images_target,
       approved_count, gen_credits_total, gen_credits_used,
-      budget_paise
+      budget_paise, collab_request_id
     `)
     .eq(roleFilter.col, roleFilter.id)
     .order("created_at", { ascending: false })
@@ -47,6 +47,8 @@ export async function GET() {
   const uniqueIds = [...new Set(counterpartIds)];
 
   const nameMap: Record<string, string> = {};
+  // Counterpart avatar URL (creator or brand) — used by card thumbnail
+  const avatarMap: Record<string, string | null> = {};
   if (uniqueIds.length > 0) {
     if (roleFilter.role === "brand") {
       const { data: creators } = await admin
@@ -55,22 +57,50 @@ export async function GET() {
         .in("id", uniqueIds);
       const creatorUserIds = (creators ?? []).map((c: { user_id: string }) => c.user_id);
       const { data: users } = creatorUserIds.length > 0
-        ? await admin.from("users").select("id, display_name").in("id", creatorUserIds)
+        ? await admin.from("users").select("id, display_name, avatar_url").in("id", creatorUserIds)
         : { data: [] };
-      const userNameById: Record<string, string> = {};
-      for (const u of users ?? []) userNameById[u.id] = u.display_name;
-      for (const c of creators ?? []) nameMap[c.id] = userNameById[c.user_id] ?? "Creator";
+      const userById: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
+      for (const u of users ?? []) userById[u.id] = { display_name: u.display_name, avatar_url: u.avatar_url };
+      for (const c of creators ?? []) {
+        const u = userById[c.user_id];
+        nameMap[c.id] = u?.display_name ?? "Creator";
+        avatarMap[c.id] = u?.avatar_url ?? null;
+      }
     } else {
       const { data: brands } = await admin.from("brands").select("id, company_name").in("id", uniqueIds);
-      for (const b of brands ?? []) nameMap[b.id] = b.company_name ?? "Brand";
+      for (const b of brands ?? []) {
+        nameMap[b.id] = b.company_name ?? "Brand";
+        avatarMap[b.id] = null;
+      }
     }
   }
 
-  const collabs = rows.map((s: Record<string, unknown>) => ({
-    ...s,
-    counterpart_name: nameMap[roleFilter.role === "brand" ? (s.creator_id as string) : (s.brand_id as string)] ?? "Unknown",
-    is_legacy: !(s.package_tier), // old sessions without package linkage
-  }));
+  // Fetch product images via the linked collab_requests in bulk (one query)
+  const requestIds = rows
+    .map((s: Record<string, unknown>) => s.collab_request_id as string | null)
+    .filter((id: string | null): id is string => Boolean(id));
+  const productImageMap: Record<string, string | null> = {};
+  if (requestIds.length > 0) {
+    const { data: reqs } = await admin
+      .from("collab_requests")
+      .select("id, product_image_url")
+      .in("id", requestIds);
+    for (const r of reqs ?? []) {
+      productImageMap[r.id] = r.product_image_url ?? null;
+    }
+  }
+
+  const collabs = rows.map((s: Record<string, unknown>) => {
+    const counterpartId = roleFilter.role === "brand" ? (s.creator_id as string) : (s.brand_id as string);
+    const reqId = s.collab_request_id as string | null;
+    return {
+      ...s,
+      counterpart_name: nameMap[counterpartId] ?? "Unknown",
+      counterpart_avatar_url: avatarMap[counterpartId] ?? null,
+      product_image_url: reqId ? productImageMap[reqId] ?? null : null,
+      is_legacy: !(s.package_tier), // old sessions without package linkage
+    };
+  });
 
   // For brands: also return accepted requests awaiting payment
   let pendingPayments: unknown[] = [];
