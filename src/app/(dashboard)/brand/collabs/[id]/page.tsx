@@ -25,7 +25,6 @@ import {
   Image as ImageIconSm,
   FileCheck2,
   Receipt,
-  RefreshCw,
 } from "lucide-react";
 import { ChatThread } from "@/components/chat/chat-thread";
 
@@ -844,63 +843,6 @@ function DetailsTab({
   );
 }
 
-/* ── Regenerate certificate button (used in license rows) ── */
-function RegenerateCertButton({ licenseId }: { licenseId: string }) {
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
-
-  async function regenerate() {
-    if (state !== "idle") return;
-    setState("loading");
-    try {
-      const res = await fetch(`/api/licenses/${licenseId}/regenerate-cert`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        alert(j.message ?? j.error ?? "Regenerate failed");
-        setState("idle");
-        return;
-      }
-      setState("done");
-      setTimeout(() => setState("idle"), 2500);
-    } catch {
-      alert("Regenerate failed. Try again.");
-      setState("idle");
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={regenerate}
-      disabled={state === "loading"}
-      title="Regenerate certificate in latest format"
-      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] transition disabled:cursor-not-allowed ${
-        state === "done"
-          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
-          : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
-      }`}
-    >
-      {state === "loading" ? (
-        <>
-          <Loader2 className="h-2.5 w-2.5 animate-spin" />
-          Regenerating
-        </>
-      ) : state === "done" ? (
-        <>
-          <CheckCircle2 className="h-2.5 w-2.5" />
-          Regenerated
-        </>
-      ) : (
-        <>
-          <RefreshCw className="h-2.5 w-2.5" />
-          Regenerate
-        </>
-      )}
-    </button>
-  );
-}
-
 /* ── License documents section (brand) ── */
 function BrandLicenseSection({
   licenses,
@@ -1003,7 +945,6 @@ function BrandLicenseSection({
                     <Download className="h-2.5 w-2.5" />
                     Pack ZIP
                   </a>
-                  <RegenerateCertButton licenseId={lic.id} />
                 </div>
               </div>
             </div>
