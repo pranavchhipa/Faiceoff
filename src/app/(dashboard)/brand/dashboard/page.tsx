@@ -43,9 +43,13 @@ interface CollabSession {
   created_at: string;
   max_generations: number | null;
   approved_count?: number | null;
+  // From /api/collabs response shape — actual collab name + counterpart
+  name?: string | null;
+  counterpart_name?: string | null;
+  package_tier?: string | null;
+  // Legacy / older fallback fields
   brand?: { company_name?: string | null } | null;
   creator?: { display_name?: string | null } | null;
-  name?: string | null;
 }
 
 interface VaultItem {
@@ -113,11 +117,8 @@ export default function BrandDashboardPage() {
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const displayName =
-    user?.user_metadata?.display_name ??
-    user?.email?.split("@")[0] ??
-    "Brand";
-  const companyInitial = displayName.charAt(0).toUpperCase();
+  // displayName intentionally not used in the dashboard header any more —
+  // identity / avatar live in the topbar UserMenu only.
 
   useEffect(() => {
     if (!user) return;
@@ -189,7 +190,6 @@ export default function BrandDashboardPage() {
 
   const walletPaise = stats.walletBalance;
   const activeCount = stats.activeCollabs ?? stats.activeCampaigns;
-  const companyName = profile?.company_name ?? displayName;
 
   if (loading) return <BrandDashboardSkeleton />;
 
@@ -225,22 +225,17 @@ export default function BrandDashboardPage() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[52px]">
-              Hi {companyName} —
-            </h1>
-            <p className="mt-1 font-display text-[20px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[26px]">
-              {activeCount > 0
-                ? `${activeCount} ${activeCount === 1 ? "collab" : "collabs"} active`
-                : stats.totalCampaigns > 0
-                ? "all collabs wrapped up."
-                : "no collabs yet — discover creators."}
-            </p>
-          </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-foreground)] font-display text-lg font-800 text-[var(--color-background)] shadow-md lg:h-14 lg:w-14 lg:text-xl">
-            {companyInitial}
-          </div>
+        <div className="mt-3">
+          <h1 className="font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[48px]">
+            {activeCount > 0
+              ? `${activeCount} ${activeCount === 1 ? "collab" : "collabs"} active`
+              : stats.totalCampaigns > 0
+              ? "All collabs wrapped up."
+              : "Discover creators to start."}
+          </h1>
+          <p className="mt-1.5 text-[14px] text-[var(--color-muted-foreground)]">
+            Generate, review, and ship licensed AI imagery — all in one place.
+          </p>
         </div>
       </motion.header>
 
@@ -403,9 +398,18 @@ export default function BrandDashboardPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {collabs.map((collab, idx) => {
-                const creatorName =
-                  collab.creator?.display_name ?? `Collab ${idx + 1}`;
+              {collabs.map((collab) => {
+                // Use real collab name (e.g. "Rajasthan Royals Jersey") with
+                // counterpart creator as subtitle. Fallbacks chain through
+                // older response shapes for safety.
+                const collabName =
+                  collab.name ??
+                  collab.creator?.display_name ??
+                  "Untitled collab";
+                const counterpart =
+                  collab.counterpart_name ??
+                  collab.creator?.display_name ??
+                  null;
                 const status = collab.status ?? "draft";
                 const dotClass =
                   STATUS_DOT[status] ?? "bg-[var(--color-muted-foreground)]/40";
@@ -416,17 +420,17 @@ export default function BrandDashboardPage() {
                 return (
                   <Link
                     key={collab.id}
-                    href={`/brand/collabs`}
+                    href={`/brand/collabs/${collab.id}`}
                     className="group flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:border-[var(--color-primary)]/30 hover:-translate-y-0.5"
                   >
-                    {/* Avatar initial */}
+                    {/* Initial pill (uses collab name) */}
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-secondary)] font-display text-[16px] font-800 text-[var(--color-foreground)]">
-                      {creatorName.charAt(0).toUpperCase()}
+                      {collabName.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-700 text-[14px] text-[var(--color-foreground)]">
-                        {creatorName}
+                        {collabName}
                       </p>
                       <div className="mt-0.5 flex items-center gap-2">
                         <span
@@ -435,6 +439,14 @@ export default function BrandDashboardPage() {
                         <span className="text-[12px] text-[var(--color-muted-foreground)]">
                           {statusLabel}
                         </span>
+                        {counterpart && (
+                          <>
+                            <span className="text-[var(--color-border)]">·</span>
+                            <span className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                              with {counterpart}
+                            </span>
+                          </>
+                        )}
                         {total > 0 && (
                           <>
                             <span className="text-[var(--color-border)]">·</span>

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   Megaphone, Loader2, Plus, Clock, CheckCircle2, Zap,
   ArrowRight, IndianRupee, Image as ImageIcon, FileImage,
+  Send, Layers,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -137,65 +138,151 @@ export default function BrandCollabsPage() {
           </Link>
         </div>
       ) : (
-        <>
-          {/* ── Awaiting payment (accepted by creator) ── */}
-          {accepted.length > 0 && (
-            <section className="mb-8">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                  Awaiting payment
-                </span>
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-primary)] px-1.5 font-mono text-[10px] font-700 text-[var(--color-primary-foreground)]">
-                  {accepted.length}
-                </span>
+        <div className="space-y-10">
+          {/* ═══════════ GROUP 1 — REQUESTS ═══════════ */}
+          {pendingPayments.length > 0 && (
+            <div>
+              <SectionHeader
+                icon={Send}
+                eyebrow="Step 1 · Sent to creators"
+                title="Requests"
+                count={pendingPayments.length}
+                description="Collab requests you've sent. They become an active collab once the creator accepts and you complete payment."
+              />
+
+              <div className="space-y-5">
+                {/* ── Awaiting payment (creator accepted) ── */}
+                {accepted.length > 0 && (
+                  <SubGroup label="Accepted — pay to activate" count={accepted.length} accent="primary">
+                    <div className="space-y-3">
+                      {accepted.map((p, i) => (
+                        <PendingPaymentCard key={p.id} req={p} delay={i * 0.06} />
+                      ))}
+                    </div>
+                  </SubGroup>
+                )}
+
+                {/* ── Awaiting creator response ── */}
+                {pending.length > 0 && (
+                  <SubGroup label="Waiting for creator response" count={pending.length} accent="muted">
+                    <div className="space-y-3">
+                      {pending.map((p, i) => (
+                        <PendingPaymentCard key={p.id} req={p} delay={i * 0.05} />
+                      ))}
+                    </div>
+                  </SubGroup>
+                )}
               </div>
-              <div className="space-y-3">
-                {accepted.map((p, i) => (
-                  <PendingPaymentCard key={p.id} req={p} delay={i * 0.06} />
-                ))}
-              </div>
-            </section>
+            </div>
           )}
 
-          {/* ── Sent, waiting for creator ── */}
-          {pending.length > 0 && (
-            <section className="mb-8">
-              <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Awaiting creator response
-              </p>
-              <div className="space-y-3">
-                {pending.map((p, i) => (
-                  <PendingPaymentCard key={p.id} req={p} delay={i * 0.05} />
-                ))}
-              </div>
-            </section>
-          )}
+          {/* ═══════════ GROUP 2 — COLLABS ═══════════ */}
+          {collabs.length > 0 && (
+            <div>
+              <SectionHeader
+                icon={Layers}
+                eyebrow="Step 2 · Paid + active"
+                title="Collabs"
+                count={collabs.length}
+                description="Live workspaces. Open Studio to generate, Vault to download approved images, Chat to talk to the creator."
+              />
 
-          {/* ── Active collab sessions ── */}
-          {active.length > 0 && (
-            <section className="mb-6">
-              <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Active — {active.length}
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {active.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.05} />)}
-              </div>
-            </section>
-          )}
+              <div className="space-y-5">
+                {/* ── Active collab sessions ── */}
+                {active.length > 0 && (
+                  <SubGroup label="Active" count={active.length} accent="success">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {active.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.05} />)}
+                    </div>
+                  </SubGroup>
+                )}
 
-          {/* ── Completed sessions ── */}
-          {completed.length > 0 && (
-            <section>
-              <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Past — {completed.length}
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {completed.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.04} />)}
+                {/* ── Completed / past sessions ── */}
+                {completed.length > 0 && (
+                  <SubGroup label="Past" count={completed.length} accent="muted">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {completed.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.04} />)}
+                    </div>
+                  </SubGroup>
+                )}
               </div>
-            </section>
+            </div>
           )}
-        </>
+        </div>
       )}
+    </div>
+  );
+}
+
+/* ── Big section header ── */
+function SectionHeader({
+  icon: Icon,
+  eyebrow,
+  title,
+  count,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: string;
+  count: number;
+  description: string;
+}) {
+  return (
+    <div className="mb-5 flex items-start justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            {eyebrow}
+          </p>
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <h2 className="font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+            {title}
+          </h2>
+          <span className="font-mono text-[12px] font-700 text-[var(--color-muted-foreground)]">
+            {count}
+          </span>
+        </div>
+        <p className="mt-1.5 max-w-[640px] text-[12.5px] leading-snug text-[var(--color-muted-foreground)]">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sub-group label inside a section ── */
+function SubGroup({
+  label,
+  count,
+  accent,
+  children,
+}: {
+  label: string;
+  count: number;
+  accent: "primary" | "success" | "muted";
+  children: React.ReactNode;
+}) {
+  const accentMap = {
+    primary: "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]",
+    success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+    muted:   "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]",
+  };
+  return (
+    <div>
+      <div className="mb-2.5 flex items-center gap-2">
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+          {label}
+        </p>
+        <span className={`flex h-4 min-w-[18px] items-center justify-center rounded-full px-1.5 font-mono text-[9px] font-700 ${accentMap[accent]}`}>
+          {count}
+        </span>
+      </div>
+      {children}
     </div>
   );
 }

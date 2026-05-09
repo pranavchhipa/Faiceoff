@@ -32,6 +32,12 @@ interface AuthContextValue {
   role: Role;
   /** True while we're still resolving the role via /api/whoami. */
   roleLoading: boolean;
+  /**
+   * Force-refresh the cached `user` object from Supabase auth — call after
+   * mutating user_metadata (avatar_url, display_name) from the server so the
+   * client sees the updated values without a page reload.
+   */
+  refreshUser: () => Promise<void>;
 }
 
 /* ── Context ── */
@@ -88,16 +94,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Always keep the latest session (access_token may have rotated).
       setSession(newSession);
 
-      // Only update `user` when the identity actually changes (sign-in,
-      // sign-out, different account). Supabase fires TOKEN_REFRESHED on
-      // every tab focus — if we blindly setUser(newSession.user) we create
-      // a new object reference, which cascades re-renders to every
-      // component that depends on `user`.
+      // Update `user` when identity changes OR when metadata fields the UI
+      // renders (avatar_url, display_name) have changed. Without the metadata
+      // check, profile photo / display name updates wouldn't propagate
+      // because Supabase fires TOKEN_REFRESHED with the same id but new
+      // metadata. With the check, we still skip re-renders for boring token
+      // refreshes (every tab focus) since metadata is unchanged then.
       setUser((prev) => {
         const incoming = newSession?.user ?? null;
-        // Same identity → keep the old reference → no child re-renders
-        if (prev?.id === incoming?.id) return prev;
-        return incoming;
+        if (!prev || !incoming) return incoming;
+        if (prev.id !== incoming.id) return incoming;
+        const prevMeta = prev.user_metadata ?? {};
+        const newMeta = incoming.user_metadata ?? {};
+        if (
+          prevMeta.avatar_url !== newMeta.avatar_url ||
+          prevMeta.display_name !== newMeta.display_name
+        ) {
+          return incoming;
+        }
+        return prev;
       });
 
       setIsLoading(false);
@@ -208,6 +223,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // user's fetch.
   const currentRole: Role = roleLoading ? null : role;
 
+  const refreshUser = useCallback(async () => {
+    const { data: { user: fresh } } = await supabase.auth.getUser();
+    if (!fresh) return;
+    setUser((prev) => {
+      if (!prev) return fresh;
+      const prevMeta = prev.user_metadata ?? {};
+      const newMeta = fresh.user_metadata ?? {};
+      if (
+        prev.id !== fresh.id ||
+        prevMeta.avatar_url !== newMeta.avatar_url ||
+        prevMeta.display_name !== newMeta.display_name
+      ) {
+        return fresh;
+      }
+      return prev;
+    });
+  }, [supabase]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -217,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         role: currentRole,
         roleLoading,
+        refreshUser,
       }}
     >
       {children}

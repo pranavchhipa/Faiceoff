@@ -58,7 +58,7 @@ const BIO_MAX = 250;
 
 /* ── Page Component ── */
 export default function SettingsPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
 
   const [role, setRole] = useState<string>("creator");
@@ -169,6 +169,8 @@ export default function SettingsPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error || "Save failed");
       }
+      // Pull updated display_name from auth metadata so topbar reflects it
+      await refreshUser();
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (err) {
@@ -197,6 +199,9 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
       setUserProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }));
+      // Pull the new avatar_url from auth metadata so the topbar UserMenu
+      // updates immediately (no page reload required).
+      await refreshUser();
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (err) {
