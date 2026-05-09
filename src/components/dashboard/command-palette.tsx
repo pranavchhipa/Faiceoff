@@ -175,10 +175,12 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
         shortcut: "⇧T",
       },
       {
-        label: "Approvals help",
-        href: "/help",
+        label: "Email support",
+        action: () => {
+          window.location.href = "mailto:support@faiceoff.com?subject=Support%20request";
+        },
         icon: HelpCircle,
-        keywords: "help docs faq",
+        keywords: "help docs faq contact support email",
       },
       {
         label: "Sign out",
@@ -202,7 +204,7 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
             return haystack.includes(search.toLowerCase()) ? 1 : 0;
           }}
         >
-          <CommandInput placeholder="Type a command or search..." autoFocus />
+          <CommandInput placeholder="Search or jump to…" autoFocus />
           <CommandList className="max-h-[420px]">
             <CommandEmpty>No results found.</CommandEmpty>
             {groups.map((group, idx) => (

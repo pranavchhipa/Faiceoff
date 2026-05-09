@@ -781,3 +781,171 @@ export async function sendBrandLowCredits(opts: {
     }),
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 16. Creator — approval expiring soon (24h before auto-approve)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendCreatorApprovalReminder(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  hoursLeft: number;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `Reminder: ${opts.brandName}'s image auto-approves in ${opts.hoursLeft}h`,
+    html: wrap("Approval expiring soon", {
+      preheader: `If you don't decide in ${opts.hoursLeft} hours, the image goes through automatically.`,
+      eyebrow: "Reminder",
+      headline: `${opts.hoursLeft}h left to decide.`,
+      body: `<p style="margin:0;">The image <strong>${escapeHtml(opts.brandName)}</strong> sent for <strong>${escapeHtml(opts.productName)}</strong> hasn't been reviewed yet. After ${opts.hoursLeft} hours of silence it auto-approves — make sure it's the version you actually want shipped.</p>`,
+      cta: { label: "Review now", href: `${APP_URL}/creator/approvals` },
+      footnote: "Auto-approve protects brand timelines. If you genuinely need more time, reject this image with a note and the brand can re-send a refined version.",
+    }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 17. Creator — collab request expiring soon (24h before TTL)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendCreatorRequestExpiringReminder(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  pricePaise: number;
+  hoursLeft: number;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `Reminder: ${opts.brandName}'s collab request expires in ${opts.hoursLeft}h`,
+    html: wrap("Collab request expiring", {
+      preheader: `${fmtINR(opts.pricePaise)} on the table — accept or decline within ${opts.hoursLeft}h.`,
+      eyebrow: "Reminder",
+      headline: `Don't leave money on the table.`,
+      body: `<p style="margin:0;"><strong>${escapeHtml(opts.brandName)}</strong>'s collab request for <strong>${escapeHtml(opts.productName)}</strong> expires in ${opts.hoursLeft} hours. After that the offer is gone — they can re-send a fresh request, but no guarantees.</p>`,
+      info: [
+        { label: "Brand", value: opts.brandName },
+        { label: "Product", value: opts.productName },
+        { label: "Price", value: fmtINR(opts.pricePaise) },
+        { label: "Your share (70%)", value: fmtINR(Math.round(opts.pricePaise * 0.7)) },
+        { label: "Time left", value: `${opts.hoursLeft} hours` },
+      ],
+      cta: { label: "Accept or decline", href: `${APP_URL}/creator/requests` },
+    }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 18. Creator — dispute opened against their image
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendCreatorDisputeOpened(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  reason: string;
+  disputeId: string;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `${opts.brandName} opened a dispute on a licensed image`,
+    html: wrap("Dispute opened", {
+      preheader: "Funds are paused until our team reviews. We'll have an answer within 48 hours.",
+      eyebrow: "Action paused",
+      headline: `Dispute filed against ${escapeHtml(opts.productName)} licence.`,
+      body: `<p style="margin:0 0 12px;"><strong>${escapeHtml(opts.brandName)}</strong> filed a dispute on the licensed image you approved for <strong>${escapeHtml(opts.productName)}</strong>. Your earnings on that licence are paused until our team reviews; nothing is taken away unless the dispute is upheld.</p>
+        <p style="margin:0 0 12px;padding:12px 14px;border-left:3px solid ${COLORS.warn};background:${COLORS.wash};border-radius:0 6px 6px 0;font-style:italic;">"${escapeHtml(opts.reason)}"</p>
+        <p style="margin:0;">Reply to this email if you have context that helps. We aim to resolve disputes within 48 hours.</p>`,
+      info: [
+        { label: "Dispute ID", value: opts.disputeId.slice(0, 12) + "…" },
+        { label: "Brand", value: opts.brandName },
+        { label: "Product", value: opts.productName },
+      ],
+      cta: { label: "View dispute", href: `${APP_URL}/creator/dashboard` },
+    }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 19. Brand — dispute opened (acknowledgment to filer)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendBrandDisputeOpened(opts: {
+  to: string;
+  brandName: string;
+  creatorName: string;
+  productName: string;
+  disputeId: string;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `Dispute filed — ${opts.productName}`,
+    html: wrap("Dispute received", {
+      preheader: "Our team reviews within 48 hours. Funds on the disputed licence are paused.",
+      eyebrow: "We hear you",
+      headline: `Dispute received.`,
+      body: `<p style="margin:0 0 12px;">Thanks for flagging this. We've recorded your dispute on the <strong>${escapeHtml(opts.productName)}</strong> licence with <strong>${escapeHtml(opts.creatorName)}</strong>.</p>
+        <p style="margin:0;">Funds on the disputed licence are paused while we investigate. We aim to resolve within 48 hours and will email you the outcome — full refund, partial, or kept-as-is.</p>`,
+      info: [
+        { label: "Dispute ID", value: opts.disputeId.slice(0, 12) + "…" },
+        { label: "Creator", value: opts.creatorName },
+        { label: "Product", value: opts.productName },
+        { label: "Target SLA", value: "48 hours" },
+      ],
+      cta: { label: "View dispute", href: `${APP_URL}/brand/dashboard` },
+    }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 20. Both sides — dispute resolved
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendDisputeResolved(opts: {
+  to: string;
+  recipientName: string;
+  recipientRole: "brand" | "creator";
+  productName: string;
+  outcome: "refunded_full" | "refunded_partial" | "no_action";
+  refundPaise?: number;
+  notes?: string | null;
+  disputeId: string;
+}): Promise<void> {
+  const outcomeLabel: Record<typeof opts.outcome, string> = {
+    refunded_full: "Full refund issued",
+    refunded_partial: "Partial refund issued",
+    no_action: "Licence held — no action",
+  };
+  const subjectMap: Record<typeof opts.outcome, string> = {
+    refunded_full: "Dispute resolved — full refund",
+    refunded_partial: "Dispute resolved — partial refund",
+    no_action: "Dispute resolved — licence stands",
+  };
+  await send({
+    to: opts.to,
+    subject: `${subjectMap[opts.outcome]} — ${opts.productName}`,
+    html: wrap("Dispute resolved", {
+      preheader: `Outcome: ${outcomeLabel[opts.outcome]}.`,
+      eyebrow: "Closed",
+      headline: `Dispute on ${escapeHtml(opts.productName)} closed.`,
+      body: `<p style="margin:0 0 12px;">Our team reviewed the dispute and reached a decision: <strong>${outcomeLabel[opts.outcome]}</strong>.</p>
+        ${opts.notes ? `<p style="margin:0 0 12px;padding:12px 14px;border-left:3px solid ${COLORS.gold};background:${COLORS.wash};border-radius:0 6px 6px 0;">${escapeHtml(opts.notes)}</p>` : ""}
+        <p style="margin:0;">Funds on the licence have been ${opts.outcome === "no_action" ? "released to the creator" : "settled per the outcome above"}.</p>`,
+      info: [
+        { label: "Dispute ID", value: opts.disputeId.slice(0, 12) + "…" },
+        { label: "Outcome", value: outcomeLabel[opts.outcome] },
+        ...(opts.refundPaise && opts.refundPaise > 0
+          ? [{ label: "Refund amount", value: fmtINR(opts.refundPaise) }]
+          : []),
+      ],
+      cta: {
+        label: opts.recipientRole === "brand" ? "View library" : "View earnings",
+        href:
+          opts.recipientRole === "brand"
+            ? `${APP_URL}/brand/vault`
+            : `${APP_URL}/creator/earnings`,
+      },
+      footnote: "Faiceoff acts as the neutral arbiter under platform terms. Decisions are final but you can always reply with new information for review.",
+    }),
+  });
+}
