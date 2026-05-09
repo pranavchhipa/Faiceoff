@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Library, Download } from "lucide-react";
+import { Library, Sparkles, ShieldCheck } from "lucide-react";
 import VaultGrid, { type VaultItem } from "./vault-grid";
 
 /* ── Types ── */
@@ -59,7 +59,7 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
 
   return (
     <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
-      {/* ═══════════ Header ═══════════ */}
+      {/* ═══════════ Hero header ═══════════ */}
       <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
@@ -68,21 +68,15 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
           </p>
           <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
             Library
+            <span className="text-[var(--color-primary)]">.</span>
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            <span className="font-600 text-[var(--color-foreground)]">
+          <p className="mt-2 max-w-xl text-sm text-[var(--color-muted-foreground)]">
+            <span className="font-700 text-[var(--color-foreground)]">
               {count.toLocaleString("en-IN")}
             </span>{" "}
-            licensed image{count !== 1 ? "s" : ""} · every asset tracks back to
+            licensed image{count !== 1 ? "s" : ""} — every asset tracks back to
             its creator, brief, and licence certificate.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]">
-            <Download className="h-3.5 w-3.5" />
-            Bulk export
-          </button>
         </div>
       </div>
 
@@ -102,10 +96,12 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
         />
       </Suspense>
 
-      <p className="mt-8 text-center font-mono text-[10px] text-[var(--color-muted-foreground)]">
-        <Sparkles className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
-        Every image is watermarked with a per-brand license ID. Resale requires
-        additional licensing.
+      <p className="mt-10 inline-flex w-full items-center justify-center gap-1.5 text-center font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
+        <ShieldCheck className="h-3 w-3 text-[var(--color-primary)]" />
+        Every image is watermarked with a per-brand license ID
+        <span className="text-[var(--color-border)]">·</span>
+        <Sparkles className="h-3 w-3 text-[var(--color-primary)]" />
+        Resale requires additional licensing
       </p>
     </div>
   );

@@ -1,753 +1,610 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Save,
-  Loader2,
-  LogOut,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Camera,
-  Fingerprint,
-  Eye,
-  Lock,
-  AtSign,
+  Save, Loader2, LogOut, Trash2, CheckCircle2, AlertCircle, Camera,
+  AtSign, User as UserIcon, Building2, Lock, ShieldAlert, Mail, Phone,
+  Globe, Briefcase, HelpCircle,
 } from "lucide-react";
 
-/* ── Industry options for brands ── */
 const INDUSTRIES = [
-  "Fashion & Apparel",
-  "Beauty & Cosmetics",
-  "Food & Beverage",
-  "Health & Fitness",
-  "Technology",
-  "Finance",
-  "Education",
-  "Real Estate",
-  "Entertainment",
-  "Travel & Hospitality",
-  "E-commerce",
-  "Other",
+  "Fashion & Apparel", "Beauty & Cosmetics", "Food & Beverage", "Health & Fitness",
+  "Technology", "Finance", "Education", "Real Estate", "Entertainment",
+  "Travel & Hospitality", "E-commerce", "Other",
 ] as const;
 
-/* ── Types ── */
-interface UserProfile {
-  display_name: string;
-  email: string;
-  phone: string;
-  avatar_url: string;
-}
-
-interface CreatorProfile {
-  instagram_handle: string;
-  bio: string;
-}
-
-interface BrandProfile {
-  company_name: string;
-  website_url: string;
-  gst_number: string;
-  industry: string;
-}
+interface UserProfile { display_name: string; email: string; phone: string; avatar_url: string; }
+interface CreatorProfile { instagram_handle: string; bio: string; }
+interface BrandProfile { company_name: string; website_url: string; gst_number: string; industry: string; }
 
 const BIO_MAX = 250;
+const SECTIONS = [
+  { id: "profile", label: "Profile", icon: UserIcon },
+  { id: "identity", label: "Identity", icon: AtSign },
+  { id: "security", label: "Account & Security", icon: Lock },
+  { id: "danger", label: "Danger Zone", icon: ShieldAlert },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
 
-/* ── Page Component ── */
+const isValidUrl = (v: string) => {
+  if (!v) return true;
+  try { return new URL(v.startsWith("http") ? v : `https://${v}`).hostname.includes("."); }
+  catch { return false; }
+};
+const isValidHandle = (v: string) => !v || /^[A-Za-z0-9._]{1,30}$/.test(v);
+
 export default function SettingsPage() {
   const { user, isLoading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
 
   const [role, setRole] = useState<string>("creator");
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [coverUploading, setCoverUploading] = useState(false);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>("profile");
+  const [isDragging, setIsDragging] = useState(false);
 
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    display_name: "",
-    email: "",
-    phone: "",
-    avatar_url: "",
-  });
+  const [up, setUp] = useState<UserProfile>({ display_name: "", email: "", phone: "", avatar_url: "" });
+  const [cp, setCp] = useState<CreatorProfile>({ instagram_handle: "", bio: "" });
+  const [bp, setBp] = useState<BrandProfile>({ company_name: "", website_url: "", gst_number: "", industry: "" });
 
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile>({
-    instagram_handle: "",
-    bio: "",
-  });
+  const baselineRef = useRef<{ user: UserProfile; creator: CreatorProfile; brand: BrandProfile } | null>(null);
 
-  const [brandProfile, setBrandProfile] = useState<BrandProfile>({
-    company_name: "",
-    website_url: "",
-    gst_number: "",
-    industry: "",
-  });
-
-  /* ── Fetch ── */
   const fetchProfile = useCallback(async () => {
     if (!user) return;
-    setProfileLoading(true);
+    setLoading(true);
     try {
       const res = await fetch("/api/settings");
-      if (!res.ok) { setProfileLoading(false); return; }
+      if (!res.ok) return;
       const data = await res.json();
-      setRole(data.role ?? "creator");
-      if (data.profile) {
-        setUserProfile({
-          display_name: data.profile.display_name ?? "",
-          email: data.profile.email ?? user.email ?? "",
-          phone: data.profile.phone ?? "",
-          avatar_url: data.profile.avatar_url ?? "",
-        });
-      }
-      if (data.creator) {
-        setCreatorProfile({
-          instagram_handle: data.creator.instagram_handle ?? "",
-          bio: data.creator.bio ?? "",
-        });
-      }
-      if (data.brand) {
-        setBrandProfile({
-          company_name: data.brand.company_name ?? "",
-          website_url: data.brand.website_url ?? "",
-          gst_number: data.brand.gst_number ?? "",
-          industry: data.brand.industry ?? "",
-        });
-      }
-    } catch (err) {
-      console.error("Settings fetch error:", err);
-    } finally {
-      setProfileLoading(false);
-    }
+      const r = data.role ?? "creator";
+      const nu: UserProfile = {
+        display_name: data.profile?.display_name ?? "",
+        email: data.profile?.email ?? user.email ?? "",
+        phone: data.profile?.phone ?? "",
+        avatar_url: data.profile?.avatar_url ?? "",
+      };
+      const nc: CreatorProfile = { instagram_handle: data.creator?.instagram_handle ?? "", bio: data.creator?.bio ?? "" };
+      const nb: BrandProfile = {
+        company_name: data.brand?.company_name ?? "", website_url: data.brand?.website_url ?? "",
+        gst_number: data.brand?.gst_number ?? "", industry: data.brand?.industry ?? "",
+      };
+      setRole(r); setUp(nu); setCp(nc); setBp(nb);
+      baselineRef.current = { user: nu, creator: nc, brand: nb };
+    } catch (err) { console.error("Settings fetch error:", err); }
+    finally { setLoading(false); }
   }, [user]);
 
-  useEffect(() => {
-    if (!authLoading) fetchProfile();
-  }, [authLoading, fetchProfile]);
+  useEffect(() => { if (!authLoading) fetchProfile(); }, [authLoading, fetchProfile]);
 
-  /* ── Save ── */
+  const isDirty = useMemo(() => {
+    const b = baselineRef.current;
+    if (!b) return false;
+    if (b.user.display_name !== up.display_name) return true;
+    if (role === "creator") return b.creator.instagram_handle !== cp.instagram_handle || b.creator.bio !== cp.bio;
+    if (role === "brand") return b.brand.company_name !== bp.company_name || b.brand.website_url !== bp.website_url || b.brand.industry !== bp.industry;
+    return false;
+  }, [up, cp, bp, role]);
+
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (!up.display_name.trim()) e.display_name = "Required";
+    if (role === "creator" && !isValidHandle(cp.instagram_handle)) e.instagram_handle = "Letters, numbers, dots, underscores only";
+    if (role === "brand" && !isValidUrl(bp.website_url)) e.website_url = "Enter a valid URL";
+    return e;
+  }, [up, cp, bp, role]);
+
+  const canSave = isDirty && Object.keys(errors).length === 0 && !isSaving;
+  const flash = (kind: "success" | "error", msg?: string) => {
+    setSaveStatus(kind);
+    if (msg) setSaveError(msg);
+    setTimeout(() => setSaveStatus("idle"), kind === "success" ? 2400 : 3500);
+  };
+
   async function handleSave() {
-    if (!user) return;
-    setIsSaving(true);
-    setSaveStatus("idle");
-    setSaveError(null);
+    if (!user || !canSave) return;
+    setIsSaving(true); setSaveError(null);
     try {
       const body: Record<string, unknown> = {
-        profile: {
-          display_name: userProfile.display_name.trim(),
-          phone: userProfile.phone.trim(),
-        },
+        profile: { display_name: up.display_name.trim(), phone: up.phone.trim() },
       };
-      if (role === "creator") {
-        body.creator = {
-          instagram_handle: creatorProfile.instagram_handle.trim(),
-          bio: creatorProfile.bio.trim(),
-        };
-      } else if (role === "brand") {
-        body.brand = {
-          company_name: brandProfile.company_name.trim(),
-          website_url: brandProfile.website_url.trim(),
-          industry: brandProfile.industry,
-        };
-      }
+      if (role === "creator") body.creator = { instagram_handle: cp.instagram_handle.trim(), bio: cp.bio.trim() };
+      else if (role === "brand") body.brand = { company_name: bp.company_name.trim(), website_url: bp.website_url.trim(), industry: bp.industry };
       const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || "Save failed");
-      }
-      // Pull updated display_name from auth metadata so topbar reflects it
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Save failed");
       await refreshUser();
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      baselineRef.current = { user: up, creator: cp, brand: bp };
+      flash("success");
     } catch (err) {
-      setSaveStatus("error");
-      setSaveError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setIsSaving(false);
-    }
+      flash("error", err instanceof Error ? err.message : "Something went wrong");
+    } finally { setIsSaving(false); }
   }
 
-  /* ── Avatar upload ── */
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setSaveStatus("error");
-      setSaveError("Image must be under 5MB");
-      return;
-    }
+  async function uploadAvatarFile(file: File) {
+    if (!file.type.startsWith("image/")) return flash("error", "Please pick an image file");
+    if (file.size > 5 * 1024 * 1024) return flash("error", "Image must be under 5 MB");
     setAvatarUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/settings/avatar", { method: "POST", body: formData });
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/settings/avatar", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
-      setUserProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }));
-      // Pull the new avatar_url from auth metadata so the topbar UserMenu
-      // updates immediately (no page reload required).
+      setUp((p) => ({ ...p, avatar_url: data.avatar_url }));
+      if (baselineRef.current) {
+        baselineRef.current = { ...baselineRef.current, user: { ...baselineRef.current.user, avatar_url: data.avatar_url } };
+      }
       await refreshUser();
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 3000);
-    } catch (err) {
-      setSaveStatus("error");
-      setSaveError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setAvatarUploading(false);
-      e.target.value = "";
-    }
+      flash("success");
+    } catch (err) { flash("error", err instanceof Error ? err.message : "Upload failed"); }
+    finally { setAvatarUploading(false); }
   }
 
-  /* ── Cover photo upload ── */
-  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 8 * 1024 * 1024) {
-      setSaveStatus("error");
-      setSaveError("Cover photo must be under 8 MB");
-      return;
-    }
-    setCoverUploading(true);
-    // local preview immediately
-    setCoverPreview(URL.createObjectURL(file));
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/creator/upload-cover", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      if (data.cover_image_url) setCoverPreview(data.cover_image_url);
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 3000);
-    } catch (err) {
-      setSaveStatus("error");
-      setSaveError(err instanceof Error ? err.message : "Upload failed");
-      setCoverPreview(null);
-    } finally {
-      setCoverUploading(false);
-      e.target.value = "";
-    }
-  }
-
-  /* ── Delete account ── */
   async function handleDeleteAccount() {
     if (deleteConfirmText !== "DELETE") return;
     setIsDeleting(true);
     try {
       const res = await fetch("/api/auth/delete-account", { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || "Delete failed");
-      }
-      router.push("/");
-      router.refresh();
-    } catch (err) {
-      console.error("Delete error:", err);
-      setIsDeleting(false);
-    }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Delete failed");
+      router.push("/"); router.refresh();
+    } catch (err) { console.error("Delete error:", err); setIsDeleting(false); }
   }
 
-  /* ── Sign out ── */
   async function handleSignOut() {
     setIsSigningOut(true);
-    try {
-      await fetch("/api/auth/sign-out", { method: "POST" });
-      router.push("/");
-      router.refresh();
-    } catch {
-      setIsSigningOut(false);
-    }
+    try { await fetch("/api/auth/sign-out", { method: "POST" }); router.push("/"); router.refresh(); }
+    catch { setIsSigningOut(false); }
   }
 
-  /* ── Loading ── */
-  if (authLoading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-muted-foreground)]/30 border-t-[var(--color-primary)]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
   }
 
-  const ghostBorder = { border: "1px solid rgba(171,173,174,0.18)" } as const;
+  const initial = up.display_name?.charAt(0)?.toUpperCase() || up.email?.charAt(0)?.toUpperCase() || "?";
+  const eyebrow = role === "brand" ? "Brand workspace" : role === "admin" ? "Admin workspace" : "Creator workspace";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-5xl pt-6 lg:pt-8"
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8 pb-32"
     >
-      {/* ══════════ Page Header ══════════ */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-700 tracking-tight text-[var(--color-foreground)]">
-          Account Settings
+      {/* Hero header */}
+      <div className="mb-8">
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">{eyebrow}</p>
+        <h1 className="mt-1 font-display text-[28px] font-800 leading-[1.1] tracking-tight text-[var(--color-foreground)] sm:text-[34px]">
+          Account settings
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          Manage your profile and security preferences.
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
+          Manage how you appear on Faiceoff — your public identity, contact details, and account preferences.
         </p>
       </div>
 
-      {profileLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="size-5 animate-spin rounded-full border-2 border-[var(--color-muted-foreground)]/30 border-t-[var(--color-primary)]" />
-        </div>
-      ) : (
-        <div className="space-y-5">
+      <div className="grid gap-6 lg:grid-cols-[200px_1fr]">
+        {/* Section nav */}
+        <nav className="sticky top-6 hidden h-fit lg:block">
+          <ul className="space-y-1">
+            {SECTIONS.map((s) => {
+              const Icon = s.icon;
+              const isActive = activeSection === s.id;
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection(s.id);
+                      document.getElementById(`section-${s.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-600 transition-all ${
+                      isActive
+                        ? "bg-[var(--color-secondary)] text-[var(--color-foreground)]"
+                        : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)]/60 hover:text-[var(--color-foreground)]"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isActive ? (s.id === "danger" ? "text-red-500" : "text-[var(--color-primary)]") : ""}`} />
+                    {s.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-          {/* ══════════════════════════════════════════════════
-             1. Profile Card — Avatar + Display Name + Email
-             ══════════════════════════════════════════════════ */}
-          <section
-            className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
-            style={ghostBorder}
-          >
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-              {/* Avatar */}
-              <label className="group relative cursor-pointer shrink-0 self-start">
+        {/* Content */}
+        <div className="space-y-6">
+          {/* Profile */}
+          <Section id="section-profile" title="Profile" subtitle="Your photo and display name — visible across the marketplace.">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <label
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault(); setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) void uploadAvatarFile(file);
+                }}
+                className={`group relative block shrink-0 cursor-pointer self-start rounded-full ring-2 ring-offset-2 ring-offset-[var(--color-card)] transition-all ${
+                  isDragging ? "ring-[var(--color-primary)]" : "ring-[var(--color-border)] hover:ring-[var(--color-primary)]/40"
+                }`}
+              >
                 <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleAvatarUpload}
-                  className="hidden"
-                  disabled={avatarUploading}
+                  type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarUploading} className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (f) await uploadAvatarFile(f);
+                    e.target.value = "";
+                  }}
                 />
-                <div className="flex size-20 items-center justify-center rounded-full bg-[var(--color-lilac)] overflow-hidden">
+                <div className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-[var(--color-secondary)]">
                   {avatarUploading ? (
-                    <Loader2 className="size-6 animate-spin text-[var(--color-muted-foreground)]" />
-                  ) : userProfile.avatar_url ? (
-                    <img src={userProfile.avatar_url} alt="Avatar" className="size-full object-cover" />
-                  ) : (
-                    <span className="text-2xl font-700 text-[var(--color-foreground)]">
-                      {userProfile.display_name?.charAt(0)?.toUpperCase() || "?"}
-                    </span>
-                  )}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] text-white shadow-sm transition-transform group-hover:scale-110">
-                  <Camera className="size-3.5" />
-                </div>
-              </label>
-
-              {/* Name + Email inline */}
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:gap-5">
-                {/* Display Name */}
-                <div className="flex-1">
-                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                    Display Name
-                  </p>
-                  <input
-                    type="text"
-                    value={userProfile.display_name}
-                    onChange={(e) =>
-                      setUserProfile((prev) => ({ ...prev, display_name: e.target.value }))
-                    }
-                    placeholder="Your name"
-                    className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                    style={{ border: "none" }}
-                  />
-                </div>
-
-                {/* Email (read-only) */}
-                <div className="flex-1">
-                  <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                    Email Address
-                  </p>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-                    <input
-                      type="email"
-                      value={userProfile.email}
-                      disabled
-                      className="h-11 w-full rounded-xl bg-[var(--color-muted)] px-4 pl-9 text-[15px] font-500 text-[var(--color-muted-foreground)] outline-none"
-                      style={{ border: "none" }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ══════════════════════════════════════════════════
-             2. Creator: Creative Identity + Status Card
-             ══════════════════════════════════════════════════ */}
-          {role === "creator" && (
-            <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
-              {/* Creative Identity */}
-              <section
-                className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
-                style={ghostBorder}
-              >
-                <div className="mb-6 flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-lilac)]">
-                    <Fingerprint className="size-4 text-[var(--color-primary)]" />
-                  </div>
-                  <h2 className="text-lg font-700 text-[var(--color-foreground)]">Creative Identity</h2>
-                </div>
-
-                <div className="space-y-5">
-                  {/* Instagram */}
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      Instagram Handle
-                    </p>
-                    <div className="relative">
-                      <AtSign className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-                      <input
-                        type="text"
-                        value={creatorProfile.instagram_handle}
-                        onChange={(e) =>
-                          setCreatorProfile((prev) => ({
-                            ...prev,
-                            instagram_handle: e.target.value.replace(/^@/, ""),
-                          }))
-                        }
-                        placeholder="yourhandle"
-                        className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 pl-10 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                        style={{ border: "none" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bio */}
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      Short Bio
-                    </p>
-                    <textarea
-                      value={creatorProfile.bio}
-                      onChange={(e) => {
-                        if (e.target.value.length <= BIO_MAX) {
-                          setCreatorProfile((prev) => ({ ...prev, bio: e.target.value }));
-                        }
-                      }}
-                      placeholder="Tell brands about yourself and your content style..."
-                      rows={4}
-                      className="w-full rounded-xl bg-[var(--color-secondary)] px-4 py-3 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)] resize-none leading-relaxed"
-                      style={{ border: "none" }}
-                    />
-                    <p className="mt-1.5 text-right text-[11px] text-[var(--color-muted-foreground)]">
-                      {creatorProfile.bio.length}/{BIO_MAX} characters
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              {/* Status Card */}
-              <section
-                className="flex flex-col items-center justify-center rounded-2xl bg-[var(--color-card)] p-6 text-center"
-                style={ghostBorder}
-              >
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--color-mint)]">
-                  <CheckCircle2 className="size-6 text-[#1a6b3c]" />
-                </div>
-                <h3 className="mt-4 text-base font-700 text-[var(--color-foreground)]">
-                  Verified Creator
-                </h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-                  Your profile is currently featured in the marketplace. Keep your bio updated to maintain conversion rates.
-                </p>
-                <button
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-600 text-[var(--color-primary)] transition-all hover:bg-[var(--color-lilac)]"
-                  style={ghostBorder}
-                >
-                  <Eye className="size-4" />
-                  View Public Profile
-                </button>
-              </section>
-            </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-             2c. Creator: Discover Cover Photo
-             ══════════════════════════════════════════════════ */}
-          {role === "creator" && (
-            <section className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8" style={ghostBorder}>
-              <div className="mb-5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-lilac)]">
-                    <Camera className="size-4 text-[var(--color-primary)]" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-700 text-[var(--color-foreground)]">Discover Cover Photo</h2>
-                    <p className="text-[11px] text-[var(--color-muted-foreground)]">
-                      Shown on your creator card in Discover. Use a portrait shot that shows your face clearly.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <label className="group relative block cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleCoverUpload}
-                  className="hidden"
-                  disabled={coverUploading}
-                />
-                <div className="relative aspect-[4/5] w-[140px] overflow-hidden rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-secondary)] transition-colors group-hover:border-[var(--color-primary)]/50">
-                  {coverPreview ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
+                  ) : up.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverPreview} alt="Cover preview" className="h-full w-full object-cover object-top" />
+                    <img src={up.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
-                      <Camera className="h-6 w-6 text-[var(--color-muted-foreground)]" />
-                      <p className="text-[11px] text-[var(--color-muted-foreground)]">Upload cover photo</p>
-                    </div>
+                    <span className="font-display text-[26px] font-800 text-[var(--color-foreground)]">{initial}</span>
                   )}
-                  {coverUploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
-                    </div>
-                  )}
-                  {/* Edit overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Camera className="h-5 w-5 text-white" />
-                  </div>
                 </div>
-                <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
-                  JPG / PNG / WebP · max 8 MB
-                </p>
+                <div className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-transform group-hover:scale-110">
+                  <Camera className="h-3.5 w-3.5" />
+                </div>
               </label>
-            </section>
-          )}
 
-          {/* ══════════════════════════════════════════════════
-             2b. Brand-specific fields
-             ══════════════════════════════════════════════════ */}
-          {role === "brand" && (
-            <section
-              className="rounded-2xl bg-[var(--color-card)] p-6 lg:p-8"
-              style={ghostBorder}
-            >
-              <div className="mb-6 flex items-center gap-2.5">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-ocean)]">
-                  <Fingerprint className="size-4 text-[#2a5a8c]" />
-                </div>
-                <h2 className="text-lg font-700 text-[var(--color-foreground)]">Brand Profile</h2>
+              <div className="flex-1 space-y-4">
+                <Field label="Display name" hint="Shown on your invoices and creator card." error={errors.display_name}>
+                  <input
+                    type="text" value={up.display_name} maxLength={60} placeholder="Your name"
+                    onChange={(e) => setUp((p) => ({ ...p, display_name: e.target.value }))}
+                    className={inputCls(!!errors.display_name)}
+                  />
+                </Field>
+                <p className="text-[11px] text-[var(--color-muted-foreground)]">
+                  Drag and drop a photo onto the avatar, or click to upload — JPG / PNG / WebP, max 5 MB.
+                </p>
               </div>
+            </div>
+          </Section>
 
+          {/* Identity */}
+          <Section
+            id="section-identity"
+            title={role === "brand" ? "Brand details" : "Creator identity"}
+            subtitle={
+              role === "brand"
+                ? "Public-facing brand information used on requests and licences."
+                : "How brands find and recognise you on Faiceoff."
+            }
+          >
+            {role === "creator" && (
+              <div className="space-y-5">
+                <Field label="Instagram handle" hint="Without the @ — we display it on your creator card." error={errors.instagram_handle}>
+                  <IconInput
+                    icon={AtSign} hasError={!!errors.instagram_handle} maxLength={30} placeholder="yourhandle"
+                    value={cp.instagram_handle}
+                    onChange={(v) => setCp((p) => ({ ...p, instagram_handle: v.replace(/^@/, "").trim() }))}
+                  />
+                </Field>
+                <Field label="Short bio" hint="Tell brands about your style and the kind of work you take on.">
+                  <textarea
+                    value={cp.bio}
+                    onChange={(e) => { if (e.target.value.length <= BIO_MAX) setCp((p) => ({ ...p, bio: e.target.value })); }}
+                    placeholder="I'm a fashion creator focusing on streetwear and editorial moods…"
+                    rows={4}
+                    className={`${inputCls(false)} h-auto resize-none py-3 leading-relaxed`}
+                  />
+                  <div className="mt-1.5 flex justify-end">
+                    <span className="font-mono text-[10px] text-[var(--color-muted-foreground)]">{cp.bio.length}/{BIO_MAX}</span>
+                  </div>
+                </Field>
+              </div>
+            )}
+
+            {role === "brand" && (
               <div className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      Company Name
-                    </p>
-                    <input
-                      type="text"
-                      value={brandProfile.company_name}
-                      onChange={(e) =>
-                        setBrandProfile((prev) => ({ ...prev, company_name: e.target.value }))
-                      }
-                      placeholder="Acme Inc."
-                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                      style={{ border: "none" }}
+                  <Field label="Company name">
+                    <IconInput
+                      icon={Building2} maxLength={80} placeholder="Acme Inc."
+                      value={bp.company_name}
+                      onChange={(v) => setBp((p) => ({ ...p, company_name: v }))}
                     />
-                  </div>
-
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      Website URL
-                    </p>
-                    <input
-                      type="url"
-                      value={brandProfile.website_url}
-                      onChange={(e) =>
-                        setBrandProfile((prev) => ({ ...prev, website_url: e.target.value }))
-                      }
-                      placeholder="https://yourcompany.com"
-                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all placeholder:text-[var(--color-muted-foreground)] focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                      style={{ border: "none" }}
+                  </Field>
+                  <Field label="Website URL" error={errors.website_url}>
+                    <IconInput
+                      icon={Globe} hasError={!!errors.website_url} placeholder="https://yourcompany.com" type="url"
+                      value={bp.website_url}
+                      onChange={(v) => setBp((p) => ({ ...p, website_url: v }))}
                     />
-                  </div>
+                  </Field>
                 </div>
-
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      GST Number <span className="normal-case text-[var(--color-muted-foreground)]">(read-only)</span>
-                    </p>
+                  <Field label="Industry" hint="Helps creators evaluate brand fit.">
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-                      <input
-                        type="text"
-                        value={brandProfile.gst_number || "Not provided"}
-                        disabled
-                        className="h-11 w-full rounded-xl bg-[var(--color-muted)] px-4 pl-9 text-[15px] font-500 text-[var(--color-muted-foreground)] outline-none"
-                        style={{ border: "none" }}
-                      />
+                      <Briefcase className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+                      <select
+                        value={bp.industry}
+                        onChange={(e) => setBp((p) => ({ ...p, industry: e.target.value }))}
+                        className={`${inputCls(false)} pl-9 appearance-none`}
+                      >
+                        <option value="">Select industry</option>
+                        {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                      </select>
                     </div>
-                  </div>
-
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-700 uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                      Industry
-                    </p>
-                    <select
-                      value={brandProfile.industry}
-                      onChange={(e) =>
-                        setBrandProfile((prev) => ({ ...prev, industry: e.target.value }))
-                      }
-                      className="h-11 w-full rounded-xl bg-[var(--color-secondary)] px-4 text-[15px] font-500 text-[var(--color-foreground)] outline-none transition-all focus:bg-[var(--color-card)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                      style={{ border: "none" }}
-                    >
-                      <option value="">Select your industry</option>
-                      {INDUSTRIES.map((ind) => (
-                        <option key={ind} value={ind}>{ind}</option>
-                      ))}
-                    </select>
-                  </div>
+                  </Field>
+                  <Field label="GST number" hint="Linked at signup. Contact support to update.">
+                    <IconInput
+                      icon={Lock} disabled value={bp.gst_number || "Not provided"} onChange={() => {}}
+                    />
+                  </Field>
                 </div>
               </div>
-            </section>
-          )}
+            )}
 
-          {/* ══════════════════════════════════════════════════
-             3. Save Bar
-             ══════════════════════════════════════════════════ */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-[var(--color-card)] px-4 py-4 sm:px-6" style={ghostBorder}>
-            <div className="flex items-center gap-2 min-w-0">
-              {saveStatus === "success" ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 text-sm font-500 text-[#1a6b3c]"
-                >
-                  <CheckCircle2 className="size-4" />
-                  Changes saved successfully
-                </motion.div>
-              ) : saveStatus === "error" ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 text-sm font-500 text-red-500"
-                >
-                  <AlertCircle className="size-4" />
-                  {saveError || "Failed to save"}
-                </motion.div>
-              ) : (
-                <p className="text-[13px] text-[var(--color-muted-foreground)]">
-                  Unsaved changes will be lost if you leave this page.
-                </p>
-              )}
+            {role !== "brand" && role !== "creator" && (
+              <p className="text-[13px] text-[var(--color-muted-foreground)]">No additional identity fields for your role.</p>
+            )}
+          </Section>
+
+          {/* Account & Security */}
+          <Section id="section-security" title="Account & security" subtitle="Login credentials and contact information — changes here require support.">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Email address" hint="Used for login and notifications.">
+                <IconInput icon={Mail} disabled value={up.email} onChange={() => {}} type="email" />
+              </Field>
+              <Field label="Phone number" hint={up.phone ? "Linked at signup." : "Not linked yet."}>
+                <IconInput icon={Phone} disabled value={up.phone || "—"} onChange={() => {}} type="tel" />
+              </Field>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !userProfile.display_name.trim()}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] px-6 py-2.5 text-sm font-600 text-white transition-all hover:shadow-[0_4px_16px_rgba(106,28,246,0.3)] disabled:opacity-50 w-full sm:w-auto"
-            >
-              {isSaving ? (
-                <Loader2 className="size-4 animate-spin" />
+            <InfoRow
+              icon={HelpCircle}
+              title="Need to change email or phone?"
+              description={
+                <>
+                  For security, our team handles these manually. Reply to any Faiceoff email or write to{" "}
+                  <span className="font-600 text-[var(--color-foreground)]">support@faiceoff.com</span>.
+                </>
+              }
+              action={
+                <a
+                  href="mailto:support@faiceoff.com?subject=Update%20account%20details"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                >
+                  Contact support
+                </a>
+              }
+              tone="muted"
+            />
+
+            <InfoRow
+              icon={LogOut}
+              title="Sign out of this device"
+              description="You'll need to verify with an OTP next time you log in."
+              action={
+                <button
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] disabled:opacity-50"
+                >
+                  {isSigningOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+                  {isSigningOut ? "Signing out…" : "Sign out"}
+                </button>
+              }
+            />
+          </Section>
+
+          {/* Danger zone */}
+          <section id="section-danger" className="rounded-2xl border border-red-500/25 bg-[var(--color-card)] p-5 sm:p-6">
+            <div className="mb-4 flex items-start gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
+                <ShieldAlert className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-display text-[16px] font-700 text-red-500">Danger zone</h2>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
+                  Permanently remove your account and all associated data. This cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait" initial={false}>
+              {!showDeleteConfirm ? (
+                <motion.button
+                  key="delete-btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-transparent px-3 py-2 text-[12px] font-700 text-red-500 transition hover:bg-red-500/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete account
+                </motion.button>
               ) : (
-                <Save className="size-4" />
+                <motion.div
+                  key="delete-confirm" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                    Type <span className="font-mono font-700 text-red-500">DELETE</span> to confirm — your wallet balance, generations, licences, and earnings history will be wiped.
+                  </p>
+                  <input
+                    type="text" value={deleteConfirmText} placeholder="DELETE" autoFocus
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="mt-3 h-10 w-full max-w-[280px] rounded-lg border border-red-500/30 bg-transparent px-3 font-mono text-[13px] font-700 text-red-500 outline-none placeholder:text-red-500/30 focus:ring-2 focus:ring-red-500/20"
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                      disabled={isDeleting}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-2 text-[12px] font-700 text-white transition hover:bg-red-600 disabled:opacity-40"
+                    >
+                      {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {isDeleting ? "Deleting…" : "Permanently delete"}
+                    </button>
+                  </div>
+                </motion.div>
               )}
-              {isSaving ? "Saving..." : "Save all changes"}
-            </button>
-          </div>
-
-          {/* ══════════════════════════════════════════════════
-             4. Session Control + Danger Zone (side by side)
-             ══════════════════════════════════════════════════ */}
-          <div className="grid gap-5 sm:grid-cols-2">
-            {/* Session Control */}
-            <section
-              className="rounded-2xl bg-[var(--color-card)] p-6"
-              style={ghostBorder}
-            >
-              <h3 className="text-base font-700 text-[var(--color-foreground)]">Session Control</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-                Sign out from your current device. Your creator dashboard will be locked until you log in again.
-              </p>
-              <button
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-600 text-[var(--color-foreground)] transition-colors hover:text-[var(--color-primary)] disabled:opacity-50"
-              >
-                <LogOut className="size-4" />
-                {isSigningOut ? "Signing out..." : "Sign out of Faiceoff"}
-              </button>
-            </section>
-
-            {/* Danger Zone */}
-            <section
-              className="rounded-2xl bg-[var(--color-card)] p-6"
-              style={{ border: "1px solid rgba(180,19,64,0.12)" }}
-            >
-              <h3 className="text-base font-700 text-red-600">Danger Zone</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-                Deleting your account will permanently remove all models, earnings history, and marketplace listings. This action is irreversible.
-              </p>
-
-              <AnimatePresence mode="wait">
-                {!showDeleteConfirm ? (
-                  <motion.button
-                    key="delete-btn"
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-600 text-red-500 transition-colors hover:text-red-700"
-                  >
-                    <Trash2 className="size-4" />
-                    Delete account
-                  </motion.button>
-                ) : (
-                  <motion.div
-                    key="delete-confirm"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-4 space-y-3 overflow-hidden"
-                  >
-                    <p className="text-xs font-600 text-red-500">
-                      Type <span className="font-700">DELETE</span> to confirm:
-                    </p>
-                    <input
-                      type="text"
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      placeholder="DELETE"
-                      className="h-10 w-full rounded-xl bg-red-50 px-3 text-sm text-red-600 outline-none placeholder:text-red-300 focus:ring-1 focus:ring-red-400"
-                      style={{ border: "none" }}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
-                        disabled={isDeleting}
-                        className="flex-1 rounded-xl bg-[var(--color-secondary)] py-2 text-xs font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDeleteAccount}
-                        disabled={deleteConfirmText !== "DELETE" || isDeleting}
-                        className="flex-1 rounded-xl bg-red-500 py-2 text-xs font-600 text-white transition-colors hover:bg-red-600 disabled:opacity-40"
-                      >
-                        {isDeleting ? "Deleting..." : "Confirm delete"}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </section>
-          </div>
-
-          <div className="h-4" />
+            </AnimatePresence>
+          </section>
         </div>
-      )}
+      </div>
+
+      {/* Sticky save bar */}
+      <AnimatePresence>
+        {isDirty && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-4 left-1/2 z-40 w-[min(680px,calc(100%-1.5rem))] -translate-x-1/2"
+          >
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-[0_12px_36px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md">
+              <div className="flex min-w-0 items-center gap-2">
+                {saveStatus === "success" ? (
+                  <span className="flex items-center gap-1.5 text-[12px] font-700 text-emerald-500">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+                  </span>
+                ) : saveStatus === "error" ? (
+                  <span className="flex items-center gap-1.5 text-[12px] font-700 text-red-500">
+                    <AlertCircle className="h-3.5 w-3.5" /> {saveError || "Failed to save"}
+                  </span>
+                ) : (
+                  <>
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-primary)]" />
+                    </span>
+                    <p className="truncate text-[12px] font-600 text-[var(--color-foreground)]">Unsaved changes</p>
+                  </>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!baselineRef.current) return;
+                    setUp(baselineRef.current.user); setCp(baselineRef.current.creator); setBp(baselineRef.current.brand);
+                  }}
+                  disabled={isSaving}
+                  className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 disabled:opacity-50"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={handleSave} disabled={!canSave}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-1.5 text-[12px] font-700 text-[var(--color-primary-foreground)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_14px_-4px_rgba(201,169,110,0.55)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                >
+                  {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {isSaving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
+}
+
+/* ── Reusable bits ── */
+function Section({ id, title, subtitle, children }: { id: string; title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 sm:p-6">
+      <div className="mb-5">
+        <h2 className="font-display text-[16px] font-700 text-[var(--color-foreground)]">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">{subtitle}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <label className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">{label}</label>
+        {error && <span className="text-[11px] font-600 text-red-500">{error}</span>}
+      </div>
+      {children}
+      {hint && !error && (
+        <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-muted-foreground)]">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+function IconInput({
+  icon: Icon, value, onChange, placeholder, maxLength, type = "text", disabled = false, hasError = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string; maxLength?: number; type?: string; disabled?: boolean; hasError?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <Icon className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+      <input
+        type={type} value={value} placeholder={placeholder} maxLength={maxLength} disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputCls(hasError)} pl-9 ${disabled ? "cursor-not-allowed bg-[var(--color-secondary)]/40 text-[var(--color-muted-foreground)]" : ""}`}
+      />
+    </div>
+  );
+}
+
+function InfoRow({
+  icon: Icon, title, description, action, tone = "default",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: React.ReactNode;
+  action: React.ReactNode;
+  tone?: "default" | "muted";
+}) {
+  return (
+    <div
+      className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-4 ${
+        tone === "muted" ? "bg-[var(--color-secondary)]/40" : "bg-[var(--color-card)]"
+      }`}
+    >
+      <div className="flex items-start gap-2.5">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-muted-foreground)]" />
+        <div>
+          <p className="text-[13px] font-700 text-[var(--color-foreground)]">{title}</p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">{description}</p>
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function inputCls(hasError: boolean): string {
+  return [
+    "h-10 w-full rounded-lg border bg-[var(--color-card)] px-3 text-[13px] font-500 text-[var(--color-foreground)]",
+    "outline-none transition-all placeholder:text-[var(--color-muted-foreground)]/60",
+    "focus:ring-2",
+    hasError
+      ? "border-red-500/40 focus:border-red-500/60 focus:ring-red-500/20"
+      : "border-[var(--color-border)] focus:border-[var(--color-primary)]/50 focus:ring-[var(--color-primary)]/15",
+  ].join(" ");
 }
