@@ -669,21 +669,26 @@ export function ChatThread({
         </header>
       )}
 
-      {/* Messages — subtle Faiceoff-mark background pattern */}
+      {/* Messages — clean theme with subtle gradient + faint dot grid for depth.
+          (No big logo pattern — it competed with text. Industry standard:
+          soft tonal shift from card surface, optional tiny dot grid for
+          texture, gold radial highlight at top for warmth.) */}
       <div
         ref={scrollContainerRef}
         onScroll={onScroll}
-        className="relative flex-1 overflow-y-auto px-4 py-4"
+        className="relative flex-1 overflow-y-auto bg-[var(--color-secondary)]/40 px-4 py-4"
         style={{
-          backgroundImage: "url(/logo-mark.png)",
-          backgroundRepeat: "repeat",
-          backgroundSize: "120px 120px",
-          backgroundPosition: "center",
-          backgroundBlendMode: "overlay",
+          backgroundImage: [
+            // Soft gold radial glow at top for atmospheric warmth
+            "radial-gradient(ellipse 800px 240px at 50% -10%, rgba(201,169,110,0.06), transparent)",
+            // Very fine dot grid (barely visible) — gives the surface texture
+            // without competing with text. 18px spacing.
+            "radial-gradient(circle at 1px 1px, rgba(201,169,110,0.06) 1px, transparent 0)",
+          ].join(", "),
+          backgroundSize: "100% 100%, 18px 18px",
+          backgroundPosition: "center top, 0 0",
         }}
       >
-        {/* Pattern dimmer overlay so the logo doesn't compete with messages */}
-        <div className="pointer-events-none absolute inset-0 bg-[var(--color-card)]/92" />
         <div className="relative">
         {loadingMore && (
           <div className="flex justify-center pb-2">

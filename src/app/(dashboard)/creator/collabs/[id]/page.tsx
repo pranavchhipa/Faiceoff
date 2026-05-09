@@ -496,6 +496,7 @@ export default function CreatorCollabWorkspacePage() {
           <ChatTab
             conversationId={conversation_id}
             counterpartyName={brand.company_name ?? "Brand"}
+            counterpartyAvatar={brand.avatar_url}
           />
         )}
         {activeTab === "details" && (
@@ -799,9 +800,11 @@ function ApprovalCard({
 function ChatTab({
   conversationId,
   counterpartyName,
+  counterpartyAvatar,
 }: {
   conversationId: string | null;
   counterpartyName: string;
+  counterpartyAvatar: string | null;
 }) {
   if (!conversationId) {
     return (
@@ -823,7 +826,7 @@ function ChatTab({
         conversationId={conversationId}
         counterparty={{
           name: counterpartyName,
-          avatar_url: null,
+          avatar_url: counterpartyAvatar,
           subtitle: "Brand",
         }}
       />
