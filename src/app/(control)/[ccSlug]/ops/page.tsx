@@ -97,7 +97,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   ] = await Promise.all([
     admin.from("creators").select("id", { count: "exact", head: true }).gte("created_at", startIso),
     admin.from("brands").select("id", { count: "exact", head: true }).gte("created_at", startIso),
-    admin.from("credit_top_ups").select("amount_paise").gte("created_at", startIso).eq("status", "PAID"),
+    admin.from("credit_top_ups").select("amount_paise").gte("created_at", startIso).eq("status", "success"),
     admin.from("generations").select("id", { count: "exact", head: true }).gte("created_at", startIso),
     admin.from("approvals").select("id", { count: "exact", head: true }).gte("created_at", startIso).eq("status", "approved"),
     admin.from("licenses").select("id", { count: "exact", head: true }).gte("issued_at", startIso),
@@ -115,7 +115,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     admin.from("approvals").select("creator_share_paise, platform_share_paise").gte("created_at", startIso).eq("status", "approved"),
     admin.from("approvals").select("creator_share_paise, platform_share_paise").eq("status", "approved"),
 
-    admin.from("webhook_events").select("created_at").eq("provider", "razorpay").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("webhook_events").select("received_at").eq("source", "razorpay").order("received_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("generations").select("created_at").not("image_url", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const dbMs = Date.now() - dbStart;
@@ -154,7 +154,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     health: {
       db_ok: !creatorsToday.error,
       db_ms: dbMs,
-      last_razorpay_webhook_at: lastWebhook.data?.created_at ?? null,
+      last_razorpay_webhook_at: lastWebhook.data?.received_at ?? null,
       last_gemini_gen_at: lastGen.data?.created_at ?? null,
     },
     generated_at: new Date().toISOString(),
