@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   Megaphone, Loader2, Plus, Clock, CheckCircle2, Zap,
   ArrowRight, Image as ImageIcon, FileImage,
-  Wand2, MessageSquare, Send, Globe,
+  Send, Globe,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -340,125 +340,111 @@ function CollabCard({
     );
   }
 
-  // Big active card — hero treatment with product image, progress, quick actions
+  // Big active card — single click anywhere takes you to the full collab
+  // workspace (Studio / Vault / Chat / Details tabs).
   return (
     <motion.div
       variants={{ initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }}
       initial="initial"
       animate="animate"
       transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40 hover:shadow-[0_12px_32px_-12px_rgba(201,169,110,0.3)]"
     >
-      {/* Top accent bar — colour matches package tier */}
-      <div className={`h-1 w-full ${tier?.bar ?? "bg-[var(--color-primary)]"}`} />
+      <Link
+        href={`/brand/collabs/${collab.id}`}
+        className="group block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40 hover:shadow-[0_12px_32px_-12px_rgba(201,169,110,0.3)]"
+      >
+        {/* Top accent bar — colour matches package tier */}
+        <div className={`h-1 w-full ${tier?.bar ?? "bg-[var(--color-primary)]"}`} />
 
-      <div className="flex gap-0">
-        {/* Product image (left, square) */}
-        <div className="relative aspect-square w-[120px] shrink-0 overflow-hidden bg-[var(--color-secondary)] sm:w-[140px]">
-          {collab.product_image_url ? (
-            <Image
-              src={collab.product_image_url}
-              alt={collab.name}
-              fill
-              sizes="140px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <FileImage className="h-8 w-8 text-[var(--color-muted-foreground)]" />
-            </div>
-          )}
-          {/* Status pill on the image */}
-          <span className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-700 uppercase backdrop-blur-md ${statusMeta.bg} ${statusMeta.color}`}>
-            <StatusIcon className="h-2.5 w-2.5" />
-            {statusMeta.label}
-          </span>
-        </div>
-
-        {/* Right content */}
-        <div className="flex min-w-0 flex-1 flex-col p-4">
-          {/* Title + counterpart */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-display text-[16px] font-800 leading-tight text-[var(--color-foreground)]">
-                {collab.name}
-              </p>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
-                {collab.counterpart_avatar_url ? (
-                  <Image
-                    src={collab.counterpart_avatar_url}
-                    alt=""
-                    width={16}
-                    height={16}
-                    className="h-4 w-4 rounded-full object-cover ring-1 ring-[var(--color-border)]"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[8px] font-700 text-[var(--color-foreground)]">
-                    {collab.counterpart_name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span className="truncate">with {collab.counterpart_name}</span>
+        <div className="flex gap-0">
+          {/* Product image (left, square) */}
+          <div className="relative aspect-square w-[140px] shrink-0 overflow-hidden bg-[var(--color-secondary)] sm:w-[160px]">
+            {collab.product_image_url ? (
+              <Image
+                src={collab.product_image_url}
+                alt={collab.name}
+                fill
+                sizes="160px"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                unoptimized
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <FileImage className="h-8 w-8 text-[var(--color-muted-foreground)]" />
               </div>
-            </div>
-            {tier && TierIcon && (
-              <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9.5px] font-700 uppercase ${tier.bg} ${tier.color}`}>
-                <TierIcon className="h-2.5 w-2.5" />
-                {tier.label}
-              </span>
             )}
+            {/* Status pill on the image */}
+            <span className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-700 uppercase backdrop-blur-md ${statusMeta.bg} ${statusMeta.color}`}>
+              <StatusIcon className="h-2.5 w-2.5" />
+              {statusMeta.label}
+            </span>
           </div>
 
-          {/* Progress */}
-          {progress !== null && (
-            <div className="mt-3">
-              <div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-muted-foreground)]">
-                <span>{collab.approved_count}/{collab.final_images_target} approved</span>
-                {creditsLeft !== null && (
-                  <span>
-                    <Zap className="mr-0.5 inline h-2.5 w-2.5 text-[var(--color-primary)]" />
-                    {creditsLeft} credits left
+          {/* Right content */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
+            {/* Title + counterpart + tier chip */}
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-display text-[17px] font-800 leading-tight text-[var(--color-foreground)]">
+                    {collab.name}
+                  </p>
+                  <div className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
+                    {collab.counterpart_avatar_url ? (
+                      <Image
+                        src={collab.counterpart_avatar_url}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 rounded-full object-cover ring-1 ring-[var(--color-border)]"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[8px] font-700 text-[var(--color-foreground)]">
+                        {collab.counterpart_name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="truncate">with {collab.counterpart_name}</span>
+                  </div>
+                </div>
+                {tier && TierIcon && (
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9.5px] font-700 uppercase ${tier.bg} ${tier.color}`}>
+                    <TierIcon className="h-2.5 w-2.5" />
+                    {tier.label}
                   </span>
                 )}
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
-                <div
-                  className={`h-full rounded-full transition-all ${tier?.bar ?? "bg-[var(--color-primary)]"}`}
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                />
+            </div>
+
+            {/* Progress + open hint */}
+            <div className="mt-4">
+              {progress !== null && (
+                <>
+                  <div className="mb-1 flex items-center justify-between font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                    <span>{collab.approved_count}/{collab.final_images_target} approved</span>
+                    {creditsLeft !== null && (
+                      <span>
+                        <Zap className="mr-0.5 inline h-2.5 w-2.5 text-[var(--color-primary)]" />
+                        {creditsLeft} credits left
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
+                    <div
+                      className={`h-full rounded-full transition-all ${tier?.bar ?? "bg-[var(--color-primary)]"}`}
+                      style={{ width: `${Math.min(progress, 100)}%` }}
+                    />
+                  </div>
+                </>
+              )}
+              <div className="mt-3 flex items-center gap-1 font-mono text-[10.5px] font-700 uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                <span>Open workspace</span>
+                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
               </div>
             </div>
-          )}
-
-          {/* Quick actions */}
-          <div className="mt-3 flex items-center gap-1.5">
-            <Link
-              href={`/brand/collabs/${collab.id}/studio`}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] transition hover:-translate-y-0.5"
-            >
-              <Wand2 className="h-3.5 w-3.5" />
-              Studio
-            </Link>
-            <Link
-              href={`/brand/collabs/${collab.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40"
-              aria-label="Open collab workspace"
-            >
-              <ImageIcon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Vault</span>
-            </Link>
-            <Link
-              href={`/brand/collabs/${collab.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40"
-              aria-label="Open chat"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Chat</span>
-            </Link>
           </div>
         </div>
-      </div>
+      </Link>
     </motion.div>
   );
 }
