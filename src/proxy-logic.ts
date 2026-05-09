@@ -23,6 +23,17 @@ export function decideRedirect(pathname: string, role: Role | null, onboardingCo
   if (pathname.startsWith("/api/")) return null;
   if (pathname.startsWith("/_next/") || pathname.startsWith("/static/")) return null;
 
+  // Control Centre — has its own TOTP auth at /(control)/[ccSlug]/.
+  // Proxy must NOT intercept these or it'll bounce the operator to /login.
+  // Match the configured slug (env) AND the segment shape (exactly one
+  // top-level segment of length >= 16, our minimum). Both guards together
+  // mean a random URL like `/foo` still falls through to the rest of the
+  // pipeline and 404s normally.
+  const ccSlug = process.env.OWNER_CONTROL_CENTRE_SLUG?.trim();
+  if (ccSlug && (pathname === `/${ccSlug}` || pathname.startsWith(`/${ccSlug}/`))) {
+    return null;
+  }
+
   // 1. Public pages — no checks
   if (isPublicPath(pathname)) return null;
 
