@@ -19,24 +19,16 @@ import {
   Camera,
   CheckCircle2,
   Fingerprint,
-  IndianRupee,
   Plus,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Star,
-  Tag,
   Trash2,
   Upload,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
-
-interface CategoryInfo {
-  category: string;
-  price_per_generation_paise: number;
-  subcategories: string[];
-}
 
 interface CreatorProfile {
   instagram_handle: string | null;
@@ -59,7 +51,6 @@ export default function CreatorLikenessPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([]);
-  const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
 
@@ -112,7 +103,6 @@ export default function CreatorLikenessPage() {
         if (!cancelled && statsRes.status === "fulfilled" && statsRes.value.ok) {
           const data = await statsRes.value.json();
           if (data.creator) setProfile(data.creator);
-          if (data.categories) setCategories(data.categories);
         }
 
         if (
@@ -144,8 +134,6 @@ export default function CreatorLikenessPage() {
   // queued — those feed Flux Kontext directly (LoRA training retired in 00026).
   const faceModelReady = photos >= targetPhotos;
   const kycVerified = profile?.kyc_status === "approved";
-
-  const niches: CategoryInfo[] = categories;
 
   if (loading) return <LikenessSkeleton />;
 
@@ -275,16 +263,13 @@ export default function CreatorLikenessPage() {
           </p>
 
           <div className="mt-4 flex gap-2">
-            <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-transform hover:-translate-y-0.5">
+            <a
+              href="/dashboard/onboarding/photos"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-transform hover:-translate-y-0.5"
+            >
               <Upload className="h-3.5 w-3.5" />
               Upload photos
-            </button>
-            {faceModelReady && (
-              <button className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]">
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refresh photos
-              </button>
-            )}
+            </a>
           </div>
         </div>
       </motion.section>
@@ -397,14 +382,17 @@ export default function CreatorLikenessPage() {
             })}
 
             {photos < targetPhotos && (
-              <button className="group flex aspect-square items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]">
+              <a
+                href="/dashboard/onboarding/photos"
+                className="group flex aspect-square items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]"
+              >
                 <div className="text-center">
                   <Plus className="mx-auto h-5 w-5" />
                   <p className="mt-0.5 font-mono text-[9px] font-700 uppercase tracking-wider">
                     +{targetPhotos - photos}
                   </p>
                 </div>
-              </button>
+              </a>
             )}
           </div>
         )}
@@ -415,85 +403,64 @@ export default function CreatorLikenessPage() {
         </p>
       </motion.section>
 
-      {/* ═══════════ Niches + pricing ═══════════ */}
+      {/* ═══════════ Manage your face — quick links ═══════════ */}
       <motion.section
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-              Niches & pricing
-            </p>
-            <h3 className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              Where brands can book you
-            </h3>
-          </div>
-          <button className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[12px] font-700 text-[var(--color-primary-foreground)]">
-            <Plus className="h-3 w-3" />
-            Add niche
-          </button>
-        </div>
-
-        {niches.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 py-10 text-center">
-            <Tag className="h-5 w-5 text-[var(--color-muted-foreground)]" />
-            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
-              No niches set
-            </p>
-            <p className="max-w-sm text-[12px] text-[var(--color-muted-foreground)]">
-              Add the categories you want brands to book you in, with your
-              per-generation rate.
-            </p>
-          </div>
-        ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {niches.map((n, i) => (
-            <motion.div
-              key={n.category}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.05, duration: 0.3 }}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 font-mono text-[10px] font-700 uppercase tracking-wider text-[var(--color-primary)]">
-                  <Tag className="h-2.5 w-2.5" />
-                  {n.category}
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <IndianRupee className="h-5 w-5 text-[var(--color-foreground)]" />
-                <p className="font-display text-[26px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-                  {(n.price_per_generation_paise / 100).toLocaleString("en-IN")}
-                </p>
-                <span className="text-[11px] text-[var(--color-muted-foreground)]">/gen</span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1">
-                {n.subcategories?.map((sub) => (
-                  <span
-                    key={sub}
-                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-0.5 text-[10px] font-600 text-[var(--color-muted-foreground)]"
-                  >
-                    {sub}
-                  </span>
-                ))}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-        )}
-
-        <p className="mt-4 flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-muted-foreground)]">
-          <ShieldCheck className="h-3 w-3 text-[var(--color-primary)]" />
-          Block-listed concepts are checked via pgvector before every generation.
-          Update anytime.
-        </p>
+        <ManageCard
+          icon={ShieldCheck}
+          label="Blocked categories"
+          desc="Concepts that brands can never generate with your face. Three-layer check (keywords + vector + LLM) on every request."
+          href="/creator/blocked-categories"
+        />
+        <ManageCard
+          icon={Sparkles}
+          label="Packages & pricing"
+          desc="Set the Frame / Feature / Cover packs brands can book — that's where your per-collab pricing lives."
+          href="/creator/packages"
+        />
       </motion.section>
     </div>
+  );
+}
+
+/* ───────── Manage card ───────── */
+
+function ManageCard({
+  icon: Icon,
+  label,
+  desc,
+  href,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  desc: string;
+  href: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="group flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-secondary)]/30"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+          {label}
+        </p>
+        <p className="mt-0.5 text-[12px] leading-snug text-[var(--color-muted-foreground)]">
+          {desc}
+        </p>
+      </div>
+      <span className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)] transition-colors group-hover:text-[var(--color-primary)]">
+        Open →
+      </span>
+    </a>
   );
 }
 

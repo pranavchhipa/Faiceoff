@@ -569,7 +569,7 @@ export default function BrandDashboardPage() {
                 Top up <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
               <Link
-                href="/brand/billing"
+                href="/brand/wallet"
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
               >
                 <Receipt className="h-3.5 w-3.5" />

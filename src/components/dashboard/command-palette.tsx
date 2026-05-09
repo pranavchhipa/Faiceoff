@@ -128,11 +128,10 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
         { label: "Dashboard", href: "/brand/dashboard", icon: LayoutDashboard },
         { label: "Discover Creators", href: "/brand/discover", icon: Users },
         { label: "Collabs", href: "/brand/collabs", icon: Megaphone },
-        { label: "Vault", href: "/brand/vault", icon: ImageIcon },
+        { label: "Library", href: "/brand/vault", icon: ImageIcon },
         { label: "Licenses", href: "/brand/licenses", icon: FileSignature },
         { label: "Wallet", href: "/brand/wallet", icon: Wallet },
         { label: "Credits", href: "/brand/wallet", icon: IndianRupee },
-        { label: "Billing", href: "/brand/billing", icon: Package },
         { label: "Settings", href: "/brand/settings", icon: Settings },
       ],
     });

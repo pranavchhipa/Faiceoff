@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ImageIcon, Download, Sparkles } from "lucide-react";
+import { Library, Download } from "lucide-react";
 import VaultGrid, { type VaultItem } from "./vault-grid";
 
 /* ── Types ── */
@@ -63,18 +63,18 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
       <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-            <ImageIcon className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
-            Licensed creatives · R2 storage · instant download
+            <Library className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
+            Licensed assets · ready to deploy
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
-            Vault
+          <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
+            Library
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             <span className="font-600 text-[var(--color-foreground)]">
               {count.toLocaleString("en-IN")}
             </span>{" "}
-            image{count !== 1 ? "s" : ""} ready to deploy · every asset tracks
-            back to a creator, brief, and license.
+            licensed image{count !== 1 ? "s" : ""} · every asset tracks back to
+            its creator, brief, and licence certificate.
           </p>
         </div>
 
