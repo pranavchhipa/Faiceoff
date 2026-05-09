@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/redis/rate-limiter";
 import { freeSignupGrant } from "@/lib/billing/credits-service";
+import { sendBrandWelcome, sendCreatorWelcome } from "@/lib/email/transactional";
 
 /**
  * POST /api/auth/verify-otp
@@ -118,6 +119,27 @@ export async function POST(request: Request) {
         { error: "Couldn't set up your profile. Please try again." },
         { status: 500 },
       );
+    }
+
+    // ── Welcome email (only on first verify, idempotent) ──────────────────
+    // existingUser === null means this is the first time the user has
+    // verified — perfect signal to send the role-appropriate welcome.
+    if (!existingUser) {
+      const displayName =
+        (meta?.display_name as string | undefined) ??
+        authUserEmail.split("@")[0] ??
+        "there";
+      after(async () => {
+        try {
+          if (role === "creator") {
+            await sendCreatorWelcome({ to: authUserEmail, creatorName: displayName });
+          } else {
+            await sendBrandWelcome({ to: authUserEmail, brandName: displayName });
+          }
+        } catch (err) {
+          console.error("[verify-otp] welcome email failed", err);
+        }
+      });
     }
 
     // Upsert role-specific row

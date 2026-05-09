@@ -26,7 +26,13 @@ import { spendWallet } from "@/lib/billing";
 import { issueLicense } from "@/lib/licenses";
 import { PLATFORM_COMMISSION_RATE, GST_ON_COMMISSION_RATE } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
-import { sendBrandApproved } from "@/lib/email/transactional";
+import {
+  sendBrandApproved,
+  sendBrandLicenseIssued,
+  sendCreatorLicenseIssued,
+  sendCollabCompletedBrand,
+  sendCollabCompletedCreator,
+} from "@/lib/email/transactional";
 
 // ── Admin client helper ───────────────────────────────────────────────────────
 
@@ -176,11 +182,16 @@ export async function POST(
   }
 
   // ── 4b2. Increment collab_sessions.approved_count + auto-complete ──────────
+  // Track whether THIS approval was the one that flipped the collab to
+  // completed — so we can fire the "collab wrapped" emails downstream.
+  let collabJustCompleted = false;
+  let completedCollabName: string | null = null;
+  let completedApprovedCount = 0;
   if (gen.collab_session_id) {
     try {
       const { data: sess } = await admin
         .from("collab_sessions")
-        .select("approved_count, final_images_target, status")
+        .select("approved_count, final_images_target, status, name")
         .eq("id", gen.collab_session_id)
         .maybeSingle();
 
@@ -194,6 +205,11 @@ export async function POST(
             ...(isComplete ? { status: "completed" } : {}),
           })
           .eq("id", gen.collab_session_id);
+        if (isComplete && sess.status !== "completed") {
+          collabJustCompleted = true;
+          completedCollabName = sess.name ?? null;
+          completedApprovedCount = newCount;
+        }
       }
     } catch (err) {
       console.error("[approvals/approve] approved_count increment failed", err);
@@ -316,7 +332,10 @@ export async function POST(
     user.id,
   );
 
-  // Email brand the good news (fire-and-forget)
+  // Fire-and-forget email batch:
+  //   • Brand: image approved + licence ready
+  //   • Creator: licence issued (their share now in escrow)
+  //   • Both sides: collab completed (only if THIS approval finished it)
   after(async () => {
     try {
       const { data: brand } = await admin
@@ -326,7 +345,7 @@ export async function POST(
         .maybeSingle();
       const { data: creatorUser } = await admin
         .from("users")
-        .select("display_name")
+        .select("display_name, email")
         .eq("id", user.id)
         .maybeSingle();
       if (!brand?.user_id) return;
@@ -335,17 +354,87 @@ export async function POST(
         .select("email")
         .eq("id", brand.user_id)
         .maybeSingle();
-      if (!bu?.email) return;
+      const brandEmail = bu?.email ?? null;
+      const creatorEmail = creatorUser?.email ?? null;
+      const brandName = brand.company_name ?? "Brand";
+      const creatorName = creatorUser?.display_name ?? "the creator";
       const productName =
         (gen.structured_brief as { product_name?: string } | null)
           ?.product_name ?? "your product";
-      await sendBrandApproved({
-        to: bu.email,
-        brandName: brand.company_name ?? "Brand",
-        creatorName: creatorUser?.display_name ?? "the creator",
-        productName,
-        generationId,
-      });
+
+      // 1. Brand: image approved
+      if (brandEmail) {
+        await sendBrandApproved({
+          to: brandEmail,
+          brandName,
+          creatorName,
+          productName,
+          generationId,
+        });
+      }
+
+      // 2. Brand + creator: licence issued
+      if (licenseId) {
+        if (brandEmail) {
+          void sendBrandLicenseIssued({
+            to: brandEmail,
+            brandName,
+            creatorName,
+            productName,
+            licenseId,
+            certUrl: certUrl ?? null,
+          });
+        }
+        if (creatorEmail) {
+          void sendCreatorLicenseIssued({
+            to: creatorEmail,
+            creatorName,
+            brandName,
+            productName,
+            licenseId,
+            certUrl: certUrl ?? null,
+            creatorSharePaise: creatorShare,
+          });
+        }
+      }
+
+      // 3. Both sides: collab completed (only on the final approval)
+      if (collabJustCompleted && completedCollabName) {
+        // Aggregate creator's total share for this collab
+        let totalCreatorShare = 0;
+        try {
+          const { data: licRows } = await admin
+            .from("licenses")
+            .select("creator_share_paise")
+            .eq("creator_id", creatorId)
+            .eq("brand_id", brandId);
+          totalCreatorShare = ((licRows ?? []) as Array<{ creator_share_paise: number | null }>).reduce(
+            (s, r) => s + (r.creator_share_paise ?? 0),
+            0,
+          );
+        } catch {
+          // best-effort, fall back to 0
+        }
+        if (creatorEmail) {
+          void sendCollabCompletedCreator({
+            to: creatorEmail,
+            creatorName,
+            brandName,
+            collabName: completedCollabName,
+            totalCreatorSharePaise: totalCreatorShare,
+            imagesApproved: completedApprovedCount,
+          });
+        }
+        if (brandEmail) {
+          void sendCollabCompletedBrand({
+            to: brandEmail,
+            brandName,
+            creatorName,
+            collabName: completedCollabName,
+            imagesApproved: completedApprovedCount,
+          });
+        }
+      }
     } catch (mailErr) {
       console.warn("[approvals/approve] email notify failed", mailErr);
     }

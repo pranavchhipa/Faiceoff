@@ -8,6 +8,7 @@
 //   payment.failed   → mark order failed
 
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
 import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -19,6 +20,7 @@ import {
   handleWalletTopUpFailed,
 } from "@/app/api/wallet/handlers";
 import { addCredits } from "@/lib/billing/credits-service";
+import { sendBrandTopupReceipt } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -193,7 +195,7 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
         if (creditTopUpId) {
           const { data: topUp } = await admin
             .from("credit_top_ups")
-            .select("id, brand_id, status, credits")
+            .select("id, brand_id, status, credits, amount_paise")
             .eq("id", creditTopUpId)
             .maybeSingle();
           if (topUp && topUp.status !== "success") {
@@ -209,6 +211,33 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
             await addCredits({ brandId: topUp.brand_id, topUpId: topUp.id }).catch(
               (err: Error) => console.error("[razorpay/webhook] addCredits failed", err)
             );
+
+            // Receipt email — fire-and-forget
+            after(async () => {
+              try {
+                const { data: br } = await admin
+                  .from("brands")
+                  .select("company_name, user_id")
+                  .eq("id", topUp.brand_id)
+                  .maybeSingle();
+                if (!br?.user_id) return;
+                const { data: u } = await admin
+                  .from("users")
+                  .select("email")
+                  .eq("id", br.user_id)
+                  .maybeSingle();
+                if (!u?.email) return;
+                await sendBrandTopupReceipt({
+                  to: u.email,
+                  brandName: br.company_name ?? "Brand",
+                  amountPaise: topUp.amount_paise ?? 0,
+                  creditsAdded: topUp.credits ?? 0,
+                  paymentRef: payment.id ?? null,
+                });
+              } catch (err) {
+                console.warn("[razorpay/webhook] topup receipt email failed", err);
+              }
+            });
           }
         }
       } else {
