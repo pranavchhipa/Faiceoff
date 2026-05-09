@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeCertUrl } from "@/lib/licenses/cert-storage";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -124,6 +125,14 @@ export async function GET(
           brief_one_liner: requestRes.data.brief_one_liner ?? null,
         }
       : null,
-    licenses: licensesRes.data ?? [],
+    licenses: (licensesRes.data ?? []).map(
+      (l: { id: string; cert_url: string | null }) => ({
+        ...l,
+        // Old rows stored the S3-endpoint URL which fails with Auth in
+        // browsers. Rewrite to the public CDN URL on read so the UI never
+        // sees a broken link.
+        cert_url: normalizeCertUrl(l.cert_url, l.id),
+      }),
+    ),
   });
 }

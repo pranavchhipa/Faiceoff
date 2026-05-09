@@ -144,6 +144,8 @@ export interface GenerateLicenseCertPDFInput {
   };
   generation: {
     id: string;
+    /** Public URL of the licensed image — embedded as thumbnail in the cert. */
+    image_url?: string | null;
   };
 }
 

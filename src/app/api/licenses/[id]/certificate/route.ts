@@ -80,8 +80,8 @@ export async function GET(
   // ── 5. Ensure cert exists (generate on-demand if missing) ───────────────────
   let certUrl = license.cert_url;
   if (!certUrl) {
-    // Need creator + brand info for the cert
-    const [creatorDataRes, brandDataRes] = await Promise.all([
+    // Need creator + brand info + generation image for the cert
+    const [creatorDataRes, brandDataRes, generationDataRes] = await Promise.all([
       admin
         .from("creators")
         .select("instagram_handle, users!creators_user_id_fkey(display_name)")
@@ -92,6 +92,11 @@ export async function GET(
         .select("company_name, gst_number")
         .eq("id", license.brand_id)
         .maybeSingle(),
+      admin
+        .from("generations")
+        .select("image_url")
+        .eq("id", license.generation_id)
+        .maybeSingle(),
     ]);
 
     const creatorRow = creatorDataRes.data as {
@@ -101,6 +106,9 @@ export async function GET(
     const brandRow = brandDataRes.data as {
       company_name: string;
       gst_number: string | null;
+    } | null;
+    const generationRow = generationDataRes.data as {
+      image_url: string | null;
     } | null;
 
     try {
@@ -114,7 +122,10 @@ export async function GET(
           company_name: brandRow?.company_name ?? "Brand",
           gst_number: brandRow?.gst_number ?? null,
         },
-        generation: { id: license.generation_id },
+        generation: {
+          id: license.generation_id,
+          image_url: generationRow?.image_url ?? null,
+        },
       });
 
       const uploaded = await uploadCertPDF({

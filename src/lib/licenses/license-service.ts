@@ -125,8 +125,8 @@ export async function issueLicense(
 
   const license = inserted as License;
 
-  // 2. Fetch creator + brand display fields for the cert
-  const [creatorResult, brandResult] = await Promise.all([
+  // 2. Fetch creator + brand display fields + generation image for the cert
+  const [creatorResult, brandResult, generationResult] = await Promise.all([
     db
       .from("creators")
       .select("instagram_handle, users!creators_user_id_fkey(display_name)")
@@ -136,6 +136,11 @@ export async function issueLicense(
       .from("brands")
       .select("company_name, gst_number")
       .eq("id", input.brandId)
+      .maybeSingle(),
+    db
+      .from("generations")
+      .select("image_url")
+      .eq("id", input.generationId)
       .maybeSingle(),
   ]);
 
@@ -147,6 +152,10 @@ export async function issueLicense(
   const brandRow = brandResult.data as {
     company_name: string;
     gst_number: string | null;
+  } | null;
+
+  const generationRow = generationResult.data as {
+    image_url: string | null;
   } | null;
 
   const creator = {
@@ -167,7 +176,10 @@ export async function issueLicense(
       license,
       creator,
       brand,
-      generation: { id: input.generationId },
+      generation: {
+        id: input.generationId,
+        image_url: generationRow?.image_url ?? null,
+      },
     });
     certBuffer = certResult.buffer;
     certSha256 = certResult.sha256;
