@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { NotificationBell } from "./notification-bell";
@@ -41,12 +42,32 @@ export function TopBar({
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/85 px-4 backdrop-blur-xl lg:px-6">
-      {/* Left: slot or fallback page title */}
+      {/* Left: slot or fallback "Faiceoff. · {page title}" wordmark */}
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {leftSlot ?? (
-          <h1 className="truncate font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
-            {fallbackTitle}
-          </h1>
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Brand wordmark — clickable home link, mirrors creator pill nav */}
+            <Link
+              href={role === "admin" ? "/admin" : "/brand/dashboard"}
+              aria-label="Faiceoff home"
+              className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-90"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-mark.png"
+                alt="Faiceoff"
+                className="h-6 w-6 object-contain"
+              />
+              <span className="font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
+                Faiceoff<span className="text-[var(--color-primary)]">.</span>
+              </span>
+            </Link>
+            {/* Divider + current page title */}
+            <span className="hidden h-4 w-px bg-[var(--color-border)] md:block" />
+            <h1 className="hidden truncate font-display text-[14px] font-600 tracking-tight text-[var(--color-muted-foreground)] md:block">
+              {fallbackTitle}
+            </h1>
+          </div>
         )}
       </div>
 
