@@ -12,6 +12,8 @@
 
 import { Resend } from "resend";
 import * as Sentry from "@sentry/nextjs";
+import fs from "node:fs";
+import path from "node:path";
 
 const FROM_ADDRESS =
   process.env.EMAIL_FROM ?? "Faiceoff <notifications@faiceoff.com>";
@@ -28,6 +30,30 @@ function getClient(): Resend | null {
   if (!key) return null;
   _client = new Resend(key);
   return _client;
+}
+
+/**
+ * Logo as a CID-embeddable attachment. Read once at module init so we
+ * don't hit disk on every send. If the file isn't readable, fall back
+ * silently — the wrap() template's wordmark still shows the brand even
+ * without the mark.
+ *
+ * CID embed (vs an http img src) works in EVERY mail client, even with
+ * external images blocked by default (Gmail / Outlook for first-time
+ * senders). Same trick Stripe / Razorpay / Notion use.
+ */
+const LOGO_CID = "faiceoff-logo";
+let _logoAttachment: { filename: string; content: string; contentId: string } | null = null;
+try {
+  const logoPath = path.join(process.cwd(), "public", "logo-mark.png");
+  const buf = fs.readFileSync(logoPath);
+  _logoAttachment = {
+    filename: "logo-mark.png",
+    content: buf.toString("base64"),
+    contentId: LOGO_CID,
+  };
+} catch (err) {
+  console.warn("[email] could not read logo-mark.png; falling back to wordmark only", err);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,10 +148,12 @@ function wrap(title: string, opts: WrapOpts): string {
     ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:${COLORS.paper};">${escapeHtml(preheader)}</div>`
     : "";
 
-  // Faiceoff logo: hosted public URL. Mail clients will render. If
-  // blocked, the alt text + brand text on the right keep the header
-  // legible.
-  const logoSrc = `${APP_URL}/logo-mark.png`;
+  // Faiceoff logo: CID inline embed (cid:faiceoff-logo). Resolves out of
+  // the attachment we ship with every send — works in every mail client
+  // even when external images are blocked. If the attachment didn't load
+  // at module init we still render the <img> tag so the alt text + the
+  // wordmark next to it keep the header legible.
+  const logoSrc = `cid:${LOGO_CID}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -239,6 +267,21 @@ async function send(opts: { to: string; subject: string; html: string }): Promis
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
+      // Inline logo: Resend sets disposition=inline automatically when
+      // `contentId` is present. cid:faiceoff-logo in the HTML resolves
+      // to this attachment. If we couldn't read the file at boot, ship
+      // without it — wordmark next to the (broken) image still shows.
+      ...(_logoAttachment
+        ? {
+            attachments: [
+              {
+                filename: _logoAttachment.filename,
+                content: _logoAttachment.content,
+                contentId: _logoAttachment.contentId,
+              },
+            ],
+          }
+        : {}),
     });
   } catch (err) {
     console.error("[email] send failed", err);
