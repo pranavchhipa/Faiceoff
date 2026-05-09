@@ -148,12 +148,11 @@ export default async function UsersPage({ params, searchParams }: Props) {
                           ? { cls: "cc-pill-ok", text: "verified" }
                           : { cls: "cc-pill-warn", text: "unverified" }
                         : { cls: "cc-pill-neutral", text: "no-profile" };
-                const detail =
-                  c
-                    ? `KYC: ${c.kyc_status ?? "—"}`
-                    : b
-                      ? `${b.company_name ?? "—"} · ₹${((b.credits_remaining ?? 0) / 100).toLocaleString("en-IN")}`
-                      : "—";
+                const detail = c
+                  ? "creator profile"
+                  : b
+                    ? `${b.company_name ?? "—"} · ₹${((b.credits_remaining ?? 0) / 100).toLocaleString("en-IN")} credits`
+                    : "—";
                 return (
                   <tr key={u.id}>
                     <td>{u.display_name ?? <span className="cc-dim">—</span>}</td>

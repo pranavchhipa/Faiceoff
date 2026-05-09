@@ -16,6 +16,7 @@ import { ensureCCAuth, PageHeader } from "../../_components/page-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
+import GenerationsGrid from "./generations-grid";
 
 export const dynamic = "force-dynamic";
 
@@ -521,73 +522,20 @@ export default async function UserDrillDownPage({ params }: Props) {
           </div>
         </div>
 
-        {/* GENERATIONS WITH THUMBNAILS */}
+        {/* GENERATIONS WITH THUMBNAILS — click to zoom */}
         <div>
-          <p className="cc-card-title" style={{ marginBottom: 8 }}>Generations ({generations.length}, last 100)</p>
+          <p className="cc-card-title" style={{ marginBottom: 8 }}>
+            Generations ({generations.length}, last 100) — click any thumbnail to zoom
+          </p>
           <div className="cc-card" style={{ padding: 12 }}>
-            {generations.length === 0 ? (
-              <p className="cc-table-empty" style={{ padding: 24 }}>No generations.</p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
-                {generations.map((g) => (
-                  <div key={g.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <div
-                      style={{
-                        position: "relative",
-                        aspectRatio: "1",
-                        background: "var(--cc-bg)",
-                        border: "1px solid var(--cc-border)",
-                        borderRadius: 4,
-                        overflow: "hidden",
-                      }}
-                    >
-                      {g.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <div
-                          style={{
-                            display: "flex",
-                            height: "100%",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "var(--cc-fg-dim)",
-                            fontSize: 10,
-                          }}
-                        >
-                          no image
-                        </div>
-                      )}
-                      <span
-                        className={`cc-pill ${statusPill(g.status)}`}
-                        style={{
-                          position: "absolute",
-                          left: 4,
-                          top: 4,
-                          fontSize: 8.5,
-                        }}
-                      >
-                        {g.status}
-                      </span>
-                    </div>
-                    <p
-                      className="cc-mono-cell"
-                      style={{
-                        margin: 0,
-                        fontSize: 9.5,
-                        color: "var(--cc-fg-muted)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                      title={g.id}
-                    >
-                      {g.id.slice(0, 8)}… · {relativeFrom(g.created_at)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <GenerationsGrid
+              generations={generations.map((g) => ({
+                id: g.id,
+                status: g.status,
+                image_url: g.image_url,
+                created_at: g.created_at,
+              }))}
+            />
           </div>
         </div>
 
