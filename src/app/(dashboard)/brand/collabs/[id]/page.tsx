@@ -109,7 +109,10 @@ function fmtDate(iso: string) {
 }
 
 const VAULT_STATUSES = new Set(["approved"]);
-const PENDING_STATUSES = new Set(["ready_for_brand_review", "ready_for_approval"]);
+// Brand needs to act (Send / Retry / Discard) only on ready_for_brand_review.
+const BRAND_PENDING_STATUSES = new Set(["ready_for_brand_review"]);
+// Awaiting creator decision — informational for brand, no action needed.
+const CREATOR_PENDING_STATUSES = new Set(["ready_for_approval"]);
 
 export default function BrandCollabWorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -155,7 +158,9 @@ export default function BrandCollabWorkspacePage() {
   const progress = targetImages > 0 ? Math.round((approved / targetImages) * 100) : 0;
 
   const vaultGens   = generations.filter((g) => VAULT_STATUSES.has(g.status));
-  const pendingGens = generations.filter((g) => PENDING_STATUSES.has(g.status)).length;
+  const brandPending   = generations.filter((g) => BRAND_PENDING_STATUSES.has(g.status)).length;
+  const creatorPending = generations.filter((g) => CREATOR_PENDING_STATUSES.has(g.status)).length;
+  const pendingGens    = brandPending + creatorPending; // total for stat tile only
 
   const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
     { id: "studio", label: "Studio", icon: Wand2 },
@@ -309,8 +314,14 @@ export default function BrandCollabWorkspacePage() {
           icon={Activity}
           label="Pending review"
           value={pendingGens.toString()}
-          sub={pendingGens > 0 ? "needs action" : "all clear"}
-          tone={pendingGens > 0 ? "warn" : "default"}
+          sub={
+            brandPending > 0
+              ? `${brandPending} needs action`
+              : creatorPending > 0
+              ? `${creatorPending} with creator`
+              : "all clear"
+          }
+          tone={brandPending > 0 ? "warn" : "default"}
         />
         <Stat
           icon={CheckCircle2}
@@ -357,7 +368,7 @@ export default function BrandCollabWorkspacePage() {
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       >
         {activeTab === "studio" && (
-          <StudioTab collabId={id} session={session} creditsLeft={creditsLeft} pendingGens={pendingGens} conversationId={conversation_id} />
+          <StudioTab collabId={id} session={session} creditsLeft={creditsLeft} brandPending={brandPending} creatorPending={creatorPending} conversationId={conversation_id} />
         )}
         {activeTab === "vault"   && <VaultTab generations={vaultGens} />}
         {activeTab === "chat"    && <ChatTab conversationId={conversation_id} />}
@@ -422,13 +433,15 @@ function StudioTab({
   collabId,
   session,
   creditsLeft,
-  pendingGens,
+  brandPending,
+  creatorPending,
   conversationId,
 }: {
   collabId: string;
   session: Session;
   creditsLeft: number | null;
-  pendingGens: number;
+  brandPending: number;
+  creatorPending: number;
   conversationId: string | null;
 }) {
   if (session.status !== "active") {
@@ -474,17 +487,32 @@ function StudioTab({
 
       {/* Right column: actions / hints */}
       <div className="space-y-3">
-        {/* Pending review hint */}
-        {pendingGens > 0 && (
+        {/* Brand-action pending: brand needs to send/retry/discard */}
+        {brandPending > 0 && (
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-amber-500" />
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400">
-                {pendingGens} awaiting your review
+                {brandPending} awaiting your review
               </p>
             </div>
             <p className="mt-1 text-[12px] leading-snug text-amber-700/80 dark:text-amber-400/80">
               Open Studio to send them to the creator or retry.
+            </p>
+          </div>
+        )}
+
+        {/* Creator-action pending: informational, no brand action */}
+        {creatorPending > 0 && (
+          <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-3.5">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-violet-500" />
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-violet-700 dark:text-violet-400">
+                {creatorPending} with creator for approval
+              </p>
+            </div>
+            <p className="mt-1 text-[12px] leading-snug text-violet-700/80 dark:text-violet-400/80">
+              Creator has 48h to approve or reject. You&apos;ll be notified.
             </p>
           </div>
         )}

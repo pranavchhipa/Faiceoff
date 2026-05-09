@@ -460,3 +460,197 @@ export async function refineProductInImage(params: {
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ITERATION: brand-driven retry pass
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build the iteration prompt — Gemini edits the brand's first output applying
+ * ONLY the changes the brand asked for, preserving identity + product +
+ * everything not mentioned.
+ *
+ * Why this works:
+ *   - Gemini 3 Pro is far better at editing an existing image than generating
+ *     from scratch with a "make it more X" instruction
+ *   - Identity + product anchors at top AND bottom (recency-weighted attention)
+ *   - Explicit "what to preserve" rules tell the model not to drift on parts
+ *     the brand didn't ask about — biggest risk on retries is the model
+ *     "improving" things the brand was happy with
+ */
+function buildIterationPrompt(
+  iterationNotes: string,
+  aspectRatio: string,
+): string {
+  return [
+    "ITERATION TASK — read carefully:",
+    "You are editing an already-generated photograph (the FIRST attached image).",
+    "The brand has requested specific changes. Apply ONLY those changes.",
+    "Everything not mentioned stays IDENTICAL to the first image.",
+    "",
+    "─── BRAND'S REQUESTED CHANGES ───",
+    `"${iterationNotes}"`,
+    "",
+    "─── IDENTITY LOCK (non-negotiable) ───",
+    "The person must remain the EXACT same individual from the face references",
+    "(images 2 onwards). Preserve:",
+    "  • Bone structure, face shape, body proportions — DO NOT slim or sharpen",
+    "  • Skin tone, freckles, moles, hairline",
+    "  • Eye/lip/nose shape from references",
+    "If the brand's request did not mention the person, keep face/body untouched.",
+    "",
+    "─── PRODUCT LOCK (non-negotiable) ───",
+    "The product is the SKU shown in the LAST attached image. Preserve:",
+    "  • Brand wordmark, exact font, packaging, every character of label text",
+    "  • Pack format (tube/jar/bottle/can), colour, finish",
+    "If the brand's request did not mention the product, keep it untouched.",
+    "",
+    "─── WHAT TO PRESERVE FROM THE FIRST IMAGE ───",
+    "If the brand only mentioned pose → keep lighting, scene, mood, camera SAME.",
+    "If they only mentioned lighting → keep pose, framing, scene SAME.",
+    "If they only mentioned mood → keep composition, pose, camera SAME.",
+    "Default: change as little as possible, only what they explicitly asked.",
+    "",
+    "─── APPLY CHANGES NATURALLY ───",
+    "\"Warmer mood\" → shift colour temperature, don't repaint the scene.",
+    "\"Different pose\" → change posture only, keep angle, framing, location.",
+    "\"Closer crop\" → re-frame, don't regenerate background.",
+    "Photorealism, ultra-realistic, 8K detail preserved.",
+    "",
+    `Output: ${aspectRatio} aspect ratio, photorealistic edit of the first image.`,
+  ].join("\n");
+}
+
+/**
+ * One iteration call. Throws on any failure. Caller wraps with retry logic.
+ *
+ * Image order sent to Gemini:
+ *   1. Previous output (the base to edit)
+ *   2..N. Face references (identity lock, 1-3 images)
+ *   N+1. Product reference (product lock)
+ */
+async function callIterateOnce(params: {
+  previousImage: ImageInput;
+  faceRefs: ImageInput[];
+  productImage: ImageInput;
+  iterationNotes: string;
+  aspectRatio: string;
+}): Promise<GenerateImageResult> {
+  const finalPrompt = buildIterationPrompt(
+    params.iterationNotes,
+    params.aspectRatio,
+  );
+
+  if (params.faceRefs.length === 0) {
+    throw new Error("gemini-client: at least 1 face reference is required");
+  }
+
+  const parts: Array<
+    { text: string } | { inlineData: { mimeType: string; data: string } }
+  > = [
+    { text: finalPrompt },
+    {
+      inlineData: {
+        mimeType: params.previousImage.mimeType,
+        data: bytesToBase64(params.previousImage.bytes),
+      },
+    },
+  ];
+
+  for (const ref of params.faceRefs) {
+    parts.push({
+      inlineData: {
+        mimeType: ref.mimeType,
+        data: bytesToBase64(ref.bytes),
+      },
+    });
+  }
+  parts.push({
+    inlineData: {
+      mimeType: params.productImage.mimeType,
+      data: bytesToBase64(params.productImage.bytes),
+    },
+  });
+
+  const client = getClient();
+  const modelName = getModel();
+  let response;
+  try {
+    response = await client.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts }],
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Gemini iteration SDK call failed (model=${modelName}): ${msg.slice(0, 500)}`,
+    );
+  }
+
+  const candidates = response.candidates ?? [];
+  for (const cand of candidates) {
+    const candParts = cand.content?.parts ?? [];
+    for (const part of candParts) {
+      const inline = (
+        part as { inlineData?: { mimeType?: string; data?: string } }
+      ).inlineData;
+      if (inline?.data && inline.mimeType?.startsWith("image/")) {
+        return {
+          bytes: base64ToBytes(inline.data),
+          mimeType: inline.mimeType,
+          finalPrompt,
+        };
+      }
+    }
+  }
+
+  const textParts: string[] = [];
+  for (const cand of candidates) {
+    for (const part of cand.content?.parts ?? []) {
+      const t = (part as { text?: string }).text;
+      if (t) textParts.push(t);
+    }
+  }
+  const textMsg = textParts.join(" ").slice(0, 200);
+  throw new Error(
+    `Gemini iteration returned no image. ${textMsg ? `Reason: ${textMsg}` : "Response empty."}`,
+  );
+}
+
+/**
+ * Brand-driven retry: edit the first generated image applying the brand's
+ * iteration notes. Identity + product + scene preserved unless brand asked
+ * to change them.
+ *
+ * 1 inline retry. Throws on second failure — caller marks gen failed +
+ * refunds the credit.
+ */
+export async function iterateOnImage(params: {
+  previousImage: ImageInput;
+  faceRefs: ImageInput[];
+  productImage: ImageInput;
+  iterationNotes: string;
+  aspectRatio: string;
+}): Promise<GenerateImageResult> {
+  try {
+    return await callIterateOnce(params);
+  } catch (firstErr) {
+    const firstMsg =
+      firstErr instanceof Error ? firstErr.message : String(firstErr);
+    console.warn(
+      `[gemini-client] Iteration first attempt failed: ${firstMsg}. Retrying once.`,
+    );
+    try {
+      return await callIterateOnce(params);
+    } catch (secondErr) {
+      const secondMsg =
+        secondErr instanceof Error ? secondErr.message : String(secondErr);
+      throw new Error(
+        `Gemini iteration failed after 1 retry. First: ${firstMsg}. Second: ${secondMsg}`,
+      );
+    }
+  }
+}

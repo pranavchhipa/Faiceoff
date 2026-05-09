@@ -24,6 +24,8 @@ import {
   Zap,
   Eye,
   AtSign,
+  Send,
+  Trash2,
 } from "lucide-react";
 import {
   SETTING_OPTIONS,
@@ -60,6 +62,7 @@ interface Generation {
   status: string;
   image_url: string | null;
   created_at: string;
+  retry_count?: number | null;
 }
 
 type PillKey = string | null;
@@ -295,8 +298,8 @@ export default function BrandStudioPage() {
       setPendingGenId(null);
       setRecentGens((prev) => {
         const existing = prev.find((g) => g.id === genId);
-        if (existing) return prev.map((g) => g.id === genId ? { ...g, status: gen.status, image_url: gen.image_url } : g);
-        return [{ id: gen.id, status: gen.status, image_url: gen.image_url, created_at: gen.created_at }, ...prev];
+        if (existing) return prev.map((g) => g.id === genId ? { ...g, status: gen.status, image_url: gen.image_url, retry_count: gen.retry_count } : g);
+        return [{ id: gen.id, status: gen.status, image_url: gen.image_url, created_at: gen.created_at, retry_count: gen.retry_count }, ...prev];
       });
       // Refresh session credits
       fetch(`/api/collabs/${collabId}`, { cache: "no-store" })
@@ -313,6 +316,89 @@ export default function BrandStudioPage() {
     pollRef.current = setInterval(() => pollGenStatus(pendingGenId), POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [pendingGenId, pollGenStatus]);
+
+  // ── Review-gate actions (Send / Retry / Discard on ready_for_brand_review) ──
+  const [reviewAction, setReviewAction] = useState<"send" | "discard" | null>(null);
+  const [retryOpen, setRetryOpen] = useState(false);
+  const [retryNotes, setRetryNotes] = useState("");
+  const [retrySubmitting, setRetrySubmitting] = useState(false);
+  const [toast, setToast] = useState<{ kind: "success" | "info"; text: string } | null>(null);
+
+  // Auto-dismiss toast after 4s
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  async function handleSendForApproval(genId: string) {
+    if (reviewAction) return;
+    setReviewAction("send");
+    setError(null);
+    try {
+      const res = await fetch(`/api/generations/${genId}/send-for-approval`, { method: "POST" });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error ?? d.message ?? "Failed to send");
+      setRecentGens((prev) => prev.map((g) => g.id === genId ? { ...g, status: "ready_for_approval" } : g));
+      setToast({ kind: "success", text: `Sent to ${creator.name ?? "creator"} — they have 48h to approve` });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setReviewAction(null);
+    }
+  }
+
+  async function handleDiscard(genId: string) {
+    if (reviewAction) return;
+    if (!confirm("Discard this image? This can't be undone.")) return;
+    setReviewAction("discard");
+    setError(null);
+    try {
+      const res = await fetch(`/api/generations/${genId}/discard`, { method: "POST" });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error ?? d.message ?? "Failed to discard");
+      setRecentGens((prev) => prev.map((g) => g.id === genId ? { ...g, status: "discarded" } : g));
+      setToast({ kind: "info", text: "Image discarded" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to discard");
+    } finally {
+      setReviewAction(null);
+    }
+  }
+
+  async function handleSubmitRetry(genId: string) {
+    if (retrySubmitting) return;
+    const notes = retryNotes.trim();
+    if (!notes) { setError("Tell us what to change"); return; }
+    setRetrySubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/generations/${genId}/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ iteration_notes: notes }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error ?? "Retry failed");
+      const newId = d.new_generation_id as string;
+      // Mark old as discarded; insert new as draft
+      setRecentGens((prev) => [
+        { id: newId, status: "draft", image_url: null, created_at: new Date().toISOString(), retry_count: d.retry_count ?? 1 },
+        ...prev.map((g) => g.id === genId ? { ...g, status: "discarded" } : g),
+      ]);
+      setPendingGenId(newId);
+      setRetryOpen(false);
+      setRetryNotes("");
+      // Refresh credits
+      fetch(`/api/collabs/${collabId}`, { cache: "no-store" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (d) setSession(d.session); });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Retry failed");
+    } finally {
+      setRetrySubmitting(false);
+    }
+  }
 
   async function handleUploadImage(file: File) {
     setUploadingImg(true);
@@ -746,12 +832,61 @@ export default function BrandStudioPage() {
             </div>
 
             {heroGen?.status === "ready_for_brand_review" && (
-              <Link
-                href={`/brand/collabs/${collabId}?review=${heroGen.id}`}
-                className="flex items-center justify-center gap-1.5 border-t border-[var(--color-border)] bg-[var(--color-primary)]/8 px-4 py-3 text-[13px] font-700 text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/12"
-              >
-                <Eye className="h-3.5 w-3.5" /> Review and decide
-              </Link>
+              <div className="border-t border-[var(--color-border)] bg-[var(--color-secondary)]/40 p-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Send */}
+                  <button
+                    type="button"
+                    onClick={() => handleSendForApproval(heroGen.id)}
+                    disabled={!!reviewAction}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-3 py-2.5 text-[12.5px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-6px_rgba(201,169,110,0.5)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                  >
+                    {reviewAction === "send"
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Send className="h-3.5 w-3.5" />}
+                    <span>Send</span>
+                  </button>
+
+                  {/* Retry */}
+                  {(heroGen.retry_count ?? 0) === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => { setRetryOpen(true); setRetryNotes(""); }}
+                      disabled={!!reviewAction}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5 text-[12.5px] font-700 text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Retry</span>
+                    </button>
+                  ) : (
+                    <div
+                      title="Retry already used on this image"
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)]/40 px-3 py-2.5 text-[12.5px] font-700 text-[var(--color-muted-foreground)]/70"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Retry used</span>
+                    </div>
+                  )}
+
+                  {/* Discard */}
+                  <button
+                    type="button"
+                    onClick={() => handleDiscard(heroGen.id)}
+                    disabled={!!reviewAction}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5 text-[12.5px] font-700 text-[var(--color-muted-foreground)] transition hover:border-red-500/40 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {reviewAction === "discard"
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                    <span>Discard</span>
+                  </button>
+                </div>
+                <p className="mt-2 text-center font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                  {(heroGen.retry_count ?? 0) === 0
+                    ? "Send to creator · or refine once with feedback"
+                    : "Retry already used — send to creator or discard"}
+                </p>
+              </div>
             )}
           </div>
 
@@ -770,6 +905,187 @@ export default function BrandStudioPage() {
           )}
         </div>
       </div>
+
+      {/* ── Toast (Send / Discard feedback) ── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
+          >
+            <div
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-md ${
+                toast.kind === "success"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-foreground)]"
+              }`}
+            >
+              {toast.kind === "success" ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <Eye className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+              )}
+              <span className="text-[13px] font-600">{toast.text}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Retry modal ── */}
+      <AnimatePresence>
+        {retryOpen && heroGen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center"
+            onClick={() => !retrySubmitting && setRetryOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[560px] overflow-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-[0_24px_64px_-16px_rgba(0,0,0,0.4)] sm:rounded-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-primary)]/8 px-5 py-3.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15">
+                  <Wand2 className="h-4 w-4 text-[var(--color-primary)]" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
+                    One last refinement
+                  </p>
+                  <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                    Only retry available · 1 credit
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !retrySubmitting && setRetryOpen(false)}
+                  disabled={retrySubmitting}
+                  className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)] disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-4 p-5">
+                {/* Image preview + brief recap */}
+                <div className="grid grid-cols-[120px_1fr] gap-4">
+                  <div className="relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
+                    {heroGen.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={heroGen.image_url}
+                        alt="Attempt 1"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                      </div>
+                    )}
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 font-mono text-[8.5px] font-700 uppercase tracking-[0.14em] text-white backdrop-blur-md">
+                      Attempt 1
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                      Your brief
+                    </p>
+                    <BriefRecapRow label="Setting" value={brief.setting} options={SETTING_OPTIONS} />
+                    <BriefRecapRow label="Mood" value={brief.mood_palette} options={MOOD_PALETTE_OPTIONS} />
+                    <BriefRecapRow label="Camera" value={brief.camera_type} options={CAMERA_TYPE_OPTIONS} />
+                    <BriefRecapRow label="Aspect" value={brief.aspect_ratio} options={ASPECT_RATIO_OPTIONS} />
+                  </div>
+                </div>
+
+                {/* Iteration textarea */}
+                <div>
+                  <label className="mb-1.5 block font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                    What would you like to change?
+                  </label>
+                  <textarea
+                    value={retryNotes}
+                    onChange={(e) => setRetryNotes(e.target.value)}
+                    placeholder="e.g. make the pose standing, warmer lighting, hands holding the product closer to face"
+                    rows={4}
+                    maxLength={500}
+                    autoFocus
+                    disabled={retrySubmitting}
+                    className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-[13px] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none disabled:opacity-60"
+                  />
+                  <p className="mt-1 text-right font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                    {retryNotes.length}/500
+                  </p>
+                </div>
+
+                {error && retryOpen && (
+                  <div className="flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/8 px-3 py-2 text-[12px] text-red-500">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-secondary)]/40 px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() => setRetryOpen(false)}
+                  disabled={retrySubmitting}
+                  className="rounded-xl px-4 py-2 text-[13px] font-700 text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubmitRetry(heroGen.id)}
+                  disabled={retrySubmitting || !retryNotes.trim()}
+                  className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-6px_rgba(201,169,110,0.5)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                >
+                  {retrySubmitting
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting…</>
+                    : <><RefreshCw className="h-3.5 w-3.5" /> Retry · 1 credit</>}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Small helper to display a brief field's human label in the retry modal
+function BriefRecapRow({
+  label,
+  value,
+  options,
+}: {
+  label: string;
+  value: string | null | undefined;
+  options: readonly PillOption[];
+}) {
+  if (!value) return null;
+  const opt = options.find((o) => o.key === value);
+  const display = opt ? opt.label : value.startsWith("custom:") ? value.slice(7) : value;
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="w-14 shrink-0 font-mono text-[9px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+        {label}
+      </span>
+      <span className="text-[12px] font-600 text-[var(--color-foreground)]">
+        {display}
+      </span>
     </div>
   );
 }

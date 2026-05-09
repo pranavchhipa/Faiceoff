@@ -39,6 +39,7 @@ import { embedFaiceoffMetadata } from "@/lib/ai/image-metadata";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
   generateImage,
+  iterateOnImage,
   refineProductInImage,
   type ImageInput,
 } from "@/lib/ai/gemini-client";
@@ -646,4 +647,278 @@ export async function runGenerationsBatch(
   generationIds: string[],
 ): Promise<void> {
   await Promise.allSettled(generationIds.map((id) => runGeneration(id)));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ITERATION ORCHESTRATOR — brand retry path
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Drive a retry generation through the iteration pipeline.
+ *
+ * Caller (POST /api/generations/[id]/retry) must:
+ *   1. Have already deducted 1 credit from brands.credits_remaining
+ *   2. Have inserted the new gen row in 'draft' with structured_brief containing:
+ *      - iteration_notes: string (the brand's textarea text)
+ *      - previous_image_url: string (R2 url of the gen being retried)
+ *      - All original brief fields (product_image_url, aspect_ratio, etc.)
+ *
+ * On any failure, refunds the credit and marks gen 'failed'.
+ * Idempotent — second call sees status != 'draft' and exits.
+ */
+export async function runIteration(generationId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+
+  // ── 1. Atomic claim ──────────────────────────────────────────────────────
+  const { data: claimed, error: claimError } = await admin
+    .from("generations")
+    .update({ status: "generating" })
+    .eq("id", generationId)
+    .eq("status", "draft")
+    .select("id, brand_id, creator_id, structured_brief")
+    .maybeSingle();
+
+  if (claimError) {
+    console.error(
+      `[run-iteration] claim failed for gen=${generationId}`,
+      claimError,
+    );
+    return;
+  }
+  if (!claimed) return; // already running or doesn't exist
+
+  const brandId = claimed.brand_id as string;
+  const creatorId = claimed.creator_id as string;
+  const brief = claimed.structured_brief as Record<string, unknown>;
+
+  const iterationNotes = (brief.iteration_notes as string | undefined)?.trim();
+  const previousImageUrl = brief.previous_image_url as string | undefined;
+  const productImageUrl = brief.product_image_url as string | undefined;
+  const aspectRatio = (brief.aspect_ratio as string | undefined) ?? "1:1";
+
+  /** Refund the 1 credit charged at retry-route time. */
+  async function refundCredit() {
+    try {
+      const { data: brandRow } = await admin
+        .from("brands")
+        .select("credits_remaining")
+        .eq("id", brandId)
+        .maybeSingle();
+      const current = (brandRow?.credits_remaining ?? 0) as number;
+      await admin
+        .from("brands")
+        .update({ credits_remaining: current + 1 })
+        .eq("id", brandId);
+      await admin.from("credit_transactions").insert({
+        brand_id: brandId,
+        type: "refund",
+        credits: 1,
+        balance_after: current + 1,
+        reference_type: "generation",
+        reference_id: generationId,
+        description: "Retry failed — credit refunded",
+      });
+    } catch (err) {
+      console.error(
+        `[run-iteration] credit refund failed for gen=${generationId}`,
+        err,
+      );
+    }
+  }
+
+  /** Mark gen failed with a reason in compliance_result for audit. */
+  async function markFailed(reason: string) {
+    await admin
+      .from("generations")
+      .update({
+        status: "failed",
+        compliance_result: { iteration_error: reason },
+      })
+      .eq("id", generationId);
+  }
+
+  if (!iterationNotes) {
+    await markFailed("iteration_notes missing from brief");
+    await refundCredit();
+    return;
+  }
+  if (!previousImageUrl) {
+    await markFailed("previous_image_url missing from brief");
+    await refundCredit();
+    return;
+  }
+  if (!productImageUrl) {
+    await markFailed("product_image_url missing from brief");
+    await refundCredit();
+    return;
+  }
+
+  try {
+    // ── 2. Fetch previous image bytes from R2 ───────────────────────────────
+    const previousImage = await fetchImageBytes(
+      previousImageUrl,
+      "previous attempt image",
+    );
+
+    // ── 3. Pick + fetch face refs (same as base pipeline) ───────────────────
+    const facePaths = await pickFaceRefStoragePaths(admin, creatorId);
+    const faceRefs: ImageInput[] = [];
+    for (const p of facePaths) {
+      const url = await signedUrlFor(admin, p);
+      faceRefs.push(await fetchImageBytes(url, `face ref ${p}`));
+    }
+
+    // ── 4. Fetch product image ──────────────────────────────────────────────
+    const productImage = await fetchImageBytes(productImageUrl, "product image");
+
+    // ── 5. Call Gemini iteration ────────────────────────────────────────────
+    let iterationResult: Awaited<ReturnType<typeof iterateOnImage>>;
+    try {
+      iterationResult = await iterateOnImage({
+        previousImage,
+        faceRefs,
+        productImage,
+        iterationNotes,
+        aspectRatio,
+      });
+    } catch (geminiErr) {
+      const msg =
+        geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+      console.error(
+        `[run-iteration] GEMINI_FAIL gen=${generationId} msg="${msg}"`,
+      );
+      Sentry.captureException(geminiErr, {
+        tags: { route: "run-iteration", phase: "gemini" },
+        extra: { generation_id: generationId },
+      });
+      await admin
+        .from("generations")
+        .update({
+          status: "failed",
+          compliance_result: { iteration_error: msg.slice(0, 500) },
+        })
+        .eq("id", generationId);
+      await refundCredit();
+      return;
+    }
+
+    // ── 6. EXIF metadata embed ──────────────────────────────────────────────
+    const stampedBytes = await embedFaiceoffMetadata(iterationResult.bytes, {
+      generationId,
+      brandId,
+      creatorId,
+      modelName:
+        process.env.NANO_BANANA_MODEL ??
+        process.env.GEMINI_MODEL ??
+        "gemini-3-pro-image-preview",
+    });
+
+    // ── 7. R2 upload ────────────────────────────────────────────────────────
+    const ext = iterationResult.mimeType === "image/jpeg" ? "jpg" : "png";
+    const r2Key = `generations/${generationId}/raw.${ext}`;
+    let r2Url: string;
+    try {
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: r2Key,
+          Body: stampedBytes,
+          ContentType: iterationResult.mimeType,
+        }),
+      );
+      const r2PublicBase =
+        process.env.R2_PUBLIC_URL ??
+        `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}`;
+      r2Url = `${r2PublicBase.replace(/\/$/, "")}/${r2Key}`;
+    } catch (r2Err) {
+      console.error(
+        `[run-iteration] R2 upload failed for gen=${generationId}`,
+        r2Err,
+      );
+      Sentry.captureException(r2Err, {
+        tags: { route: "run-iteration", phase: "r2_upload" },
+        extra: { generation_id: generationId },
+      });
+      await admin
+        .from("generations")
+        .update({
+          status: "failed",
+          assembled_prompt: iterationResult.finalPrompt,
+        })
+        .eq("id", generationId);
+      await refundCredit();
+      return;
+    }
+
+    // ── 8. Hive content safety check ────────────────────────────────────────
+    let hiveUnsafe = false;
+    try {
+      const hiveResult = await checkImage(r2Url);
+      const allClasses =
+        hiveResult.status?.[0]?.response?.output?.[0]?.classes ?? [];
+      for (const cls of allClasses) {
+        if (
+          HIVE_NSFW_CLASSES.has(cls.class) &&
+          cls.score > HIVE_UNSAFE_THRESHOLD
+        ) {
+          hiveUnsafe = true;
+          console.warn(
+            `[run-iteration] Hive flagged gen=${generationId}: class=${cls.class} score=${cls.score}`,
+          );
+          break;
+        }
+      }
+    } catch (hiveErr) {
+      console.error(
+        `[run-iteration] Hive error for gen=${generationId}`,
+        hiveErr,
+      );
+    }
+
+    if (hiveUnsafe) {
+      await admin
+        .from("generations")
+        .update({
+          status: "failed",
+          image_url: r2Url,
+          assembled_prompt: iterationResult.finalPrompt,
+        })
+        .eq("id", generationId);
+      await refundCredit();
+      return;
+    }
+
+    // ── 9. Status flip → ready_for_brand_review ────────────────────────────
+    await admin
+      .from("generations")
+      .update({
+        status: "ready_for_brand_review",
+        image_url: r2Url,
+        assembled_prompt: iterationResult.finalPrompt,
+      })
+      .eq("id", generationId);
+
+    console.log(
+      `[run-iteration] gen=${generationId} ready_for_brand_review (${r2Url})`,
+    );
+  } catch (err) {
+    console.error(
+      `[run-iteration] Unexpected error for gen=${generationId}`,
+      err,
+    );
+    Sentry.captureException(err, {
+      tags: { route: "run-iteration", phase: "unexpected" },
+      extra: { generation_id: generationId },
+    });
+    try {
+      await admin
+        .from("generations")
+        .update({ status: "failed" })
+        .eq("id", generationId);
+    } catch {
+      // swallow
+    }
+    await refundCredit();
+  }
 }
