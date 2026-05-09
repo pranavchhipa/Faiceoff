@@ -117,14 +117,23 @@ export const CAMERA_FRAMING_OPTIONS = [
  * CAMERA MAP for the per-device technical description sent to Gemini 3 Pro.
  */
 export const CAMERA_TYPE_OPTIONS = [
+  // ── Smartphone (casual, snapshot aesthetic) ──
   { key: "iphone_15_pro", label: "iPhone 15 Pro" },
   { key: "iphone_15", label: "iPhone 15 (standard)" },
   { key: "samsung_s24_ultra", label: "Samsung Galaxy S24 Ultra" },
   { key: "pixel_8_pro", label: "Google Pixel 8 Pro" },
   { key: "generic_smartphone", label: "Generic smartphone (casual)" },
-  { key: "canon_r5", label: "Canon EOS R5 (pro DSLR)" },
-  { key: "sony_a7r5", label: "Sony A7R V (editorial mirrorless)" },
+  // ── Pro mirrorless / DSLR (editorial, magazine-grade) ──
+  { key: "canon_r5", label: "Canon EOS R5 + RF 85mm (editorial)" },
+  { key: "sony_a7r5", label: "Sony A7R V + GM 50mm (editorial)" },
   { key: "fuji_xt5", label: "Fujifilm X-T5 (film-sim retro)" },
+  // ── Luxury / campaign-grade (medium format, billboard quality) ──
+  { key: "hasselblad_h6d", label: "Hasselblad H6D-100c (campaign)" },
+  { key: "phase_one_iq4", label: "Phase One IQ4 150MP (luxury ad)" },
+  { key: "leica_sl3", label: "Leica SL3 + Summilux 50mm (luxury)" },
+  // ── Cinematic ──
+  { key: "arri_alexa_35", label: "ARRI Alexa 35 still (cinematic)" },
+  // ── Analog ──
   { key: "shot_on_film", label: "Shot on 35mm film" },
 ] as const satisfies readonly PillOption[];
 

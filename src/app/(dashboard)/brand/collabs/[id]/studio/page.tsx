@@ -26,6 +26,7 @@ import {
   AtSign,
   Send,
   Trash2,
+  Maximize2,
 } from "lucide-react";
 import {
   SETTING_OPTIONS,
@@ -137,6 +138,16 @@ const SECTION_ICONS = {
   camera: Camera,
   notes: PenLine,
 } as const;
+
+/** Convert a "W:H" aspect-ratio key (e.g. "4:5") into a CSS `aspect-ratio` value. */
+function aspectRatioCss(key: string | null | undefined): string {
+  if (!key || !key.includes(":")) return "1 / 1";
+  const [w, h] = key.split(":");
+  const wn = Number(w);
+  const hn = Number(h);
+  if (!Number.isFinite(wn) || !Number.isFinite(hn) || wn <= 0 || hn <= 0) return "1 / 1";
+  return `${wn} / ${hn}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pill group
@@ -271,6 +282,7 @@ export default function BrandStudioPage() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const outputCardRef = useRef<HTMLDivElement>(null);
 
   // Load session
   useEffect(() => {
@@ -321,6 +333,16 @@ export default function BrandStudioPage() {
   const [reviewAction, setReviewAction] = useState<"send" | "discard" | null>(null);
   const [retryOpen, setRetryOpen] = useState(false);
   const [retryNotes, setRetryNotes] = useState("");
+
+  // ── Lightbox (click an output image to view full-size) ──
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  // Close on Escape
+  useEffect(() => {
+    if (!lightboxUrl) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightboxUrl(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxUrl]);
   const [retrySubmitting, setRetrySubmitting] = useState(false);
   const [toast, setToast] = useState<{ kind: "success" | "info"; text: string } | null>(null);
 
@@ -433,6 +455,10 @@ export default function BrandStudioPage() {
       const genId = d.generation_id;
       setRecentGens((prev) => [{ id: genId, status: "draft", image_url: null, created_at: new Date().toISOString() }, ...prev]);
       setPendingGenId(genId);
+      // Smoothly bring the output card into view — user clicked from far below
+      setTimeout(() => {
+        outputCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -569,7 +595,7 @@ export default function BrandStudioPage() {
       </motion.div>
 
       {/* ── Main grid ── */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_520px]">
 
         {/* ─── LEFT — Brief form ─── */}
         <div className="space-y-3">
@@ -781,28 +807,47 @@ export default function BrandStudioPage() {
         </div>
 
         {/* ─── RIGHT — Output panel ─── */}
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="space-y-4">
 
-          {/* Hero / latest */}
-          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-secondary)]/40 px-4 py-2.5">
+          {/* Hero / latest — sticky so it stays visible while user scrolls the brief on the left
+              (top-[72px] = TopBar height 56px + 16px gap) */}
+          <div ref={outputCardRef} className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] scroll-mt-[72px] lg:sticky lg:top-[72px] lg:z-20">
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-secondary)]/40 px-4 py-2.5">
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                 <Eye className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
                 Latest output
               </p>
-              {heroGen && (
-                <StatusChip status={heroGen.status} />
-              )}
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-1.5 py-0.5 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                  {brief.aspect_ratio}
+                </span>
+                {heroGen && <StatusChip status={heroGen.status} />}
+              </div>
             </div>
 
-            <div className="relative aspect-square w-full bg-[var(--color-secondary)]">
+            <div
+              className="relative w-full bg-[var(--color-secondary)] flex items-center justify-center"
+              style={{ aspectRatio: aspectRatioCss(brief.aspect_ratio), maxHeight: "65vh" }}
+            >
               {heroGen?.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={heroGen.image_url}
-                  alt="Latest generation"
-                  className="h-full w-full object-cover"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(heroGen.image_url!)}
+                  className="group relative h-full w-full cursor-zoom-in"
+                  aria-label="View full size"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={heroGen.image_url}
+                    alt="Latest generation"
+                    className="h-full w-full object-contain"
+                  />
+                  {/* Hover hint */}
+                  <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100">
+                    <Maximize2 className="h-2.5 w-2.5" />
+                    Tap to expand
+                  </span>
+                </button>
               ) : isHeroPending ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <div className="relative">
@@ -905,6 +950,57 @@ export default function BrandStudioPage() {
           )}
         </div>
       </div>
+
+      {/* ── Lightbox (full-size view of generated image) ── */}
+      <AnimatePresence>
+        {lightboxUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setLightboxUrl(null)}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm sm:p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-h-full max-w-[1400px]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxUrl}
+                alt="Generated image full size"
+                className="max-h-[92vh] max-w-full rounded-lg object-contain shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6)]"
+              />
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(null)}
+                aria-label="Close"
+                className="absolute right-3 top-3 rounded-full bg-black/55 p-2 text-white backdrop-blur-md transition hover:bg-black/80"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              {/* Open in new tab */}
+              <a
+                href={lightboxUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-white backdrop-blur-md transition hover:bg-black/80"
+              >
+                Open in new tab
+              </a>
+              <p className="absolute bottom-3 left-3 hidden font-mono text-[10px] text-white/70 sm:block">
+                Press Esc or click outside to close
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Toast (Send / Discard feedback) ── */}
       <AnimatePresence>

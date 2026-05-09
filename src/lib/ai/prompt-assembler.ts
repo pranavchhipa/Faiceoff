@@ -162,7 +162,15 @@ Never substitute a generic model/stock face. Never blend the references into a d
 ═══════════════════════════════════════════════════════════════════════
 SECOND PRIORITY — PRODUCT LOCK (non-negotiable):
 ═══════════════════════════════════════════════════════════════════════
-Preserve the product reference photo pixel-for-pixel: exact pack format (PET bottle stays PET bottle, tetra-pak stays tetra-pak, can stays can, jar stays jar, tube stays tube — NEVER swap formats), exact size and shape proportions, exact colour, exact label typography and layout, exact brand mark, every character of on-pack text. Indian brands (Harpic, Dabur, Boat, Amul, Parle, MDH, Fogg, Patanjali, Britannia, Frooti, Thums Up, Haldiram's, Maggi, Gubb, etc.) stay in original English spelling. Devanagari / regional-script text preserved character-for-character. Do NOT redesign packaging or substitute Western lookalikes.
+Preserve the product reference photo pixel-for-pixel.
+
+For PACKAGED GOODS (FMCG / cosmetics / beverages): exact pack format (PET bottle stays PET bottle, tetra-pak stays tetra-pak, can stays can, jar stays jar, tube stays tube — NEVER swap formats), exact size and shape proportions, exact colour, exact label typography and layout, exact brand mark, every character of on-pack text.
+
+For APPAREL (jerseys, t-shirts, hoodies, kurtas, sarees, jackets, dresses): preserve EVERY visible logo, sponsor mark, embroidered crest, screen-printed graphic, woven patch, and text element shown on the garment in the reference photo — front panel, chest, back, sleeves, collar, hem. Treat every logo placement on the reference as MANDATORY in the output, no matter how small or peripheral. Do NOT drop chest sponsors, sleeve logos, side panels, or upper-chest brand marks just because the framing crops the body — keep them visible within the chosen framing. Match exact colours, exact text spelling (e.g. "WAAREE", "OAKSMITH", "RAJASTHAN ROYALS"), exact font weight, exact placement on the garment. Sponsor logos on sports jerseys (Red Bull, Waaree, Oaksmith, etc.) must remain legible.
+
+For ACCESSORIES (bags, watches, shoes, sunglasses, jewellery): preserve exact silhouette, hardware (buckles, zippers, dial markers), brand emboss / stamp / engraving, colour, material finish, and every visible logo placement.
+
+Indian brands (Harpic, Dabur, Boat, Amul, Parle, MDH, Fogg, Patanjali, Britannia, Frooti, Thums Up, Haldiram's, Maggi, Gubb, Rajasthan Royals, Mumbai Indians, Chennai Super Kings, Royal Challengers, etc.) stay in original English spelling. Devanagari / regional-script text preserved character-for-character. Do NOT redesign packaging, garments, or substitute Western lookalikes.
 
 ═══════════════════════════════════════════════════════════════════════
 OUTPUT TEMPLATE (fill in from the brief):
@@ -171,13 +179,13 @@ Given a structured brief, output ONE prompt string in this exact structure:
 
 "A candid [camera_type_phrase] of the specific person shown in the face reference photos — [subject_gender descriptor only if given] — actively [interaction_verb] [product_name] — [one-sentence physical-action detail per ACTION RULES below]. [One vivid scene sentence derived from the brief.]
 
-Technical: [camera_type_technical_line]. Ultra-realistic 8K output, sharp detail across subject and background, cinematic natural lighting with accurate shadows and highlights. Realistic depth of field appropriate to the camera (smartphone = wide focus; DSLR = controlled bokeh OK). [camera_type_grain_line]. The image should look like a professional photograph that could pass as real — not flat snapshot, not AI-art aesthetic.
+Technical: [camera_type_technical_line]. Ultra-realistic 8K output, edge-to-edge sharpness across subject and product, cinematic natural lighting with accurate shadows and highlights, every fibre and skin pore resolved. Depth of field appropriate to the camera tier (smartphone = wide focus, casual aesthetic; pro DSLR / mirrorless = controlled bokeh, editorial polish; medium-format / luxury = three-dimensional subject separation, magazine-cover-grade sharpness, no compression artifacts; cinematic = anamorphic falloff, painterly highlight roll-off). [camera_type_grain_line]. For pro / luxury / cinematic camera tiers the image MUST read as a high-end commercial campaign — magazine-cover or billboard-grade — not a casual snapshot, not AI-art aesthetic, not soft-focus social-media filter.
 
 Face and skin rendering: match the face reference photos for bone structure, skin tone, hairline, eye shape, and identity. Render skin photorealistically — natural healthy glow, visible pores at close range, subsurface scattering. Premium photography quality is the target — sharp, detailed, ultra-realistic 8K. Do NOT plastic-airbrush. Do NOT alter face structure or body proportions. The person should look like the best-photographed version of themselves, not a different person.
 
 Composition: [composition_hint from camera_framing]. Aspect: [aspect_ratio]. Background: sharp and contextual, not blurred.
 
-Product lock: the product is the exact item in the product reference photo — match its pack format, size, colour, label typography, brand mark, and every character of on-pack text pixel-for-pixel. Brand name spelling preserved exactly: [product_name]."
+Product lock: the product is the exact item in the product reference photo — match it pixel-for-pixel. For packaged goods: exact pack format, size, colour, label typography, brand mark, and every character of on-pack text. For apparel (jerseys, t-shirts, kurtas, etc.): preserve EVERY logo, sponsor mark, embroidered crest, and printed text visible on the garment in the reference — front, chest, back, sleeves — none are optional. Brand name spelling preserved exactly: [product_name]."
 
 ═══════════════════════════════════════════════════════════════════════
 CAMERA MAP — translate the brief's camera_type key into the three bracketed placeholders above. If camera_type is missing, default to iphone_15_pro:
@@ -209,18 +217,38 @@ CAMERA MAP — translate the brief's camera_type key into the three bracketed pl
 
 - canon_r5
   phrase: "Canon-R5 editorial portrait"
-  technical: "shot on Canon EOS R5 with RF 50mm f/1.2 at f/4, full-frame sensor, rich colour depth, professional studio-quality exposure"
-  grain: "almost no noise, clean professional output"
+  technical: "shot on Canon EOS R5 with RF 85mm f/1.2 L at f/2.5, 45MP full-frame sensor, magazine-cover sharpness, three-dimensional subject separation, accurate skin-tone rendering, professional studio-grade exposure, ultra-realistic 8K detail"
+  grain: "virtually no noise, clean professional output, surgical micro-contrast"
 
 - sony_a7r5
   phrase: "Sony-A7R-V editorial portrait"
-  technical: "shot on Sony A7R V with 55mm GM at f/4, 61MP full-frame sensor, magazine-quality micro-contrast"
-  grain: "very low noise, crisp micro-contrast"
+  technical: "shot on Sony A7R V with 50mm GM f/1.2 at f/2.8, 61MP full-frame back-illuminated sensor, magazine-quality micro-contrast, painterly bokeh fall-off, ultra-realistic 8K detail across subject and background"
+  grain: "imperceptible noise, crisp edge-to-edge sharpness"
 
 - fuji_xt5
   phrase: "Fujifilm-X-T5 film-sim portrait"
-  technical: "shot on Fujifilm X-T5 with Classic Chrome film simulation, APS-C sensor, muted retro colour palette, slightly lifted shadows"
+  technical: "shot on Fujifilm X-T5 with XF 56mm f/1.2, 40MP APS-C X-Trans sensor, Classic Chrome film simulation, muted retro colour palette, slightly lifted shadows"
   grain: "subtle film-like grain, warm mid-tones"
+
+- hasselblad_h6d
+  phrase: "Hasselblad H6D-100c medium-format campaign portrait"
+  technical: "shot on Hasselblad H6D-100c with HC 100mm f/2.2 at f/4, 100MP medium-format CMOS sensor, Hasselblad Natural Color Solution skin-tone rendering, three-dimensional micro-contrast, magazine-cover-grade resolution, billboard-ready ultra-realistic 8K detail. The aesthetic is high-fashion campaign — luxury commercial polish, never snapshot."
+  grain: "virtually noiseless, surgical fabric and pore-level detail, painterly bokeh fall-off"
+
+- phase_one_iq4
+  phrase: "Phase One IQ4-150MP luxury ad-campaign still"
+  technical: "shot on Phase One XT with Schneider 80mm Blue Ring at f/5.6, 150MP medium-format sensor, IIQ-L lossless RAW workflow, billboard-grade ultra-resolution, every fabric weave and skin pore resolved, premium luxury commercial quality, ultra-realistic 8K detail. The aesthetic is top-tier print-campaign — Vogue / Harper's Bazaar polish."
+  grain: "absolutely zero noise, three-dimensional rendering, optical depth"
+
+- leica_sl3
+  phrase: "Leica SL3 luxury portrait"
+  technical: "shot on Leica SL3 with Summilux-SL 50mm f/1.4 at f/2.8, 60MP full-frame BSI sensor, signature Leica colour science, painterly micro-contrast, characteristic 'Leica look' rendering, ultra-realistic 8K detail"
+  grain: "minimal noise, organic film-like micro-texture, distinctive Leica rendering"
+
+- arri_alexa_35
+  phrase: "ARRI Alexa 35 cinematic still frame"
+  technical: "still frame extracted from ARRI Alexa 35 footage with Master Anamorphic 50mm at T2, ARRI LogC4 colour science with cinematic teal-orange grade, true-cinema dynamic range, anamorphic horizontal flares, soft cinematic falloff, ultra-realistic 8K detail. The aesthetic is editorial-cinema — like a frame from a luxury brand commercial."
+  grain: "subtle cinematic grain, painterly highlight roll-off, signature anamorphic bokeh"
 
 - shot_on_film
   phrase: "35mm film photograph"
