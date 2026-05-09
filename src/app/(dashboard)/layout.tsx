@@ -38,16 +38,63 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const email = user?.email ?? null;
   const avatarUrl = (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url ?? null;
 
-  // While role resolves from DB, render a quiet skeleton so we don't
-  // flash the wrong chrome (e.g. creator editorial → brand bento swap).
+  // While role resolves from DB, render a chrome-shaped skeleton so the
+  // app appears instantly and the layout doesn't flash. Uses the Faiceoff
+  // logo mark with a subtle pulse — feels intentional, not a generic
+  // browser spinner.
   if (!role) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--color-background)]">
-        <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
-          <span className="flex h-8 w-8 animate-spin items-center justify-center">
-            <span className="h-5 w-5 rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-          </span>
-          <span className="text-sm">Loading workspace…</span>
+      <div className="flex min-h-screen flex-col bg-[var(--color-background)]">
+        <style>{`
+          @keyframes faiceoff-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+          @keyframes faiceoff-mark-pulse { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+          .fco-shimmer{background:linear-gradient(90deg,var(--color-secondary) 0%,var(--color-card) 50%,var(--color-secondary) 100%);background-size:200% 100%;animation:faiceoff-shimmer 1.6s ease-in-out infinite;border-radius:8px}
+          .fco-mark{animation:faiceoff-mark-pulse 1.6s ease-in-out infinite}
+        `}</style>
+
+        {/* Topbar skeleton */}
+        <div className="flex h-14 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 lg:px-6">
+          <div className="flex items-center gap-3">
+            <div className="fco-mark h-7 w-7 rounded-md bg-[var(--color-primary)]/15" />
+            <div className="fco-shimmer h-3 w-24" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="fco-shimmer h-8 w-32 rounded-full" />
+            <div className="fco-shimmer h-8 w-8 rounded-full" />
+          </div>
+        </div>
+
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar skeleton (desktop) */}
+          <div className="hidden w-[220px] flex-col gap-2 border-r border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:flex">
+            <div className="fco-shimmer h-3 w-16 rounded" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="fco-shimmer h-7 w-full rounded-md" style={{ opacity: 0.85 - i * 0.08 }} />
+            ))}
+            <div className="mt-3 fco-shimmer h-3 w-12 rounded" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="fco-shimmer h-7 w-full rounded-md" style={{ opacity: 0.7 - i * 0.1 }} />
+            ))}
+          </div>
+
+          {/* Main content skeleton */}
+          <div className="flex flex-1 flex-col gap-4 p-6 lg:p-8">
+            <div className="fco-shimmer h-8 w-48 rounded-md" />
+            <div className="fco-shimmer h-4 w-80 rounded" />
+
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="fco-shimmer h-20 rounded-xl" style={{ opacity: 0.9 - i * 0.1 }} />
+              ))}
+            </div>
+
+            <div className="mt-2 fco-shimmer h-64 w-full rounded-xl" />
+
+            <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="fco-shimmer h-40 rounded-xl" />
+              <div className="fco-shimmer h-40 rounded-xl" />
+            </div>
+          </div>
         </div>
       </div>
     );

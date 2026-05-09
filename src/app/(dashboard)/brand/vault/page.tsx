@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { Library, Sparkles, ShieldCheck } from "lucide-react";
 import VaultGrid, { type VaultItem } from "./vault-grid";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { listVaultImages } from "@/lib/vault";
 
 /* ── Types ── */
 
@@ -11,7 +14,12 @@ interface VaultApiResponse {
   pageSize: number;
 }
 
-/* ── Server fetch ── */
+/* ── Server fetch ──
+ * Was calling /api/vault via fetch() which doesn't forward the session
+ * cookie from the server component → API returned 401 → empty items
+ * silently. Now we resolve auth + brand_id here and call the vault
+ * service directly.
+ */
 
 async function fetchVaultItems(
   page: number,
@@ -20,23 +28,40 @@ async function fetchVaultItems(
   q: string,
 ): Promise<VaultApiResponse> {
   try {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: String(pageSize),
-    });
-    if (status) params.set("status", status);
-    if (q) params.set("q", q);
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { items: [], total: 0, page, pageSize };
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ??
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("/auth/v1", "") ??
-      "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/vault?${params}`, {
-      cache: "no-store",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data: brandRow } = await admin
+      .from("brands")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!brandRow?.id) return { items: [], total: 0, page, pageSize };
+
+    const validStatus =
+      status === "approved" || status === "pending" || status === "rejected"
+        ? status
+        : ("all" as const);
+    const result = await listVaultImages({
+      brandId: brandRow.id as string,
+      page,
+      pageSize,
+      status: validStatus,
+      search: q || undefined,
     });
-    if (!res.ok) return { items: [], total: 0, page, pageSize };
-    return res.json();
-  } catch {
+    return {
+      items: result.items as unknown as VaultItem[],
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    };
+  } catch (err) {
+    console.error("[brand/vault] fetchVaultItems failed", err);
     return { items: [], total: 0, page, pageSize };
   }
 }
