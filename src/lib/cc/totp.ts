@@ -2,29 +2,31 @@
  * TOTP (RFC 6238) helpers for the Control Centre — Google Authenticator
  * compatible.
  *
- * Layout:
- *   • generateSecret()      — produces a fresh base32 secret + provisioning
- *                             URI ready for QR code rendering.
- *   • verifyToken(code)     — verifies a 6-digit code against the stored
- *                             secret with a ±1 step tolerance (handles ~30s
- *                             of clock drift in either direction).
- *   • generateBackupCodes() — 10 single-use, 10-digit codes — bcrypt-hashed
- *                             before storage so we never persist plaintext.
+ * Uses the otplib v13 functional API:
+ *   • generateSecret() → base32 string
+ *   • generateURI(...) → otpauth:// URI for QR rendering
+ *   • verifySync({ token, secret, ... }) → boolean
+ *
+ * 30-second period, 6 digits, SHA-1 (Authenticator default).
+ * epochTolerance: 30s → accepts current ±1 step (≈ 90s window).
  */
 
-import { authenticator } from "otplib";
+import {
+  generateSecret as otpGenerateSecret,
+  generateURI,
+  verifySync,
+} from "otplib";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 
 import { decrypt, encrypt, type EncryptedBlob } from "./encryption";
 
-// 30-second time step (Google Authenticator's default).
-// window=1 → accept current step ±1 (so valid range is ~90s).
-// digits=6 → 6-digit codes (Google Authenticator default).
-authenticator.options = { step: 30, window: 1, digits: 6 };
-
 const ISSUER = "Faiceoff";
 const ACCOUNT = "Owner Control Centre";
+const PERIOD = 30;
+const DIGITS = 6;
+const ALGORITHM = "sha1" as const;
+const EPOCH_TOLERANCE = 30; // seconds — accept current ±1 step
 
 export interface SecretBundle {
   /** Base32 secret — store encrypted via encrypt(). */
@@ -34,15 +36,33 @@ export interface SecretBundle {
 }
 
 export function generateSecret(): SecretBundle {
-  const secret = authenticator.generateSecret();
-  const otpauthUri = authenticator.keyuri(ACCOUNT, ISSUER, secret);
+  const secret = otpGenerateSecret({ length: 20 });
+  const otpauthUri = generateURI({
+    strategy: "totp",
+    issuer: ISSUER,
+    label: ACCOUNT,
+    secret,
+    algorithm: ALGORITHM,
+    digits: DIGITS,
+    period: PERIOD,
+  });
   return { secret, otpauthUri };
 }
 
 export function verifyToken(secret: string, token: string): boolean {
-  // otplib already runs constant-time verification internally.
+  const cleaned = token.trim();
+  if (!/^\d{6}$/.test(cleaned)) return false;
   try {
-    return authenticator.verify({ token: token.trim(), secret });
+    const result = verifySync({
+      token: cleaned,
+      secret,
+      strategy: "totp",
+      algorithm: ALGORITHM,
+      digits: DIGITS,
+      period: PERIOD,
+      epochTolerance: EPOCH_TOLERANCE,
+    });
+    return result.valid;
   } catch {
     return false;
   }
@@ -53,7 +73,6 @@ export function verifyToken(secret: string, token: string): boolean {
 const BACKUP_CODE_COUNT = 10;
 const BACKUP_CODE_DIGITS = 10;
 
-/** Plaintext code in `XXXXX-XXXXX` form. Show ONCE during setup. */
 export interface BackupCode {
   code: string;
 }
@@ -61,8 +80,7 @@ export interface BackupCode {
 export function generateBackupCodes(): BackupCode[] {
   const out: BackupCode[] = [];
   for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
-    // 10 digits → split into two 5-digit blocks for legibility.
-    const buf = randomBytes(8); // ~10^19 entropy, more than enough
+    const buf = randomBytes(8);
     const num = buf.readBigUInt64BE() % 10n ** BigInt(BACKUP_CODE_DIGITS);
     const padded = num.toString().padStart(BACKUP_CODE_DIGITS, "0");
     out.push({
@@ -72,7 +90,6 @@ export function generateBackupCodes(): BackupCode[] {
   return out;
 }
 
-/** Hash backup codes for storage. Returns array of bcrypt hashes (cost=10). */
 export async function hashBackupCodes(codes: BackupCode[]): Promise<string[]> {
   const out: string[] = [];
   for (const { code } of codes) {
@@ -82,11 +99,6 @@ export async function hashBackupCodes(codes: BackupCode[]): Promise<string[]> {
   return out;
 }
 
-/**
- * Match a user-supplied backup code against a list of stored hashes.
- * Returns the matched index (so the caller can mark it consumed) or -1.
- * Strips dashes / spaces before compare so users can paste either form.
- */
 export async function findBackupCodeMatch(
   inputCode: string,
   storedHashes: string[],
