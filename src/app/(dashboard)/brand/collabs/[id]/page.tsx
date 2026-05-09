@@ -17,7 +17,6 @@ import {
   Zap,
   Clock,
   Download,
-  ChevronRight,
   Sparkles,
   AtSign,
   Activity,
@@ -94,7 +93,10 @@ interface CollabData {
   licenses: LicenseRow[];
 }
 
-type Tab = "studio" | "vault" | "chat" | "details";
+// Studio is rendered as a direct Link (not a content tab) — clicking it
+// navigates straight to /brand/collabs/[id]/studio so users don't have to
+// click through an intermediate landing.
+type Tab = "vault" | "chat" | "details";
 
 const TIER_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; bar: string; chipBg: string; chipText: string }> = {
   frame:   { label: "Frame",   icon: ImageIconSm, bar: "bg-sky-500",                chipBg: "bg-sky-500",                chipText: "text-white" },
@@ -132,7 +134,7 @@ export default function BrandCollabWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<CollabData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("studio");
+  const [activeTab, setActiveTab] = useState<Tab>("vault");
 
   useEffect(() => {
     fetch(`/api/collabs/${id}`, { cache: "no-store" })
@@ -177,11 +179,12 @@ export default function BrandCollabWorkspacePage() {
   const pendingGens    = brandPending + creatorPending; // total for stat tile only
 
   const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
-    { id: "studio", label: "Studio", icon: Wand2 },
     { id: "vault",  label: "Vault", icon: ImageIcon, badge: vaultGens.length },
     { id: "chat",   label: "Chat", icon: MessageSquare },
     { id: "details", label: "Details", icon: Info },
   ];
+
+  const noCredits = creditsLeft !== null && creditsLeft <= 0;
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
@@ -346,32 +349,51 @@ export default function BrandCollabWorkspacePage() {
         />
       </div>
 
-      {/* ── Tabs ── */}
-      <div className="mt-6 mb-4 flex gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-1">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12px] font-600 transition-all ${
-                activeTab === t.id
-                  ? "bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm"
-                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              {t.badge != null && t.badge > 0 && (
-                <span className={`ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 font-mono text-[9px] font-700 ${
-                  activeTab === t.id ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]" : "bg-[var(--color-border)] text-[var(--color-foreground)]"
-                }`}>
-                  {t.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* ── Tab strip — Studio is a direct Link (primary CTA), the rest are content tabs ── */}
+      <div className="mt-6 mb-4 flex flex-wrap gap-2 sm:items-center sm:justify-between">
+        <div className="flex flex-1 gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-1">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12px] font-600 transition-all ${
+                  activeTab === t.id
+                    ? "bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm"
+                    : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+                {t.badge != null && t.badge > 0 && (
+                  <span className={`ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 font-mono text-[9px] font-700 ${
+                    activeTab === t.id ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]" : "bg-[var(--color-border)] text-[var(--color-foreground)]"
+                  }`}>
+                    {t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Studio CTA — always visible, navigates straight to the generation page */}
+        {session.status === "active" && (
+          <Link
+            href={`/brand/collabs/${id}/studio`}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-700 shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-all ${
+              noCredits
+                ? "pointer-events-none cursor-not-allowed bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
+                : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:-translate-y-0.5"
+            }`}
+            aria-disabled={noCredits}
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            {noCredits ? "Out of credits" : "Open Studio"}
+            {!noCredits && <ArrowRight className="h-3.5 w-3.5" />}
+          </Link>
+        )}
       </div>
 
       {/* ── Tab panels ── */}
@@ -381,9 +403,6 @@ export default function BrandCollabWorkspacePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       >
-        {activeTab === "studio" && (
-          <StudioTab collabId={id} session={session} creditsLeft={creditsLeft} brandPending={brandPending} creatorPending={creatorPending} conversationId={conversation_id} />
-        )}
         {activeTab === "vault"   && <VaultTab generations={vaultGens} />}
         {activeTab === "chat"    && (
           <ChatTab
@@ -450,143 +469,6 @@ function Stat({
           </span>
         )}
       </p>
-    </div>
-  );
-}
-
-/* ───────────────────── Studio Tab ───────────────────── */
-function StudioTab({
-  collabId,
-  session,
-  creditsLeft,
-  brandPending,
-  creatorPending,
-  conversationId,
-}: {
-  collabId: string;
-  session: Session;
-  creditsLeft: number | null;
-  brandPending: number;
-  creatorPending: number;
-  conversationId: string | null;
-}) {
-  if (session.status !== "active") {
-    return (
-      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
-        <Wand2 className="mx-auto mb-3 h-10 w-10 text-[var(--color-muted-foreground)]" />
-        <p className="font-display text-[16px] font-700 text-[var(--color-foreground)]">Studio unavailable</p>
-        <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
-          This collab is {session.status}. Studio is only available for active collabs.
-        </p>
-      </div>
-    );
-  }
-
-  const noCredits = creditsLeft !== null && creditsLeft <= 0;
-
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-
-      {/* Primary CTA — Open Studio */}
-      <Link
-        href={`/brand/collabs/${collabId}/studio`}
-        className={`group relative flex items-center justify-between overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40 hover:shadow-[0_12px_32px_-12px_rgba(201,169,110,0.3)] ${noCredits ? "pointer-events-none opacity-50" : ""}`}
-      >
-        {/* Decorative gradient */}
-        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-[var(--color-primary)]/5 blur-3xl transition-opacity group-hover:opacity-150" />
-
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary)]/70 shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)]">
-            <Wand2 className="h-7 w-7 text-[var(--color-primary-foreground)]" />
-          </div>
-          <div>
-            <p className="font-display text-[19px] font-800 text-[var(--color-foreground)]">Open Studio</p>
-            <p className="mt-0.5 text-[13px] text-[var(--color-muted-foreground)]">
-              Generate AI images with {session.name}&apos;s likeness
-            </p>
-          </div>
-        </div>
-        <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-secondary)] transition-transform group-hover:translate-x-0.5">
-          <ChevronRight className="h-5 w-5 text-[var(--color-foreground)]" />
-        </div>
-      </Link>
-
-      {/* Right column: actions / hints */}
-      <div className="space-y-3">
-        {/* Brand-action pending: brand needs to send/retry/discard */}
-        {brandPending > 0 && (
-          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400">
-                {brandPending} awaiting your review
-              </p>
-            </div>
-            <p className="mt-1 text-[12px] leading-snug text-amber-700/80 dark:text-amber-400/80">
-              Open Studio to send them to the creator or retry.
-            </p>
-          </div>
-        )}
-
-        {/* Creator-action pending: informational, no brand action */}
-        {creatorPending > 0 && (
-          <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-3.5">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-violet-500" />
-              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-violet-700 dark:text-violet-400">
-                {creatorPending} with creator for approval
-              </p>
-            </div>
-            <p className="mt-1 text-[12px] leading-snug text-violet-700/80 dark:text-violet-400/80">
-              Creator has 48h to approve or reject. You&apos;ll be notified.
-            </p>
-          </div>
-        )}
-
-        {/* No credits warning */}
-        {noCredits && (
-          <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3.5">
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-red-600">
-              Out of credits
-            </p>
-            <p className="mt-1 text-[12px] leading-snug text-red-700/90 dark:text-red-400/90">
-              All {session.gen_credits_total} generation credits used. Once approvals complete, this collab will close.
-            </p>
-          </div>
-        )}
-
-        {/* Chat shortcut */}
-        {conversationId && (
-          <Link
-            href={`/brand/inbox?conversation=${conversationId}`}
-            className="group flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 transition-all hover:border-[var(--color-primary)]/30"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-secondary)]">
-                <MessageSquare className="h-4 w-4 text-[var(--color-foreground)]" />
-              </span>
-              <div>
-                <p className="text-[13px] font-700 text-[var(--color-foreground)]">Direct chat</p>
-                <p className="text-[11px] text-[var(--color-muted-foreground)]">Realtime with creator</p>
-              </div>
-            </div>
-            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        )}
-
-        {/* Tip card */}
-        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-secondary)]/40 p-3.5">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--color-primary)]" />
-            <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-              Tip
-            </p>
-          </div>
-          <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-muted-foreground)]">
-            Each generation deducts 1 credit from your wallet. This collab is capped at {session.gen_credits_total ?? "—"} iterations — pick the keeper from each batch and send for approval.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
