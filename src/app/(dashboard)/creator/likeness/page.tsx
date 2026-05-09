@@ -24,9 +24,11 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Star,
   Tag,
   Trash2,
   Upload,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -59,6 +61,36 @@ export default function CreatorLikenessPage() {
   const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([]);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
+
+  async function handleSetPrimary(photoId: string) {
+    if (settingPrimary) return;
+    setSettingPrimary(photoId);
+    // Optimistic: update local state immediately
+    setReferencePhotos((prev) =>
+      prev.map((p) => ({ ...p, is_primary: p.id === photoId })),
+    );
+    try {
+      const res = await fetch(
+        `/api/creator/reference-photos/${photoId}/set-primary`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.message ?? j.error ?? "Couldn't set primary");
+        // Reload from server to undo the optimistic state
+        const r = await fetch("/api/creator/likeness-data", { cache: "no-store" });
+        if (r.ok) {
+          const d = (await r.json()) as { photos?: ReferencePhoto[] };
+          setReferencePhotos(d.photos ?? []);
+        }
+      }
+    } catch (err) {
+      console.error("[likeness] set-primary failed", err);
+    } finally {
+      setSettingPrimary(null);
+    }
+  }
 
   const displayName =
     user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "Creator";
@@ -300,40 +332,69 @@ export default function CreatorLikenessPage() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-            {referencePhotos.map((photo, i) => (
-              <motion.div
-                key={photo.id}
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.08 + i * 0.03, duration: 0.3 }}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]"
-              >
-                {photo.url ? (
-                  <Image
-                    src={photo.url}
-                    alt=""
-                    fill
-                    sizes="120px"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Camera className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+            {referencePhotos.map((photo, i) => {
+              const isLoading = settingPrimary === photo.id;
+              return (
+                <motion.div
+                  key={photo.id}
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.08 + i * 0.03, duration: 0.3 }}
+                  className={`group relative aspect-square overflow-hidden rounded-lg border bg-[var(--color-secondary)] transition-all ${
+                    photo.is_primary
+                      ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/40"
+                      : "border-[var(--color-border)]"
+                  }`}
+                >
+                  {photo.url ? (
+                    <Image
+                      src={photo.url}
+                      alt=""
+                      fill
+                      sizes="120px"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <Camera className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+                    </div>
+                  )}
+                  {photo.is_primary && (
+                    <span className="absolute left-1 top-1 z-10 inline-flex items-center gap-0.5 rounded bg-[var(--color-primary)] px-1 py-px font-mono text-[8px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                      <Star className="h-2 w-2 fill-current" />
+                      Primary
+                    </span>
+                  )}
+
+                  {/* Hover overlay: Set primary + Delete actions */}
+                  <div className="absolute inset-0 flex flex-col items-stretch justify-end gap-1 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {!photo.is_primary && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimary(photo.id)}
+                        disabled={isLoading}
+                        className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 px-1.5 py-1 font-mono text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md transition hover:bg-[var(--color-primary)] disabled:opacity-60"
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        ) : (
+                          <Star className="h-2.5 w-2.5" />
+                        )}
+                        Make primary
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center gap-1 rounded-md bg-black/55 px-1.5 py-1 font-mono text-[9px] font-700 uppercase tracking-wider text-white backdrop-blur-md transition hover:bg-black/75"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                      Delete
+                    </button>
                   </div>
-                )}
-                {photo.is_primary && (
-                  <span className="absolute left-1 top-1 z-10 rounded bg-[var(--color-primary)] px-1 py-px font-mono text-[8px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
-                    Primary
-                  </span>
-                )}
-                <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button className="flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-md">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
 
             {photos < targetPhotos && (
               <button className="group flex aspect-square items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/30 text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]">
