@@ -59,13 +59,24 @@ export async function GET(
     .order("created_at", { ascending: false })
     .limit(100);
 
-  // Enrich with creator + brand profile + collab_request snapshot
-  const [creatorRowRes, brandRowRes, requestRes] = await Promise.all([
+  // Enrich with creator + brand profile + collab_request snapshot + licenses
+  const approvedGenIds = (generations ?? [])
+    .filter((g: { status: string }) => g.status === "approved")
+    .map((g: { id: string }) => g.id);
+
+  const [creatorRowRes, brandRowRes, requestRes, licensesRes] = await Promise.all([
     admin.from("creators").select("user_id, instagram_handle").eq("id", session.creator_id).maybeSingle(),
     admin.from("brands").select("user_id, company_name").eq("id", session.brand_id).maybeSingle(),
     session.collab_request_id
       ? admin.from("collab_requests").select("product_image_url, brief_one_liner").eq("id", session.collab_request_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    approvedGenIds.length > 0
+      ? admin
+          .from("licenses")
+          .select("id, generation_id, scope, issued_at, expires_at, status, cert_url, amount_paid_paise, creator_share_paise")
+          .in("generation_id", approvedGenIds)
+          .order("issued_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   let creator_name: string | null = null;
@@ -82,6 +93,17 @@ export async function GET(
     creator_handle = creatorRowRes.data.instagram_handle ?? null;
   }
 
+  // Brand avatar — pull from the brand-owner's user row
+  let brand_avatar_url: string | null = null;
+  if (brandRowRes.data?.user_id) {
+    const { data: bu } = await admin
+      .from("users")
+      .select("avatar_url")
+      .eq("id", brandRowRes.data.user_id)
+      .maybeSingle();
+    brand_avatar_url = bu?.avatar_url ?? null;
+  }
+
   return NextResponse.json({
     session,
     role: isBrand ? "brand" : "creator",
@@ -94,6 +116,7 @@ export async function GET(
     },
     brand: {
       company_name: brandRowRes.data?.company_name ?? null,
+      avatar_url: brand_avatar_url,
     },
     request: requestRes.data
       ? {
@@ -101,5 +124,6 @@ export async function GET(
           brief_one_liner: requestRes.data.brief_one_liner ?? null,
         }
       : null,
+    licenses: licensesRes.data ?? [],
   });
 }

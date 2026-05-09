@@ -71,6 +71,18 @@ interface RequestSnapshot {
   brief_one_liner: string | null;
 }
 
+interface LicenseRow {
+  id: string;
+  generation_id: string;
+  scope: string;
+  issued_at: string;
+  expires_at: string;
+  status: string;
+  cert_url: string | null;
+  amount_paid_paise: number;
+  creator_share_paise: number;
+}
+
 interface CollabData {
   session: Session;
   role: "brand" | "creator";
@@ -79,6 +91,7 @@ interface CollabData {
   creator: Creator;
   brand: BrandSummary;
   request: RequestSnapshot | null;
+  licenses: LicenseRow[];
 }
 
 type Tab = "studio" | "vault" | "chat" | "details";
@@ -145,7 +158,7 @@ export default function BrandCollabWorkspacePage() {
     );
   }
 
-  const { session, conversation_id, generations, creator, request } = data;
+  const { session, conversation_id, generations, creator, request, licenses } = data;
   const tier = session.package_tier ? TIER_META[session.package_tier] ?? TIER_META.frame : TIER_META.frame;
   const TierIcon = tier.icon;
   const statusMeta = STATUS_META[session.status] ?? STATUS_META.active;
@@ -379,7 +392,13 @@ export default function BrandCollabWorkspacePage() {
             counterpartyAvatar={creator.avatar_url}
           />
         )}
-        {activeTab === "details" && <DetailsTab session={session} />}
+        {activeTab === "details" && (
+          <DetailsTab
+            session={session}
+            licenses={licenses}
+            generations={generations}
+          />
+        )}
       </motion.div>
     </div>
   );
@@ -592,42 +611,122 @@ function VaultTab({ generations }: { generations: Generation[] }) {
         <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           {generations.length} approved image{generations.length !== 1 ? "s" : ""}
         </p>
+        <p className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
+          Original quality · ZIP includes licence cert
+        </p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {generations.map((g) => (
-          <div
-            key={g.id}
-            className="group relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]"
-          >
-            {g.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={g.image_url}
-                alt="Approved generation"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <ImageIcon className="h-8 w-8 text-[var(--color-muted-foreground)]" />
-              </div>
-            )}
-            {g.image_url && (
-              <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/45 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <a
-                  href={g.image_url}
-                  download
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg bg-black/60 p-1.5 text-white backdrop-blur-sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </a>
-              </div>
-            )}
-          </div>
+          <VaultCell key={g.id} gen={g} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Single vault cell with proper download (routes through /api/vault) ── */
+function VaultCell({ gen }: { gen: Generation }) {
+  const [downloading, setDownloading] = useState<null | "original" | "image">(null);
+
+  async function downloadOriginalZip() {
+    if (downloading) return;
+    setDownloading("original");
+    try {
+      const res = await fetch(`/api/vault/${gen.id}/download?format=original`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? "Download failed");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `faiceoff-${gen.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[vault download]", err);
+      alert("Download failed. Try again.");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadImageOnly() {
+    if (downloading || !gen.image_url) return;
+    setDownloading("image");
+    try {
+      // Fetch as blob so the browser respects the download attribute even
+      // for cross-origin R2 URLs.
+      const res = await fetch(gen.image_url, { mode: "cors" });
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const ext =
+        (blob.type.split("/")[1] ?? "jpg").replace("jpeg", "jpg");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `faiceoff-${gen.id}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[image download]", err);
+      // Fallback: open in new tab so user can right-click save
+      if (gen.image_url) window.open(gen.image_url, "_blank");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  return (
+    <div className="group relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
+      {gen.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={gen.image_url}
+          alt="Approved generation"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-[var(--color-muted-foreground)]" />
+        </div>
+      )}
+      {gen.image_url && (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-stretch justify-end gap-1.5 bg-gradient-to-t from-black/65 via-black/15 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={downloadImageOnly}
+            disabled={!!downloading}
+            className="pointer-events-auto inline-flex items-center justify-center gap-1 rounded-lg bg-white/15 px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-white backdrop-blur-md transition hover:bg-white/25 disabled:opacity-60"
+          >
+            {downloading === "image" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3" />
+            )}
+            Image
+          </button>
+          <button
+            type="button"
+            onClick={downloadOriginalZip}
+            disabled={!!downloading}
+            className="pointer-events-auto inline-flex items-center justify-center gap-1 rounded-lg bg-[var(--color-primary)] px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-primary-foreground)] backdrop-blur-md transition hover:bg-[var(--color-primary)]/90 disabled:opacity-60"
+          >
+            {downloading === "original" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3" />
+            )}
+            Pack ZIP
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -669,7 +768,15 @@ function ChatTab({
 }
 
 /* ───────────────────── Details Tab ───────────────────── */
-function DetailsTab({ session }: { session: Session }) {
+function DetailsTab({
+  session,
+  licenses,
+  generations,
+}: {
+  session: Session;
+  licenses: LicenseRow[];
+  generations: Generation[];
+}) {
   const tierLabel = session.package_tier ? TIER_META[session.package_tier]?.label ?? session.package_tier : null;
   const usageLabel = session.usage_scope ? USAGE_LABELS[session.usage_scope] ?? session.usage_scope : null;
 
@@ -694,31 +801,168 @@ function DetailsTab({ session }: { session: Session }) {
     },
   ];
 
+  const genById = new Map(generations.map((g) => [g.id, g]));
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {groups.map((g) => (
-        <div key={g.title} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
-          <p className="mb-4 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-            {g.title}
-          </p>
-          <div className="space-y-3">
-            {g.rows.map((r) => {
-              const Icon = r.icon;
-              return (
-                <div key={r.label} className="flex items-start justify-between gap-3 text-[13px]">
-                  <span className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
-                    {Icon && <Icon className="h-3.5 w-3.5" />}
-                    {r.label}
-                  </span>
-                  <span className="font-mono text-right text-[12px] font-600 text-[var(--color-foreground)] break-all">
-                    {r.value}
-                  </span>
-                </div>
-              );
-            })}
+    <div className="space-y-4">
+      {/* Licenses & documents */}
+      <BrandLicenseSection
+        licenses={licenses}
+        generations={genById}
+        approvedTarget={session.final_images_target ?? 0}
+        sessionStatus={session.status}
+      />
+
+      {/* Package + Timeline */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {groups.map((g) => (
+          <div key={g.title} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+            <p className="mb-4 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              {g.title}
+            </p>
+            <div className="space-y-3">
+              {g.rows.map((r) => {
+                const Icon = r.icon;
+                return (
+                  <div key={r.label} className="flex items-start justify-between gap-3 text-[13px]">
+                    <span className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
+                      {Icon && <Icon className="h-3.5 w-3.5" />}
+                      {r.label}
+                    </span>
+                    <span className="font-mono text-right text-[12px] font-600 text-[var(--color-foreground)] break-all">
+                      {r.value}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── License documents section (brand) ── */
+function BrandLicenseSection({
+  licenses,
+  generations,
+  approvedTarget,
+  sessionStatus,
+}: {
+  licenses: LicenseRow[];
+  generations: Map<string, Generation>;
+  approvedTarget: number;
+  sessionStatus: string;
+}) {
+  const allComplete = approvedTarget > 0 && licenses.length >= approvedTarget;
+  const isCompleted = sessionStatus === "completed";
+
+  if (licenses.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-secondary)]">
+            <FileCheck2 className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+          </div>
+          <div>
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              Licences & documents
+            </p>
+            <p className="text-[12px] text-[var(--color-muted-foreground)]">
+              Each approval issues a signed licence PDF + downloadable pack — appears here once the creator approves.
+            </p>
           </div>
         </div>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <FileCheck2 className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              Licences & documents
+            </p>
+            <p className="text-[11px] text-[var(--color-muted-foreground)]">
+              {licenses.length} licence{licenses.length !== 1 ? "s" : ""} issued
+              {approvedTarget > 0 && ` · ${approvedTarget} target`}
+            </p>
+          </div>
+        </div>
+        {allComplete && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-emerald-600">
+            <CheckCircle2 className="h-3 w-3" />
+            All issued
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {licenses.map((lic) => {
+          const gen = generations.get(lic.generation_id);
+          return (
+            <div
+              key={lic.id}
+              className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/40 p-3"
+            >
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
+                {gen?.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={gen.image_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <ImageIcon className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                  Licence · {lic.scope.replace(/_/g, " ")}
+                </p>
+                <p className="mt-0.5 truncate text-[12px] text-[var(--color-foreground)]">
+                  Issued {fmtDate(lic.issued_at)} · expires {fmtDate(lic.expires_at)}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  {lic.cert_url ? (
+                    <a
+                      href={lic.cert_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                    >
+                      <FileCheck2 className="h-2.5 w-2.5" />
+                      Certificate
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                      Cert generating…
+                    </span>
+                  )}
+                  <a
+                    href={`/api/vault/${lic.generation_id}/download?format=original`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                  >
+                    <Download className="h-2.5 w-2.5" />
+                    Pack ZIP
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!isCompleted && allComplete && (
+        <p className="mt-3 text-center font-mono text-[10px] text-[var(--color-muted-foreground)]">
+          All target images approved — collab will move to Completed shortly.
+        </p>
+      )}
     </div>
   );
 }

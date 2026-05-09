@@ -99,7 +99,7 @@ export async function GET(
   let q = admin
     .from("conversation_messages")
     .select(
-      "id, conversation_id, sender_user_id, sender_role, body, read_by_brand, read_by_creator, created_at",
+      "id, conversation_id, sender_user_id, sender_role, body, read_by_brand, read_by_creator, created_at, attachment_url, attachment_type, attachment_name, attachment_size",
     )
     .eq("conversation_id", id)
     .order("created_at", { ascending: false })
@@ -150,15 +150,24 @@ export async function POST(
     );
   }
 
-  let body: { body?: string };
+  let body: {
+    body?: string;
+    attachment_url?: string;
+    attachment_type?: string;
+    attachment_name?: string;
+    attachment_size?: number;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
   const text = (body.body ?? "").trim();
-  if (!text) {
-    return NextResponse.json({ error: "empty_body" }, { status: 400 });
+  const attachmentUrl = body.attachment_url?.trim() ?? null;
+
+  // Must have at least one of: text or attachment
+  if (!text && !attachmentUrl) {
+    return NextResponse.json({ error: "empty_message" }, { status: 400 });
   }
   if (text.length > 4000) {
     return NextResponse.json(
@@ -177,20 +186,26 @@ export async function POST(
 
   // Sender's own message is auto-marked read for their side; counterparty
   // sees it as unread until they open the thread.
-  const insert = {
+  const insert: Record<string, unknown> = {
     conversation_id: id,
     sender_user_id: user.id,
     sender_role: conv.role,
-    body: text,
+    body: text || null,
     read_by_brand: conv.role === "brand",
     read_by_creator: conv.role === "creator",
   };
+  if (attachmentUrl) {
+    insert.attachment_url = attachmentUrl;
+    insert.attachment_type = body.attachment_type ?? null;
+    insert.attachment_name = body.attachment_name ?? null;
+    insert.attachment_size = body.attachment_size ?? null;
+  }
 
   const { data: created, error } = await admin
     .from("conversation_messages")
     .insert(insert)
     .select(
-      "id, conversation_id, sender_user_id, sender_role, body, read_by_brand, read_by_creator, created_at",
+      "id, conversation_id, sender_user_id, sender_role, body, read_by_brand, read_by_creator, created_at, attachment_url, attachment_type, attachment_name, attachment_size",
     )
     .single();
 

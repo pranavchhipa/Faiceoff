@@ -60,11 +60,24 @@ interface Generation {
 
 interface BrandSummary {
   company_name: string | null;
+  avatar_url: string | null;
 }
 
 interface RequestSnapshot {
   product_image_url: string | null;
   brief_one_liner: string | null;
+}
+
+interface LicenseRow {
+  id: string;
+  generation_id: string;
+  scope: string;
+  issued_at: string;
+  expires_at: string;
+  status: string;
+  cert_url: string | null;
+  amount_paid_paise: number;
+  creator_share_paise: number;
 }
 
 interface CollabData {
@@ -74,6 +87,7 @@ interface CollabData {
   generations: Generation[];
   brand: BrandSummary;
   request: RequestSnapshot | null;
+  licenses: LicenseRow[];
 }
 
 type Tab = "images" | "chat" | "details";
@@ -230,7 +244,7 @@ export default function CreatorCollabWorkspacePage() {
     );
   }
 
-  const { session, conversation_id, generations, brand, request } = data;
+  const { session, conversation_id, generations, brand, request, licenses } = data;
   const tier = session.package_tier
     ? TIER_META[session.package_tier] ?? TIER_META.frame
     : TIER_META.frame;
@@ -339,9 +353,20 @@ export default function CreatorCollabWorkspacePage() {
 
               {/* Brand info */}
               <div className="mt-3 flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[12px] font-700 text-[var(--color-foreground)] ring-2 ring-[var(--color-border)]">
-                  {(brand.company_name ?? "B").charAt(0).toUpperCase()}
-                </div>
+                {brand.avatar_url ? (
+                  <Image
+                    src={brand.avatar_url}
+                    alt={brand.company_name ?? "Brand"}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover ring-2 ring-[var(--color-border)]"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[12px] font-700 text-[var(--color-foreground)] ring-2 ring-[var(--color-border)]">
+                    {(brand.company_name ?? "B").charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-700 text-[var(--color-foreground)]">
                     with {brand.company_name ?? "Brand"}
@@ -405,11 +430,9 @@ export default function CreatorCollabWorkspacePage() {
           label="Your earning"
           value={expectedEarning ? fmt(expectedEarning) : "—"}
           sub={
-            session.status === "completed"
-              ? "released"
-              : approved > 0
-              ? "in escrow"
-              : "on completion"
+            session.package_price_paise
+              ? `70% of ${fmt(session.package_price_paise)}`
+              : "70% of package"
           }
           tone="primary"
         />
@@ -475,7 +498,14 @@ export default function CreatorCollabWorkspacePage() {
             counterpartyName={brand.company_name ?? "Brand"}
           />
         )}
-        {activeTab === "details" && <DetailsTab session={session} />}
+        {activeTab === "details" && (
+          <DetailsTab
+            session={session}
+            licenses={licenses}
+            generations={generations}
+            role="creator"
+          />
+        )}
       </motion.div>
 
       {/* ── Lightbox ── */}
@@ -802,7 +832,17 @@ function ChatTab({
 }
 
 /* ── Details Tab ── */
-function DetailsTab({ session }: { session: Session }) {
+function DetailsTab({
+  session,
+  licenses,
+  generations,
+  role,
+}: {
+  session: Session;
+  licenses: LicenseRow[];
+  generations: Generation[];
+  role: "brand" | "creator";
+}) {
   const tierLabel = session.package_tier
     ? TIER_META[session.package_tier]?.label ?? session.package_tier
     : null;
@@ -877,37 +917,188 @@ function DetailsTab({ session }: { session: Session }) {
     },
   ];
 
+  // Build a lookup of generation thumbnails so each license card can show
+  // its associated image.
+  const genById = new Map(generations.map((g) => [g.id, g]));
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {groups.map((g) => (
-        <div
-          key={g.title}
-          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
-        >
-          <p className="mb-4 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-            {g.title}
-          </p>
-          <div className="space-y-3">
-            {g.rows.map((r) => {
-              const Icon = r.icon;
-              return (
-                <div
-                  key={r.label}
-                  className="flex items-start justify-between gap-3 text-[13px]"
-                >
-                  <span className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
-                    {Icon && <Icon className="h-3.5 w-3.5" />}
-                    {r.label}
-                  </span>
-                  <span className="font-mono text-right text-[12px] font-600 text-[var(--color-foreground)] break-all">
-                    {r.value}
-                  </span>
-                </div>
-              );
-            })}
+    <div className="space-y-4">
+      {/* Licenses & documents */}
+      <LicenseSection
+        licenses={licenses}
+        generations={genById}
+        approvedTarget={session.final_images_target ?? 0}
+        sessionStatus={session.status}
+        role={role}
+      />
+
+      {/* Package + Timeline */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {groups.map((g) => (
+          <div
+            key={g.title}
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
+          >
+            <p className="mb-4 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              {g.title}
+            </p>
+            <div className="space-y-3">
+              {g.rows.map((r) => {
+                const Icon = r.icon;
+                return (
+                  <div
+                    key={r.label}
+                    className="flex items-start justify-between gap-3 text-[13px]"
+                  >
+                    <span className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
+                      {Icon && <Icon className="h-3.5 w-3.5" />}
+                      {r.label}
+                    </span>
+                    <span className="font-mono text-right text-[12px] font-600 text-[var(--color-foreground)] break-all">
+                      {r.value}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── License documents section ── */
+function LicenseSection({
+  licenses,
+  generations,
+  approvedTarget,
+  sessionStatus,
+  role,
+}: {
+  licenses: LicenseRow[];
+  generations: Map<string, Generation>;
+  approvedTarget: number;
+  sessionStatus: string;
+  role: "brand" | "creator";
+}) {
+  const allComplete = approvedTarget > 0 && licenses.length >= approvedTarget;
+  const isCompleted = sessionStatus === "completed";
+
+  if (licenses.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-secondary)]">
+            <FileCheck2 className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+          </div>
+          <div>
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              Licenses & documents
+            </p>
+            <p className="text-[12px] text-[var(--color-muted-foreground)]">
+              {role === "creator"
+                ? "Each approval issues a signed licence PDF — appears here once images are approved."
+                : "Each approval issues a signed licence PDF — appears here once the creator approves."}
+            </p>
           </div>
         </div>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <FileCheck2 className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+              Licenses & documents
+            </p>
+            <p className="text-[11px] text-[var(--color-muted-foreground)]">
+              {licenses.length} licence{licenses.length !== 1 ? "s" : ""} issued
+              {approvedTarget > 0 && ` · ${approvedTarget} target`}
+            </p>
+          </div>
+        </div>
+        {allComplete && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-emerald-600">
+            <CheckCircle2 className="h-3 w-3" />
+            All issued
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {licenses.map((lic) => {
+          const gen = generations.get(lic.generation_id);
+          return (
+            <div
+              key={lic.id}
+              className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/40 p-3"
+            >
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
+                {gen?.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={gen.image_url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <ImageIcon className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                  Licence · {lic.scope.replace(/_/g, " ")}
+                </p>
+                <p className="mt-0.5 truncate text-[12px] text-[var(--color-foreground)]">
+                  Issued {fmtDate(lic.issued_at)} · expires{" "}
+                  {fmtDate(lic.expires_at)}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  {lic.cert_url ? (
+                    <a
+                      href={lic.cert_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                    >
+                      <FileCheck2 className="h-2.5 w-2.5" />
+                      Certificate
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                      Cert generating…
+                    </span>
+                  )}
+                  {gen?.image_url && (
+                    <a
+                      href={`/api/vault/${lic.generation_id}/download?format=original`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                    >
+                      <FileCheck2 className="h-2.5 w-2.5" />
+                      Pack (zip)
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!isCompleted && allComplete && (
+        <p className="mt-3 text-center font-mono text-[10px] text-[var(--color-muted-foreground)]">
+          All target images approved — collab will move to Completed shortly.
+        </p>
+      )}
     </div>
   );
 }

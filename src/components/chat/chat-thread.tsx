@@ -29,6 +29,10 @@ import {
   AlertCircle,
   RefreshCw,
   ChevronDown,
+  Paperclip,
+  Smile,
+  X,
+  Download,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -44,16 +48,39 @@ export interface MessageRow {
   conversation_id: string;
   sender_user_id: string;
   sender_role: "brand" | "creator";
-  body: string;
+  body: string | null;
   read_by_brand: boolean;
   read_by_creator: boolean;
   created_at: string;
+  /** Optional image attachment */
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
+  attachment_size?: number | null;
   /** Client-only flags */
   pending?: boolean;
   failed?: boolean;
-  /** Original draft text for retry */
+  /** Original draft for retry (text + attachment) */
   _retryBody?: string;
+  _retryAttachment?: PendingAttachment | null;
 }
+
+interface PendingAttachment {
+  url: string;
+  type: string;
+  name: string;
+  size: number;
+  /** Local-only preview while uploading */
+  previewUrl?: string;
+  uploading?: boolean;
+}
+
+/** Quick-access emoji set — covers the 24 most common ones for chat. */
+const QUICK_EMOJIS = [
+  "😀", "😂", "😍", "🥰", "😎", "🤔", "😅", "😢",
+  "😭", "🤣", "🙏", "👍", "👎", "🔥", "💯", "✨",
+  "🎉", "❤️", "💔", "👀", "🙌", "💪", "🤝", "🚀",
+];
 
 interface ChatThreadProps {
   conversationId: string;
@@ -141,12 +168,20 @@ export function ChatThread({
   // "X new messages while you were scrolled up" indicator
   const [unreadBelow, setUnreadBelow] = useState(0);
 
+  // Attachment + emoji UI
+  const [pendingAttachment, setPendingAttachment] =
+    useState<PendingAttachment | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isAtBottomRef = useRef(true);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingSentRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   /* ── Resolve current user id ── */
   useEffect(() => {
@@ -367,7 +402,11 @@ export function ChatThread({
 
   /* ── Send (optimistic) with retry support ── */
   const sendBody = useCallback(
-    async (text: string, replaceTempId?: string) => {
+    async (
+      text: string,
+      attachment: PendingAttachment | null,
+      replaceTempId?: string,
+    ) => {
       if (!conversationId || !role || !myUserId) return;
       const tempId =
         replaceTempId ??
@@ -379,15 +418,18 @@ export function ChatThread({
           conversation_id: conversationId,
           sender_user_id: myUserId,
           sender_role: role,
-          body: text,
+          body: text || null,
           read_by_brand: role === "brand",
           read_by_creator: role === "creator",
           created_at: new Date().toISOString(),
           pending: true,
+          attachment_url: attachment?.url ?? null,
+          attachment_type: attachment?.type ?? null,
+          attachment_name: attachment?.name ?? null,
+          attachment_size: attachment?.size ?? null,
         };
         setMessages((prev) => [...prev, optimistic]);
       } else {
-        // Retry: clear failed flag, set pending
         setMessages((prev) =>
           prev.map((m) =>
             m.id === replaceTempId
@@ -403,7 +445,13 @@ export function ChatThread({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ body: text }),
+            body: JSON.stringify({
+              body: text,
+              attachment_url: attachment?.url,
+              attachment_type: attachment?.type,
+              attachment_name: attachment?.name,
+              attachment_size: attachment?.size,
+            }),
           },
         );
         if (!res.ok) throw new Error(`send failed ${res.status}`);
@@ -412,11 +460,16 @@ export function ChatThread({
         setMessages((prev) => prev.map((m) => (m.id === tempId ? real : m)));
       } catch (err) {
         console.error("[chat] send failed", err);
-        // Mark as failed (keep visible with retry option)
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId
-              ? { ...m, pending: false, failed: true, _retryBody: text }
+              ? {
+                  ...m,
+                  pending: false,
+                  failed: true,
+                  _retryBody: text,
+                  _retryAttachment: attachment,
+                }
               : m,
           ),
         );
@@ -427,26 +480,93 @@ export function ChatThread({
 
   const send = useCallback(async () => {
     const text = draft.trim();
-    if (!text || sending) return;
+    if ((!text && !pendingAttachment) || sending) return;
+    if (pendingAttachment?.uploading) return; // Wait for upload
     setSending(true);
+    const att = pendingAttachment;
     setDraft("");
+    setPendingAttachment(null);
+    setEmojiOpen(false);
     isAtBottomRef.current = true;
     setUnreadBelow(0);
     try {
-      await sendBody(text);
+      await sendBody(text, att);
     } finally {
       setSending(false);
     }
-  }, [draft, sending, sendBody]);
+  }, [draft, sending, pendingAttachment, sendBody]);
 
   const retryFailed = useCallback(
     async (msg: MessageRow) => {
-      const text = msg._retryBody ?? msg.body;
-      if (!text) return;
-      await sendBody(text, msg.id);
+      const text = msg._retryBody ?? msg.body ?? "";
+      const att = msg._retryAttachment ?? null;
+      if (!text && !att) return;
+      await sendBody(text, att, msg.id);
     },
     [sendBody],
   );
+
+  /* ── Attachment upload handler ── */
+  const handleFilePick = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Only images are supported right now.");
+      return;
+    }
+    const localPreview = URL.createObjectURL(file);
+    setPendingAttachment({
+      url: "",
+      type: file.type,
+      name: file.name,
+      size: file.size,
+      previewUrl: localPreview,
+      uploading: true,
+    });
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/chat/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Upload failed");
+        setPendingAttachment(null);
+        return;
+      }
+      setPendingAttachment({
+        url: data.url,
+        type: data.type,
+        name: data.name,
+        size: data.size,
+        previewUrl: localPreview,
+        uploading: false,
+      });
+    } catch (err) {
+      console.error("[chat] upload failed", err);
+      alert("Upload failed. Try again.");
+      setPendingAttachment(null);
+    }
+  }, []);
+
+  /* ── Emoji insert ── */
+  const insertEmoji = useCallback((emoji: string) => {
+    const ta = composerRef.current;
+    if (!ta) {
+      setDraft((d) => d + emoji);
+      return;
+    }
+    const start = ta.selectionStart ?? draft.length;
+    const end = ta.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    setDraft(next);
+    // Restore caret after the emoji
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + emoji.length;
+      ta.setSelectionRange(pos, pos);
+    });
+  }, [draft]);
 
   /* ── Broadcast typing event (debounced, max 1/sec) ── */
   const broadcastTyping = useCallback(() => {
@@ -549,12 +669,22 @@ export function ChatThread({
         </header>
       )}
 
-      {/* Messages */}
+      {/* Messages — subtle Faiceoff-mark background pattern */}
       <div
         ref={scrollContainerRef}
         onScroll={onScroll}
         className="relative flex-1 overflow-y-auto px-4 py-4"
+        style={{
+          backgroundImage: "url(/logo-mark.png)",
+          backgroundRepeat: "repeat",
+          backgroundSize: "120px 120px",
+          backgroundPosition: "center",
+          backgroundBlendMode: "overlay",
+        }}
       >
+        {/* Pattern dimmer overlay so the logo doesn't compete with messages */}
+        <div className="pointer-events-none absolute inset-0 bg-[var(--color-card)]/92" />
+        <div className="relative">
         {loadingMore && (
           <div className="flex justify-center pb-2">
             <Loader2 className="size-3 animate-spin text-[var(--color-muted-foreground)]" />
@@ -605,7 +735,7 @@ export function ChatThread({
                   >
                     <div className="flex max-w-[78%] flex-col gap-0.5">
                       <div
-                        className={`group relative rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                        className={`group relative overflow-hidden rounded-2xl text-sm leading-relaxed ${
                           isMine
                             ? m.failed
                               ? "border border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
@@ -613,25 +743,46 @@ export function ChatThread({
                             : "bg-[var(--color-secondary)] text-[var(--color-foreground)]"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                        <div
-                          className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                            isMine && !m.failed ? "opacity-70" : ""
-                          }`}
-                        >
-                          <span className={isMine ? "" : "text-[var(--color-muted-foreground)]"}>
-                            {fmtClock(m.created_at)}
-                          </span>
-                          {isMine &&
-                            (m.failed ? (
-                              <AlertCircle className="size-3 text-red-500" />
-                            ) : m.pending ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : counterpartyRead ? (
-                              <CheckCheck className="size-3" />
-                            ) : (
-                              <Check className="size-3" />
-                            ))}
+                        {/* Image attachment */}
+                        {m.attachment_url && (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl(m.attachment_url!)}
+                            className="block w-full max-w-[320px] cursor-zoom-in"
+                            aria-label="View image"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={m.attachment_url}
+                              alt={m.attachment_name ?? "attachment"}
+                              className="block max-h-[320px] w-full bg-black/10 object-cover"
+                            />
+                          </button>
+                        )}
+
+                        <div className={`px-3.5 ${m.attachment_url && !m.body ? "py-1.5" : "py-2"}`}>
+                          {m.body && (
+                            <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                          )}
+                          <div
+                            className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                              isMine && !m.failed ? "opacity-70" : ""
+                            }`}
+                          >
+                            <span className={isMine ? "" : "text-[var(--color-muted-foreground)]"}>
+                              {fmtClock(m.created_at)}
+                            </span>
+                            {isMine &&
+                              (m.failed ? (
+                                <AlertCircle className="size-3 text-red-500" />
+                              ) : m.pending ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : counterpartyRead ? (
+                                <CheckCheck className="size-3" />
+                              ) : (
+                                <Check className="size-3" />
+                              ))}
+                          </div>
                         </div>
                       </div>
                       {isMine && m.failed && (
@@ -670,23 +821,136 @@ export function ChatThread({
             </motion.button>
           )}
         </AnimatePresence>
+        </div> {/* close .relative content wrapper (over the bg pattern) */}
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-card)] p-3">
+      <div className="relative shrink-0 border-t border-[var(--color-border)] bg-[var(--color-card)] p-3">
+        {/* Pending attachment preview */}
+        {pendingAttachment && (
+          <div className="mb-2 inline-flex items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-2">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
+              {pendingAttachment.previewUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={pendingAttachment.previewUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              )}
+              {pendingAttachment.uploading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+                  <Loader2 className="size-4 animate-spin text-white" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-700 text-[var(--color-foreground)]">
+                {pendingAttachment.name}
+              </p>
+              <p className="text-[10px] text-[var(--color-muted-foreground)]">
+                {pendingAttachment.uploading
+                  ? "Uploading…"
+                  : `${(pendingAttachment.size / 1024).toFixed(0)} KB · ready`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingAttachment.previewUrl) {
+                  URL.revokeObjectURL(pendingAttachment.previewUrl);
+                }
+                setPendingAttachment(null);
+              }}
+              className="rounded-lg p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] hover:text-[var(--color-foreground)]"
+              aria-label="Remove attachment"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Emoji panel */}
+        <AnimatePresence>
+          {emojiOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-[64px] left-3 right-3 z-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.4)] sm:right-auto sm:max-w-[280px]"
+            >
+              <div className="grid grid-cols-8 gap-1">
+                {QUICK_EMOJIS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => insertEmoji(e)}
+                    className="rounded-md p-1.5 text-lg transition hover:bg-[var(--color-secondary)]"
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-end gap-2">
+          {/* Attach */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFilePick(f);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)]"
+            aria-label="Attach image"
+            title="Attach image"
+          >
+            <Paperclip className="size-4" />
+          </button>
+
+          {/* Emoji toggle */}
+          <button
+            type="button"
+            onClick={() => setEmojiOpen((v) => !v)}
+            className={`flex size-10 shrink-0 items-center justify-center rounded-full transition ${
+              emojiOpen
+                ? "bg-[var(--color-secondary)] text-[var(--color-foreground)]"
+                : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)]"
+            }`}
+            aria-label="Pick emoji"
+            title="Pick emoji"
+          >
+            <Smile className="size-4" />
+          </button>
+
           <textarea
+            ref={composerRef}
             value={draft}
             onChange={onDraftChange}
             onKeyDown={onKeyDown}
-            placeholder="Message…"
+            placeholder={pendingAttachment ? "Add a caption…" : "Message…"}
             rows={1}
             className="flex-1 resize-none rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
             style={{ maxHeight: 120 }}
           />
           <button
             onClick={() => void send()}
-            disabled={!draft.trim() || sending}
+            disabled={
+              (!draft.trim() && !pendingAttachment) ||
+              sending ||
+              !!pendingAttachment?.uploading
+            }
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-40"
             aria-label="Send"
           >
@@ -698,9 +962,43 @@ export function ChatThread({
           </button>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-[var(--color-muted-foreground)]">
-          Enter to send · Shift + Enter for newline
+          Enter to send · Shift + Enter for newline · 📎 image · 😀 emoji
         </p>
       </div>
+
+      {/* Lightbox for attachment images */}
+      <AnimatePresence>
+        {lightboxUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setLightboxUrl(null)}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm sm:p-8"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-h-full max-w-[1200px]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxUrl}
+                alt="Attachment"
+                className="max-h-[92vh] max-w-full rounded-lg object-contain shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6)]"
+              />
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(null)}
+                className="absolute right-3 top-3 rounded-full bg-black/55 p-2 text-white backdrop-blur-md transition hover:bg-black/80"
+                aria-label="Close"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
