@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { ChatInbox } from "@/components/chat/chat-inbox";
+import { Loader2 } from "lucide-react";
 
 export const metadata = {
   title: "Inbox · Faiceoff",
@@ -16,7 +18,15 @@ export default function CreatorInboxPage() {
           conversations unlock after the first approval.
         </p>
       </div>
-      <ChatInbox />
+      <Suspense
+        fallback={
+          <div className="flex h-[400px] items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
+            <Loader2 className="size-5 animate-spin text-[var(--color-muted-foreground)]" />
+          </div>
+        }
+      >
+        <ChatInbox />
+      </Suspense>
     </div>
   );
 }

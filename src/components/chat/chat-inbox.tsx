@@ -4,34 +4,17 @@
  * ChatInbox — split-pane chat UI shared by brand + creator surfaces.
  *
  * Architecture:
- *   • Left pane: conversation list, sorted by last_message_at desc
- *   • Right pane: active thread with infinite-scroll-up history
- *   • Realtime: Supabase channel subscription on conversation_messages,
- *     filtered to the active conversation_id. Inserts append optimistically;
- *     remote inserts dedupe by id.
- *   • Optimistic send: message renders immediately with a "sending..." flag,
- *     replaced with the server row when POST returns.
- *
- * UX details:
- *   • Auto-scrolls to bottom on mount + on new messages, but freezes if user
- *     has scrolled up (preserves their reading position).
- *   • Time-grouped headers (every 30+ min gap shows "Today 4:12pm" tag).
- *   • Avatar bubbles with role-colored accent.
- *   • Send on Enter, Shift+Enter for newline.
- *   • Read receipts: counterparty's avatar overlaid on last-read message.
+ *   • Left pane: conversation list (sidebar), sorted by last_message_at desc
+ *   • Right pane: <ChatThread> for the active conversation
+ *   • Auto-selects conversation from `?conversation=<id>` URL param so deep
+ *     links from the collab page open the right thread directly (no extra
+ *     click). Updates URL on conversation switch via router.replace.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowLeft,
-  Send,
-  CheckCheck,
-  Check,
-  Loader2,
-  MessageSquare,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Loader2, MessageSquare } from "lucide-react";
+import { ChatThread, type MessageRow } from "./chat-thread";
 
 interface Counterparty {
   name: string;
@@ -48,19 +31,6 @@ interface ConversationItem {
   unread_count: number;
 }
 
-interface MessageRow {
-  id: string;
-  conversation_id: string;
-  sender_user_id: string;
-  sender_role: "brand" | "creator";
-  body: string;
-  read_by_brand: boolean;
-  read_by_creator: boolean;
-  created_at: string;
-  /** Client-only: true while POST is in flight. */
-  pending?: boolean;
-}
-
 function fmtTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -73,41 +43,23 @@ function fmtTime(iso: string): string {
   }
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
   if (diffDays < 7) {
-    return d.toLocaleDateString("en-IN", {
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    return d.toLocaleDateString("en-IN", { weekday: "short" });
   }
   return d.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 
-function shouldGroupByTime(prev: MessageRow | null, curr: MessageRow): boolean {
-  if (!prev) return true;
-  const gap =
-    new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
-  return gap > 30 * 60 * 1000; // 30 min
-}
-
 export function ChatInbox() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<MessageRow[]>([]);
-  const [draft, setDraft] = useState("");
   const [loadingConvs, setLoadingConvs] = useState(true);
-  const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [role, setRole] = useState<"brand" | "creator" | null>(null);
-  const [myUserId, setMyUserId] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const isAtBottomRef = useRef(true);
-  const supabase = useMemo(() => createClient(), []);
 
   /* ── Load conversations ── */
   useEffect(() => {
@@ -132,161 +84,58 @@ export function ChatInbox() {
     };
   }, []);
 
-  /* ── Resolve current user id (for "is this my message" rendering) ── */
+  /* ── Auto-select conversation from URL ?conversation=xxx ── */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) setMyUserId(data.user.id);
-    });
-  }, [supabase]);
-
-  /* ── Load messages on conversation change ── */
-  useEffect(() => {
-    if (!activeId) {
-      setMessages([]);
-      return;
+    const fromUrl = searchParams.get("conversation");
+    if (fromUrl && fromUrl !== activeId) {
+      setActiveId(fromUrl);
     }
-    let cancelled = false;
-    setLoadingMsgs(true);
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/chat/conversations/${activeId}/messages?limit=50`,
-        );
-        if (!res.ok) {
-          setLoadingMsgs(false);
-          return;
-        }
-        const json = await res.json();
-        if (cancelled) return;
-        setMessages(json.messages ?? []);
-        // Reset unread badge for this conv locally
+  // Only when URL or list changes — avoid loop on activeId.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, conversations.length]);
+
+  const selectConversation = useCallback(
+    (id: string | null) => {
+      setActiveId(id);
+      // Reflect in URL so back/forward + refresh restore the open thread
+      const params = new URLSearchParams(searchParams.toString());
+      if (id) params.set("conversation", id);
+      else params.delete("conversation");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      // Locally clear unread badge when opening
+      if (id) {
         setConversations((prev) =>
-          prev.map((c) =>
-            c.id === activeId ? { ...c, unread_count: 0 } : c,
-          ),
+          prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c)),
         );
-      } finally {
-        if (!cancelled) setLoadingMsgs(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId]);
-
-  /* ── Realtime subscription for active conversation ── */
-  useEffect(() => {
-    if (!activeId) return;
-
-    const channel = supabase
-      .channel(`chat:${activeId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "conversation_messages",
-          filter: `conversation_id=eq.${activeId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as MessageRow;
-          setMessages((prev) => {
-            // Dedupe — skip if we already have this id (could be our own
-            // optimistic insert that the server confirmed).
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            // Replace pending optimistic message if body matches
-            const matchPendingIdx = prev.findIndex(
-              (m) =>
-                m.pending && m.body === newMsg.body &&
-                m.sender_user_id === newMsg.sender_user_id,
-            );
-            if (matchPendingIdx >= 0) {
-              const next = [...prev];
-              next[matchPendingIdx] = newMsg;
-              return next;
-            }
-            return [...prev, newMsg];
-          });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeId, supabase]);
-
-  /* ── Auto-scroll to bottom on new message (only if user is at bottom) ── */
-  useEffect(() => {
-    if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages.length]);
-
-  /* ── Track scroll position ── */
-  const onScroll = useCallback(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    isAtBottomRef.current = distance < 80;
-  }, []);
-
-  /* ── Send message (optimistic) ── */
-  const send = useCallback(async () => {
-    const text = draft.trim();
-    if (!text || !activeId || sending || !role || !myUserId) return;
-
-    setSending(true);
-    setDraft("");
-    isAtBottomRef.current = true;
-
-    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const optimistic: MessageRow = {
-      id: tempId,
-      conversation_id: activeId,
-      sender_user_id: myUserId,
-      sender_role: role,
-      body: text,
-      read_by_brand: role === "brand",
-      read_by_creator: role === "creator",
-      created_at: new Date().toISOString(),
-      pending: true,
-    };
-    setMessages((prev) => [...prev, optimistic]);
-
-    try {
-      const res = await fetch(
-        `/api/chat/conversations/${activeId}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: text }),
-        },
-      );
-      if (!res.ok) throw new Error(`send failed ${res.status}`);
-      const json = await res.json();
-      const real = json.message as MessageRow;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? real : m)),
-      );
-    } catch (err) {
-      console.error("[chat] send failed", err);
-      // Mark optimistic as failed (could add retry UI later)
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setDraft(text);
-    } finally {
-      setSending(false);
-    }
-  }, [draft, activeId, sending, role, myUserId]);
-
-  const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        void send();
       }
     },
-    [send],
+    [pathname, router, searchParams],
+  );
+
+  /* ── Bump conversation in sidebar when a remote message arrives ── */
+  const onMessageReceived = useCallback(
+    (msg: MessageRow) => {
+      setConversations((prev) =>
+        prev
+          .map((c) =>
+            c.id === msg.conversation_id
+              ? {
+                  ...c,
+                  last_message_at: msg.created_at,
+                  unread_count:
+                    c.id === activeId ? 0 : (c.unread_count ?? 0) + 1,
+                }
+              : c,
+          )
+          .sort((a, b) => {
+            const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+            const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+            return tb - ta;
+          }),
+      );
+    },
+    [activeId],
   );
 
   const activeConv = useMemo(
@@ -343,7 +192,7 @@ export function ChatInbox() {
                 return (
                   <button
                     key={c.id}
-                    onClick={() => setActiveId(c.id)}
+                    onClick={() => selectConversation(c.id)}
                     className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
                       active
                         ? "bg-[var(--color-card)]"
@@ -408,148 +257,16 @@ export function ChatInbox() {
             </div>
           </div>
         ) : (
-          <>
-            {/* Thread header */}
-            <header className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3">
-              <button
-                onClick={() => setActiveId(null)}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] md:hidden"
-                aria-label="Back"
-              >
-                <ArrowLeft className="size-4" />
-              </button>
-              {activeConv.counterparty.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={activeConv.counterparty.avatar_url}
-                  alt=""
-                  className="size-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex size-10 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-xs font-700 text-[var(--color-primary)]">
-                  {activeConv.counterparty.name
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((s) => s[0])
-                    .join("")
-                    .toUpperCase() || "??"}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-700 text-[var(--color-foreground)]">
-                  {activeConv.counterparty.name}
-                </p>
-                <p className="text-[11px] text-[var(--color-muted-foreground)]">
-                  {role === "brand" ? "Creator" : "Brand"}
-                </p>
-              </div>
-            </header>
-
-            {/* Messages */}
-            <div
-              ref={scrollContainerRef}
-              onScroll={onScroll}
-              className="flex-1 overflow-y-auto px-4 py-4"
-            >
-              {loadingMsgs ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="size-4 animate-spin text-[var(--color-muted-foreground)]" />
-                </div>
-              ) : messages.length === 0 ? (
-                <p className="py-12 text-center text-xs text-[var(--color-muted-foreground)]">
-                  No messages yet — say hi.
-                </p>
-              ) : (
-                <AnimatePresence initial={false}>
-                  {messages.map((m, i) => {
-                    const prev = i > 0 ? messages[i - 1] : null;
-                    const showTimeHeader = shouldGroupByTime(prev, m);
-                    const isMine = m.sender_user_id === myUserId;
-                    const counterpartyRead = isMine
-                      ? role === "brand"
-                        ? m.read_by_creator
-                        : m.read_by_brand
-                      : false;
-
-                    return (
-                      <div key={m.id}>
-                        {showTimeHeader && (
-                          <div className="my-3 text-center text-[10px] font-600 uppercase tracking-widest text-[var(--color-muted-foreground)]">
-                            {fmtTime(m.created_at)}
-                          </div>
-                        )}
-                        <motion.div
-                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          transition={{
-                            duration: 0.18,
-                            ease: [0.22, 1, 0.36, 1],
-                          }}
-                          className={`mb-1.5 flex ${
-                            isMine ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
-                              isMine
-                                ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-                                : "bg-[var(--color-secondary)] text-[var(--color-foreground)]"
-                            }`}
-                          >
-                            <p className="whitespace-pre-wrap break-words">
-                              {m.body}
-                            </p>
-                            {isMine && (
-                              <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
-                                {m.pending ? (
-                                  <Loader2 className="size-3 animate-spin" />
-                                ) : counterpartyRead ? (
-                                  <CheckCheck className="size-3" />
-                                ) : (
-                                  <Check className="size-3" />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      </div>
-                    );
-                  })}
-                </AnimatePresence>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Composer */}
-            <div className="border-t border-[var(--color-border)] bg-[var(--color-card)] p-3">
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  placeholder="Message…"
-                  rows={1}
-                  className="flex-1 resize-none rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
-                  style={{ maxHeight: 120 }}
-                />
-                <button
-                  onClick={() => void send()}
-                  disabled={!draft.trim() || sending}
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-40"
-                  aria-label="Send"
-                >
-                  {sending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
-                  )}
-                </button>
-              </div>
-              <p className="mt-1.5 px-1 text-[10px] text-[var(--color-muted-foreground)]">
-                Enter to send · Shift + Enter for newline
-              </p>
-            </div>
-          </>
+          <ChatThread
+            conversationId={activeConv.id}
+            counterparty={{
+              name: activeConv.counterparty.name,
+              avatar_url: activeConv.counterparty.avatar_url,
+              subtitle: role === "brand" ? "Creator" : "Brand",
+            }}
+            onBack={() => selectConversation(null)}
+            onMessageReceived={onMessageReceived}
+          />
         )}
       </section>
     </div>

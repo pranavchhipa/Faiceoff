@@ -26,6 +26,7 @@ import {
   FileCheck2,
   Receipt,
 } from "lucide-react";
+import { ChatThread } from "@/components/chat/chat-thread";
 
 interface Session {
   id: string;
@@ -371,7 +372,13 @@ export default function BrandCollabWorkspacePage() {
           <StudioTab collabId={id} session={session} creditsLeft={creditsLeft} brandPending={brandPending} creatorPending={creatorPending} conversationId={conversation_id} />
         )}
         {activeTab === "vault"   && <VaultTab generations={vaultGens} />}
-        {activeTab === "chat"    && <ChatTab conversationId={conversation_id} />}
+        {activeTab === "chat"    && (
+          <ChatTab
+            conversationId={conversation_id}
+            counterpartyName={creator.name ?? "Creator"}
+            counterpartyAvatar={creator.avatar_url}
+          />
+        )}
         {activeTab === "details" && <DetailsTab session={session} />}
       </motion.div>
     </div>
@@ -625,8 +632,16 @@ function VaultTab({ generations }: { generations: Generation[] }) {
   );
 }
 
-/* ───────────────────── Chat Tab ───────────────────── */
-function ChatTab({ conversationId }: { conversationId: string | null }) {
+/* ───────────────────── Chat Tab — embeds ChatThread inline ───────────────────── */
+function ChatTab({
+  conversationId,
+  counterpartyName,
+  counterpartyAvatar,
+}: {
+  conversationId: string | null;
+  counterpartyName: string;
+  counterpartyAvatar: string | null;
+}) {
   if (!conversationId) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
@@ -640,23 +655,16 @@ function ChatTab({ conversationId }: { conversationId: string | null }) {
   }
 
   return (
-    <Link
-      href={`/brand/inbox?conversation=${conversationId}`}
-      className="group flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 transition-all hover:border-[var(--color-primary)]/30 hover:shadow-[0_8px_24px_-8px_rgba(201,169,110,0.2)]"
-    >
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-primary)]/10">
-          <MessageSquare className="h-6 w-6 text-[var(--color-primary)]" />
-        </div>
-        <div>
-          <p className="font-display text-[16px] font-700 text-[var(--color-foreground)]">Open conversation</p>
-          <p className="mt-0.5 text-[12px] text-[var(--color-muted-foreground)]">
-            Realtime chat — read receipts, attachments coming soon
-          </p>
-        </div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5" />
-    </Link>
+    <div className="h-[640px] overflow-hidden rounded-2xl border border-[var(--color-border)]">
+      <ChatThread
+        conversationId={conversationId}
+        counterparty={{
+          name: counterpartyName,
+          avatar_url: counterpartyAvatar,
+          subtitle: "Creator",
+        }}
+      />
+    </div>
   );
 }
 
