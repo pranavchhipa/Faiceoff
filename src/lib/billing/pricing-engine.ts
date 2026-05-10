@@ -31,8 +31,17 @@ export const SCOPE_ADDONS_PAISE: Record<LicenseScope, number> = {
   digital_print_packaging: 100000, // ₹1000
 } as const;
 
-/** Platform commission rate on the effective rate (base + scope addon). */
-export const PLATFORM_COMMISSION_RATE = 0.20;
+/**
+ * Platform commission rate on the effective rate (base + scope addon).
+ * Creator share = (1 - PLATFORM_COMMISSION_RATE) — kept in sync with the
+ * marketing copy on /pricing + /for-creators (currently 75% creator share).
+ *
+ * Single source of truth — every UI / email / cert that displays the
+ * creator share or the platform cut MUST import from here. Hardcoded
+ * decimals (0.7 / 0.8) anywhere are a bug.
+ */
+export const PLATFORM_COMMISSION_RATE = 0.25;
+export const CREATOR_SHARE_RATE = 1 - PLATFORM_COMMISSION_RATE; // 0.75
 
 /** GST rate applied to the commission. */
 export const GST_ON_COMMISSION_RATE = 0.18;

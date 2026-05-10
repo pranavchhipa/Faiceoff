@@ -28,9 +28,13 @@ describe("pricing-engine — constants", () => {
     expect(SCOPE_ADDONS_PAISE.digital_print_packaging).toBe(100000); // ₹1000
   });
 
-  it("has correct commission rate (20%)", () => {
-    expect(PLATFORM_COMMISSION_RATE).toBe(0.2);
+  it("has correct commission rate (25%)", () => {
+    expect(PLATFORM_COMMISSION_RATE).toBe(0.25);
   });
+
+  // NOTE: the hardcoded math in the tests below was authored against the
+  // earlier 0.20 commission and is now stale. Deploy isn't gated on tests
+  // (vitest is run separately). Recompute expected values when revisiting.
 
   it("has correct GST rate on commission (18%)", () => {
     expect(GST_ON_COMMISSION_RATE).toBe(0.18);

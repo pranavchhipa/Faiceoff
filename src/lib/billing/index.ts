@@ -77,6 +77,7 @@ export {
   computeRate,
   SCOPE_ADDONS_PAISE,
   PLATFORM_COMMISSION_RATE,
+  CREATOR_SHARE_RATE,
   GST_ON_COMMISSION_RATE,
   EXCLUSIVITY_RATE,
 } from "./pricing-engine";

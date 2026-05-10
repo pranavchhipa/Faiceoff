@@ -179,7 +179,7 @@ export async function POST(request: Request) {
         );
       }
 
-      // ── Free 10 credits on NEW brand signup (fire-and-forget via after()) ──
+      // ── Free 5 credits on NEW brand signup (fire-and-forget via after()) ──
       // existingUser === null means this is a first-time signup, not a re-login.
       // Idempotent: freeSignupGrant no-ops if credits were already granted.
       if (!existingUser) {

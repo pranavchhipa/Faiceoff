@@ -28,6 +28,7 @@ import {
   Maximize2,
   X,
 } from "lucide-react";
+import { CREATOR_SHARE_RATE as CREATOR_SHARE } from "@/lib/billing/pricing-engine";
 import { ChatThread } from "@/components/chat/chat-thread";
 
 interface Session {
@@ -164,8 +165,7 @@ const USAGE_LABELS: Record<string, string> = {
   digital_full: "Full digital",
 };
 
-// Creator share of the package price (matches PLATFORM_COMMISSION)
-const CREATOR_SHARE = 0.7;
+// Creator share constant — imported from billing/pricing-engine above.
 
 function fmt(paise: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -431,8 +431,8 @@ export default function CreatorCollabWorkspacePage() {
           value={expectedEarning ? fmt(expectedEarning) : "—"}
           sub={
             session.package_price_paise
-              ? `70% of ${fmt(session.package_price_paise)}`
-              : "70% of package"
+              ? `${Math.round(CREATOR_SHARE * 100)}% of ${fmt(session.package_price_paise)}`
+              : `${Math.round(CREATOR_SHARE * 100)}% of package`
           }
           tone="primary"
         />
@@ -883,7 +883,7 @@ function DetailsTab({
           ? [
               {
                 icon: TrendingUp,
-                label: "Your share (70%)",
+                label: `Your share (${Math.round(CREATOR_SHARE * 100)}%)`,
                 value: fmt(expectedEarning),
               },
             ]

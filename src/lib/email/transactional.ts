@@ -14,6 +14,10 @@ import { Resend } from "resend";
 import * as Sentry from "@sentry/nextjs";
 import fs from "node:fs";
 import path from "node:path";
+import { CREATOR_SHARE_RATE } from "@/lib/billing/pricing-engine";
+
+/** Pct label for creator share (e.g. "75%"). Used in email templates. */
+const CREATOR_SHARE_PCT = `${Math.round(CREATOR_SHARE_RATE * 100)}%`;
 
 const FROM_ADDRESS =
   process.env.EMAIL_FROM ?? "Faiceoff <notifications@faiceoff.com>";
@@ -456,7 +460,7 @@ export async function sendCreatorCollabRequest(opts: {
         { label: "Product", value: opts.productName },
         { label: "Package", value: tierLabel },
         { label: "Price", value: fmtINR(opts.pricePaise) },
-        { label: "Your share (70%)", value: fmtINR(Math.round(opts.pricePaise * 0.7)) },
+        { label: `Your share (${CREATOR_SHARE_PCT})`, value: fmtINR(Math.round(opts.pricePaise * CREATOR_SHARE_RATE)) },
       ],
       cta: { label: "Review request", href: `${APP_URL}/creator/requests` },
     }),
@@ -543,7 +547,7 @@ export async function sendCreatorPaymentReceived(opts: {
         { label: "Brand", value: opts.brandName },
         { label: "Project", value: opts.productName },
         { label: "Total funded", value: fmtINR(opts.pricePaise) },
-        { label: "Your share (70%)", value: fmtINR(Math.round(opts.pricePaise * 0.7)) },
+        { label: `Your share (${CREATOR_SHARE_PCT})`, value: fmtINR(Math.round(opts.pricePaise * CREATOR_SHARE_RATE)) },
       ],
       cta: { label: "Open inbox", href: `${APP_URL}/creator/collabs` },
       footnote: "Earnings move from escrow → available 7 days after approval. Withdraw any time after that to your linked bank.",
@@ -829,7 +833,7 @@ export async function sendCreatorRequestExpiringReminder(opts: {
         { label: "Brand", value: opts.brandName },
         { label: "Product", value: opts.productName },
         { label: "Price", value: fmtINR(opts.pricePaise) },
-        { label: "Your share (70%)", value: fmtINR(Math.round(opts.pricePaise * 0.7)) },
+        { label: `Your share (${CREATOR_SHARE_PCT})`, value: fmtINR(Math.round(opts.pricePaise * CREATOR_SHARE_RATE)) },
         { label: "Time left", value: `${opts.hoursLeft} hours` },
       ],
       cta: { label: "Accept or decline", href: `${APP_URL}/creator/requests` },

@@ -15,6 +15,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/payments/razorpay/orders";
+import { computeWalletBonus } from "@/lib/billing/wallet-bonus";
 
 const WalletTopUpRequestSchema = z.object({
   amount_paise: z
@@ -23,17 +24,6 @@ const WalletTopUpRequestSchema = z.object({
     .min(50_000, "minimum top-up is ₹500")
     .max(50_000_000, "maximum top-up is ₹5,00,000"),
 });
-
-function computeWalletBonus(amount_paise: number): number {
-  const rupees = Math.floor(amount_paise / 100);
-  let rate: number;
-  if (rupees >= 50_000)      rate = 0.20;
-  else if (rupees >= 10_000) rate = 0.15;
-  else if (rupees >= 5_000)  rate = 0.10;
-  else if (rupees >= 1_000)  rate = 0.05;
-  else                       rate = 0;
-  return Math.floor(amount_paise * rate);
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -52,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_input", details: parsed.error.issues }, { status: 400 });
   }
   const { amount_paise } = parsed.data;
-  const bonus_paise = computeWalletBonus(amount_paise);
+  const bonus_paise = computeWalletBonus(amount_paise).bonusPaise;
 
   const admin = createAdminClient() as Admin;
 
