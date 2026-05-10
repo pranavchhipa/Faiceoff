@@ -1,740 +1,1094 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// /pricing — Public marketing pricing page (E20)
+// /pricing — Public pricing marketing page
 //
-// Server component: fetches live credit pack data via getActivePacks().
-// Falls back to static pack stubs if DB is unreachable (marketing page safety).
+// Light editorial aesthetic. Uses ONLY the `lp-*` token system. No Tailwind
+// color utilities. No dark theme. Server component (FAQ uses native <details>).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
-import { getActivePacks } from "@/lib/billing";
-import type { CreditPack } from "@/lib/billing";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
-import {
-  CheckCircle,
+  ArrowRight,
+  CheckCircle2,
+  Sparkles as SparklesIcon,
   Zap,
-  Sparkles,
   Star,
   Building2,
-  Rocket,
+  Wallet,
+  Coins,
   ChevronDown,
   Gift,
-  ArrowRight,
-  Info,
+  ShieldCheck,
+  Receipt,
+  Clock,
 } from "lucide-react";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Metadata
-// ─────────────────────────────────────────────────────────────────────────────
+import { WALLET_BONUS_TIERS } from "@/lib/billing/wallet-bonus";
 
+// ─────────────────────────────────────────────────────────────────────────────
 export const metadata = {
-  title: "Pricing — Faiceoff",
+  title: "Faiceoff Pricing | AI Face Licensing Credits & Creator Wallet",
   description:
-    "Simple, transparent credit-based pricing for AI likeness licensing. Buy a pack, start generating. 5 free credits on signup.",
+    "Simple pricing for AI creator campaigns. Buy credits for AI image generation and use wallet balance to pay creator licensing fees. Start free with 5 credits.",
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Static fallback packs (shown if DB unavailable — never leaves users stranded)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FALLBACK_PACKS: CreditPack[] = [
-  {
-    id: "fallback-spark",
-    code: "spark",
-    display_name: "Spark",
-    credits: 10,
-    bonus_credits: 0,
-    price_paise: 99900,
-    is_popular: false,
-    is_active: true,
-    sort_order: 1,
-    marketing_tagline: "Perfect for your first campaign",
-    created_at: "",
-    updated_at: "",
-  },
-  {
-    id: "fallback-flow",
-    code: "flow",
-    display_name: "Flow",
-    credits: 50,
-    bonus_credits: 5,
-    price_paise: 449900,
-    is_popular: false,
-    is_active: true,
-    sort_order: 2,
-    marketing_tagline: "Scale your creative output",
-    created_at: "",
-    updated_at: "",
-  },
-  {
-    id: "fallback-pro",
-    code: "pro",
-    display_name: "Pro",
-    credits: 200,
-    bonus_credits: 50,
-    price_paise: 1499900,
-    is_popular: true,
-    is_active: true,
-    sort_order: 3,
-    marketing_tagline: "Most loved by growing brands",
-    created_at: "",
-    updated_at: "",
-  },
-  {
-    id: "fallback-studio",
-    code: "studio",
-    display_name: "Studio",
-    credits: 500,
-    bonus_credits: 150,
-    price_paise: 3299900,
-    is_popular: false,
-    is_active: true,
-    sort_order: 4,
-    marketing_tagline: "For agencies & power users",
-    created_at: "",
-    updated_at: "",
-  },
-  {
-    id: "fallback-enterprise",
-    code: "enterprise",
-    display_name: "Enterprise",
-    credits: 2000,
-    bonus_credits: 800,
-    price_paise: 11999900,
-    is_popular: false,
-    is_active: true,
-    sort_order: 5,
-    marketing_tagline: "Unlimited scale, best per-credit rate",
-    created_at: "",
-    updated_at: "",
-  },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function formatINR(paise: number): string {
-  return (paise / 100).toLocaleString("en-IN");
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <div className="lp-eyebrow">{children}</div>;
 }
 
-/** Pick a Lucide icon per pack code */
-function packIcon(code: string) {
-  switch (code) {
-    case "spark":
-      return <Zap className="w-5 h-5" />;
-    case "flow":
-      return <Sparkles className="w-5 h-5" />;
-    case "pro":
-      return <Star className="w-5 h-5" />;
-    case "studio":
-      return <Rocket className="w-5 h-5" />;
-    case "enterprise":
-      return <Building2 className="w-5 h-5" />;
-    default:
-      return <Sparkles className="w-5 h-5" />;
-  }
+function formatBpsAsPercent(bps: number): string {
+  if (bps === 0) return "No bonus";
+  return `${bps / 100}% bonus`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Wallet bonus tiers
+// Section 1 — Hero
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WALLET_TIERS = [
-  { label: "₹500–999", pct: "0%", note: "No bonus" },
-  { label: "₹1,000–4,999", pct: "5%", note: "5% bonus" },
-  { label: "₹5,000–9,999", pct: "10%", note: "10% bonus" },
-  { label: "₹10,000–49,999", pct: "15%", note: "15% bonus" },
-  { label: "₹50,000+", pct: "20%", note: "Best rate" },
+function Hero() {
+  return (
+    <section
+      className="lp-section-pad relative"
+      style={{ background: "var(--gradient-hero)" }}
+    >
+      <div className="lp-container relative">
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow>Pricing</Eyebrow>
+
+          <h1
+            className="lp-display mt-6"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(40px, 6vw, 76px)",
+              lineHeight: 1.04,
+            }}
+          >
+            Simple pricing for{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+                color: "var(--lp-gold-deep)",
+              }}
+            >
+              AI creator
+            </span>{" "}
+            campaigns.
+          </h1>
+
+          <p
+            className="mt-7 max-w-2xl mx-auto"
+            style={{
+              color: "var(--lp-ink-soft)",
+              fontSize: "18px",
+              lineHeight: 1.6,
+            }}
+          >
+            Start free. Buy credits when you need them. Pay creators only when
+            their approved likeness is used.
+          </p>
+
+          <div
+            className="mt-7 max-w-2xl mx-auto"
+            style={{
+              color: "var(--lp-ink-soft)",
+              fontSize: "16px",
+              lineHeight: 1.7,
+            }}
+          >
+            Faiceoff pricing has two parts:{" "}
+            <strong style={{ color: "var(--lp-ink)" }}>Credits</strong> for AI
+            generation.{" "}
+            <strong style={{ color: "var(--lp-ink)" }}>Wallet balance</strong>{" "}
+            for creator licensing fees. No monthly lock-in. No hidden
+            production cost. No confusing usage rights.
+          </div>
+
+          <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/auth/signup/brand" className="lp-btn-primary">
+              Start Free <ArrowRight size={16} />
+            </Link>
+            <Link href="#packs" className="lp-btn-secondary">
+              See Credit Packs
+            </Link>
+          </div>
+
+          <div
+            className="lp-pill-gold mt-6 mx-auto"
+            style={{ width: "fit-content" }}
+          >
+            <Gift size={11} />
+            Get 5 free credits on signup. No card required.
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 2 — Credit packs grid
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PackData {
+  id: string;
+  name: string;
+  subline: string;
+  price: string;
+  credits: string;
+  perCredit: string;
+  bullets: string[];
+  cta: string;
+  href: string;
+  popular?: boolean;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+}
+
+const PACKS: PackData[] = [
+  {
+    id: "spark",
+    name: "Spark",
+    subline: "Best for trying Faiceoff.",
+    price: "₹300",
+    credits: "10 credits",
+    perCredit: "₹30 / credit, incl. GST",
+    bullets: ["12-month validity"],
+    cta: "Choose Spark",
+    href: "/auth/signup/brand",
+    icon: SparklesIcon,
+  },
+  {
+    id: "flow",
+    name: "Flow",
+    subline: "Best for regular creators and small campaigns.",
+    price: "₹1,200",
+    credits: "60 credits (includes bonus)",
+    perCredit: "₹20 / credit, incl. GST",
+    bullets: ["12-month validity"],
+    cta: "Choose Flow",
+    href: "/auth/signup/brand",
+    icon: Zap,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    subline: "Best for growing brands.",
+    price: "₹4,500",
+    credits: "250 credits (includes bonus)",
+    perCredit: "₹18 / credit, incl. GST",
+    bullets: ["12-month validity"],
+    cta: "Choose Pro",
+    href: "/auth/signup/brand",
+    popular: true,
+    icon: Star,
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    subline: "Best for agencies and high-volume teams.",
+    price: "₹12,000",
+    credits: "800 credits (includes bonus)",
+    perCredit: "₹15 / credit, incl. GST",
+    bullets: ["12-month validity", "Priority bulk generation"],
+    cta: "Choose Studio",
+    href: "/auth/signup/brand",
+    icon: Building2,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    subline: "Best for large teams and custom volume.",
+    price: "₹50,000",
+    credits: "2,800 credits (includes bonus)",
+    perCredit: "Priority support",
+    bullets: [
+      "Dedicated account support",
+      "Bulk generation priority",
+      "12-month validity",
+    ],
+    cta: "Talk to Sales",
+    href: "/auth/signup/brand",
+    icon: Building2,
+  },
 ];
 
+function PackCard({ pack }: { pack: PackData }) {
+  const { icon: Icon, popular } = pack;
+  return (
+    <div
+      className="lp-card relative flex flex-col h-full"
+      style={{
+        padding: popular ? "32px 28px" : "28px 24px",
+        borderColor: popular ? "var(--lp-gold)" : "var(--lp-border)",
+        borderWidth: popular ? "1.5px" : "1px",
+        boxShadow: popular
+          ? "0 24px 70px -22px rgba(201,169,110,0.45), 0 1px 0 rgba(26,20,16,0.04)"
+          : "var(--shadow-card-landing)",
+        transform: popular ? "translateY(-8px)" : undefined,
+      }}
+    >
+      {popular ? (
+        <div
+          className="absolute -top-3 left-1/2 -translate-x-1/2"
+          style={{
+            background: "var(--lp-gold)",
+            color: "var(--lp-ink)",
+            padding: "5px 14px",
+            borderRadius: "999px",
+            fontSize: "10px",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 700,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Most Popular
+        </div>
+      ) : null}
+
+      <div
+        className="grid place-items-center rounded-xl"
+        style={{
+          background: popular ? "var(--lp-gold-tint)" : "var(--lp-paper-2)",
+          width: 40,
+          height: 40,
+          marginBottom: "16px",
+        }}
+      >
+        <Icon size={18} style={{ color: "var(--lp-gold-deep)" }} />
+      </div>
+
+      <h3
+        className="lp-display"
+        style={{
+          fontSize: "24px",
+          fontWeight: 600,
+          color: "var(--lp-ink)",
+        }}
+      >
+        {pack.name}
+      </h3>
+      <p
+        className="mt-2"
+        style={{
+          fontSize: "13.5px",
+          color: "var(--lp-ink-soft)",
+          minHeight: "40px",
+        }}
+      >
+        {pack.subline}
+      </p>
+
+      <div className="mt-5 mb-1 flex items-baseline gap-2">
+        <span
+          className="lp-display"
+          style={{
+            fontSize: "40px",
+            fontWeight: 600,
+            color: "var(--lp-ink)",
+            lineHeight: 1,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {pack.price}
+        </span>
+        <span
+          style={{
+            fontSize: "12px",
+            color: "var(--lp-muted)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          / one-time
+        </span>
+      </div>
+
+      <div
+        className="mt-3"
+        style={{ fontSize: "14.5px", color: "var(--lp-ink)", fontWeight: 500 }}
+      >
+        {pack.credits}
+      </div>
+      <div
+        className="mt-1"
+        style={{
+          fontSize: "12.5px",
+          color: "var(--lp-muted)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {pack.perCredit}
+      </div>
+
+      <ul
+        className="mt-5 flex-1 space-y-2"
+        style={{ borderTop: "1px solid var(--lp-border)", paddingTop: "16px" }}
+      >
+        {pack.bullets.map((b) => (
+          <li
+            key={b}
+            className="flex items-start gap-2"
+            style={{ fontSize: "13.5px", color: "var(--lp-ink-soft)" }}
+          >
+            <CheckCircle2
+              size={14}
+              style={{
+                color: "var(--lp-emerald)",
+                flexShrink: 0,
+                marginTop: "3px",
+              }}
+            />
+            {b}
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        href={pack.href}
+        className={popular ? "lp-btn-primary" : "lp-btn-secondary"}
+        style={{
+          marginTop: "20px",
+          width: "100%",
+          justifyContent: "center",
+          padding: "12px 20px",
+          fontSize: "14px",
+        }}
+      >
+        {pack.cta}
+        <ArrowRight size={14} />
+      </Link>
+    </div>
+  );
+}
+
+function CreditPacks() {
+  return (
+    <section id="packs" className="lp-section-pad">
+      <div className="lp-container">
+        <div className="max-w-3xl mb-12">
+          <Eyebrow>Credit Packs</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(32px, 4.2vw, 52px)",
+            }}
+          >
+            Pay-as-you-go{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              credit packs.
+            </span>
+          </h2>
+          <p
+            className="mt-4"
+            style={{
+              color: "var(--lp-ink-soft)",
+              fontSize: "16px",
+              maxWidth: "560px",
+            }}
+          >
+            One credit = one AI image generation. All packs valid 12 months.
+          </p>
+        </div>
+
+        <div
+          className="grid gap-5 items-stretch"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
+          {PACKS.map((p) => (
+            <PackCard key={p.id} pack={p} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// FAQ items
+// Section 3 — Pricing explainer (Credits + Wallet)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FAQ_ITEMS = [
+function PricingExplainer() {
+  return (
+    <section
+      className="lp-section-pad"
+      style={{ background: "var(--lp-paper-2)" }}
+    >
+      <div className="lp-container">
+        <div className="max-w-3xl mb-12">
+          <Eyebrow>How Billing Works</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(32px, 4.2vw, 52px)",
+            }}
+          >
+            Credits + Wallet:{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              how Faiceoff billing works.
+            </span>
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Credits card */}
+          <div
+            className="lp-card relative overflow-hidden"
+            style={{ padding: "32px" }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "3px",
+                background: "var(--lp-gold)",
+              }}
+            />
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="grid place-items-center rounded-xl"
+                style={{
+                  background: "var(--lp-gold-tint)",
+                  width: 44,
+                  height: 44,
+                }}
+              >
+                <Coins size={20} style={{ color: "var(--lp-gold-deep)" }} />
+              </div>
+              <div>
+                <div
+                  className="lp-mono"
+                  style={{
+                    fontSize: "10.5px",
+                    color: "var(--lp-muted)",
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Layer 1
+                </div>
+                <h3
+                  className="lp-display"
+                  style={{
+                    fontSize: "26px",
+                    color: "var(--lp-ink)",
+                    fontWeight: 600,
+                  }}
+                >
+                  Credits
+                </h3>
+              </div>
+            </div>
+            <p
+              style={{
+                fontSize: "15.5px",
+                color: "var(--lp-ink-soft)",
+                lineHeight: 1.6,
+                marginBottom: "20px",
+              }}
+            >
+              Pay for AI image generation. 1 credit = 1 image generation
+              request.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Bought upfront",
+                "Used when you generate",
+                "Valid for 12 months",
+                "Non-refundable once purchased",
+              ].map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start gap-2"
+                  style={{
+                    fontSize: "14.5px",
+                    color: "var(--lp-ink-soft)",
+                  }}
+                >
+                  <CheckCircle2
+                    size={15}
+                    style={{
+                      color: "var(--lp-gold-deep)",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                    }}
+                  />
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Wallet card */}
+          <div
+            className="lp-card relative overflow-hidden"
+            style={{ padding: "32px" }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "3px",
+                background: "var(--lp-emerald)",
+              }}
+            />
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="grid place-items-center rounded-xl"
+                style={{
+                  background: "var(--lp-emerald-soft)",
+                  width: 44,
+                  height: 44,
+                }}
+              >
+                <Wallet size={20} style={{ color: "var(--lp-emerald)" }} />
+              </div>
+              <div>
+                <div
+                  className="lp-mono"
+                  style={{
+                    fontSize: "10.5px",
+                    color: "var(--lp-muted)",
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Layer 2
+                </div>
+                <h3
+                  className="lp-display"
+                  style={{
+                    fontSize: "26px",
+                    color: "var(--lp-ink)",
+                    fontWeight: 600,
+                  }}
+                >
+                  Wallet Balance
+                </h3>
+              </div>
+            </div>
+            <p
+              style={{
+                fontSize: "15.5px",
+                color: "var(--lp-ink-soft)",
+                lineHeight: 1.6,
+                marginBottom: "20px",
+              }}
+            >
+              Pays the creator licensing fee.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Depends on creator's rate",
+                "Reserved when you request approval",
+                "Returned if creator rejects",
+                "Released to creator on approval",
+                "Wallet balance does not expire",
+              ].map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start gap-2"
+                  style={{
+                    fontSize: "14.5px",
+                    color: "var(--lp-ink-soft)",
+                  }}
+                >
+                  <CheckCircle2
+                    size={15}
+                    style={{
+                      color: "var(--lp-emerald)",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                    }}
+                  />
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 4 — What happens when you generate (5-step flow)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function GenerationFlow() {
+  const steps = [
+    {
+      title: "Credit is used",
+      body: "One credit deducted on submit.",
+    },
+    {
+      title: "Creator fee is reserved",
+      body: "Held from your wallet until approval.",
+    },
+    {
+      title: "Creator reviews",
+      body: "Approve or reject.",
+    },
+    {
+      title: "You get the final creative",
+      body: "Approved image moves to your Library with usage rights.",
+    },
+    {
+      title: "Creator gets paid",
+      body: "Released after approval.",
+    },
+  ];
+
+  return (
+    <section className="lp-section-pad">
+      <div className="lp-container">
+        <div className="max-w-3xl mb-12">
+          <Eyebrow>The Generation Flow</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(32px, 4.2vw, 52px)",
+            }}
+          >
+            What happens when you{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              generate.
+            </span>
+          </h2>
+        </div>
+
+        <div
+          className="grid gap-5"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
+          {steps.map((s, i) => (
+            <div
+              key={s.title}
+              className="lp-card p-6 flex flex-col"
+              style={{ borderRadius: "16px" }}
+            >
+              <div
+                className="grid place-items-center rounded-full"
+                style={{
+                  background: "var(--lp-gold)",
+                  color: "var(--lp-ink)",
+                  width: 36,
+                  height: 36,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  fontFamily: "var(--font-mono)",
+                  marginBottom: "16px",
+                }}
+              >
+                {i + 1}
+              </div>
+              <h3
+                style={{
+                  fontSize: "16.5px",
+                  fontWeight: 600,
+                  color: "var(--lp-ink)",
+                  marginBottom: "6px",
+                }}
+              >
+                {s.title}
+              </h3>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "var(--lp-ink-soft)",
+                  lineHeight: 1.55,
+                }}
+              >
+                {s.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 5 — Wallet bonus tiers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function WalletBonus() {
+  return (
+    <section
+      className="lp-section-pad"
+      style={{ background: "var(--lp-paper-2)" }}
+    >
+      <div className="lp-container">
+        <div className="max-w-3xl mb-12">
+          <Eyebrow>Wallet Bonus</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(32px, 4.2vw, 52px)",
+            }}
+          >
+            Add more wallet balance.{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              Get more value.
+            </span>
+          </h2>
+          <p
+            className="mt-4"
+            style={{
+              color: "var(--lp-ink-soft)",
+              fontSize: "16px",
+              lineHeight: 1.7,
+            }}
+          >
+            Wallet top-ups can include bonus balance based on the amount
+            added. Use wallet balance to pay creator licensing fees.
+          </p>
+        </div>
+
+        <div className="lp-card overflow-hidden max-w-3xl">
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: "1.4fr 1fr",
+              background: "var(--lp-paper-2)",
+              padding: "16px 24px",
+              borderBottom: "1px solid var(--lp-border)",
+            }}
+          >
+            <div
+              className="lp-mono"
+              style={{
+                fontSize: "11px",
+                color: "var(--lp-muted)",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
+              Wallet Top-up
+            </div>
+            <div
+              className="lp-mono"
+              style={{
+                fontSize: "11px",
+                color: "var(--lp-muted)",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+                textAlign: "right",
+              }}
+            >
+              Bonus
+            </div>
+          </div>
+          {WALLET_BONUS_TIERS.map((tier, i) => {
+            const isLast = i === WALLET_BONUS_TIERS.length - 1;
+            const isHighlight = tier.bonusBps >= 1500;
+            return (
+              <div
+                key={tier.label}
+                className="grid items-center"
+                style={{
+                  gridTemplateColumns: "1.4fr 1fr",
+                  padding: "18px 24px",
+                  borderBottom: isLast ? "none" : "1px solid var(--lp-border)",
+                  background: isHighlight
+                    ? "var(--lp-gold-tint)"
+                    : "transparent",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "15.5px",
+                    color: "var(--lp-ink)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {tier.label}
+                </div>
+                <div
+                  style={{
+                    textAlign: "right",
+                    fontSize: "15.5px",
+                    fontWeight: 600,
+                    color:
+                      tier.bonusBps === 0
+                        ? "var(--lp-muted)"
+                        : "var(--lp-gold-deep)",
+                  }}
+                >
+                  {formatBpsAsPercent(tier.bonusBps)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 6 — FAQ (native <details> for zero JS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FAQ_ITEMS: { q: string; a: string }[] = [
   {
-    q: "What is a credit vs my wallet ₹?",
-    a: "1 credit = 1 generation slot — it covers the AI compute cost of producing one image. Your wallet ₹ pays the creator their licensing fee per image (₹500–₹5,000 depending on creator tier). Both are required to generate.",
+    q: "What is a credit?",
+    a: "Used to generate one AI image.",
+  },
+  {
+    q: "What is wallet balance?",
+    a: "Pays the creator's licensing fee after approval.",
+  },
+  {
+    q: "Do I need both?",
+    a: "Yes. Credits create the image. Wallet balance pays the creator.",
   },
   {
     q: "Are credits refundable?",
-    a: "No — credits cover the AI compute we pre-paid to Replicate. However, wallet ₹ is fully refunded back to your wallet if a creator rejects your image during the 48-hour approval window.",
+    a: "No. Credits cover AI generation cost and are bought upfront.",
+  },
+  {
+    q: "What happens if a creator rejects my image?",
+    a: "The creator fee returns to your wallet. You don't lose that wallet amount.",
   },
   {
     q: "Do credits expire?",
-    a: "Yes, credits expire 12 months from the date of purchase. Wallet ₹ never expires — it stays in your wallet until you use it.",
+    a: "Yes. Valid for 12 months from purchase.",
   },
   {
-    q: "What about taxes?",
-    a: "Prices shown include 18% GST on the platform fee component. Creator earnings have 1% TDS (Tax Deducted at Source) auto-deducted per India regulations. We handle all compliance — no paperwork required from you.",
+    q: "Does wallet balance expire?",
+    a: "No. Stays in your account until used.",
   },
   {
-    q: "Can I pay monthly / subscribe?",
-    a: "Not yet. Faiceoff is a pay-as-you-go marketplace — buy credits when you need them. Subscribe to our newsletter to be first in line when subscription plans launch.",
+    q: "Are GST invoices available?",
+    a: "Yes. Faiceoff generates GST-ready invoices for brand purchases.",
+  },
+  {
+    q: "Is there a subscription?",
+    a: "Not currently. Faiceoff is pay-as-you-go.",
   },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PackCard — individual credit pack card
-// ─────────────────────────────────────────────────────────────────────────────
-
-function PackCard({ pack }: { pack: CreditPack }) {
-  const totalCredits = pack.credits + pack.bonus_credits;
-  const pricePerCredit = Math.round(pack.price_paise / totalCredits / 100);
-  const isPopular = pack.is_popular;
-
+function FAQ() {
   return (
-    <div
-      className={[
-        "relative flex flex-col rounded-[var(--radius-card)] border transition-all duration-300",
-        "hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1",
-        isPopular
-          ? "border-primary shadow-[0_0_0_2px_var(--color-primary)] scale-[1.035] bg-surface-container-lowest z-10"
-          : "border-outline-variant/20 bg-surface-container-lowest",
-      ].join(" ")}
-    >
-      {/* Popular badge */}
-      {isPopular && (
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-[var(--radius-pill)] bg-primary text-on-primary text-[10px] font-label font-bold tracking-[0.15em] uppercase shadow-md whitespace-nowrap">
-            <Star className="w-3 h-3 fill-current" />
-            Most Popular
-          </span>
-        </div>
-      )}
-
-      {/* Card top */}
-      <div className="px-6 pt-8 pb-4">
-        {/* Icon + pack name */}
-        <div className="flex items-center gap-2.5 mb-4">
-          <span
-            className={[
-              "w-9 h-9 rounded-[var(--radius-button)] flex items-center justify-center flex-shrink-0",
-              isPopular
-                ? "bg-primary text-on-primary"
-                : "bg-surface-container text-on-surface-variant",
-            ].join(" ")}
+    <section className="lp-section-pad">
+      <div className="lp-container">
+        <div className="max-w-3xl mb-12">
+          <Eyebrow>Questions</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(32px, 4.2vw, 52px)",
+            }}
           >
-            {packIcon(pack.code)}
-          </span>
-          <span className="font-headline font-bold text-xl text-on-surface tracking-tight">
-            {pack.display_name}
-          </span>
-        </div>
-
-        {/* Credit count */}
-        <div className="flex items-end gap-2 mb-1">
-          <span className="font-display font-extrabold text-5xl leading-none text-on-surface tracking-tight">
-            {totalCredits.toLocaleString("en-IN")}
-          </span>
-          <span className="font-body text-base text-on-surface-variant mb-1">
-            credits
-          </span>
-        </div>
-        {pack.bonus_credits > 0 && (
-          <div className="mb-3">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[var(--radius-pill)] bg-mint-deep/40 text-[11px] font-label font-bold text-on-surface-variant tracking-wide">
-              <Gift className="w-3 h-3" />+{pack.bonus_credits} bonus included
+            Frequently asked{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              questions.
             </span>
-          </div>
-        )}
-
-        {/* Marketing tagline */}
-        {pack.marketing_tagline && (
-          <p className="font-body text-sm text-on-surface-variant leading-snug mb-4">
-            {pack.marketing_tagline}
-          </p>
-        )}
-
-        {/* Divider */}
-        <div className="h-px bg-outline-variant/15 mb-4" />
-
-        {/* Price */}
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="font-display font-bold text-2xl text-on-surface">
-            ₹{formatINR(pack.price_paise)}
-          </span>
-          <span className="font-body text-xs text-on-surface-variant">one-time</span>
-        </div>
-        <p className="font-body text-xs text-on-surface-variant">
-          ₹{pricePerCredit}/credit &mdash; incl. 18% GST
-        </p>
-      </div>
-
-      {/* Features list */}
-      <div className="px-6 py-4 flex-1">
-        <ul className="space-y-2.5">
-          <li className="flex items-center gap-2 text-sm font-body text-on-surface-variant">
-            <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-            {pack.credits.toLocaleString("en-IN")} base + {pack.bonus_credits} bonus credits
-          </li>
-          <li className="flex items-center gap-2 text-sm font-body text-on-surface-variant">
-            <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-            Valid for 12 months from purchase
-          </li>
-          <li className="flex items-center gap-2 text-sm font-body text-on-surface-variant">
-            <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-            All creator tiers accessible
-          </li>
-          {pack.code === "enterprise" && (
-            <li className="flex items-center gap-2 text-sm font-body text-on-surface-variant">
-              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-              Priority support &amp; dedicated CSM
-            </li>
-          )}
-          {(pack.code === "studio" || pack.code === "enterprise") && (
-            <li className="flex items-center gap-2 text-sm font-body text-on-surface-variant">
-              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-              Bulk generation queue priority
-            </li>
-          )}
-        </ul>
-      </div>
-
-      {/* CTA */}
-      <div className="px-6 pb-7 pt-2">
-        <Link
-          href={`/signup/brand?pack=${pack.code}`}
-          className={[
-            "block w-full text-center py-3 rounded-[var(--radius-button)] font-headline font-bold text-sm transition-all duration-200 no-underline",
-            "hover:-translate-y-0.5 hover:shadow-md active:scale-95",
-            isPopular
-              ? "bg-primary text-on-primary shadow-[0_4px_16px_rgba(106,28,246,0.3)]"
-              : "bg-surface-container text-on-surface border border-outline-variant/20 hover:bg-surface-container-high",
-          ].join(" ")}
-        >
-          Choose {pack.display_name}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WalletTierChip
-// ─────────────────────────────────────────────────────────────────────────────
-
-function WalletTierChip({
-  label,
-  pct,
-  note,
-  highlighted,
-}: {
-  label: string;
-  pct: string;
-  note: string;
-  highlighted?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "flex flex-col items-center gap-1.5 px-4 py-3 rounded-[var(--radius-card)] border transition-colors",
-        highlighted
-          ? "bg-primary/5 border-primary/30"
-          : "bg-surface-container-lowest border-outline-variant/15",
-      ].join(" ")}
-    >
-      <span
-        className={[
-          "font-display font-bold text-xl",
-          highlighted ? "text-primary" : "text-on-surface",
-        ].join(" ")}
-      >
-        {pct}
-      </span>
-      <span className="font-body text-xs text-center text-on-surface-variant leading-tight">
-        {label}
-      </span>
-      <span
-        className={[
-          "text-[10px] font-label font-bold uppercase tracking-wide",
-          highlighted ? "text-primary" : "text-on-surface-variant/60",
-        ].join(" ")}
-      >
-        {note}
-      </span>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FaqItem — uses native <details> for zero-JS accordion
-// ─────────────────────────────────────────────────────────────────────────────
-
-function FaqItem({ q, a }: { q: string; a: string }) {
-  return (
-    <details className="group border-b border-outline-variant/15 last:border-0">
-      <summary className="flex items-center justify-between py-5 cursor-pointer list-none select-none">
-        <span className="font-headline font-semibold text-base text-on-surface pr-4">
-          {q}
-        </span>
-        <ChevronDown className="w-4 h-4 text-on-surface-variant flex-shrink-0 transition-transform duration-200 group-open:rotate-180" />
-      </summary>
-      <p className="pb-5 font-body text-sm text-on-surface-variant leading-relaxed">
-        {a}
-      </p>
-    </details>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Page (server component)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export default async function PricingPage() {
-  // Fetch live packs; fall back to static stubs if DB is not ready
-  let allPacks: CreditPack[] = [];
-  try {
-    allPacks = await getActivePacks();
-  } catch {
-    allPacks = FALLBACK_PACKS;
-  }
-
-  // Exclude free_signup pack — not directly purchasable
-  const purchasablePacks = allPacks.filter((p) => p.code !== "free_signup");
-
-  // Use fallback stubs if the DB returned an empty set (e.g. seeding not done)
-  const displayPacks =
-    purchasablePacks.length > 0 ? purchasablePacks : FALLBACK_PACKS;
-
-  return (
-    <div className="min-h-screen bg-surface text-on-surface font-body antialiased">
-      {/* ── Background decorative blobs ── */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-primary/4 rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 -left-48 w-[500px] h-[500px] bg-secondary/3 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-tertiary/3 rounded-full blur-[80px]" />
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 1 — Hero
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
-        {/* Eyebrow badge */}
-        <div className="flex justify-center mb-6">
-          <Link
-            href="/signup/brand"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-pill)] border border-primary/30 bg-primary/5 text-primary font-label text-xs font-bold tracking-widest uppercase no-underline hover:bg-primary/10 transition-colors"
-          >
-            <Gift className="w-3.5 h-3.5" />
-            5 free credits on signup &mdash; no card required
-          </Link>
-        </div>
-
-        {/* H1 */}
-        <h1 className="font-display font-extrabold text-[2.4rem] sm:text-5xl md:text-6xl leading-[1.05] tracking-tight text-on-surface mb-6">
-          Simple, transparent pricing
-          <br />
-          <span className="text-primary">for AI likeness licensing</span>
-        </h1>
-
-        {/* Subheading */}
-        <p className="font-body text-lg sm:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed mb-8">
-          Pay per credit. Each credit = 1 high-quality generation. Bonus credits
-          scale automatically with bigger packs — the more you buy, the more you
-          get.
-        </p>
-
-        {/* CTA block */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/signup/brand"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-[var(--radius-button)] bg-primary text-on-primary font-headline font-bold text-base hover:-translate-y-0.5 hover:shadow-lg active:scale-95 transition-all duration-200 no-underline shadow-[0_4px_20px_rgba(106,28,246,0.25)]"
-          >
-            Start free
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <p className="font-body text-sm text-on-surface-variant">
-            Free 5 credits on signup &bull; No card required
-          </p>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 2 — Pack grid
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Section label */}
-        <div className="text-center mb-12">
-          <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant/70 mb-2">
-            Credit packs
-          </p>
-          <h2 className="font-display font-bold text-2xl sm:text-3xl text-on-surface tracking-tight">
-            Pick the pack that fits your scale
           </h2>
         </div>
 
-        {/* Cards grid — 5 columns at lg, 2 at md, 1 at mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-3 items-stretch py-6">
-          {displayPacks.map((pack) => (
-            <PackCard key={pack.id} pack={pack} />
+        <div className="max-w-3xl">
+          {FAQ_ITEMS.map((item, i) => (
+            <details
+              key={item.q}
+              className="lp-faq-item"
+              style={{
+                borderBottom: "1px solid var(--lp-border)",
+                padding: "20px 0",
+              }}
+            >
+              <summary
+                style={{
+                  cursor: "pointer",
+                  listStyle: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  fontSize: "17px",
+                  fontWeight: 600,
+                  color: "var(--lp-ink)",
+                }}
+              >
+                <span className="flex items-baseline gap-3">
+                  <span
+                    className="lp-mono"
+                    style={{
+                      color: "var(--lp-gold-deep)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {item.q}
+                </span>
+                <ChevronDown
+                  size={18}
+                  style={{
+                    color: "var(--lp-muted)",
+                    flexShrink: 0,
+                    transition: "transform 0.2s ease",
+                  }}
+                  className="lp-faq-chevron"
+                />
+              </summary>
+              <div
+                className="mt-3 pl-8"
+                style={{
+                  fontSize: "15.5px",
+                  color: "var(--lp-ink-soft)",
+                  lineHeight: 1.65,
+                }}
+              >
+                {item.a}
+              </div>
+            </details>
           ))}
         </div>
 
-        {/* Fine print */}
-        <p className="text-center font-body text-xs text-on-surface-variant/60 mt-6 flex items-center justify-center gap-1.5">
-          <Info className="w-3.5 h-3.5 flex-shrink-0" />
-          All prices include 18% GST on platform fee. Packs are non-refundable.
-          Credits valid 12 months from purchase date.
-        </p>
-      </section>
+        {/* tiny inline style to rotate chevron when open */}
+        <style>{`
+          .lp-faq-item summary::-webkit-details-marker { display: none; }
+          .lp-faq-item[open] .lp-faq-chevron { transform: rotate(180deg); }
+        `}</style>
+      </div>
+    </section>
+  );
+}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 3 — Two-layer billing explainer
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-surface-container-low">
-        <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant/70 mb-2">
-              Two-layer billing
-            </p>
-            <h2 className="font-display font-bold text-2xl sm:text-3xl text-on-surface tracking-tight mb-4">
-              Credits + Wallet — how it works
-            </h2>
-            <p className="font-body text-base text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-              Faiceoff uses a two-layer system so creators get paid fairly and
-              you keep full control. Credits cover AI compute. Your wallet ₹
-              pays the creator.
-            </p>
-          </div>
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 7 — Final CTA
+// ─────────────────────────────────────────────────────────────────────────────
 
-          {/* Two columns explanation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
-            {/* Credits column */}
-            <div className="bg-surface-container-lowest rounded-[var(--radius-card)] border border-outline-variant/15 p-7 shadow-[var(--shadow-soft)]">
-              <div className="flex items-center gap-3 mb-5">
-                <span className="w-10 h-10 rounded-[var(--radius-button)] bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-primary" />
-                </span>
-                <div>
-                  <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/70">
-                    Layer 1
-                  </p>
-                  <h3 className="font-headline font-bold text-lg text-on-surface">
-                    Credits
-                  </h3>
-                </div>
-              </div>
-              <p className="font-body text-sm text-on-surface-variant leading-relaxed mb-4">
-                1 credit = 1 generation. Credits cover the Replicate AI compute
-                we pay on your behalf. They are bought in packs upfront and
-                deducted per generation request.
-              </p>
-              <ul className="space-y-2">
-                {[
-                  "Bought in packs (Spark → Enterprise)",
-                  "Deducted at generation time",
-                  "Expire after 12 months",
-                  "Non-refundable (AI compute is pre-paid)",
-                ].map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-center gap-2 text-sm font-body text-on-surface-variant"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Wallet column */}
-            <div className="bg-surface-container-lowest rounded-[var(--radius-card)] border border-outline-variant/15 p-7 shadow-[var(--shadow-soft)]">
-              <div className="flex items-center gap-3 mb-5">
-                <span className="w-10 h-10 rounded-[var(--radius-button)] bg-tertiary/10 flex items-center justify-center">
-                  <Star className="w-5 h-5 text-tertiary" />
-                </span>
-                <div>
-                  <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/70">
-                    Layer 2
-                  </p>
-                  <h3 className="font-headline font-bold text-lg text-on-surface">
-                    Wallet ₹
-                  </h3>
-                </div>
-              </div>
-              <p className="font-body text-sm text-on-surface-variant leading-relaxed mb-4">
-                Your wallet ₹ pays creator licensing fees (₹500–₹5,000 per
-                image depending on the creator's tier). Top-up any amount and
-                get bonus ₹ on larger top-ups.
-              </p>
-              <ul className="space-y-2">
-                {[
-                  "Top-up any amount (₹500 minimum)",
-                  "Reserved at approval request, released on rejection",
-                  "Never expires — stays in your wallet",
-                  "Up to 20% bonus on larger top-ups",
-                ].map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-center gap-2 text-sm font-body text-on-surface-variant"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5 text-tertiary flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Wallet bonus tier table */}
-          <div>
-            <h3 className="font-display font-bold text-xl text-on-surface text-center mb-6 tracking-tight">
-              Wallet top-up bonus tiers
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {WALLET_TIERS.map((tier, i) => (
-                <WalletTierChip
-                  key={tier.label}
-                  label={tier.label}
-                  pct={tier.pct}
-                  note={tier.note}
-                  highlighted={i === WALLET_TIERS.length - 1}
-                />
-              ))}
-            </div>
-            <p className="text-center font-body text-xs text-on-surface-variant/60 mt-5">
-              Bonus credited instantly to your wallet. Bonus ₹ is withdrawable
-              after first successful generation.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 4 — How a generation is billed (visual flow)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant/70 mb-2">
-            Per generation billing
-          </p>
-          <h2 className="font-display font-bold text-2xl sm:text-3xl text-on-surface tracking-tight">
-            What happens when you generate
+function FinalCTA() {
+  return (
+    <section
+      className="lp-section-pad"
+      style={{
+        background:
+          "linear-gradient(180deg, var(--lp-gold-tint) 0%, var(--lp-paper) 100%)",
+      }}
+    >
+      <div className="lp-container">
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow>Get Started</Eyebrow>
+          <h2
+            className="lp-display mt-5"
+            style={{
+              color: "var(--lp-ink)",
+              fontSize: "clamp(36px, 5vw, 64px)",
+            }}
+          >
+            Start with{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+                color: "var(--lp-gold-deep)",
+              }}
+            >
+              5 free credits.
+            </span>
           </h2>
-        </div>
-
-        <div className="relative">
-          {/* Connector line (desktop) */}
-          <div className="hidden lg:block absolute top-10 left-[calc(16.666%+1rem)] right-[calc(16.666%+1rem)] h-px bg-outline-variant/20" />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {[
-              {
-                step: "01",
-                title: "Credit deducted",
-                body: "1 credit is deducted from your balance the moment you submit a generation request. This covers AI compute.",
-                color: "bg-primary/8 text-primary border-primary/20",
-                dot: "bg-primary",
-              },
-              {
-                step: "02",
-                title: "Wallet ₹ reserved",
-                body: "The creator's fee is reserved (not yet spent) from your wallet. The creator reviews within 48 hours.",
-                color: "bg-tertiary/8 text-tertiary border-tertiary/20",
-                dot: "bg-tertiary",
-              },
-              {
-                step: "03",
-                title: "Creator paid on approval",
-                body: "On approval the reserved ₹ is released to the creator. On rejection, it's returned to your wallet — no loss.",
-                color: "bg-secondary/8 text-secondary border-secondary/20",
-                dot: "bg-secondary",
-              },
-            ].map(({ step, title, body, color, dot }) => (
-              <div
-                key={step}
-                className="relative bg-surface-container-lowest rounded-[var(--radius-card)] border border-outline-variant/15 p-7 shadow-[var(--shadow-soft)]"
-              >
-                {/* Step circle */}
-                <div
-                  className={`w-10 h-10 rounded-full border flex items-center justify-center mb-5 ${color}`}
-                >
-                  <span className="font-mono text-xs font-bold">{step}</span>
-                </div>
-                {/* Dot on connector */}
-                <div
-                  className={`hidden lg:block absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full ${dot} border-2 border-surface`}
-                />
-                <h3 className="font-headline font-bold text-base text-on-surface mb-2">
-                  {title}
-                </h3>
-                <p className="font-body text-sm text-on-surface-variant leading-relaxed">
-                  {body}
-                </p>
-              </div>
-            ))}
+          <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/auth/signup/brand" className="lp-btn-primary">
+              Get Started Free <ArrowRight size={16} />
+            </Link>
+            <Link href="/auth/signup/brand" className="lp-btn-secondary">
+              Buy Pro Pack
+            </Link>
+          </div>
+          <div
+            className="mt-7 flex flex-wrap items-center gap-4 justify-center"
+            style={{ fontSize: "13px", color: "var(--lp-muted)" }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Receipt size={13} style={{ color: "var(--lp-gold-deep)" }} />
+              GST invoices
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck size={13} style={{ color: "var(--lp-gold-deep)" }} />
+              Commercial usage rights
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock size={13} style={{ color: "var(--lp-gold-deep)" }} />
+              48-hour creator approval
+            </span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 5 — FAQ
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-surface-container-low">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant/70 mb-2">
-              FAQ
-            </p>
-            <h2 className="font-display font-bold text-2xl sm:text-3xl text-on-surface tracking-tight">
-              Common questions
-            </h2>
-          </div>
-          <div className="bg-surface-container-lowest rounded-[var(--radius-card)] border border-outline-variant/15 shadow-[var(--shadow-soft)] divide-y divide-outline-variant/15 px-6">
-            {FAQ_ITEMS.map((item) => (
-              <FaqItem key={item.q} q={item.q} a={item.a} />
-            ))}
-          </div>
-        </div>
-      </section>
+// ─────────────────────────────────────────────────────────────────────────────
+// Page export
+// ─────────────────────────────────────────────────────────────────────────────
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 6 — Bottom CTA
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
-        <div className="bg-on-surface rounded-[1.5rem] p-10 sm:p-16 relative overflow-hidden shadow-2xl">
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-primary/25 to-transparent pointer-events-none" />
-
-          <div className="relative z-10">
-            <h2 className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl text-surface-container-lowest leading-tight tracking-tight mb-5">
-              Ready to license your first creator?
-            </h2>
-            <p className="font-body text-base sm:text-lg text-surface-container-low mb-8 max-w-lg mx-auto">
-              Start with 5 free credits — no card required. Add your wallet ₹
-              and you&apos;re ready to generate.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/signup/brand"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-[var(--radius-button)] bg-surface-container-lowest text-on-surface font-headline font-extrabold text-base hover:scale-105 active:scale-95 transition-all duration-200 no-underline shadow-xl"
-              >
-                Get started free
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/signup/brand?pack=pro"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-[var(--radius-button)] bg-primary text-on-primary font-headline font-bold text-base hover:-translate-y-0.5 hover:shadow-lg active:scale-95 transition-all duration-200 no-underline"
-              >
-                Buy Pro pack
-              </Link>
-            </div>
-            <p className="font-body text-xs text-surface-variant mt-6 opacity-70">
-              All purchases secured by Razorpay &bull; DPDP Act
-              compliant &bull; GST invoices auto-generated
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
+export default function PricingPage() {
+  return (
+    <>
+      <Hero />
+      <CreditPacks />
+      <PricingExplainer />
+      <GenerationFlow />
+      <WalletBonus />
+      <FAQ />
+      <FinalCTA />
+    </>
   );
 }

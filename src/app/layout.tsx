@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans as PlusJakartaSans, JetBrains_Mono as JetBrainsMono, Space_Grotesk, Manrope } from "next/font/google";
+import {
+  Outfit,
+  Plus_Jakarta_Sans as PlusJakartaSans,
+  JetBrains_Mono as JetBrainsMono,
+  Space_Grotesk,
+  Manrope,
+  Fraunces,
+  Inter,
+} from "next/font/google";
 import { Providers } from "@/components/providers/providers";
 import "./globals.css";
 
@@ -37,6 +45,26 @@ const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+// ── Marketing-only fonts (Fraunces display + Inter body) ─────────────────
+// These power the warm editorial landing pages. The .landing-scope class
+// in globals.css picks them up via --font-display / --font-body which
+// resolve to these family names; we also expose them via CSS variables in
+// case any component wants to reference them directly.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -97,7 +125,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} ${manrope.variable}`}
+      className={`${outfit.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} ${manrope.variable} ${fraunces.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <head>

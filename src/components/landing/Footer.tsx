@@ -1,58 +1,257 @@
+// Marketing footer — light editorial.
+// Server component. Uses .landing-scope vars so it inherits the cream palette.
+//
+// Structure:
+//   ┌─────────────────────────────────────────────────────────────┐
+//   │  brand block  │  Product  │  Company  │  Legal              │
+//   │  (logo +      │  links    │  links    │  links               │
+//   │   tagline +   │           │           │                      │
+//   │   socials)    │           │           │                      │
+//   ├─────────────────────────────────────────────────────────────┤
+//   │  © · Made in India · DPDP / GST / IT Act compliance pills    │
+//   └─────────────────────────────────────────────────────────────┘
+
+import type { SVGProps } from "react";
 import Link from "next/link";
 
-export function Footer() {
+/* ─────────────────────────────────────────────────────────────────────────────
+   Inline social-icon SVGs.
+   lucide-react in this project doesn't export brand glyphs (Instagram /
+   Linkedin / Twitter), so we render minimal monoline paths inline. They share
+   the lucide stroke style: 1.6 weight, round caps, 24×24 box. Color via
+   currentColor so they pick up the wrapping anchor's text color.
+   ───────────────────────────────────────────────────────────────────────── */
+
+const ICON_PROPS = {
+  width: 16,
+  height: 16,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+function TwitterX(props: SVGProps<SVGSVGElement>) {
   return (
-    <footer className="relative border-t border-border/60 mt-32">
-      <div className="mx-auto max-w-7xl px-5 py-16 grid gap-12 md:grid-cols-4">
-        <div className="md:col-span-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/landing/logo-dark.png" alt="Faiceoff" className="h-7 w-auto mb-4" />
-          <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">
-            India's AI face licensing marketplace. Built for creators. Trusted by brands.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="px-2 py-1 rounded-md bg-secondary">DPDP Act compliant</span>
-<span className="px-2 py-1 rounded-md bg-secondary">Made in India 🇮🇳</span>
+    <svg {...ICON_PROPS} {...props} aria-hidden>
+      <path d="M4 4l16 16M20 4L4 20" />
+    </svg>
+  );
+}
+
+function InstagramGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ICON_PROPS} {...props} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function LinkedinGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ICON_PROPS} {...props} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 1 1 4 0v4M12 13v4" />
+    </svg>
+  );
+}
+
+const PRODUCT_LINKS = [
+  { href: "/for-creators", label: "For Creators" },
+  { href: "/for-brands", label: "For Brands" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/verify", label: "Verify Licence" },
+] as const;
+
+const COMPANY_LINKS = [
+  { href: "#", label: "About" },
+  { href: "#", label: "Blog" },
+  { href: "#", label: "Careers" },
+  { href: "#", label: "Press" },
+] as const;
+
+const LEGAL_LINKS = [
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/refund", label: "Refund" },
+  { href: "/creator-agreement", label: "Creator Agreement" },
+] as const;
+
+const COMPLIANCE_PILLS = ["DPDP Act", "GST", "IT Act"] as const;
+
+export function Footer() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer
+      className="relative mt-24 md:mt-32"
+      style={{
+        background: "var(--lp-paper-2)",
+        borderTop: "1px solid var(--lp-border)",
+      }}
+    >
+      <div className="lp-container py-16 md:py-20">
+        <div className="grid gap-12 md:gap-10 md:grid-cols-12">
+          {/* ── Brand block ───────────────────────────────────── */}
+          <div className="md:col-span-6">
+            <Link
+              href="/"
+              aria-label="Faiceoff home"
+              className="inline-flex items-center gap-2.5"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-mark.png"
+                alt="Faiceoff"
+                className="h-9 w-9 rounded-md"
+              />
+              <span
+                className="lp-display"
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: "var(--lp-ink)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Faiceoff
+                <span style={{ color: "var(--lp-gold)" }}>.</span>
+              </span>
+            </Link>
+
+            <p
+              className="mt-5 max-w-sm text-[14.5px] leading-relaxed"
+              style={{ color: "var(--lp-muted)" }}
+            >
+              Faiceoff is India&rsquo;s AI face licensing marketplace
+              &mdash; built for creators, trusted by brands.
+            </p>
+
+            {/* socials */}
+            <div className="mt-6 flex items-center gap-2">
+              {[
+                { Icon: TwitterX, label: "X / Twitter" },
+                { Icon: InstagramGlyph, label: "Instagram" },
+                { Icon: LinkedinGlyph, label: "LinkedIn" },
+              ].map(({ Icon, label }) => (
+                <a
+                  key={label}
+                  href="#"
+                  aria-label={label}
+                  className="h-9 w-9 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                  style={{
+                    background: "var(--lp-paper)",
+                    border: "1px solid var(--lp-border)",
+                    color: "var(--lp-ink-soft)",
+                  }}
+                >
+                  <Icon />
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold mb-4">Product</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>
-              <Link href="/for-creators" className="hover:text-foreground transition-colors">
-                For Creators
-              </Link>
-            </li>
-            <li>
-              <Link href="/for-brands" className="hover:text-foreground transition-colors">
-                For Brands
-              </Link>
-            </li>
-            <li>
-              <Link href="/pricing" className="hover:text-foreground transition-colors">
-                Pricing
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold mb-4">Company</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>
-              <span className="hover:text-foreground cursor-pointer transition-colors">Privacy</span>
-            </li>
-            <li>
-              <span className="hover:text-foreground cursor-pointer transition-colors">Terms</span>
-            </li>
-          </ul>
+
+          {/* ── Product ───────────────────────────────────────── */}
+          <FooterColumn heading="Product" links={PRODUCT_LINKS} />
+
+          {/* ── Company ───────────────────────────────────────── */}
+          <FooterColumn heading="Company" links={COMPANY_LINKS} />
+
+          {/* ── Legal ─────────────────────────────────────────── */}
+          <FooterColumn heading="Legal" links={LEGAL_LINKS} />
         </div>
       </div>
-      <div className="border-t border-border/60">
-        <div className="mx-auto max-w-7xl px-5 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} Faiceoff Technologies Pvt Ltd</span>
-          <span>Bengaluru · Mumbai · Delhi</span>
+
+      {/* ── Bottom bar ──────────────────────────────────────── */}
+      <div style={{ borderTop: "1px solid var(--lp-border)" }}>
+        <div
+          className="lp-container py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            color: "var(--lp-muted)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span>&copy; {year} Faiceoff Platform Pvt. Ltd.</span>
+            <span aria-hidden>&middot;</span>
+            <span>
+              Made in India{" "}
+              <span aria-hidden role="img">{"🇮🇳"}</span>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {COMPLIANCE_PILLS.map((label) => (
+              <span
+                key={label}
+                className="px-2.5 py-1 rounded-full"
+                style={{
+                  background: "var(--lp-paper)",
+                  border: "1px solid var(--lp-border)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: "var(--lp-ink-soft)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function FooterColumn({
+  heading,
+  links,
+}: {
+  heading: string;
+  links: ReadonlyArray<{ href: string; label: string }>;
+}) {
+  return (
+    <div className="md:col-span-2">
+      <h4
+        className="mb-4"
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--lp-ink)",
+        }}
+      >
+        {heading}
+      </h4>
+      <ul className="space-y-2.5">
+        {links.map((l) => (
+          <li key={`${heading}-${l.label}`}>
+            <Link
+              href={l.href}
+              className="text-[14px] transition-colors hover:underline"
+              style={{
+                color: "var(--lp-ink-soft)",
+                textUnderlineOffset: 4,
+              }}
+            >
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

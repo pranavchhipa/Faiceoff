@@ -497,17 +497,197 @@ pre code {
   --shadow-landing-card: 0 24px 60px -28px rgba(0, 0, 0, 0.65);
 }
 
-/* dark-bg grain (light dots on dark) */
+/* ─────────────────────────────────────────────────────────────────────────
+   LIGHT REVAMP — replaces the prior dark-only landing-scope tokens.
+   The block above defines `--background`, `--card`, etc. as dark values.
+   We override them again here to flip the marketing surfaces back to a
+   warm cream editorial palette. The order matters: this block must come
+   AFTER the dark `.landing-scope { ... }` block above so it wins the
+   cascade.
+   ───────────────────────────────────────────────────────────────────── */
+.landing-scope {
+  background-color: #fbf7ee;
+  color: #1a1410;
+
+  /* shadcn HSL triplets — light variants */
+  --background:           38 53% 96%;   /* #fbf7ee cream */
+  --foreground:           24 27% 8%;    /* #1a1410 deep ink */
+  --card:                 0 0% 100%;    /* #ffffff */
+  --card-foreground:      24 27% 8%;
+  --popover:              0 0% 100%;
+  --popover-foreground:   24 27% 8%;
+  --primary:              35 47% 61%;   /* #c9a96e */
+  --primary-foreground:   24 27% 8%;
+  --secondary:            38 36% 93%;   /* #f4ede0 paper-2 */
+  --secondary-foreground: 24 27% 8%;
+  --muted:                38 36% 93%;
+  --muted-foreground:     27 11% 46%;   /* #7a7065 */
+  --accent:               35 47% 61%;
+  --accent-foreground:    24 27% 8%;
+  --destructive:          7 67% 58%;    /* #d96f4d coral */
+  --destructive-foreground: 0 0% 100%;
+  --border:               36 25% 88%;   /* #e8e3d8 */
+  --input:                36 25% 88%;
+  --ring:                 35 47% 61%;
+
+  /* `--color-*` duplicates */
+  --color-background:          #fbf7ee;
+  --color-foreground:          #1a1410;
+  --color-card:                #ffffff;
+  --color-card-foreground:     #1a1410;
+  --color-popover:             #ffffff;
+  --color-popover-foreground:  #1a1410;
+  --color-primary:             #c9a96e;
+  --color-primary-foreground:  #1a1410;
+  --color-secondary:           #f4ede0;
+  --color-secondary-foreground:#1a1410;
+  --color-muted:               #f4ede0;
+  --color-muted-foreground:    #7a7065;
+  --color-accent:              #c9a96e;
+  --color-accent-foreground:   #1a1410;
+  --color-border:              #e8e3d8;
+  --color-input:               #e8e3d8;
+  --color-ring:                #c9a96e;
+
+  /* landing-specific palette */
+  --lp-paper:        #fbf7ee;
+  --lp-paper-2:      #f4ede0;
+  --lp-paper-3:      #ede4d2;
+  --lp-ink:          #1a1410;
+  --lp-ink-soft:     #3a322c;
+  --lp-muted:        #7a7065;
+  --lp-muted-soft:   #9a9087;
+  --lp-gold:         #c9a96e;
+  --lp-gold-deep:    #a3854f;
+  --lp-gold-soft:    #e5d9c2;
+  --lp-gold-tint:    #f6efdf;
+  --lp-emerald:      #0f7e60;
+  --lp-emerald-soft: #d6ece3;
+  --lp-coral:        #d96f4d;
+  --lp-coral-soft:   #fbe5d9;
+  --lp-border:       #e8e3d8;
+  --lp-border-strong:#cdc4b1;
+
+  --gradient-hero:
+    radial-gradient(ellipse 1100px 600px at 50% -10%, rgba(201,169,110,0.18), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 100% 30%, rgba(217,111,77,0.07), transparent 65%),
+    radial-gradient(ellipse 700px 400px at 0% 50%, rgba(15,126,96,0.05), transparent 60%);
+
+  --shadow-card-landing: 0 1px 0 rgba(26,20,16,0.04), 0 24px 60px -28px rgba(26,20,16,0.18);
+  --shadow-glow:         0 24px 70px -22px rgba(201,169,110,0.45);
+
+  /* fonts (Fraunces display + Inter body, loaded via @import below) */
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-body:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  font-family: var(--font-body);
+}
+
+/* light-bg grain (subtle, almost invisible) */
 .landing-scope .grain {
-  background-image: radial-gradient(rgba(242, 237, 227, 0.04) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(26, 20, 16, 0.045) 1px, transparent 1px);
   background-size: 3px 3px;
 }
 
-/* invert existing dark logo asset so it reads on Studio Black.
-   Swap the asset file later to remove this filter. */
+/* logo asset is dark; on cream it shows fine — strip any inversion */
 .landing-scope header img[alt="Faiceoff"],
 .landing-scope footer img[alt="Faiceoff"] {
-  filter: invert(1) brightness(1.05) contrast(0.95);
+  filter: none;
+}
+
+/* Display + body utility classes for marketing pages */
+.landing-scope .lp-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
+.landing-scope .lp-display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+}
+.landing-scope .lp-mono {
+  font-family: var(--font-mono);
+}
+.landing-scope .lp-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lp-gold-deep);
+}
+.landing-scope .lp-section-pad { padding-top: 96px; padding-bottom: 96px; }
+@media (max-width: 768px) {
+  .landing-scope .lp-section-pad { padding-top: 64px; padding-bottom: 64px; }
+}
+.landing-scope .lp-container { max-width: 1180px; margin-left: auto; margin-right: auto; padding-left: 20px; padding-right: 20px; }
+.landing-scope .lp-card {
+  background: var(--lp-paper);
+  border: 1px solid var(--lp-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card-landing);
+}
+.landing-scope .lp-divider {
+  height: 1px;
+  background: var(--lp-border);
+  width: 100%;
+}
+.landing-scope .lp-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px;
+  background: var(--lp-ink); color: var(--lp-paper);
+  border: 1px solid var(--lp-ink);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 14.5px; font-weight: 600;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
+}
+.landing-scope .lp-btn-primary:hover {
+  background: #2a221c;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -8px rgba(26,20,16,0.32);
+}
+.landing-scope .lp-btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px;
+  background: transparent; color: var(--lp-ink);
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 14.5px; font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.landing-scope .lp-btn-secondary:hover {
+  background: var(--lp-paper-2);
+  border-color: var(--lp-ink);
+}
+.landing-scope .lp-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--lp-paper-2);
+  border: 1px solid var(--lp-border);
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+.landing-scope .lp-pill-gold {
+  background: var(--lp-gold-tint);
+  border-color: var(--lp-gold-soft);
+  color: var(--lp-gold-deep);
+}
+.landing-scope .lp-pill-emerald {
+  background: var(--lp-emerald-soft);
+  border-color: rgba(15,126,96,0.25);
+  color: var(--lp-emerald);
 }
 
 @layer utilities {
