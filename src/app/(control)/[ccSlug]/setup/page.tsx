@@ -17,14 +17,11 @@
  * again to get a NEW secret — the old one isn't persisted.
  */
 
-import { redirect } from "next/navigation";
 import QRCode from "qrcode";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   generateSecret,
   generateBackupCodes,
 } from "@/lib/cc/totp";
-import { getConfiguredSlug } from "@/lib/cc/guard";
 import SetupForm from "./setup-form";
 
 export const dynamic = "force-dynamic";
@@ -36,21 +33,9 @@ interface Props {
 export default async function CCSetupPage({ params }: Props) {
   const { ccSlug } = await params;
 
-  // Slug already validated by layout, but re-check defensively.
-  if (ccSlug !== getConfiguredSlug()) {
-    redirect("/");
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
-  const { count } = await admin
-    .from("owner_totp")
-    .select("id", { count: "exact", head: true });
-
-  if ((count ?? 0) > 0) {
-    // Already configured — go straight to login.
-    redirect(`/${ccSlug}/login`);
-  }
+  // Layout has already validated the slug AND confirmed TOTP isn't set
+  // up yet (it redirects to /login if it is). We can go straight to
+  // generating the secret.
 
   // Generate fresh secret + QR + codes for this rendering.
   const { secret, otpauthUri } = generateSecret();

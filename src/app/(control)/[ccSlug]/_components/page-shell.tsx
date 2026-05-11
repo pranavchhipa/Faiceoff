@@ -3,17 +3,18 @@
  * Use to keep page chrome consistent without re-typing the header markup.
  */
 
-import { redirect } from "next/navigation";
-import { getCurrentSession } from "@/lib/cc/session";
+import { notFound } from "next/navigation";
 import { verifySlug } from "@/lib/cc/guard";
 
+/**
+ * Back-compat shim. Auth is now enforced by `[ccSlug]/layout.tsx` (single
+ * source of truth — having two call sites raced and produced the
+ * "sidebar hidden but content visible" bug). This function now only
+ * defends the slug, so pages that still call it don't break.
+ */
 export async function ensureCCAuth(ccSlug: string): Promise<void> {
   if (!verifySlug(ccSlug)) {
-    redirect("/");
-  }
-  const session = await getCurrentSession();
-  if (!session) {
-    redirect(`/${ccSlug}/login`);
+    notFound();
   }
 }
 

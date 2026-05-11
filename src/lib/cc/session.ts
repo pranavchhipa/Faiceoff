@@ -13,6 +13,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -130,9 +131,19 @@ export async function readSessionToken(): Promise<string | null> {
   return c.get(COOKIE_NAME)?.value ?? null;
 }
 
-/** Read + validate (with touch). Returns null if no/invalid/expired. */
-export async function getCurrentSession(): Promise<OwnerSession | null> {
-  const token = await readSessionToken();
-  if (!token) return null;
-  return getSession(token);
-}
+/**
+ * Read + validate the current request's session (with touch).
+ *
+ * Wrapped in `React.cache` so multiple calls within the SAME render
+ * (e.g. layout + page + audit logging) dedupe to ONE DB read/write.
+ * Without this, parallel layout/page renders both hit the
+ * idle-expiry branch and race on the soft-revoke, producing the
+ * "sidebar hidden but page content visible" bug.
+ */
+export const getCurrentSession = cache(
+  async function getCurrentSessionImpl(): Promise<OwnerSession | null> {
+    const token = await readSessionToken();
+    if (!token) return null;
+    return getSession(token);
+  },
+);

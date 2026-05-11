@@ -1,21 +1,23 @@
 /**
- * Control Centre layout.
+ * Control Centre layout — SINGLE SOURCE OF TRUTH for CC auth.
  *
  *   • Validates the URL slug against env.OWNER_CONTROL_CENTRE_SLUG.
  *     Mismatch → notFound() (404, no signal).
- *   • If enabled but no TOTP row exists yet, lets `/setup` through.
- *   • Otherwise requires a valid `fco_cc_session` cookie. If missing,
- *     redirects to `/<slug>/login`.
- *   • Renders the dense internal-tool chrome: left sidebar nav + topbar
- *     with "Control Centre · Faiceoff" + logout.
+ *   • If no TOTP row exists yet → only /setup is reachable; everything
+ *     else redirects to /setup.
+ *   • If TOTP exists but no session → only /login is reachable; everything
+ *     else redirects to /login.
+ *   • If session → renders the full chrome (topbar + sidebar). /login and
+ *     /setup redirect back to /ops in that case.
  *
- * Design language for everything inside: dense data tables, mono fonts
- * for IDs/timestamps, no marketing fluff, no animations beyond default
- * focus rings. Background is intentionally near-black to look distinctly
- * different from the customer dashboard.
+ * IMPORTANT: pages MUST NOT also call ensureCCAuth(). Duplicate calls
+ * caused a race where the layout's getSession returned null (idle-expiry
+ * soft-revoke ran on one call) while the page's call still saw a valid
+ * row — that produced the "sidebar hidden, page content visible" bug.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { verifySlug } from "@/lib/cc/guard";
@@ -40,6 +42,20 @@ async function totpExists(): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
+/**
+ * Derive the segment after `/<slug>/` from the request pathname header.
+ * `proxy.ts` injects `x-pathname` on every request. Returns "" for the
+ * index `/<slug>` page.
+ */
+function deriveSegment(pathname: string, ccSlug: string): string {
+  const prefix = `/${ccSlug}`;
+  if (!pathname.startsWith(prefix)) return "";
+  const rest = pathname.slice(prefix.length); // "", "/login", "/ops", "/users/abc"
+  if (!rest || rest === "/") return "";
+  // Strip leading slash, take first segment only.
+  return rest.replace(/^\//, "").split("/")[0];
+}
+
 export default async function CCLayout({ children, params }: Props) {
   const { ccSlug } = await params;
 
@@ -48,20 +64,74 @@ export default async function CCLayout({ children, params }: Props) {
     notFound();
   }
 
+  const pathname = (await headers()).get("x-pathname") ?? `/${ccSlug}`;
+  const segment = deriveSegment(pathname, ccSlug);
+  const isSetupPage = segment === "setup";
+  const isLoginPage = segment === "login";
+
   const hasTotp = await totpExists();
+
+  // 2. No TOTP configured yet → only /setup is reachable.
+  if (!hasTotp) {
+    if (!isSetupPage) {
+      redirect(`/${ccSlug}/setup`);
+    }
+    // Render bare chrome (no sidebar) — the setup form supplies its own.
+    return (
+      <div className="cc-root">
+        <header className="cc-topbar">
+          <div className="cc-topbar-left">
+            <span className="cc-brand">FAICEOFF</span>
+            <span className="cc-brand-divider">·</span>
+            <span className="cc-brand-tag">CONTROL CENTRE</span>
+          </div>
+          <div className="cc-topbar-right">
+            <span className="cc-session-info">Not configured</span>
+          </div>
+        </header>
+        <div className="cc-shell">
+          <main className="cc-main">{children}</main>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. TOTP exists. Check session.
   const session = await getCurrentSession();
 
-  // The layout chrome shows ONLY when authenticated. Setup + login
-  // children render without it (they call notFound() / handle their own
-  // chrome). We detect them via a server-side flag on the page itself.
+  // 3a. Authenticated user landed on /login or /setup → punt to /ops.
+  if (session && (isLoginPage || isSetupPage)) {
+    redirect(`/${ccSlug}/ops`);
+  }
 
-  // For unauthenticated users we still render a minimal shell so the
-  // children control what to show. The pages handle their own routing.
-  const authed = !!session;
+  // 3b. Unauthenticated user. Allow only /login. Everything else → /login.
+  if (!session) {
+    if (!isLoginPage) {
+      redirect(`/${ccSlug}/login`);
+    }
+    // Bare chrome for the login form.
+    return (
+      <div className="cc-root">
+        <header className="cc-topbar">
+          <div className="cc-topbar-left">
+            <span className="cc-brand">FAICEOFF</span>
+            <span className="cc-brand-divider">·</span>
+            <span className="cc-brand-tag">CONTROL CENTRE</span>
+          </div>
+          <div className="cc-topbar-right">
+            <span className="cc-session-info">Not signed in</span>
+          </div>
+        </header>
+        <div className="cc-shell">
+          <main className="cc-main">{children}</main>
+        </div>
+      </div>
+    );
+  }
 
+  // 4. Authenticated — render full chrome with sidebar.
   return (
     <div className="cc-root">
-      {/* Top bar */}
       <header className="cc-topbar">
         <div className="cc-topbar-left">
           <span className="cc-brand">FAICEOFF</span>
@@ -69,60 +139,47 @@ export default async function CCLayout({ children, params }: Props) {
           <span className="cc-brand-tag">CONTROL CENTRE</span>
         </div>
         <div className="cc-topbar-right">
-          {authed && (
-            <>
-              <span className="cc-session-info">
-                Session · {session?.id.slice(0, 8)}…
-              </span>
-              <form action={`/${ccSlug}/logout`} method="post">
-                <button type="submit" className="cc-logout-btn" title="Sign out">
-                  <LogOut size={14} />
-                  <span>Sign out</span>
-                </button>
-              </form>
-            </>
-          )}
-          {!authed && hasTotp && (
-            <span className="cc-session-info">Not signed in</span>
-          )}
-          {!authed && !hasTotp && (
-            <span className="cc-session-info">Not configured</span>
-          )}
+          <span className="cc-session-info">
+            Session · {session.id.slice(0, 8)}…
+          </span>
+          <form action={`/${ccSlug}/logout`} method="post">
+            <button type="submit" className="cc-logout-btn" title="Sign out">
+              <LogOut size={14} />
+              <span>Sign out</span>
+            </button>
+          </form>
         </div>
       </header>
 
       <div className="cc-shell">
-        {/* Sidebar — only when authenticated */}
-        {authed && (
-          <aside className="cc-sidebar">
-            {GROUP_ORDER.map((group) => {
-              const items = CC_NAV.filter((i) => i.group === group);
-              if (items.length === 0) return null;
-              return (
-                <div key={group} className="cc-nav-group">
-                  <p className="cc-nav-group-label">{group}</p>
-                  <ul className="cc-nav-list">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <li key={item.segment}>
-                          <Link
-                            href={`/${ccSlug}/${item.segment}`}
-                            className="cc-nav-link"
-                            prefetch={false}
-                          >
-                            <Icon size={14} />
-                            <span>{item.label}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              );
-            })}
-          </aside>
-        )}
+        <aside className="cc-sidebar">
+          {GROUP_ORDER.map((group) => {
+            const items = CC_NAV.filter((i) => i.group === group);
+            if (items.length === 0) return null;
+            return (
+              <div key={group} className="cc-nav-group">
+                <p className="cc-nav-group-label">{group}</p>
+                <ul className="cc-nav-list">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.segment}>
+                        <Link
+                          href={`/${ccSlug}/${item.segment}`}
+                          className="cc-nav-link"
+                          prefetch={false}
+                        >
+                          <Icon size={14} />
+                          <span>{item.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </aside>
 
         <main className="cc-main">{children}</main>
       </div>

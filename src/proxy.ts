@@ -4,9 +4,20 @@ import { decideRedirect } from "@/proxy-logic";
 import { isLegacyDashboardPath } from "@/config/routes";
 
 export async function proxy(request: NextRequest) {
-  const response = NextResponse.next({ request });
-  const { role, userId, onboardingComplete, refreshedResponse } = await getSessionRole(request, response);
   const pathname = request.nextUrl.pathname;
+
+  // Inject pathname as a request header so server components/layouts can
+  // read the current URL path via `headers().get('x-pathname')`. Next.js
+  // doesn't expose this directly to server components. Used by the
+  // Control Centre layout to know whether to enforce auth (skipped on
+  // /<slug>/login and /<slug>/setup).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  const { role, userId, onboardingComplete, refreshedResponse } = await getSessionRole(request, response);
 
   const target = decideRedirect(pathname, role, onboardingComplete);
 
