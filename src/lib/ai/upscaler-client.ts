@@ -18,6 +18,10 @@
  */
 
 import Replicate from "replicate";
+import {
+  trackCost,
+  perCallCostMicros,
+} from "@/lib/observability/cost-tracker";
 
 const UPSCALER_TIMEOUT_MS = 20_000;
 const DEFAULT_SCALE = 2;
@@ -59,10 +63,11 @@ export interface UpscaleResult {
 export async function upscaleImage(
   bytes: Uint8Array,
   mimeType: string,
-  opts?: { scale?: number; signal?: AbortSignal },
+  opts?: { scale?: number; signal?: AbortSignal; generationId?: string | null },
 ): Promise<UpscaleResult> {
   const scale = opts?.scale ?? DEFAULT_SCALE;
   const dataUrl = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+  const startedAt = Date.now();
 
   const replicate = getReplicate();
   const model = getUpscalerModel();
@@ -114,6 +119,14 @@ export async function upscaleImage(
   }
   const outBytes = new Uint8Array(await res.arrayBuffer());
   const outMime = res.headers.get("content-type") ?? "image/png";
+
+  await trackCost({
+    generationId: opts?.generationId ?? null,
+    provider: "replicate",
+    callType: "upscale",
+    costUsdMicros: perCallCostMicros("real-esrgan"),
+    durationMs: Date.now() - startedAt,
+  });
 
   return { bytes: outBytes, mimeType: outMime.split(";")[0].trim() };
 }

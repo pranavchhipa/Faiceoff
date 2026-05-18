@@ -27,16 +27,17 @@ export async function GET(
   const admin = createAdminClient() as any;
 
   // --- Fetch generation ---
-  // Note: base_image_url, upscaled_url, quality_scores, generation_attempts,
+  // Note: upscaled_url, quality_scores, generation_attempts,
   // provider_prediction_id, retry_count, is_free_retry, and pipeline_version
   // are from migrations 00016 / 00028. src/types/supabase.ts is stale until
   // we regenerate, so we cast the row shape at the boundary.
+  // (base_image_url dropped in 00054 — was never populated.)
   const { data: genRaw, error: genError } = await admin
     .from("generations")
     .select(
       `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
        structured_brief, image_url, cost_paise, created_at, updated_at,
-       base_image_url, upscaled_url, quality_scores, generation_attempts,
+       upscaled_url, quality_scores, generation_attempts,
        provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
     )
     .eq("id", id)
@@ -55,7 +56,6 @@ export async function GET(
         cost_paise: number | null;
         created_at: string;
         updated_at: string;
-        base_image_url: string | null;
         upscaled_url: string | null;
         quality_scores: Record<string, unknown> | null;
         generation_attempts: number | null;
@@ -144,7 +144,7 @@ export async function GET(
         .select(
           `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
            structured_brief, image_url, cost_paise, created_at, updated_at,
-           base_image_url, upscaled_url, quality_scores, generation_attempts,
+           upscaled_url, quality_scores, generation_attempts,
            provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
         )
         .maybeSingle();

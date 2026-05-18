@@ -337,9 +337,14 @@ interface StructuredBrief {
 /**
  * Assemble a professional prompt from a structured brief using an LLM.
  * Falls back to simple concatenation if LLM call fails.
+ *
+ * Phase 5.3 — optional `generationId` plumbs through to chatCompletion so
+ * the prompt-assembly call lands in `generation_costs` with the right
+ * attribution. Callers outside the pipeline (none today) pass undefined.
  */
 export async function assemblePromptWithLLM(
-  brief: StructuredBrief
+  brief: StructuredBrief,
+  generationId?: string | null,
 ): Promise<{ prompt: string; method: "llm" | "fallback" }> {
   // Build the user message from brief fields
   const briefLines = briefToAssemblerLines(brief as Record<string, unknown>);
@@ -356,6 +361,8 @@ export async function assemblePromptWithLLM(
   try {
     const response = await chatCompletion({
       model: PROMPT_LLM_MODEL,
+      generationId: generationId ?? null,
+      callType: "prompt_assembly",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },

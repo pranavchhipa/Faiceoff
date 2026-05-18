@@ -14,6 +14,10 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { chatCompletion } from '@/lib/ai/openrouter-client';
+import {
+  trackCost,
+  computeTokenCostMicros,
+} from '@/lib/observability/cost-tracker';
 import type { Category } from './category-mapping';
 import { detectCategories, CATEGORY_KEYWORDS } from './category-mapping';
 import {
@@ -49,6 +53,12 @@ import {
  */
 export interface ComplianceInput {
   creatorId: string;
+  /**
+   * Phase 5.3 — optional generation id so embedding + LLM calls inside the
+   * 3-layer check land in `generation_costs` with the right attribution.
+   * Iteration-path compliance also passes this through.
+   */
+  generationId?: string | null;
   structuredBrief: {
     product_name?: string;
     custom_notes?: string | null;
@@ -175,11 +185,18 @@ function logWarning(message: string, extra?: Record<string, unknown>): void {
 /**
  * Get a 1536-dim text embedding via OpenRouter (text-embedding-3-small).
  * Uses the OpenAI-compatible embeddings endpoint on OpenRouter.
+ *
+ * Phase 5.3 — records a row in `generation_costs` (provider=openrouter,
+ * call_type=compliance_embed) when generationId is supplied.
  */
-async function getEmbedding(text: string): Promise<number[]> {
+async function getEmbedding(
+  text: string,
+  generationId?: string | null,
+): Promise<number[]> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new ComplianceError('OPENROUTER_API_KEY not set', 'CONFIG_ERROR');
 
+  const startedAt = Date.now();
   const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
     method: 'POST',
     headers: {
@@ -204,7 +221,24 @@ async function getEmbedding(text: string): Promise<number[]> {
 
   const json = (await response.json()) as {
     data: Array<{ embedding: number[] }>;
+    usage?: { prompt_tokens?: number; total_tokens?: number };
   };
+
+  // text-embedding-3-small bills on input tokens only.
+  const tokens = json.usage?.prompt_tokens ?? json.usage?.total_tokens ?? 0;
+  await trackCost({
+    generationId: generationId ?? null,
+    provider: 'openrouter',
+    callType: 'compliance_embed',
+    promptTokens: tokens,
+    costUsdMicros: computeTokenCostMicros(
+      'openai/text-embedding-3-small',
+      tokens,
+      0,
+    ),
+    durationMs: Date.now() - startedAt,
+  });
+
   return json.data[0].embedding;
 }
 
@@ -266,6 +300,7 @@ async function checkLayer1(
 async function checkLayer2(
   creatorId: string,
   briefText: string,
+  generationId?: string | null,
 ): Promise<ComplianceResult | null> {
   const admin = createAdminClient();
 
@@ -282,7 +317,7 @@ async function checkLayer2(
   // Get embedding for the brief
   let embedding: number[];
   try {
-    embedding = await getEmbedding(briefText);
+    embedding = await getEmbedding(briefText, generationId);
   } catch (err) {
     logWarning('Layer 2: embedding API failed, skipping', {
       creatorId,
@@ -354,6 +389,7 @@ async function checkLayer2(
 async function checkLayer3(
   creatorId: string,
   briefText: string,
+  generationId?: string | null,
 ): Promise<ComplianceResult | null> {
   const admin = createAdminClient();
 
@@ -393,6 +429,8 @@ The reason must be a single concise sentence.`;
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
       max_tokens: 150,
+      generationId: generationId ?? null,
+      callType: 'compliance_llm',
     });
   } catch (err) {
     logWarning('Layer 3: LLM classification failed, skipping', {
@@ -444,7 +482,7 @@ The reason must be a single concise sentence.`;
  * @throws {ComplianceError} Only for unrecoverable errors (e.g. DB connection failure)
  */
 export async function runComplianceCheck(input: ComplianceInput): Promise<ComplianceResult> {
-  const { creatorId, structuredBrief } = input;
+  const { creatorId, structuredBrief, generationId } = input;
   const briefText = briefToText(structuredBrief);
 
   // Layer 1: Blocked Categories (mandatory — DB errors propagate)
@@ -452,11 +490,11 @@ export async function runComplianceCheck(input: ComplianceInput): Promise<Compli
   if (layer1Result) return layer1Result;
 
   // Layer 2: Vector Similarity (fail-open on API errors)
-  const layer2Result = await checkLayer2(creatorId, briefText);
+  const layer2Result = await checkLayer2(creatorId, briefText, generationId);
   if (layer2Result) return layer2Result;
 
   // Layer 3: LLM Classification (fail-open on API errors)
-  const layer3Result = await checkLayer3(creatorId, briefText);
+  const layer3Result = await checkLayer3(creatorId, briefText, generationId);
   if (layer3Result) return layer3Result;
 
   return { passed: true, layer: null };

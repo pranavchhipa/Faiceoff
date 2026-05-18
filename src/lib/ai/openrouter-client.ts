@@ -1,3 +1,8 @@
+import {
+  trackCost,
+  computeTokenCostMicros,
+} from "@/lib/observability/cost-tracker";
+
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 function getEnvVar(name: string): string {
@@ -18,6 +23,17 @@ export interface ChatCompletionOptions {
   messages: ChatMessage[];
   temperature?: number;
   max_tokens?: number;
+  /**
+   * Phase 5.3 — attach the resulting cost row to a specific generation.
+   * Optional; when omitted the call is NOT tracked (Studio-side suggestions
+   * fire before the generation row exists and pass undefined).
+   */
+  generationId?: string | null;
+  /**
+   * Phase 5.3 — coarse tag for the cost ledger (e.g. "prompt_assembly",
+   * "brief_suggester", "compliance_llm"). Surfaces in admin dashboards.
+   */
+  callType?: string;
 }
 
 export interface ChatCompletionResponse {
@@ -38,11 +54,16 @@ export interface ChatCompletionResponse {
 
 /**
  * Send a chat completion request to OpenRouter (OpenAI-compatible API).
+ *
+ * Phase 5.3 — every call automatically records a row in `generation_costs`
+ * when `generationId` is provided. Cost is computed from `usage.prompt_tokens`
+ * + `usage.completion_tokens` against the model rate in COST_RATES.
  */
 export async function chatCompletion(
   options: ChatCompletionOptions,
 ): Promise<ChatCompletionResponse> {
   const apiKey = getEnvVar('OPENROUTER_API_KEY');
+  const startedAt = Date.now();
 
   const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -67,5 +88,26 @@ export async function chatCompletion(
     );
   }
 
-  return response.json() as Promise<ChatCompletionResponse>;
+  const json = (await response.json()) as ChatCompletionResponse;
+  const durationMs = Date.now() - startedAt;
+
+  // Fire-and-forget cost telemetry. Awaited intentionally so the row is
+  // inserted before the function returns — keeps the ledger consistent
+  // even if the caller exits the request soon after. trackCost itself
+  // never throws.
+  await trackCost({
+    generationId: options.generationId ?? null,
+    provider: "openrouter",
+    callType: options.callType ?? "chat_completion",
+    promptTokens: json.usage?.prompt_tokens,
+    completionTokens: json.usage?.completion_tokens,
+    costUsdMicros: computeTokenCostMicros(
+      options.model,
+      json.usage?.prompt_tokens ?? 0,
+      json.usage?.completion_tokens ?? 0,
+    ),
+    durationMs,
+  });
+
+  return json;
 }

@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * `image_url` (upscaler output was not re-hosted). Those URLs expire
  * after ~24h, so approved generations render as broken images the next
  * day. This route fetches whichever working URL is available
- * (image_url → base_image_url → upscaled_url) and re-uploads it to
+ * (image_url → upscaled_url) and re-uploads it to
  * Supabase Storage, then updates image_url with a fresh 1-year signed URL.
  *
  * Access: the owning brand OR the creator of the generation.
@@ -32,12 +32,13 @@ export async function POST(
   const admin = createAdminClient();
 
   // Load generation + verify access.
-  // Cast: base_image_url / upscaled_url were added in migration 00016 but
-  // the Supabase generated types haven't been regenerated yet.
+  // base_image_url was dropped in migration 00054 (Phase 5.1) — it was never
+  // populated by the current Gemini pipeline. Fallback chain is now just
+  // image_url → upscaled_url.
   const { data: genRaw, error: genError } = await admin
     .from("generations")
     .select(
-      "id, brand_id, creator_id, image_url, base_image_url, upscaled_url",
+      "id, brand_id, creator_id, image_url, upscaled_url",
     )
     .eq("id", generation_id)
     .maybeSingle();
@@ -47,7 +48,6 @@ export async function POST(
     brand_id: string;
     creator_id: string;
     image_url: string | null;
-    base_image_url: string | null;
     upscaled_url: string | null;
   } | null;
 
@@ -73,7 +73,7 @@ export async function POST(
   }
 
   // Try each known URL; first one that fetches gets rehosted.
-  const candidates = [gen.image_url, gen.base_image_url, gen.upscaled_url]
+  const candidates = [gen.image_url, gen.upscaled_url]
     .filter((u): u is string => typeof u === "string" && u.length > 0);
 
   if (candidates.length === 0) {

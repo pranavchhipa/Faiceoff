@@ -341,6 +341,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     try {
       const compliance = await runComplianceCheck({
         creatorId,
+        generationId,
         structuredBrief: brief as ComplianceInput["structuredBrief"],
       });
       if (!compliance.passed) {
@@ -399,7 +400,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     // ── 4. Assemble creative prompt via LLM ─────────────────────────────────
     let assembledPrompt: string;
     try {
-      const { prompt } = await assemblePromptWithLLM(brief);
+      const { prompt } = await assemblePromptWithLLM(brief, generationId);
       assembledPrompt = prompt;
     } catch (err) {
       // Fallback to a templated prompt so generation still proceeds.
@@ -432,6 +433,7 @@ export async function runGeneration(generationId: string): Promise<void> {
         // Phase 2.2.b — exact pack/label text → PRODUCT TEXT LOCK block
         packText:
           typeof brief.pack_text === "string" ? brief.pack_text : null,
+        generationId,
       });
     } catch (geminiErr) {
       // Hard fail after retry → refund and mark failed.
@@ -508,6 +510,7 @@ export async function runGeneration(generationId: string): Promise<void> {
           },
           productImage,
           aspectRatio,
+          generationId,
         });
         finalImage = { bytes: refined.bytes, mimeType: refined.mimeType };
         refinementApplied = true;
@@ -542,6 +545,7 @@ export async function runGeneration(generationId: string): Promise<void> {
         const upscaled = await upscaleImage(
           finalImage.bytes,
           finalImage.mimeType,
+          { generationId },
         );
         finalImage = upscaled;
         upscaleApplied = true;
@@ -635,7 +639,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     // ── 7. Hive check on the public R2 URL ──────────────────────────────────
     let hiveUnsafe = false;
     try {
-      const hiveResult = await checkImage(r2Url);
+      const hiveResult = await checkImage(r2Url, { generationId });
       const allClasses =
         hiveResult.status?.[0]?.response?.output?.[0]?.classes ?? [];
       for (const cls of allClasses) {
@@ -679,6 +683,15 @@ export async function runGeneration(generationId: string): Promise<void> {
     // upscale step ran successfully, image_url already IS the upscaled image
     // (we overwrite finalImage in place), so both columns share the same URL.
     // When upscale was skipped or failed-open, upscaled_url stays null.
+    //
+    // Phase 5.4 — generation_attempts records inline retries inside
+    // generateImage (1 or 2). provider_prediction_id is null today because
+    // @google/genai 0.x doesn't expose a stable response id; will populate
+    // when the SDK does.
+    //
+    // TODO (Phase 5.2): Move assembled_prompt to R2 sidecar when table size
+    // becomes an issue. The full text bloats the row; keep a 500-char preview
+    // here and write the full text to generations/{id}/prompt.txt.
     await admin
       .from("generations")
       .update({
@@ -686,6 +699,8 @@ export async function runGeneration(generationId: string): Promise<void> {
         image_url: r2Url,
         upscaled_url: upscaleApplied ? r2Url : null,
         assembled_prompt: assembledPrompt,
+        generation_attempts: geminiResult.attempts,
+        provider_prediction_id: geminiResult.providerPredictionId,
       })
       .eq("id", generationId);
 
@@ -856,6 +871,7 @@ export async function runIteration(generationId: string): Promise<void> {
 
     const compliance = await runComplianceCheck({
       creatorId,
+      generationId,
       structuredBrief: complianceBrief,
     });
 
@@ -906,6 +922,11 @@ export async function runIteration(generationId: string): Promise<void> {
     let iterationResult: Awaited<ReturnType<typeof iterateOnImage>>;
     try {
       iterationResult = await iterateOnImage({
+        generationId,
+        // Phase 6d — carry pack_text forward into the iteration prompt so
+        // PRODUCT TEXT LOCK persists across retries.
+        packText:
+          typeof brief.pack_text === "string" ? brief.pack_text : null,
         previousImage,
         faceRefs,
         productImage,
@@ -946,7 +967,11 @@ export async function runIteration(generationId: string): Promise<void> {
     if (upscaleEnabled) {
       try {
         const upscaleStart = Date.now();
-        const upscaled = await upscaleImage(iterFinal.bytes, iterFinal.mimeType);
+        const upscaled = await upscaleImage(
+          iterFinal.bytes,
+          iterFinal.mimeType,
+          { generationId },
+        );
         iterFinal = upscaled;
         upscaleApplied = true;
         console.log(
@@ -1031,7 +1056,7 @@ export async function runIteration(generationId: string): Promise<void> {
     // ── 8. Hive content safety check ────────────────────────────────────────
     let hiveUnsafe = false;
     try {
-      const hiveResult = await checkImage(r2Url);
+      const hiveResult = await checkImage(r2Url, { generationId });
       const allClasses =
         hiveResult.status?.[0]?.response?.output?.[0]?.classes ?? [];
       for (const cls of allClasses) {
@@ -1067,6 +1092,8 @@ export async function runIteration(generationId: string): Promise<void> {
     }
 
     // ── 9. Status flip → ready_for_brand_review ────────────────────────────
+    // Phase 5.4 — generation_attempts + provider_prediction_id same as
+    // runGeneration.
     await admin
       .from("generations")
       .update({
@@ -1074,6 +1101,8 @@ export async function runIteration(generationId: string): Promise<void> {
         image_url: r2Url,
         upscaled_url: upscaleApplied ? r2Url : null,
         assembled_prompt: iterationResult.finalPrompt,
+        generation_attempts: iterationResult.attempts,
+        provider_prediction_id: iterationResult.providerPredictionId,
       })
       .eq("id", generationId);
 

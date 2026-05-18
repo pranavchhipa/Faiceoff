@@ -1,3 +1,8 @@
+import {
+  trackCost,
+  perCallCostMicros,
+} from "@/lib/observability/cost-tracker";
+
 const HIVE_API_URL = 'https://api.thehive.ai/api/v2/task/sync';
 
 function getEnvVar(name: string): string {
@@ -23,9 +28,16 @@ export interface HiveModerationResult {
 
 /**
  * Submit an image URL to Hive Moderation for content safety analysis.
+ *
+ * Phase 5.3 — when `generationId` is provided, records a row in
+ * `generation_costs` at the hive-moderation flat rate (~$0.001/check).
  */
-export async function checkImage(imageUrl: string): Promise<HiveModerationResult> {
+export async function checkImage(
+  imageUrl: string,
+  opts?: { generationId?: string | null },
+): Promise<HiveModerationResult> {
   const apiKey = getEnvVar('HIVE_API_KEY');
+  const startedAt = Date.now();
 
   const response = await fetch(HIVE_API_URL, {
     method: 'POST',
@@ -45,5 +57,16 @@ export async function checkImage(imageUrl: string): Promise<HiveModerationResult
     );
   }
 
-  return response.json() as Promise<HiveModerationResult>;
+  const json = (await response.json()) as HiveModerationResult;
+  const durationMs = Date.now() - startedAt;
+
+  await trackCost({
+    generationId: opts?.generationId ?? null,
+    provider: "hive",
+    callType: "safety_check",
+    costUsdMicros: perCallCostMicros("hive-moderation"),
+    durationMs,
+  });
+
+  return json;
 }

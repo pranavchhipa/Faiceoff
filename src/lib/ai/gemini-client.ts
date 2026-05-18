@@ -17,6 +17,10 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 import { sanitizeUserText } from "./prompt-assembler";
+import {
+  trackCost,
+  perCallCostMicros,
+} from "@/lib/observability/cost-tracker";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -204,6 +208,20 @@ export interface GenerateImageResult {
   mimeType: string;
   /** Final wrapped prompt that was sent to Gemini (audit trail). */
   finalPrompt: string;
+  /**
+   * Phase 5.4 — number of attempts the wrapper made (1 = succeeded on first
+   * call, 2 = inline retry won). Callers fold this into
+   * `generations.generation_attempts` on the final status update.
+   */
+  attempts: number;
+  /**
+   * Phase 5.4 — Gemini's request id / response id when the SDK surfaces it.
+   * Currently null because @google/genai 0.x doesn't expose a stable id on
+   * `generateContent` responses. Callers can still write null to
+   * `provider_prediction_id` — keeping the param shape future-proof so we
+   * just have to populate it here when the SDK adds it.
+   */
+  providerPredictionId: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -289,6 +307,10 @@ async function callGeminiOnce(
           bytes: base64ToBytes(inline.data),
           mimeType: inline.mimeType,
           finalPrompt,
+          // attempts / providerPredictionId are written by the outer wrapper
+          // (generateImage) since it owns the retry loop.
+          attempts: 1,
+          providerPredictionId: null,
         };
       }
     }
@@ -317,19 +339,42 @@ async function callGeminiOnce(
  * Generate an image via Gemini 3.1 Flash Image with 1 inline retry.
  *
  * Throws on second failure — caller MUST handle refund.
+ *
+ * Phase 5.3 — `generationId` is optional. When provided, each Gemini call
+ * (including the inline retry) writes a row to `generation_costs`. Phase 5.4
+ * — the returned `attempts` reflects how many attempts the wrapper made (1 or
+ * 2) so the caller can update `generations.generation_attempts`.
  */
 export async function generateImage(
-  params: GenerateImageParams,
+  params: GenerateImageParams & { generationId?: string | null },
 ): Promise<GenerateImageResult> {
+  const trackImageCost = async (durationMs: number, attempt: number) => {
+    await trackCost({
+      generationId: params.generationId ?? null,
+      provider: "gemini",
+      callType: attempt === 1 ? "image_gen" : "image_gen_retry",
+      costUsdMicros: perCallCostMicros("gemini-3-pro-image"),
+      durationMs,
+    });
+  };
+
+  const t1 = Date.now();
   try {
-    return await callGeminiOnce(params);
+    const result = await callGeminiOnce(params);
+    await trackImageCost(Date.now() - t1, 1);
+    return { ...result, attempts: 1 };
   } catch (firstErr) {
+    await trackImageCost(Date.now() - t1, 1);
     const firstMsg =
       firstErr instanceof Error ? firstErr.message : String(firstErr);
     console.warn(`[gemini-client] First attempt failed: ${firstMsg}. Retrying once.`);
+    const t2 = Date.now();
     try {
-      return await callGeminiOnce(params);
+      const result = await callGeminiOnce(params);
+      await trackImageCost(Date.now() - t2, 2);
+      return { ...result, attempts: 2 };
     } catch (secondErr) {
+      await trackImageCost(Date.now() - t2, 2);
       const secondMsg =
         secondErr instanceof Error ? secondErr.message : String(secondErr);
       throw new Error(
@@ -444,6 +489,8 @@ async function callRefineOnce(params: {
           bytes: base64ToBytes(inline.data),
           mimeType: inline.mimeType,
           finalPrompt,
+          attempts: 1,
+          providerPredictionId: null,
         };
       }
     }
@@ -477,18 +524,37 @@ export async function refineProductInImage(params: {
   generatedImage: ImageInput;
   productImage: ImageInput;
   aspectRatio: string;
+  generationId?: string | null;
 }): Promise<GenerateImageResult> {
+  const trackRefineCost = async (durationMs: number, attempt: number) => {
+    await trackCost({
+      generationId: params.generationId ?? null,
+      provider: "gemini",
+      callType: attempt === 1 ? "image_refine" : "image_refine_retry",
+      costUsdMicros: perCallCostMicros("gemini-3-pro-image"),
+      durationMs,
+    });
+  };
+
+  const t1 = Date.now();
   try {
-    return await callRefineOnce(params);
+    const result = await callRefineOnce(params);
+    await trackRefineCost(Date.now() - t1, 1);
+    return { ...result, attempts: 1 };
   } catch (firstErr) {
+    await trackRefineCost(Date.now() - t1, 1);
     const firstMsg =
       firstErr instanceof Error ? firstErr.message : String(firstErr);
     console.warn(
       `[gemini-client] Refinement first attempt failed: ${firstMsg}. Retrying once.`,
     );
+    const t2 = Date.now();
     try {
-      return await callRefineOnce(params);
+      const result = await callRefineOnce(params);
+      await trackRefineCost(Date.now() - t2, 2);
+      return { ...result, attempts: 2 };
     } catch (secondErr) {
+      await trackRefineCost(Date.now() - t2, 2);
       const secondMsg =
         secondErr instanceof Error ? secondErr.message : String(secondErr);
       throw new Error(
@@ -519,6 +585,7 @@ export function buildIterationPrompt(
   iterationNotes: string,
   aspectRatio: string,
   faceRefCount: number,
+  packText?: string | null,
 ): string {
   // Phase 1, fix 1.3 — sanitize + delimit brand-supplied iteration_notes so
   // a malicious instruction like "Ignore previous instructions and …" is
@@ -535,7 +602,10 @@ export function buildIterationPrompt(
       : "image 2";
   const productImagePosition = faceRefCount + 2;
 
-  return [
+  const trimmedPackText =
+    typeof packText === "string" ? packText.trim() : "";
+
+  const lines: string[] = [
     "ITERATION TASK — read carefully:",
     "You are editing an already-generated photograph (the FIRST attached image).",
     "The brand has requested specific changes. Apply ONLY those changes.",
@@ -558,6 +628,21 @@ export function buildIterationPrompt(
     "  • Brand wordmark, exact font, packaging, every character of label text",
     "  • Pack format (tube/jar/bottle/can), colour, finish",
     "If the brand's request did not mention the product, keep it untouched.",
+  ];
+
+  // Phase 6d — carry PRODUCT TEXT LOCK forward through iteration so the
+  // brand can't drift on the label text on retries. Same template as the
+  // anchor prompt, just framed as "unchanged from first generation".
+  if (trimmedPackText.length > 0) {
+    lines.push(
+      "",
+      "─── PRODUCT TEXT LOCK (unchanged from first generation) ───",
+      `[USER_INPUT: <<< ${sanitizeUserText(trimmedPackText, 500)} >>>]`,
+      "All product text must remain exactly as above. The iteration does NOT change the product label, regardless of what the brand's requested changes say.",
+    );
+  }
+
+  lines.push(
     "",
     "─── WHAT TO PRESERVE FROM THE FIRST IMAGE ───",
     "If the brand only mentioned pose → keep lighting, scene, mood, camera SAME.",
@@ -572,7 +657,9 @@ export function buildIterationPrompt(
     "Photorealism, ultra-realistic, 8K detail preserved.",
     "",
     `Output: ${aspectRatio} aspect ratio, photorealistic edit of the first image.`,
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 /**
@@ -589,6 +676,7 @@ async function callIterateOnce(params: {
   productImage: ImageInput;
   iterationNotes: string;
   aspectRatio: string;
+  packText?: string | null;
 }): Promise<GenerateImageResult> {
   if (params.faceRefs.length === 0) {
     throw new Error("gemini-client: at least 1 face reference is required");
@@ -598,6 +686,7 @@ async function callIterateOnce(params: {
     params.iterationNotes,
     params.aspectRatio,
     params.faceRefs.length,
+    params.packText,
   );
 
   const parts: Array<
@@ -657,6 +746,8 @@ async function callIterateOnce(params: {
           bytes: base64ToBytes(inline.data),
           mimeType: inline.mimeType,
           finalPrompt,
+          attempts: 1,
+          providerPredictionId: null,
         };
       }
     }
@@ -682,6 +773,10 @@ async function callIterateOnce(params: {
  *
  * 1 inline retry. Throws on second failure — caller marks gen failed +
  * refunds the credit.
+ *
+ * Phase 5.3 — tracks cost. Phase 5.4 — returns `attempts`. Phase 6d —
+ * `packText` is plumbed through so the PRODUCT TEXT LOCK persists across
+ * iterations.
  */
 export async function iterateOnImage(params: {
   previousImage: ImageInput;
@@ -689,18 +784,38 @@ export async function iterateOnImage(params: {
   productImage: ImageInput;
   iterationNotes: string;
   aspectRatio: string;
+  packText?: string | null;
+  generationId?: string | null;
 }): Promise<GenerateImageResult> {
+  const trackIterCost = async (durationMs: number, attempt: number) => {
+    await trackCost({
+      generationId: params.generationId ?? null,
+      provider: "gemini",
+      callType: attempt === 1 ? "image_iterate" : "image_iterate_retry",
+      costUsdMicros: perCallCostMicros("gemini-3-pro-image"),
+      durationMs,
+    });
+  };
+
+  const t1 = Date.now();
   try {
-    return await callIterateOnce(params);
+    const result = await callIterateOnce(params);
+    await trackIterCost(Date.now() - t1, 1);
+    return { ...result, attempts: 1 };
   } catch (firstErr) {
+    await trackIterCost(Date.now() - t1, 1);
     const firstMsg =
       firstErr instanceof Error ? firstErr.message : String(firstErr);
     console.warn(
       `[gemini-client] Iteration first attempt failed: ${firstMsg}. Retrying once.`,
     );
+    const t2 = Date.now();
     try {
-      return await callIterateOnce(params);
+      const result = await callIterateOnce(params);
+      await trackIterCost(Date.now() - t2, 2);
+      return { ...result, attempts: 2 };
     } catch (secondErr) {
+      await trackIterCost(Date.now() - t2, 2);
       const secondMsg =
         secondErr instanceof Error ? secondErr.message : String(secondErr);
       throw new Error(

@@ -50,8 +50,7 @@ interface GenerationDetail {
     id: string;
     name: string;
   } | null;
-  // v2 pipeline fields (migration 00016)
-  base_image_url: string | null;
+  // v2 pipeline fields (migration 00016; base_image_url dropped in 00054)
   upscaled_url: string | null;
   quality_scores: QualityScoresJSON | null;
   generation_attempts: number | null;
@@ -298,7 +297,6 @@ export default function GenerationDetailPage({
         created_at: d.created_at,
         updated_at: d.updated_at,
         campaign: d.campaign ?? null,
-        base_image_url: d.base_image_url ?? null,
         upscaled_url: d.upscaled_url ?? null,
         quality_scores: (d.quality_scores as QualityScoresJSON | null) ?? null,
         generation_attempts: d.generation_attempts ?? null,
