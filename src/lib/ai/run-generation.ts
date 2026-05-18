@@ -109,8 +109,19 @@ async function fetchImageBytes(
 }
 
 /**
- * Pick face refs: primary first, then up to (MAX_FACE_REFS - 1) random others.
- * Returns up to MAX_FACE_REFS storage paths.
+ * Pick face refs: deterministic ordering for cross-generation identity stability.
+ *
+ * Phase 2.1: Removed Fisher-Yates shuffle. Random selection caused the same creator
+ * to look subtly different across consecutive generations in the same campaign
+ * because the model saw a different mix of reference photos each time. Stable
+ * ordering means every generation in a campaign sees the SAME inputs, dramatically
+ * improving cross-image identity consistency.
+ *
+ * Order:
+ *   1. is_primary = true (creator's chosen hero shot)
+ *   2. Remaining photos by uploaded_at ASC (deterministic, time-stable)
+ *
+ * Cap at MAX_FACE_REFS. Throws if creator has zero reference photos.
  */
 async function pickFaceRefStoragePaths(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,8 +130,10 @@ async function pickFaceRefStoragePaths(
 ): Promise<string[]> {
   const { data: photos, error } = await admin
     .from("creator_reference_photos")
-    .select("storage_path, is_primary")
-    .eq("creator_id", creatorId);
+    .select("storage_path, is_primary, uploaded_at")
+    .eq("creator_id", creatorId)
+    .order("is_primary", { ascending: false })
+    .order("uploaded_at", { ascending: true });
 
   if (error) {
     throw new Error(
@@ -133,21 +146,9 @@ async function pickFaceRefStoragePaths(
     );
   }
 
-  const primary = photos.filter(
-    (p: { is_primary: boolean }) => p.is_primary,
-  );
-  const others = photos.filter(
-    (p: { is_primary: boolean }) => !p.is_primary,
-  );
-
-  // Shuffle others (Fisher-Yates).
-  for (let i = others.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [others[i], others[j]] = [others[j], others[i]];
-  }
-
-  const ordered = [...primary, ...others].slice(0, MAX_FACE_REFS);
-  return ordered.map((p: { storage_path: string }) => p.storage_path);
+  return photos
+    .slice(0, MAX_FACE_REFS)
+    .map((p: { storage_path: string }) => p.storage_path);
 }
 
 /**
@@ -428,6 +429,9 @@ export async function runGeneration(generationId: string): Promise<void> {
         productImage,
         assembledPrompt,
         aspectRatio,
+        // Phase 2.2.b — exact pack/label text → PRODUCT TEXT LOCK block
+        packText:
+          typeof brief.pack_text === "string" ? brief.pack_text : null,
       });
     } catch (geminiErr) {
       // Hard fail after retry → refund and mark failed.

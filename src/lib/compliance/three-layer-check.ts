@@ -52,6 +52,12 @@ export interface ComplianceInput {
   structuredBrief: {
     product_name?: string;
     custom_notes?: string | null;
+    /**
+     * Phase 2.2.b — exact pack/label text the brand entered. Scanned by
+     * compliance so a brand can't sneak "Budweiser Lager" past an
+     * alcohol-blocked creator via the pack-text field.
+     */
+    pack_text?: string | null;
     setting?: string | null;
     time_lighting?: string | null;
     mood_palette?: string | null;
@@ -130,6 +136,9 @@ function briefToText(brief: ComplianceInput['structuredBrief']): string {
   }
   if (typeof brief.custom_notes === 'string' && brief.custom_notes) {
     parts.push(brief.custom_notes);
+  }
+  if (typeof brief.pack_text === 'string' && brief.pack_text) {
+    parts.push(brief.pack_text);
   }
 
   for (const [field, group] of Object.entries(PILL_FIELD_GROUPS)) {

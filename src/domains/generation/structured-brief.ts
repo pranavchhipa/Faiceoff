@@ -71,6 +71,13 @@ export const StructuredBriefSchema = z.object({
     ASPECT_RATIO_OPTIONS.map((o) => o.key) as [string, ...string[]]
   ),
   custom_notes: z.string().max(500).optional().nullable(),
+  /**
+   * Phase 2.2.b — exact pack/label text the brand wants reproduced
+   * character-for-character on the product (brand name, tagline, SKU, ingredients,
+   * etc.). Surfaced to the model via the PRODUCT TEXT LOCK block in
+   * `buildAnchorPrompt`. Sanitized before interpolation.
+   */
+  pack_text: z.string().max(500).optional().nullable(),
   _meta: z
     .object({
       creator_id: z.string().uuid().optional(),

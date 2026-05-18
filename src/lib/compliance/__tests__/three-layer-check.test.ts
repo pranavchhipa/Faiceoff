@@ -425,4 +425,94 @@ describe('runComplianceCheck', () => {
       expect(result.passed).toBe(true);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Phase 2.2.b — pack_text scanning by Layer 1 (regression guard)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // pack_text is brand-supplied text that gets reproduced character-for-character
+  // on the product label via the PRODUCT TEXT LOCK block. It MUST be scanned by
+  // compliance — otherwise a brand could write "Budweiser Lager" in pack_text
+  // and slip an alcohol mention past an alcohol-blocked creator via the back
+  // door (Studio pills + product_name all clean, but the rendered label shouts
+  // BEER).
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Phase 2.2.b — pack_text scanning', () => {
+    it('triggers alcohol from pack_text "BUDWEISER BEER" when alcohol is blocked', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {
+          product_name: 'refreshing summer drink',  // no keyword on its own
+          pack_text: 'BUDWEISER BEER — 330 ML',     // "beer" → alcohol keyword
+        },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.layer).toBe(1);
+      expect(result.blocked_category).toBe('alcohol');
+    });
+
+    it('does NOT trigger when pack_text is clean', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+          complianceVectorCount: 0,
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+      vi.mocked(chatCompletion).mockResolvedValue({
+        id: 'test',
+        choices: [
+          {
+            message: { role: 'assistant', content: '{"violates":false,"reason":"Clean."}' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+      });
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {
+          product_name: 'Mango Sorbet SPF 50',
+          pack_text: 'Mango Sorbet SPF 50 — 60 ml — Reef Safe',
+        },
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.layer).toBeNull();
+    });
+
+    it('treats undefined / null / empty pack_text the same as the field being absent', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+          complianceVectorCount: 0,
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+      vi.mocked(chatCompletion).mockResolvedValue({
+        id: 'test',
+        choices: [
+          {
+            message: { role: 'assistant', content: '{"violates":false,"reason":"Clean."}' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+      });
+
+      for (const variant of [{}, { pack_text: undefined }, { pack_text: null }, { pack_text: '' }] as const) {
+        const result = await runComplianceCheck({
+          creatorId: mockCreatorId,
+          structuredBrief: { product_name: 'sneakers', ...variant },
+        });
+        expect(result.passed).toBe(true);
+      }
+    });
+  });
 });

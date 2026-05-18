@@ -72,6 +72,13 @@ type PillKey = string | null;
 interface Brief {
   product_name: string;
   product_image_url: string;
+  /**
+   * Phase 2.2.b — exact text on the product packaging the brand wants
+   * reproduced character-for-character (brand name, tagline, SKU, etc.).
+   * Optional. When provided, fed into the PRODUCT TEXT LOCK block in the
+   * Gemini anchor prompt and scanned by compliance.
+   */
+  pack_text: string;
   setting: PillKey;
   time_lighting: PillKey;
   mood_palette: PillKey;
@@ -88,6 +95,7 @@ interface Brief {
 const DEFAULT_BRIEF: Brief = {
   product_name: "",
   product_image_url: "",
+  pack_text: "",
   setting: null,
   time_lighting: null,
   mood_palette: null,
@@ -704,6 +712,23 @@ export default function BrandStudioPage() {
                     maxLength={200}
                     className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-[13px] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 flex items-center justify-between font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                    <span>Text on packaging (optional but recommended)</span>
+                    <span className="font-mono text-[9px] tabular-nums text-[var(--color-muted-foreground)]/70">{brief.pack_text.length}/500</span>
+                  </label>
+                  <textarea
+                    value={brief.pack_text}
+                    onChange={(e) => setBrief((b) => ({ ...b, pack_text: e.target.value.slice(0, 500) }))}
+                    placeholder={"e.g. Glenfiddich 12 — Single Malt Scotch Whisky — 750 ml"}
+                    rows={2}
+                    maxLength={500}
+                    className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-[13px] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
+                  />
+                  <p className="mt-1 text-[11px] leading-snug text-[var(--color-muted-foreground)]">
+                    Exact wording from the packaging — brand name, tagline, variant, volume. The AI will reproduce this character-for-character on the product so it doesn&apos;t hallucinate misspellings.
+                  </p>
                 </div>
                 <p className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
                   Tip: use a clean, well-lit product photo. The AI uses this as the source-of-truth for the product&apos;s shape, color and labeling.
