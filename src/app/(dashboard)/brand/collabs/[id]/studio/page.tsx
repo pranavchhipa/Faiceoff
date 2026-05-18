@@ -41,6 +41,7 @@ import {
   ASPECT_RATIO_OPTIONS,
   type PillOption,
 } from "@/config/campaign-options";
+import { compressImageForUpload } from "@/lib/utils/image-compression";
 
 interface SessionSummary {
   id: string;
@@ -424,9 +425,31 @@ export default function BrandStudioPage() {
 
   async function handleUploadImage(file: File) {
     setUploadingImg(true);
+    setError(null);
     try {
+      // Phase 1, fix 1.5 — compress before upload (Studio was previously sending
+      // raw files, while /brand/discover/[creatorId]/request was compressing —
+      // a 6 MB phone photo would 413 here but succeed on the request page).
+      // Settings mirror the brand-request page so both upload paths behave
+      // identically. Server cap is 3.8 MB; double-pass keeps us under it.
+      let compressed = await compressImageForUpload(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+        passThroughByteThreshold: 800_000,
+      });
+      if (compressed.size > 3_800_000) {
+        compressed = await compressImageForUpload(compressed, {
+          maxDimension: 1280,
+          quality: 0.7,
+          passThroughByteThreshold: 0,
+        });
+      }
+      if (compressed.size > 3_800_000) {
+        throw new Error("Image is too large even after compression. Try a smaller original.");
+      }
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressed);
       const res = await fetch("/api/campaigns/upload-product-image", { method: "POST", body: fd });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Upload failed");

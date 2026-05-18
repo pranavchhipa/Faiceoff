@@ -4,9 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "product-images";
 
-// Server-side cap: 4MB. Client compresses to ~1-2MB before upload, so this
-// is a safety net well under Vercel's 4.5MB serverless body limit.
-const MAX_BYTES = 4 * 1024 * 1024;
+// Server-side cap matched to the client-side compression ceiling enforced by
+// both upload paths (Studio + brand-request page both abort if compressed
+// output > 3.8 MB). Tightening from the legacy 4 MB so any future caller
+// that forgets to compress fails fast with a clear 413, rather than
+// squeaking through under Vercel's 4.5 MB platform limit. (Phase 1, fix 1.5.)
+const MAX_BYTES = 3_800_000;
 
 // Run on Node (not Edge) — needed for FormData with binary blobs.
 export const runtime = "nodejs";
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Image too large after compression. Try a smaller original (<10MB).",
+            "Image too large (cap is 3.8 MB after compression). The client compressor should reduce most phone photos under this — make sure compressImageForUpload() ran before this POST.",
         },
         { status: 413 }
       );

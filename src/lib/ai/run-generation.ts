@@ -34,7 +34,7 @@ import {
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
-import { runComplianceCheck } from "@/lib/compliance";
+import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { embedFaiceoffMetadata } from "@/lib/ai/image-metadata";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
@@ -59,6 +59,29 @@ const HIVE_NSFW_CLASSES = new Set([
 const REFERENCE_PHOTO_BUCKET = "reference-photos";
 const SIGNED_URL_TTL_SECONDS = 600; // 10 minutes — only need it long enough to fetch
 const MAX_FACE_REFS = 3;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// R2 public URL — module-scope hard-fail (Phase 1, fix 1.4)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The legacy fallback (`https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{bucket}`)
+// is the S3 endpoint, which serves XML, not images — when the env var was
+// missing on a deploy, every generation succeeded server-side but every
+// brand saw a broken image. Validate at module load so the process refuses
+// to boot if R2_PUBLIC_URL is missing. Throwing here is intentional — Next
+// will fail the import and the route never registers, which is loud and
+// catches the misconfiguration before any user-facing surface goes live.
+//
+// Module-scope: throws on first import. In dev, this surfaces on first request to a route that imports this module.
+const R2_PUBLIC_URL: string = (() => {
+  const url = process.env.R2_PUBLIC_URL;
+  if (!url) {
+    throw new Error(
+      "R2_PUBLIC_URL is required — cannot fallback to the S3 endpoint (serves XML, not images)",
+    );
+  }
+  return url.replace(/\/$/, "");
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -317,12 +340,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     try {
       const compliance = await runComplianceCheck({
         creatorId,
-        structuredBrief: brief as {
-          product?: string;
-          scene?: string;
-          mood?: string;
-          aesthetic?: string;
-        },
+        structuredBrief: brief as ComplianceInput["structuredBrief"],
       });
       if (!compliance.passed) {
         console.warn(
@@ -535,10 +553,7 @@ export async function runGeneration(generationId: string): Promise<void> {
           ContentType: finalImage.mimeType,
         }),
       );
-      const r2PublicBase =
-        process.env.R2_PUBLIC_URL ??
-        `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}`;
-      r2Url = `${r2PublicBase.replace(/\/$/, "")}/${r2Key}`;
+      r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
       console.log(
         `[run-generation] gen=${generationId} uploaded to R2 (refinement_applied=${refinementApplied})`,
       );
@@ -754,6 +769,59 @@ export async function runIteration(generationId: string): Promise<void> {
     return;
   }
 
+  // ── 1c. Compliance check on the MERGED brief (Phase 1, fix 1.2) ──────────
+  // The original brief was already compliance-checked in `runGeneration`,
+  // but the brand can use iteration_notes to drift into disallowed content
+  // (e.g. "swap the water bottle for a beer"). Re-scan with iteration_notes
+  // folded into the scannable text.
+  //
+  // We pass the FULL brief — original product_name + setting + mood plus the
+  // merged custom_notes — so layer-1 keyword scan, layer-2 vector similarity,
+  // and layer-3 LLM all see the same context the user just expanded.
+  //
+  // Fail-open policy mirrors runGeneration: transient errors are logged and
+  // the pipeline continues; Hive safety check downstream is the second line
+  // of defense.
+  try {
+    const complianceBrief = {
+      ...brief,
+      // Merge iteration_notes into custom_notes so the new text is scanned
+      // alongside whatever the original brief already had.
+      custom_notes: [brief.custom_notes, brief.iteration_notes]
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .join(" "),
+    } as ComplianceInput["structuredBrief"];
+
+    const compliance = await runComplianceCheck({
+      creatorId,
+      structuredBrief: complianceBrief,
+    });
+
+    if (!compliance.passed) {
+      console.warn(
+        `[run-iteration] gen=${generationId} blocked at compliance layer ${compliance.layer}: ${compliance.reason}`,
+      );
+      await admin
+        .from("generations")
+        .update({
+          status: "failed",
+          compliance_result: compliance,
+        })
+        .eq("id", generationId);
+      await refundCredit();
+      return;
+    }
+  } catch (complianceErr) {
+    console.warn(
+      `[run-iteration] compliance check threw, proceeding: gen=${generationId}`,
+      complianceErr,
+    );
+    Sentry.captureException(complianceErr, {
+      tags: { route: "run-iteration", phase: "compliance" },
+      extra: { generation_id: generationId },
+    });
+  }
+
   try {
     // ── 2. Fetch previous image bytes from R2 ───────────────────────────────
     const previousImage = await fetchImageBytes(
@@ -827,10 +895,7 @@ export async function runIteration(generationId: string): Promise<void> {
           ContentType: iterationResult.mimeType,
         }),
       );
-      const r2PublicBase =
-        process.env.R2_PUBLIC_URL ??
-        `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}`;
-      r2Url = `${r2PublicBase.replace(/\/$/, "")}/${r2Key}`;
+      r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
     } catch (r2Err) {
       console.error(
         `[run-iteration] R2 upload failed for gen=${generationId}`,

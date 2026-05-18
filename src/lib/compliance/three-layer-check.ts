@@ -16,18 +16,50 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { chatCompletion } from '@/lib/ai/openrouter-client';
 import type { Category } from './category-mapping';
 import { detectCategories, CATEGORY_KEYWORDS } from './category-mapping';
+import {
+  SETTING_OPTIONS,
+  TIME_LIGHTING_OPTIONS,
+  MOOD_PALETTE_OPTIONS,
+  INTERACTION_OPTIONS,
+  POSE_ENERGY_OPTIONS,
+  EXPRESSION_OPTIONS,
+  OUTFIT_STYLE_OPTIONS,
+  CAMERA_FRAMING_OPTIONS,
+  labelFor,
+  type PillOption,
+} from '@/config/campaign-options';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Shape of the Studio brief that this layer actually scans.
+ *
+ * Mirrors the relevant subset of `StructuredBrief` in
+ * `@/domains/generation/structured-brief`. The index signature is kept so
+ * iteration-merged briefs (which also carry `iteration_notes`,
+ * `previous_image_url`, `parent_generation_id`) type-check without juggling.
+ *
+ * Historical note: the previous shape used `{product, scene, mood, aesthetic}`
+ * — field names that pre-dated the Studio rewrite. The Studio brief sends
+ * `product_name`, `setting`, `mood_palette`, etc., so `briefToText()` was
+ * silently scanning empty strings on every generation. Fix 1.1 in
+ * `faiceoff-pipeline-fixes.md` (Phase 1) rewires this.
+ */
 export interface ComplianceInput {
   creatorId: string;
   structuredBrief: {
-    product?: string;
-    scene?: string;
-    mood?: string;
-    aesthetic?: string;
+    product_name?: string;
+    custom_notes?: string | null;
+    setting?: string | null;
+    time_lighting?: string | null;
+    mood_palette?: string | null;
+    interaction?: string | null;
+    pose_energy?: string | null;
+    expression?: string | null;
+    outfit_style?: string | null;
+    camera_framing?: string | null;
     [k: string]: unknown;
   };
 }
@@ -60,11 +92,57 @@ export class ComplianceError extends Error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a flat string from the structured brief fields for embedding/matching. */
+/**
+ * Map of pill field name → its option group. Used by `briefToText()` to
+ * convert stored keys (e.g. `interaction: "drinking_eating"`) into the
+ * human label ("Drinking / eating") that keyword detection + LLM
+ * classification actually understand.
+ */
+const PILL_FIELD_GROUPS: Record<string, readonly PillOption[]> = {
+  setting:        SETTING_OPTIONS,
+  time_lighting:  TIME_LIGHTING_OPTIONS,
+  mood_palette:   MOOD_PALETTE_OPTIONS,
+  interaction:    INTERACTION_OPTIONS,
+  pose_energy:    POSE_ENERGY_OPTIONS,
+  expression:     EXPRESSION_OPTIONS,
+  outfit_style:   OUTFIT_STYLE_OPTIONS,
+  camera_framing: CAMERA_FRAMING_OPTIONS,
+};
+
+/**
+ * Build a flat string from the Studio brief fields for keyword scanning,
+ * embedding, and LLM classification.
+ *
+ * Reads the actual field names the Studio sends:
+ *   - `product_name` (free text, brand-supplied)
+ *   - `custom_notes` (free text, brand-supplied)
+ *   - 8 pill enum fields, each translated to its human label via `labelFor()`
+ *
+ * For custom pill values (those with the `custom:` prefix), the user-supplied
+ * suffix is appended verbatim so e.g. `setting: "custom:Mumbai chai stall"`
+ * contributes "Mumbai chai stall" to the scanned text.
+ */
 function briefToText(brief: ComplianceInput['structuredBrief']): string {
-  return [brief.product, brief.scene, brief.mood, brief.aesthetic]
-    .filter(Boolean)
-    .join(' ');
+  const parts: string[] = [];
+
+  if (typeof brief.product_name === 'string' && brief.product_name) {
+    parts.push(brief.product_name);
+  }
+  if (typeof brief.custom_notes === 'string' && brief.custom_notes) {
+    parts.push(brief.custom_notes);
+  }
+
+  for (const [field, group] of Object.entries(PILL_FIELD_GROUPS)) {
+    const value = brief[field];
+    if (typeof value !== 'string' || !value) continue;
+    if (value.startsWith('custom:')) {
+      parts.push(value.slice('custom:'.length));
+    } else {
+      parts.push(labelFor(value, group));
+    }
+  }
+
+  return parts.filter(Boolean).join(' ');
 }
 
 /** Silently log to Sentry (if available) and console. Does not throw. */

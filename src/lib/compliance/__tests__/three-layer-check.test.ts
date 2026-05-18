@@ -30,18 +30,22 @@ import { runComplianceCheck, ComplianceError } from '../three-layer-check';
 
 const mockCreatorId = 'creator-uuid-1234';
 
+// Studio brief shape (post-Phase-1 fix 1.1). The legacy
+// `{product, scene, mood, aesthetic}` field names were silently ignored by
+// briefToText() because the Studio sends `product_name` / `custom_notes` /
+// pill keys. These fixtures use the actual current shape.
 const neutralBrief = {
-  product: 'red dress',
-  scene: 'coffee shop interior',
-  mood: 'bright and airy',
-  aesthetic: 'editorial',
+  product_name: 'red dress',
+  setting: 'cafe',                        // label "Cafe" — no keyword triggers
+  mood_palette: 'editorial_neutral',       // label "Editorial neutral" — no triggers
+  custom_notes: 'bright and airy coffee shop interior',
 };
 
 const alcoholBrief = {
-  product: 'wine bottle',
-  scene: 'vineyard at sunset',
-  mood: 'sophisticated',
-  aesthetic: 'luxury',
+  product_name: 'wine bottle',             // "wine" → alcohol keyword
+  setting: 'outdoor_street',
+  mood_palette: 'cinematic_teal_orange',
+  custom_notes: 'vineyard at sunset, sophisticated luxury feel',
 };
 
 /** Build a chainable Supabase mock builder. Each method returns `this` for chaining. */
@@ -221,7 +225,7 @@ describe('runComplianceCheck', () => {
 
       const result = await runComplianceCheck({
         creatorId: mockCreatorId,
-        structuredBrief: { product: 'explicit content', scene: 'adult scenario' },
+        structuredBrief: { product_name: 'explicit content', custom_notes: 'adult scenario' },
       });
 
       expect(result.layer).toBe(3);
@@ -276,6 +280,149 @@ describe('runComplianceCheck', () => {
     it('has default code when none provided', () => {
       const err = new ComplianceError('test');
       expect(err.code).toBe('COMPLIANCE_ERROR');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fix 1.1 — Studio brief field mapping (regression guard)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Before Phase 1, `briefToText()` read `{product, scene, mood, aesthetic}`
+  // while the Studio sent `{product_name, custom_notes, setting, ...}`. The
+  // mismatch meant every Studio generation scanned empty strings → blocked
+  // categories silently never triggered. These tests are the guard rail
+  // against silently regressing into that state.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Fix 1.1 — Studio brief field mapping (regression guard)', () => {
+    it('triggers alcohol from product_name "Glenfiddich whiskey" when alcohol is blocked', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: { product_name: 'Glenfiddich whiskey' },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.layer).toBe(1);
+      expect(result.blocked_category).toBe('alcohol');
+    });
+
+    it('triggers tobacco from product_name "Marlboro cigarette pack" + setting "outdoor_street" when tobacco is blocked', async () => {
+      // Note: brand names ("Marlboro") are NOT in CATEGORY_KEYWORDS — only
+      // generic terms ("cigarette", "vape", "tobacco"). So this test uses
+      // "Marlboro cigarette pack" so the "cigarette" keyword fires. If we
+      // ever want brand-name awareness, expand category-mapping.ts.
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'tobacco' }],
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {
+          product_name: 'Marlboro cigarette pack',
+          setting: 'outdoor_street',
+        },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.layer).toBe(1);
+      expect(result.blocked_category).toBe('tobacco');
+    });
+
+    it('triggers alcohol from a custom: pill value containing a keyword (proves custom: prefix is scanned)', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {
+          product_name: 'sneakers',                       // no trigger here
+          setting: 'custom:vineyard with wine tasting',    // "wine" trigger via custom value
+        },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.layer).toBe(1);
+      expect(result.blocked_category).toBe('alcohol');
+    });
+
+    it('empty brief produces no false positives even when many categories are blocked', async () => {
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [
+            { category: 'alcohol' },
+            { category: 'tobacco' },
+            { category: 'gambling' },
+            { category: 'adult' },
+          ],
+          complianceVectorCount: 0, // skip layer 2
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+      // Layer 3 LLM mocked to pass — empty brief should reach here
+      vi.mocked(chatCompletion).mockResolvedValue({
+        id: 'test',
+        choices: [
+          {
+            message: { role: 'assistant', content: '{"violates":false,"reason":"Empty brief, nothing to assess."}' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+      });
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {},
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.layer).toBeNull();
+    });
+
+    it('does NOT trigger when the keyword appears only in a stored pill KEY (not its label or custom value)', async () => {
+      // Sanity check: the pill key `interaction: "drinking_eating"` should be
+      // converted to its human label ("Drinking / eating"). The raw key string
+      // "drinking_eating" must NOT leak into the scanned text — otherwise the
+      // word "drinking" would be picked up by a keyword scan in future. The
+      // label "Drinking / eating" contains no category keyword, so it passes.
+      vi.mocked(createAdminClient).mockReturnValue(
+        buildSupabaseMock({
+          blockedCategories: [{ category: 'alcohol' }],
+          complianceVectorCount: 0,
+        }) as unknown as ReturnType<typeof createAdminClient>,
+      );
+      vi.mocked(chatCompletion).mockResolvedValue({
+        id: 'test',
+        choices: [
+          {
+            message: { role: 'assistant', content: '{"violates":false,"reason":"Innocuous brief."}' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+      });
+
+      const result = await runComplianceCheck({
+        creatorId: mockCreatorId,
+        structuredBrief: {
+          product_name: 'water bottle',
+          interaction: 'drinking_eating',     // label "Drinking / eating"
+          setting: 'cafe',                     // label "Cafe"
+        },
+      });
+
+      // Layer 1 should not fire; layer 3 says fine.
+      expect(result.layer).not.toBe(1);
+      expect(result.passed).toBe(true);
     });
   });
 });
