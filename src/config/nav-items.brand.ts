@@ -5,6 +5,7 @@ import {
   Megaphone,
   Wallet,
   Library,
+  FileSignature,
   Settings as SettingsIcon,
   User as UserIcon,
   Send,
@@ -39,6 +40,7 @@ export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Requests", href: "/brand/requests", icon: Send, group: "Work" },
   { label: "Collabs", href: "/brand/collabs", icon: Megaphone, group: "Work" },
   { label: "Library", href: "/brand/vault", icon: Library, group: "Work" },
+  { label: "Licenses", href: "/brand/licenses", icon: FileSignature, group: "Work" },
   { label: "Wallet", href: "/brand/wallet", icon: Wallet, group: "Money" },
   { label: "Settings", href: "/brand/settings", icon: SettingsIcon, group: "Account" },
 ];

@@ -414,9 +414,10 @@ export async function listBrandLicenses(
       `
       *,
       creators!licenses_creator_id_fkey (
-        users!creators_user_id_fkey (display_name)
+        users!creators_user_id_fkey (display_name, avatar_url)
       ),
-      brands!licenses_brand_id_fkey (company_name)
+      brands!licenses_brand_id_fkey (company_name),
+      generations!licenses_generation_id_fkey (image_url)
     `,
       { count: "exact" },
     )
@@ -441,13 +442,18 @@ export async function listBrandLicenses(
 
   const licenses: LicenseWithParties[] = (data ?? []).map((row) => {
     const r = row as License & {
-      creators: { users: { display_name: string } | null } | null;
+      creators: {
+        users: { display_name: string; avatar_url: string | null } | null;
+      } | null;
       brands: { company_name: string } | null;
+      generations: { image_url: string | null } | null;
     };
     return {
       ...r,
       creator_display_name: r.creators?.users?.display_name ?? "Unknown Creator",
+      creator_avatar_url: r.creators?.users?.avatar_url ?? null,
       brand_company_name: r.brands?.company_name ?? "Unknown Brand",
+      generation_image_url: r.generations?.image_url ?? null,
       days_to_expiry: daysToExpiry(r.expires_at),
     };
   });
@@ -484,9 +490,10 @@ export async function listCreatorLicenses(
       `
       *,
       creators!licenses_creator_id_fkey (
-        users!creators_user_id_fkey (display_name)
+        users!creators_user_id_fkey (display_name, avatar_url)
       ),
-      brands!licenses_brand_id_fkey (company_name)
+      brands!licenses_brand_id_fkey (company_name),
+      generations!licenses_generation_id_fkey (image_url)
     `,
       { count: "exact" },
     )
@@ -511,13 +518,18 @@ export async function listCreatorLicenses(
 
   const licenses: LicenseWithParties[] = (data ?? []).map((row) => {
     const r = row as License & {
-      creators: { users: { display_name: string } | null } | null;
+      creators: {
+        users: { display_name: string; avatar_url: string | null } | null;
+      } | null;
       brands: { company_name: string } | null;
+      generations: { image_url: string | null } | null;
     };
     return {
       ...r,
       creator_display_name: r.creators?.users?.display_name ?? "Unknown Creator",
+      creator_avatar_url: r.creators?.users?.avatar_url ?? null,
       brand_company_name: r.brands?.company_name ?? "Unknown Brand",
+      generation_image_url: r.generations?.image_url ?? null,
       days_to_expiry: daysToExpiry(r.expires_at),
     };
   });
@@ -548,9 +560,10 @@ export async function getLicense(licenseId: string): Promise<LicenseWithParties>
       `
       *,
       creators!licenses_creator_id_fkey (
-        users!creators_user_id_fkey (display_name)
+        users!creators_user_id_fkey (display_name, avatar_url)
       ),
-      brands!licenses_brand_id_fkey (company_name)
+      brands!licenses_brand_id_fkey (company_name),
+      generations!licenses_generation_id_fkey (image_url)
     `,
     )
     .eq("id", licenseId)
@@ -571,14 +584,19 @@ export async function getLicense(licenseId: string): Promise<LicenseWithParties>
   }
 
   const r = data as License & {
-    creators: { users: { display_name: string } | null } | null;
+    creators: {
+      users: { display_name: string; avatar_url: string | null } | null;
+    } | null;
     brands: { company_name: string } | null;
+    generations: { image_url: string | null } | null;
   };
 
   return {
     ...r,
     creator_display_name: r.creators?.users?.display_name ?? "Unknown Creator",
+    creator_avatar_url: r.creators?.users?.avatar_url ?? null,
     brand_company_name: r.brands?.company_name ?? "Unknown Brand",
+    generation_image_url: r.generations?.image_url ?? null,
     days_to_expiry: daysToExpiry(r.expires_at),
   };
 }

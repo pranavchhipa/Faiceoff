@@ -17,18 +17,30 @@ import { Button } from "@/components/ui/button";
 
 /* ── Types ── */
 
+// Matches the LicenseWithParties shape returned by GET /api/licenses/[id]
+// (see src/lib/licenses/types.ts). Field names changed in the post-Chunk-E
+// rewrite — `brand_name` → `brand_company_name`, `creator_name` →
+// `creator_display_name`, `exclusive` → `is_category_exclusive`. We expose
+// the legacy aliases as getters below so the existing JSX keeps working
+// without a wholesale rewrite of this detail page.
 interface LicenseDetail {
   id: string;
   generation_id: string;
-  brand_name: string | null;
-  creator_name: string | null;
+  brand_company_name: string | null;
+  creator_display_name: string | null;
   scope: string | string[] | null;
-  exclusive: boolean;
+  is_category_exclusive: boolean;
+  exclusive_category: string | null;
   issued_at: string;
   expires_at: string;
   status: "active" | "expired" | "revoked";
   auto_renew: boolean;
   cert_url: string | null;
+  // Legacy aliases — populated client-side from the canonical fields above
+  // so we don't need to touch every render site.
+  brand_name?: string | null;
+  creator_name?: string | null;
+  exclusive?: boolean;
 }
 
 /* ── Helpers ── */
@@ -145,7 +157,17 @@ export default function LicenseDetailPage({
           return;
         }
         const data = await res.json();
-        setLicense(data.license ?? data);
+        const raw = data.license ?? data;
+        // Map canonical → legacy aliases so the existing JSX keeps reading
+        // creator_name / brand_name / exclusive without each call site
+        // changing. New rendering done in the list page; this detail page
+        // will get a full pass later.
+        setLicense({
+          ...raw,
+          creator_name: raw.creator_display_name ?? raw.creator_name ?? null,
+          brand_name: raw.brand_company_name ?? raw.brand_name ?? null,
+          exclusive: raw.is_category_exclusive ?? raw.exclusive ?? false,
+        });
       } catch {
         setNotFound(true);
       }

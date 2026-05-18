@@ -54,8 +54,12 @@ export interface License {
 export interface LicenseWithParties extends License {
   /** Creator's display name from `users` table. */
   creator_display_name: string;
+  /** Creator's avatar URL from `users.avatar_url`. Null when not uploaded. */
+  creator_avatar_url: string | null;
   /** Brand's company name from `brands` table. */
   brand_company_name: string;
+  /** Generated image URL from the linked generation row. Used as thumbnail. */
+  generation_image_url: string | null;
   /** Computed: days until expiry (negative if expired). */
   days_to_expiry: number;
 }

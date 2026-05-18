@@ -1,51 +1,103 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+/**
+ * Brand licenses list — full revamp.
+ *
+ * Replaces the legacy SSR-then-client setup that produced an "0 licenses"
+ * header (server fetch failed without auth cookies) plus "Unknown Creator"
+ * rows (field-name mismatch with the API). This single client component
+ * owns header + filter + list + pagination state.
+ *
+ * Surface design follows the same language as /brand/collabs:
+ *   - canonical color tokens (no --color-neutral-*, no --color-ink)
+ *   - rounded-2xl cards on bg-[var(--color-card)]
+ *   - product/generation image as the row anchor (96px square thumb)
+ *   - status pill = dark backdrop + animated colored dot (readable on any bg)
+ *   - exclusive licenses get a gold ribbon
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   RefreshCw,
-  FileText,
-  User,
+  FileSignature,
+  ImageIcon,
+  Download,
+  AlertTriangle,
+  Zap,
+  CheckCircle2,
+  ShieldOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
-/* ── Types ── */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Types                                                                     */
+/* ────────────────────────────────────────────────────────────────────────── */
 
-export interface LicenseItem {
+interface LicenseItem {
   id: string;
   generation_id: string;
-  brand_name: string | null;
-  creator_name: string | null;
-  scope: string | string[] | null;
-  exclusive: boolean;
+  creator_display_name: string;
+  creator_avatar_url: string | null;
+  brand_company_name: string;
+  generation_image_url: string | null;
+  scope: "digital" | "digital_print" | "digital_print_packaging";
+  is_category_exclusive: boolean;
+  exclusive_category: string | null;
+  amount_paid_paise: number;
   issued_at: string;
   expires_at: string;
   status: "active" | "expired" | "revoked";
   auto_renew: boolean;
   cert_url: string | null;
+  days_to_expiry: number;
 }
 
-interface LicensesListProps {
-  initialItems: LicenseItem[];
-  initialTotal: number;
-  initialPage: number;
+interface ListResponse {
+  items: LicenseItem[];
+  total: number;
+  page: number;
   pageSize: number;
+  totalPages: number;
 }
 
-/* ── Helpers ── */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Constants                                                                 */
+/* ────────────────────────────────────────────────────────────────────────── */
 
-const STATUS_FILTERS = [
-  { label: "All", value: "" },
-  { label: "Active", value: "active" },
-  { label: "Expiring soon", value: "expiring_soon" },
-  { label: "Expired", value: "expired" },
-  { label: "Revoked", value: "revoked" },
+const PAGE_SIZE = 20;
+
+const FILTERS = [
+  { label: "All",            value: "" },
+  { label: "Active",         value: "active" },
+  { label: "Expiring soon",  value: "expiring_soon" },
+  { label: "Expired",        value: "expired" },
+  { label: "Revoked",        value: "revoked" },
 ] as const;
+
+const SCOPE_LABEL: Record<LicenseItem["scope"], string> = {
+  digital: "Digital",
+  digital_print: "Digital + Print",
+  digital_print_packaging: "Digital + Print + Packaging",
+};
+
+const STATUS_META: Record<
+  LicenseItem["status"],
+  { label: string; dot: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  active:  { label: "Active",  dot: "bg-emerald-400",                icon: Zap },
+  expired: { label: "Expired", dot: "bg-rose-400",                   icon: AlertTriangle },
+  revoked: { label: "Revoked", dot: "bg-[var(--color-muted-foreground)]", icon: ShieldOff },
+};
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Utilities                                                                 */
+/* ────────────────────────────────────────────────────────────────────────── */
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", {
@@ -55,17 +107,11 @@ function formatDate(iso: string): string {
   });
 }
 
-function daysUntilExpiry(expiresAt: string): number {
-  const now = new Date().getTime();
-  const exp = new Date(expiresAt).getTime();
-  return Math.floor((exp - now) / (1000 * 60 * 60 * 24));
-}
-
-function expiryChipColor(days: number): string {
-  if (days < 0) return "bg-rose-500/10 text-red-700";
-  if (days < 30) return "bg-rose-500/10 text-red-700";
-  if (days < 90) return "bg-yellow-100 text-yellow-700";
-  return "bg-emerald-500/10 text-green-700";
+function expiryChipClasses(days: number): string {
+  if (days < 0)  return "bg-rose-500/15 text-rose-300 ring-rose-500/25";
+  if (days < 30) return "bg-amber-500/15 text-amber-300 ring-amber-500/30";
+  if (days < 90) return "bg-amber-500/10 text-amber-200 ring-amber-500/20";
+  return "bg-emerald-500/15 text-emerald-300 ring-emerald-500/25";
 }
 
 function expiryLabel(days: number, expiresAt: string): string {
@@ -76,68 +122,61 @@ function expiryLabel(days: number, expiresAt: string): string {
   return formatDate(expiresAt);
 }
 
-const statusPillColors: Record<string, string> = {
-  active: "bg-emerald-500/10 text-green-700",
-  expired: "bg-rose-500/10 text-red-700",
-  revoked: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-600)]",
-};
-
-function getScopeArray(scope: string | string[] | null): string[] {
-  if (!scope) return [];
-  if (Array.isArray(scope)) return scope;
-  try {
-    const parsed = JSON.parse(scope);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {
-    // not JSON
-  }
-  return [scope];
-}
-
-/* ── Auto-renew toggle ── */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Auto-renew toggle                                                          */
+/* ────────────────────────────────────────────────────────────────────────── */
 
 function AutoRenewToggle({
   licenseId,
-  initialValue,
+  initial,
+  disabled,
 }: {
   licenseId: string;
-  initialValue: boolean;
+  initial: boolean;
+  disabled?: boolean;
 }) {
-  const [enabled, setEnabled] = useState(initialValue);
+  const [enabled, setEnabled] = useState(initial);
   const [loading, setLoading] = useState(false);
 
-  async function toggle() {
+  async function toggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled || loading) return;
     setLoading(true);
+    const optimistic = !enabled;
+    setEnabled(optimistic);
     try {
       const res = await fetch(`/api/licenses/${licenseId}/auto-renew`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !enabled }),
+        body: JSON.stringify({ enabled: optimistic }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setEnabled(data.auto_renew ?? !enabled);
+      if (!res.ok) {
+        setEnabled(!optimistic); // revert
+      } else {
+        const d = (await res.json()) as { auto_renew?: boolean };
+        if (typeof d.auto_renew === "boolean") setEnabled(d.auto_renew);
       }
-    } catch (err) {
-      console.error("Auto-renew toggle failed:", err);
+    } catch {
+      setEnabled(!optimistic);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
     <button
-      onClick={(e) => {
-        e.preventDefault();
-        toggle();
-      }}
-      disabled={loading}
-      title={enabled ? "Auto-renew enabled" : "Auto-renew disabled"}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--color-accent-gold)] disabled:opacity-50 ${
-        enabled ? "bg-[var(--color-accent-gold)]" : "bg-[var(--color-neutral-300)]"
+      type="button"
+      onClick={toggle}
+      disabled={disabled || loading}
+      title={enabled ? "Auto-renew on" : "Auto-renew off"}
+      aria-pressed={enabled}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-secondary)] ring-1 ring-[var(--color-border)]"
       }`}
     >
       <span
-        className={`inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
           enabled ? "translate-x-4" : "translate-x-0.5"
         }`}
       />
@@ -145,235 +184,442 @@ function AutoRenewToggle({
   );
 }
 
-/* ── Main Component ── */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Card                                                                      */
+/* ────────────────────────────────────────────────────────────────────────── */
 
-export default function LicensesList({
-  initialItems,
-  initialTotal,
-  initialPage,
-  pageSize,
-}: LicensesListProps) {
+function LicenseCard({ license, delay }: { license: LicenseItem; delay: number }) {
+  const status = STATUS_META[license.status];
+  const isRevoked = license.status === "revoked";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.25, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <Link
+        href={`/brand/licenses/${license.id}`}
+        className="group block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40 hover:shadow-[0_12px_32px_-12px_rgba(201,169,110,0.25)]"
+      >
+        {/* Exclusive ribbon */}
+        {license.is_category_exclusive && (
+          <div className="flex items-center gap-1.5 bg-[var(--color-primary)] px-4 py-1.5 text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]">
+            <FileSignature className="h-3 w-3" />
+            Category exclusive
+            {license.exclusive_category && (
+              <span className="opacity-80">· {license.exclusive_category}</span>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-0 sm:flex-row">
+          {/* Generated image (left, square) */}
+          <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-[var(--color-secondary)] sm:w-[120px]">
+            {license.generation_image_url ? (
+              <Image
+                src={license.generation_image_url}
+                alt={license.creator_display_name}
+                fill
+                sizes="(max-width: 640px) 100vw, 120px"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                unoptimized
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <ImageIcon className="h-8 w-8 text-[var(--color-muted-foreground)]" />
+              </div>
+            )}
+            {/* Status pill on image — dark backdrop pattern from /brand/collabs */}
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[9px] font-700 uppercase text-white backdrop-blur-md ring-1 ring-white/10">
+              <span className="relative flex h-1.5 w-1.5">
+                {!isRevoked && (
+                  <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${status.dot}`} />
+                )}
+                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${status.dot}`} />
+              </span>
+              {status.label}
+            </span>
+          </div>
+
+          {/* Right content */}
+          <div className="flex min-w-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+            {/* Top row: creator + license id + scope chip */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                {license.creator_avatar_url ? (
+                  <Image
+                    src={license.creator_avatar_url}
+                    alt={license.creator_display_name}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-[var(--color-border)]"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] font-display text-[12px] font-800 text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
+                    {(license.creator_display_name ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-display text-[15px] font-800 leading-tight text-[var(--color-foreground)]">
+                    {license.creator_display_name}
+                  </p>
+                  <p className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                    LIC · {license.id.slice(0, 8)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Scope chip — canonical token */}
+              <span className="shrink-0 rounded-full bg-[var(--color-secondary)] px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
+                {SCOPE_LABEL[license.scope]}
+              </span>
+            </div>
+
+            {/* Bottom row: dates + actions */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--color-border)] pt-3">
+              <div className="flex flex-col">
+                <span className="font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                  Issued
+                </span>
+                <span className="text-[12px] font-600 text-[var(--color-foreground)]">
+                  {formatDate(license.issued_at)}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                  Expires
+                </span>
+                <span
+                  className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-700 ring-1 ${expiryChipClasses(
+                    license.days_to_expiry,
+                  )}`}
+                >
+                  {expiryLabel(license.days_to_expiry, license.expires_at)}
+                </span>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                {/* Auto-renew */}
+                {!isRevoked && license.status === "active" && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                      Auto-renew
+                    </span>
+                    <AutoRenewToggle
+                      licenseId={license.id}
+                      initial={license.auto_renew}
+                    />
+                  </div>
+                )}
+
+                {/* Cert PDF */}
+                {license.cert_url && (
+                  <a
+                    href={license.cert_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]/60"
+                    title="Download license certificate"
+                  >
+                    <Download className="h-3 w-3" />
+                    Cert
+                  </a>
+                )}
+
+                <ExternalLink className="h-4 w-4 text-[var(--color-muted-foreground)] transition-colors group-hover:text-[var(--color-primary)]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Main                                                                       */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+export default function LicensesList() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [items, setItems] = useState<LicenseItem[]>(initialItems);
-  const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(initialPage);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<LicenseItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(() =>
+    Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1),
+  );
+  const [activeFilter, setActiveFilter] = useState<string>(
+    searchParams.get("status") ?? "",
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const activeStatus = searchParams.get("status") ?? "";
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  /* ── Fetch ── */
-  const fetchLicenses = useCallback(
-    async (p: number, status: string) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) });
-        if (status) params.set("status", status);
-        const res = await fetch(`/api/licenses/list?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.items ?? []);
-          setTotal(data.total ?? 0);
-          setPage(data.page ?? 1);
-        }
-      } catch (err) {
-        console.error("Licenses fetch error:", err);
-      }
-      setLoading(false);
-    },
-    [pageSize]
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    [total],
   );
 
-  /* ── Filter ── */
-  function handleFilterChange(status: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", "1");
-    if (status) params.set("status", status);
-    else params.delete("status");
-    router.push(`?${params.toString()}`);
-    fetchLicenses(1, status);
+  const load = useCallback(
+    async (p: number, filter: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const qs = new URLSearchParams({
+          page: String(p),
+          pageSize: String(PAGE_SIZE),
+        });
+        // "expiring_soon" is a client-side filter (UI bucket) — API doesn't
+        // know it. Send the underlying status=active and filter the result.
+        let apiStatus = filter;
+        let postFilter: ((it: LicenseItem) => boolean) | null = null;
+        if (filter === "expiring_soon") {
+          apiStatus = "active";
+          postFilter = (it) =>
+            it.days_to_expiry >= 0 && it.days_to_expiry < 30;
+        }
+        if (apiStatus) qs.set("status", apiStatus);
+
+        const res = await fetch(`/api/licenses/list?${qs.toString()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as ListResponse;
+        const list = postFilter ? data.items.filter(postFilter) : data.items;
+        setItems(list);
+        // When using a client-side filter, the total still represents the
+        // server-side filter (active). Adjust so the "X licenses" count
+        // reflects what the user sees.
+        setTotal(postFilter ? list.length : data.total);
+        setPage(data.page);
+      } catch (err) {
+        console.error("[brand/licenses] fetch failed", err);
+        setError("Couldn't load your licenses. Try refresh.");
+        setItems([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void load(page, activeFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function changeFilter(filter: string) {
+    setActiveFilter(filter);
+    setPage(1);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("page", "1");
+    if (filter) next.set("status", filter);
+    else next.delete("status");
+    router.replace(`?${next.toString()}`);
+    void load(1, filter);
   }
 
-  /* ── Pagination ── */
-  function handlePage(newPage: number) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", String(newPage));
-    router.push(`?${params.toString()}`);
-    fetchLicenses(newPage, activeStatus);
+  function goPage(p: number) {
+    setPage(p);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("page", String(p));
+    router.replace(`?${next.toString()}`);
+    void load(p, activeFilter);
   }
 
   return (
-    <div>
-      {/* Filter pills row */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => handleFilterChange(f.value)}
-              className={`rounded-[var(--radius-pill)] px-3.5 py-1.5 text-xs font-600 transition-all ${
-                activeStatus === f.value
-                  ? "bg-[var(--color-ink)] text-white shadow-sm"
-                  : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-200)]"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <motion.header
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          Library
+        </p>
+        <h1 className="mt-2 font-display text-[32px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[44px]">
+          Your licenses
+        </h1>
+        <p className="mt-1.5 text-[14px] text-[var(--color-muted-foreground)]">
+          {loading && total === 0
+            ? "Loading…"
+            : total === 0
+              ? "Approved generations land here as 12-month licenses you can use commercially."
+              : `${total.toLocaleString("en-IN")} ${
+                  total === 1 ? "license" : "licenses"
+                } · 12-month terms · auto-renew per row.`}
+        </p>
+      </motion.header>
+
+      {/* ── Filter strip + refresh ───────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {FILTERS.map((f) => {
+            const isActive = activeFilter === f.value;
+            return (
+              <button
+                key={f.value || "all"}
+                type="button"
+                onClick={() => changeFilter(f.value)}
+                className={`rounded-full px-3.5 py-1.5 text-[12px] font-700 transition-all ${
+                  isActive
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                    : "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
+
         <button
-          onClick={() => fetchLicenses(page, activeStatus)}
+          type="button"
+          onClick={() => load(page, activeFilter)}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs font-600 text-[var(--color-neutral-500)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] disabled:opacity-50"
         >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-200)] border-t-[var(--color-accent-gold)]" />
+      {/* ── States ───────────────────────────────────────────────────── */}
+      {error && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-[13px] font-600 text-rose-300">
+          {error}
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && items.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-24 text-center"
-        >
-          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-blue-500/10">
-            <FileText className="size-7 text-[var(--color-foreground)]" />
-          </div>
-          <h3 className="text-lg font-700 text-[var(--color-foreground)] mb-2">No licenses found</h3>
-          <p className="text-sm text-[var(--color-neutral-500)] max-w-sm">
-            {activeStatus
-              ? "No licenses match the selected filter."
-              : "Licenses appear here once a generation is approved."}
-          </p>
-        </motion.div>
+      {loading && items.length === 0 && (
+        <SkeletonList />
       )}
 
-      {/* List */}
-      {!loading && items.length > 0 && (
-        <div className="flex flex-col gap-3">
+      {!loading && items.length === 0 && !error && (
+        <EmptyState filter={activeFilter} />
+      )}
+
+      {/* ── List ─────────────────────────────────────────────────────── */}
+      {items.length > 0 && (
+        <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {items.map((license, i) => {
-              const days = daysUntilExpiry(license.expires_at);
-              const scopeArr = getScopeArray(license.scope);
-
-              return (
-                <motion.div
-                  key={license.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.2, delay: i * 0.04 }}
-                >
-                  <Link
-                    href={`/brand/licenses/${license.id}`}
-                    className="group flex flex-col gap-3 sm:flex-row sm:items-center rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-4 sm:p-5 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] transition-shadow no-underline"
-                  >
-                    {/* Creator avatar + name */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
-                        <User className="size-4 text-[var(--color-foreground)]" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-700 text-[var(--color-foreground)] truncate">
-                          {license.creator_name ?? "Unknown Creator"}
-                        </p>
-                        <p className="text-xs text-[var(--color-neutral-500)] font-mono">
-                          {license.id.slice(0, 8)}…
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Scope chips */}
-                    {scopeArr.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {scopeArr.map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-[var(--radius-pill)] bg-[var(--color-primary)]/10 px-2.5 py-0.5 text-[10px] font-600 text-[var(--color-foreground)] capitalize"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                        {license.exclusive && (
-                          <span className="rounded-[var(--radius-pill)] bg-[var(--color-accent-gold)] px-2.5 py-0.5 text-[10px] font-700 text-white">
-                            Exclusive
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Dates */}
-                    <div className="flex items-center gap-3 text-xs text-[var(--color-neutral-500)] shrink-0">
-                      <div>
-                        <p className="font-600 text-[var(--color-neutral-400)]">Issued</p>
-                        <p>{formatDate(license.issued_at)}</p>
-                      </div>
-                      <div>
-                        <p className="font-600 text-[var(--color-neutral-400)]">Expires</p>
-                        <span className={`inline-flex rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-700 ${expiryChipColor(days)}`}>
-                          {expiryLabel(days, license.expires_at)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Status + Auto-renew */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-600 capitalize ${statusPillColors[license.status] ?? "bg-[var(--color-neutral-100)] text-[var(--color-foreground)]"}`}>
-                        {license.status}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-600 text-[var(--color-neutral-400)]">Auto-renew</span>
-                        <AutoRenewToggle licenseId={license.id} initialValue={license.auto_renew} />
-                      </div>
-                      <ExternalLink className="size-3.5 text-[var(--color-neutral-300)] group-hover:text-[var(--color-accent-gold)] transition-colors" />
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+            {items.map((license, i) => (
+              <LicenseCard
+                key={license.id}
+                license={license}
+                delay={i * 0.04}
+              />
+            ))}
           </AnimatePresence>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => handlePage(page - 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-foreground)] disabled:opacity-40"
+      {/* ── Pagination ───────────────────────────────────────────────── */}
+      {totalPages > 1 && items.length > 0 && (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => goPage(page - 1)}
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]/40 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
             Previous
-          </Button>
-          <span className="text-sm font-600 text-[var(--color-neutral-500)]">
-            Page {page} of {totalPages}
+          </button>
+          <span className="font-mono text-[11px] text-[var(--color-muted-foreground)]">
+            Page <span className="font-700 text-[var(--color-foreground)]">{page}</span> of {totalPages}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => handlePage(page + 1)}
-            className="rounded-[var(--radius-button)] border-[var(--color-neutral-200)] font-600 text-[var(--color-foreground)] disabled:opacity-40"
+          <button
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => goPage(page + 1)}
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]/40 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next
-            <ChevronRight className="size-4" />
-          </Button>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Empty state                                                                */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function EmptyState({ filter }: { filter: string }) {
+  const filtered = filter && filter !== "";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] px-6 py-16 text-center"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+        {filter === "revoked" ? (
+          <ShieldOff className="h-6 w-6" />
+        ) : filter === "expired" ? (
+          <AlertTriangle className="h-6 w-6" />
+        ) : filter === "active" || filter === "expiring_soon" ? (
+          <CheckCircle2 className="h-6 w-6" />
+        ) : (
+          <FileSignature className="h-6 w-6" />
+        )}
+      </div>
+      <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
+        {filtered ? "Nothing in this bucket" : "No licenses yet"}
+      </p>
+      <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
+        {filtered
+          ? "No licenses match the selected filter. Try another bucket or clear the filter."
+          : "Every approved generation issues a 12-month license automatically. Approve a generation to see your first one here."}
+      </p>
+      {!filtered && (
+        <Link
+          href="/brand/collabs"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+        >
+          Open collabs
+        </Link>
+      )}
+    </motion.div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Loading skeleton                                                           */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function SkeletonList() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className="flex animate-pulse gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"
+        >
+          <div className="h-[120px] w-[120px] shrink-0 rounded-xl bg-[var(--color-secondary)]" />
+          <div className="flex flex-1 flex-col gap-3 py-1">
+            <div className="h-4 w-1/3 rounded bg-[var(--color-secondary)]" />
+            <div className="h-3 w-1/4 rounded bg-[var(--color-secondary)]" />
+            <div className="mt-auto flex gap-3">
+              <div className="h-6 w-20 rounded-full bg-[var(--color-secondary)]" />
+              <div className="h-6 w-24 rounded-full bg-[var(--color-secondary)]" />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
