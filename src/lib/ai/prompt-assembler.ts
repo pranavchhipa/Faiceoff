@@ -75,22 +75,16 @@ function pillValueToLabel(field: string, value: string): string {
  * Pill fields with null/undefined values are omitted — the LLM infers from creator style.
  * Free-text user fields are sanitized and wrapped in [USER_INPUT: <<< ... >>>] delimiters.
  * Preset enum keys are trusted (whitelisted) — no delimiter needed.
+ *
+ * Phase 4.2 — `subject_gender` was a dead code path: the Studio UI never set
+ * the field, but briefToAssemblerLines + the OUTPUT TEMPLATE both carried a
+ * placeholder for it. Gemini infers gender reliably from the face references,
+ * so dropping the placeholder simplifies the prompt without quality loss.
  */
-const GENDER_LABEL: Record<string, string> = {
-  male: "male",
-  female: "female",
-  non_binary: "non-binary",
-  prefer_not_to_say: "",
-};
-
 export function briefToAssemblerLines(
   brief: Record<string, unknown>
 ): string[] {
   const lines: string[] = [];
-  if (typeof brief.subject_gender === "string" && brief.subject_gender) {
-    const label = GENDER_LABEL[brief.subject_gender] ?? "";
-    if (label) lines.push(`subject_gender: ${label}`);
-  }
   if (typeof brief.product_name === "string" && brief.product_name) {
     const sanitized = sanitizeUserText(brief.product_name, 200);
     lines.push(`product_name: ${userInput(sanitized)}`);
@@ -121,21 +115,26 @@ export function briefToAssemblerLines(
 /**
  * LLM used for the prompt-assembly step. Overridable via env var.
  *
- * Default switched to Groq-hosted Llama 3.1 8B Instant (via OpenRouter):
- *   • ~10× faster (0.5s vs 2-4s on Gemini 2.5 Pro)
- *   • ~10× cheaper (₹0.02 vs ₹0.20 per gen)
- *   • Quality is sufficient for our deterministic template-fill task —
- *     the system prompt is rigidly structured, so a small fast model
- *     follows it reliably.
+ * Default: Gemini 2.5 Flash for quality. Llama 3.1 8B available as fast
+ * fallback via env.
  *
- * If output quality regresses on edge cases, set
- *   PROMPT_ASSEMBLER_MODEL=google/gemini-2.5-pro
- * via Vercel env to flip back without code change.
+ * Phase 4.1 — switched default from `meta-llama/llama-3.1-8b-instruct` to
+ * `google/gemini-2.5-flash`. The system prompt grew significantly with the
+ * GEOGRAPHIC CONTEXT LOCK + ACTIVE INTERACTION REQUIREMENT sections (Phase
+ * 2.3) and the small Llama model started missing the India-context cues
+ * intermittently. Gemini 2.5 Flash follows the longer template more
+ * reliably and produces measurably better prompts on subjective A/B.
+ *
+ * Latency tradeoff (documented for ops):
+ *   • Llama 3.1 8B (Groq via OpenRouter): ~800ms
+ *   • Gemini 2.5 Flash (OpenRouter):      ~3s
+ *   • Net pipeline impact on a ~12s Gemini Pro Image call: ~+20%.
+ *
+ * Rollback: set PROMPT_ASSEMBLER_MODEL=meta-llama/llama-3.1-8b-instruct
+ * in Vercel env — no code change required.
  */
-// OpenRouter slug. OpenRouter auto-routes to fastest provider (Groq for
-// Llama 3.1 8B in most regions = ~250 tok/s, sub-second responses).
 const PROMPT_LLM_MODEL =
-  process.env.PROMPT_ASSEMBLER_MODEL ?? "meta-llama/llama-3.1-8b-instruct";
+  process.env.PROMPT_ASSEMBLER_MODEL ?? "google/gemini-2.5-flash";
 
 const SYSTEM_PROMPT = `You are a senior commercial photography art director writing prompts for a multi-reference photorealistic image generator (Gemini 3 Pro Image / Flux Kontext Max). Inputs supplied at generation time: (a) 3-5 face reference photos of ONE specific person, (b) a product reference photo, (c) your text prompt.
 
@@ -177,7 +176,7 @@ OUTPUT TEMPLATE (fill in from the brief):
 ═══════════════════════════════════════════════════════════════════════
 Given a structured brief, output ONE prompt string in this exact structure:
 
-"A candid [camera_type_phrase] of the specific person shown in the face reference photos — [subject_gender descriptor only if given] — actively [interaction_verb] [product_name] — [one-sentence physical-action detail per ACTION RULES below]. [One vivid scene sentence derived from the brief.]
+"A candid [camera_type_phrase] of the specific person shown in the face reference photos — actively [interaction_verb] [product_name] — [one-sentence physical-action detail per ACTION RULES below]. [One vivid scene sentence derived from the brief.]
 
 Technical: [camera_type_technical_line]. Ultra-realistic 8K output, edge-to-edge sharpness across subject and product, cinematic natural lighting with accurate shadows and highlights, every fibre and skin pore resolved. Depth of field appropriate to the camera tier (smartphone = wide focus, casual aesthetic; pro DSLR / mirrorless = controlled bokeh, editorial polish; medium-format / luxury = three-dimensional subject separation, magazine-cover-grade sharpness, no compression artifacts; cinematic = anamorphic falloff, painterly highlight roll-off). [camera_type_grain_line]. For pro / luxury / cinematic camera tiers the image MUST read as a high-end commercial campaign — magazine-cover or billboard-grade — not a casual snapshot, not AI-art aesthetic, not soft-focus social-media filter.
 
@@ -186,6 +185,38 @@ Face and skin rendering: match the face reference photos for bone structure, ski
 Composition: [composition_hint from camera_framing]. Aspect: [aspect_ratio]. Background: sharp and contextual, not blurred.
 
 Product lock: the product is the exact item in the product reference photo — match it pixel-for-pixel. For packaged goods: exact pack format, size, colour, label typography, brand mark, and every character of on-pack text. For apparel (jerseys, t-shirts, kurtas, etc.): preserve EVERY logo, sponsor mark, embroidered crest, and printed text visible on the garment in the reference — front, chest, back, sleeves — none are optional. Brand name spelling preserved exactly: [product_name]."
+
+═══════════════════════════════════════════════════════════════════════
+GEOGRAPHIC CONTEXT LOCK — Indian default (non-negotiable unless brief overrides):
+═══════════════════════════════════════════════════════════════════════
+Faiceoff is an India-first platform. Unless the brief's setting / location field explicitly names a non-Indian location (Tokyo, Manhattan, Paris, London, Dubai, Bali, etc.), the background MUST read as recognisably Indian — not Western, not generic "international city", not LA-coffeeshop, not Brooklyn-loft.
+
+Default visual cues for unspecified or generic-chip scenes ("cafe", "studio", "outdoor", "street"):
+  • Architecture: Indian residential, commercial, or street typology — Mumbai high-rise, Bangalore tech park glass facade, Delhi colony, Jaipur sandstone haveli, Chennai apartment block, Goa beach shack, Pune cafe, Kerala backwater, Hyderabad bungalow. NEVER Western suburban houses, NEVER Parisian Haussmann boulevards, NEVER Manhattan brownstones unless the brief asks for them.
+  • Signage and incidental text: shop signs, billboards, hoardings, autorickshaw lettering should be plausibly Indian — Devanagari / regional script (Tamil, Telugu, Bengali, Gujarati, Punjabi, Kannada, Malayalam) alongside English is the norm. Do NOT default to English-only Western signage.
+  • Vehicles in frame: prefer Indian models — Maruti Suzuki, Tata, Mahindra, Bajaj, TVS, Hero, Ola/Uber sedans, autorickshaws — over generic Western fleet. Black-and-yellow Mumbai taxi, black-and-yellow Kolkata Ambassador, or yellow-top autorickshaw if the city calls for it.
+  • Background people: predominantly Indian demographics — match the city's actual mix. Diaspora extras only if the location is overseas.
+  • Street furniture and ambient detail: India-appropriate — chai stalls, paan-bidi shops, electrical wire bundles on poles, marigold garlands, Ashoka trees, monsoon greenery, dust-haze golden hour, rangoli at thresholds — chosen sparingly to fit mood.
+  • Weather and light: factor in the monsoon, post-monsoon clarity, dry-heat haze, winter Delhi fog — not a default California-sunny look.
+
+If the brief's setting field DOES name a specific non-Indian location, honour that exactly. If it names a specific Indian city, layer in city-recognisable detail (Marine Drive curve, IT-park glass facades for Bangalore, Charminar silhouette for Hyderabad, India Gate for Delhi, Howrah Bridge for Kolkata, etc.) but used as context, not a tourist landmark backdrop unless that is what's asked for.
+
+═══════════════════════════════════════════════════════════════════════
+ACTIVE INTERACTION REQUIREMENT — subject MUST be engaged with the product, not passively co-located:
+═══════════════════════════════════════════════════════════════════════
+The dead-give-away "AI ad" pose — subject standing next to a sealed product holding it stiffly at chest height while smiling at the camera — is FORBIDDEN. That visual reads as stock photography and undersells the product. The subject must be mid-action, physically engaged with the product, every shot.
+
+Mandatory engagement patterns by product class:
+
+  • Vehicles (cars, bikes, scooters, e-scooters, autorickshaws): subject is mid-action with the vehicle — gripping the steering wheel from inside the cabin, leg over the seat mid-mount, opening the door, leaning into the boot loading something, mid-stride toward the bike with helmet under arm, glance over the shoulder while astride. The vehicle is part of the action, not a background prop. Engine vibration / wind-in-hair detail is encouraged.
+
+  • Packaged goods (beverages, food, cosmetics, supplements, personal care): subject is mid-consumption / mid-application as specified in the ACTION RULES below. NEVER a sealed bottle/can/jar held near the face while smiling at the camera. Caps OPEN, lids OFF, contents engaged. For a cream — finger mid-application on cheek; for a drink — bottle tilted to lips mid-sip; for a snack — bite taken or mid-bite; for a serum — dropper hovering over palm with droplet visible.
+
+  • Apparel (jerseys, kurtas, t-shirts, sarees, jackets, dresses, sportswear): subject is mid-movement that flows naturally with the garment — adjusting a collar, mid-stride showing how fabric falls, lifting a sleeve to reveal embroidery, turning to reveal a back panel print, sari pallu mid-drape, jacket zipped halfway with hand on zipper, cricket jersey tug to settle the fit. Static front-facing catalogue pose is FORBIDDEN unless the brief explicitly asks for catalogue style.
+
+  • Accessories (bags, watches, sunglasses, jewellery, shoes, headphones, hats): subject is USING the item as part of a gesture — slinging a bag over the shoulder mid-walk, glancing at the watch, pushing sunglasses up onto the head, lacing a shoe with foot on a step, putting headphones on mid-stride, tipping a hat back. The accessory is part of the gesture, not a passive add-on.
+
+The ACTION RULES section below specifies the exact body language per interaction-key. The brief's interaction field selects which rule applies — read it before composing the action sentence.
 
 ═══════════════════════════════════════════════════════════════════════
 CAMERA MAP — translate the brief's camera_type key into the three bracketed placeholders above. If camera_type is missing, default to iphone_15_pro:
