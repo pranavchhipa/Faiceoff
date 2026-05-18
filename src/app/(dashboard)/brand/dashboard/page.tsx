@@ -13,7 +13,6 @@ import {
   Users,
   ImageIcon,
   CreditCard,
-  Receipt,
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -603,19 +602,12 @@ export default function BrandDashboardPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4">
               <Link
                 href="/brand/wallet"
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] py-2.5 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] py-2.5 text-[12px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
               >
                 Top up <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-              <Link
-                href="/brand/wallet"
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
-              >
-                <Receipt className="h-3.5 w-3.5" />
-                Ledger
               </Link>
             </div>
           </div>
@@ -667,10 +659,10 @@ export default function BrandDashboardPage() {
           {/* Quick links strip */}
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/brand/sessions"
+              href="/brand/collabs"
               className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
             >
-              Studio
+              Collabs
             </Link>
             <Link
               href="/brand/settings"

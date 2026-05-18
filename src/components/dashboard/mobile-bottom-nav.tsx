@@ -95,8 +95,8 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
           <div className="flex flex-1 items-center justify-center">
             <button
               type="button"
-              onClick={() => router.push("/brand/sessions")}
-              aria-label="New session"
+              onClick={() => router.push("/brand/collabs")}
+              aria-label="Open collabs"
               className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-[0_8px_20px_-4px_rgba(201,169,110,0.55)] ring-4 ring-[var(--color-background)] transition-transform active:scale-95"
             >
               <Plus className="h-6 w-6" strokeWidth={2.4} />

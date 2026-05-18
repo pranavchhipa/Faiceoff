@@ -135,10 +135,10 @@ export function LaunchSection({ creator, brandBalance }: Props) {
 
         {/* Footer */}
         <Link
-          href="/brand/sessions"
+          href="/brand/collabs"
           className="mt-4 flex items-center justify-center gap-1 text-[11px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
         >
-          View past sessions
+          View past collabs
           <ChevronRight className="h-3 w-3" />
         </Link>
       </div>

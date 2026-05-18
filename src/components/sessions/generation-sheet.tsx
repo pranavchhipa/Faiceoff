@@ -327,7 +327,11 @@ export function GenerationSheet({ open, onOpenChange, creator, brandBalance }: P
         onOpenChange(false);
         resetForm();
         startTransition(() => {
-          router.push(`/brand/sessions/${data.generation_id}`);
+          // /brand/sessions was removed (legacy global generations grid).
+          // New collab-scoped Studio is the canonical surface — but this
+          // legacy sheet has no collab id to scope to, so route to the
+          // collabs list and let the brand pick which one to open.
+          router.push(`/brand/collabs`);
         });
         return;
       }

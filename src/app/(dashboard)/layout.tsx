@@ -233,7 +233,8 @@ function PageTitle() {
   const map: Record<string, string> = {
     "/brand/dashboard": "Overview",
     "/brand/discover": "Discover creators",
-    "/brand/sessions": "Sessions",
+    "/brand/collabs": "Collabs",
+    "/brand/requests": "Requests",
     "/brand/vault": "Library",
     "/brand/licenses": "Licenses",
     "/brand/credits": "Credits",

@@ -339,14 +339,16 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
       // the live polling UI immediately. (Multi-image campaigns will get
       // a proper session list view later — for v1 each brief usually
       // creates one generation.)
-      const firstGenId = generation_ids?.[0];
-      if (firstGenId) {
-        router.push(`/brand/sessions/${firstGenId}`);
+      // /brand/sessions removed — route to the collab detail (or list as
+      // fallback) and let the brand open the Studio from there.
+      if (campaign_id) {
+        router.push(`/brand/collabs/${campaign_id}`);
       } else {
-        router.push(`/brand/sessions`);
+        router.push(`/brand/collabs`);
       }
-      // Suppress unused-var lint — campaign_id stays for future routing.
-      void campaign_id;
+      // generation_ids is no longer routed-to from here, but we still want
+      // the deeplink target preserved as a callsite hint.
+      void generation_ids;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create campaign");
     } finally {
