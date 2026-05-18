@@ -46,6 +46,10 @@ interface CollabSession {
   // From /api/collabs response shape — actual collab name + counterpart
   name?: string | null;
   counterpart_name?: string | null;
+  counterpart_avatar_url?: string | null;
+  // Product image the brand uploaded at collab-request time (collab_requests
+  // table). Shown as the row thumbnail so each collab is visually recognisable.
+  product_image_url?: string | null;
   package_tier?: string | null;
   // Legacy / older fallback fields
   brand?: { company_name?: string | null } | null;
@@ -423,9 +427,23 @@ export default function BrandDashboardPage() {
                     href={`/brand/collabs/${collab.id}`}
                     className="group flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:border-[var(--color-primary)]/30 hover:-translate-y-0.5"
                   >
-                    {/* Initial pill (uses collab name) */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-secondary)] font-display text-[16px] font-800 text-[var(--color-foreground)]">
-                      {collabName.charAt(0).toUpperCase()}
+                    {/* Product image thumbnail — falls back to initial pill
+                        when collab has no linked product (legacy sessions). */}
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
+                      {collab.product_image_url ? (
+                        <Image
+                          src={collab.product_image_url}
+                          alt={collabName}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center font-display text-[16px] font-800 text-[var(--color-foreground)]">
+                          {collabName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1">
