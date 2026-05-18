@@ -35,7 +35,7 @@ import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
-import { embedFaiceoffMetadata } from "@/lib/ai/image-metadata";
+import { upscaleImage } from "@/lib/ai/upscaler-client";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
   generateImage,
@@ -528,38 +528,90 @@ export async function runGeneration(generationId: string): Promise<void> {
       }
     }
 
-    // ── 6. Hive content safety check ────────────────────────────────────────
-    // Hive needs a URL — upload the (possibly refined) bytes to R2 first,
-    // then check on the public URL. On unsafe flag, mark failed (image stays
-    // in R2 for admin review).
+    // ── 5c. Real-ESRGAN upscale (Phase 3.1, optional, fail-open) ───────────
+    // 2× super-resolution. Real-ESRGAN does NOT hallucinate features (unlike
+    // Clarity Upscaler), so it's safe to run after the identity-locked
+    // generation without contradicting Phase 2 hardening. Default ON; set
+    // ENABLE_UPSCALE=false for instant rollback if Replicate has an outage.
+    let upscaleApplied = false;
+    const upscaleEnabled =
+      (process.env.ENABLE_UPSCALE ?? "true") !== "false";
+    if (upscaleEnabled) {
+      try {
+        const upscaleStart = Date.now();
+        const upscaled = await upscaleImage(
+          finalImage.bytes,
+          finalImage.mimeType,
+        );
+        finalImage = upscaled;
+        upscaleApplied = true;
+        console.log(
+          `[run-generation] gen=${generationId} upscale complete in ${Date.now() - upscaleStart}ms`,
+        );
+      } catch (upscaleErr) {
+        // Fail-open: keep Gemini output, log to Sentry. Brand still gets the
+        // image at the original resolution.
+        const msg =
+          upscaleErr instanceof Error ? upscaleErr.message : String(upscaleErr);
+        console.warn(
+          `[run-generation] gen=${generationId} upscale failed, using original: ${msg}`,
+        );
+        Sentry.captureException(upscaleErr, {
+          tags: { route: "run-generation", phase: "upscale" },
+          extra: { generation_id: generationId },
+        });
+      }
+    }
+
+    // ── 6. R2 upload + sidecar provenance (Phase 3.2) ──────────────────────
+    // Image bytes go to R2 UNTOUCHED — no sharp re-encode, pixel-perfect from
+    // Gemini (or upscaler). Provenance metadata lives in a sidecar JSON at a
+    // convention-based URL ({image-url-base}/provenance.json) so anyone can
+    // derive it without a DB lookup. Both uploads run concurrently.
     const ext = finalImage.mimeType === "image/jpeg" ? "jpg" : "png";
     const r2Key = `generations/${generationId}/raw.${ext}`;
-
-    // Embed Faiceoff EXIF metadata before R2 upload — provenance + license
-    // forever bundled with the bytes (machine-readable, survives downloads).
-    const stampedBytes = await embedFaiceoffMetadata(finalImage.bytes, {
-      generationId,
-      brandId,
-      creatorId,
-      modelName:
-        process.env.NANO_BANANA_MODEL ??
-        process.env.GEMINI_MODEL ??
-        "gemini-3-pro-image-preview",
-    });
+    const provenanceKey = `generations/${generationId}/provenance.json`;
+    const modelName =
+      process.env.NANO_BANANA_MODEL ??
+      process.env.GEMINI_MODEL ??
+      "gemini-3-pro-image-preview";
+    const provenance = {
+      v: "1",
+      platform: "Faiceoff",
+      generation_id: generationId,
+      brand_id: brandId,
+      creator_id: creatorId,
+      model: modelName,
+      generated_at: new Date().toISOString(),
+      public_url: `${R2_PUBLIC_URL}/${r2Key}`,
+      ai_generated: true,
+      upscaled: upscaleApplied,
+      refinement_applied: refinementApplied,
+    };
 
     let r2Url: string;
     try {
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: R2_BUCKET_NAME,
-          Key: r2Key,
-          Body: stampedBytes,
-          ContentType: finalImage.mimeType,
-        }),
-      );
+      await Promise.all([
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: r2Key,
+            Body: finalImage.bytes,
+            ContentType: finalImage.mimeType,
+          }),
+        ),
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: provenanceKey,
+            Body: JSON.stringify(provenance, null, 2),
+            ContentType: "application/json",
+          }),
+        ),
+      ]);
       r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
       console.log(
-        `[run-generation] gen=${generationId} uploaded to R2 (refinement_applied=${refinementApplied})`,
+        `[run-generation] gen=${generationId} uploaded to R2 (refinement_applied=${refinementApplied}, upscale_applied=${upscaleApplied})`,
       );
     } catch (r2Err) {
       console.error(
@@ -622,11 +674,17 @@ export async function runGeneration(generationId: string): Promise<void> {
     // After safety pass, image goes to BRAND for preview/retry/discard before
     // being sent to creator. Brand action (or 24h timeout) creates the
     // approval row — see /api/generations/[id]/send-for-approval.
+    //
+    // upscaled_url tracks which post-processing path was taken. When the
+    // upscale step ran successfully, image_url already IS the upscaled image
+    // (we overwrite finalImage in place), so both columns share the same URL.
+    // When upscale was skipped or failed-open, upscaled_url stays null.
     await admin
       .from("generations")
       .update({
         status: "ready_for_brand_review",
         image_url: r2Url,
+        upscaled_url: upscaleApplied ? r2Url : null,
         assembled_prompt: assembledPrompt,
       })
       .eq("id", generationId);
@@ -875,30 +933,80 @@ export async function runIteration(generationId: string): Promise<void> {
       return;
     }
 
-    // ── 6. EXIF metadata embed ──────────────────────────────────────────────
-    const stampedBytes = await embedFaiceoffMetadata(iterationResult.bytes, {
-      generationId,
-      brandId,
-      creatorId,
-      modelName:
-        process.env.NANO_BANANA_MODEL ??
-        process.env.GEMINI_MODEL ??
-        "gemini-3-pro-image-preview",
-    });
+    // ── 6. Real-ESRGAN upscale (Phase 3.1, optional, fail-open) ────────────
+    // Same logic as runGeneration — Real-ESRGAN is identity-safe so we apply
+    // it to iteration outputs too. Skipped if ENABLE_UPSCALE=false.
+    let iterFinal: { bytes: Uint8Array; mimeType: string } = {
+      bytes: iterationResult.bytes,
+      mimeType: iterationResult.mimeType,
+    };
+    let upscaleApplied = false;
+    const upscaleEnabled =
+      (process.env.ENABLE_UPSCALE ?? "true") !== "false";
+    if (upscaleEnabled) {
+      try {
+        const upscaleStart = Date.now();
+        const upscaled = await upscaleImage(iterFinal.bytes, iterFinal.mimeType);
+        iterFinal = upscaled;
+        upscaleApplied = true;
+        console.log(
+          `[run-iteration] gen=${generationId} upscale complete in ${Date.now() - upscaleStart}ms`,
+        );
+      } catch (upscaleErr) {
+        const msg =
+          upscaleErr instanceof Error ? upscaleErr.message : String(upscaleErr);
+        console.warn(
+          `[run-iteration] gen=${generationId} upscale failed, using original: ${msg}`,
+        );
+        Sentry.captureException(upscaleErr, {
+          tags: { route: "run-iteration", phase: "upscale" },
+          extra: { generation_id: generationId },
+        });
+      }
+    }
 
-    // ── 7. R2 upload ────────────────────────────────────────────────────────
-    const ext = iterationResult.mimeType === "image/jpeg" ? "jpg" : "png";
+    // ── 7. R2 upload + sidecar provenance (Phase 3.2) ──────────────────────
+    const ext = iterFinal.mimeType === "image/jpeg" ? "jpg" : "png";
     const r2Key = `generations/${generationId}/raw.${ext}`;
+    const provenanceKey = `generations/${generationId}/provenance.json`;
+    const modelName =
+      process.env.NANO_BANANA_MODEL ??
+      process.env.GEMINI_MODEL ??
+      "gemini-3-pro-image-preview";
+    const provenance = {
+      v: "1",
+      platform: "Faiceoff",
+      generation_id: generationId,
+      brand_id: brandId,
+      creator_id: creatorId,
+      model: modelName,
+      generated_at: new Date().toISOString(),
+      public_url: `${R2_PUBLIC_URL}/${r2Key}`,
+      ai_generated: true,
+      upscaled: upscaleApplied,
+      iteration: true,
+    };
+
     let r2Url: string;
     try {
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: R2_BUCKET_NAME,
-          Key: r2Key,
-          Body: stampedBytes,
-          ContentType: iterationResult.mimeType,
-        }),
-      );
+      await Promise.all([
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: r2Key,
+            Body: iterFinal.bytes,
+            ContentType: iterFinal.mimeType,
+          }),
+        ),
+        r2Client.send(
+          new PutObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: provenanceKey,
+            Body: JSON.stringify(provenance, null, 2),
+            ContentType: "application/json",
+          }),
+        ),
+      ]);
       r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
     } catch (r2Err) {
       console.error(
@@ -964,6 +1072,7 @@ export async function runIteration(generationId: string): Promise<void> {
       .update({
         status: "ready_for_brand_review",
         image_url: r2Url,
+        upscaled_url: upscaleApplied ? r2Url : null,
         assembled_prompt: iterationResult.finalPrompt,
       })
       .eq("id", generationId);
