@@ -83,8 +83,12 @@ export async function POST(request: Request) {
   if (!creator) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
   if (!creator.is_live) return NextResponse.json({ error: "Creator is not accepting requests" }, { status: 400 });
 
-  // Don't let brand request their own creator account
-  if (pkg.creator_id === user.id) {
+  // Don't let brand request their own creator account.
+  // Compare the AUTH user id (request sender) against the creator's user_id
+  // — the previous check compared `pkg.creator_id` (creators table PK, a
+  // separate UUID space) against `user.id` (auth.users.id), which never
+  // matched and silently let dual-role users self-request.
+  if (creator.user_id === user.id) {
     return NextResponse.json({ error: "Cannot request yourself" }, { status: 400 });
   }
 

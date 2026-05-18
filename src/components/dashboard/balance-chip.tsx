@@ -21,23 +21,6 @@ interface Props {
   role: Role | null;
 }
 
-interface BrandStatsShape {
-  role: "brand";
-  brand: { id: string } | null;
-  stats?: {
-    walletBalance?: number; // paise
-  };
-  credits_remaining?: number;
-}
-
-interface CreatorStatsShape {
-  role: "creator";
-  creator: { id: string } | null;
-  stats?: {
-    walletBalance?: number; // paise
-  };
-}
-
 const REFRESH_MS = 60_000;
 
 function formatINR(paise: number): string {
@@ -58,47 +41,43 @@ export function BalanceChip({ role }: Props) {
 
     let cancelled = false;
 
+    // For both roles, /api/dashboard/stats is the LEGACY source — its
+    // walletBalance reads from the sealed wallet_transactions_archive table
+    // and is effectively always 0 / stale. The live numbers live in:
+    //   - brand   → /api/billing/balance       (v_brand_billing view)
+    //   - creator → /api/earnings/dashboard    (v_creator_dashboard view)
+    // The stats route is only kept for activeCampaigns / pendingApprovals.
     async function load() {
       try {
-        const [statsRes, billingRes] = await Promise.allSettled([
-          fetch("/api/dashboard/stats", { cache: "no-store" }),
-          // For brand, also pull credits from the billing endpoint (more
-          // authoritative — stats route reads from legacy archive table).
+        const liveRes =
           role === "brand"
-            ? fetch("/api/billing/balance", { cache: "no-store" })
-            : Promise.resolve(null),
-        ]);
+            ? await fetch("/api/billing/balance", { cache: "no-store" })
+            : await fetch("/api/earnings/dashboard", { cache: "no-store" });
 
         if (cancelled) return;
+        if (!liveRes.ok) return;
 
-        if (statsRes.status === "fulfilled" && statsRes.value.ok) {
-          const data = (await statsRes.value.json()) as
-            | BrandStatsShape
-            | CreatorStatsShape;
-          if (data.stats?.walletBalance !== undefined) {
-            setWalletPaise(data.stats.walletBalance);
-          }
-        }
+        const data = (await liveRes.json()) as {
+          // brand
+          credits_remaining?: number;
+          wallet_available_paise?: number;
+          wallet_balance_paise?: number;
+          // creator
+          available_paise?: number;
+        };
 
-        if (
-          role === "brand" &&
-          billingRes.status === "fulfilled" &&
-          billingRes.value &&
-          billingRes.value.ok
-        ) {
-          const data = (await billingRes.value.json()) as {
-            credits_remaining?: number;
-            wallet_available_paise?: number;
-            wallet_balance_paise?: number;
-          };
+        if (role === "brand") {
           if (typeof data.credits_remaining === "number") {
             setCredits(data.credits_remaining);
           }
-          // Prefer the new ledger's balance if present.
           if (typeof data.wallet_available_paise === "number") {
             setWalletPaise(data.wallet_available_paise);
           } else if (typeof data.wallet_balance_paise === "number") {
             setWalletPaise(data.wallet_balance_paise);
+          }
+        } else if (role === "creator") {
+          if (typeof data.available_paise === "number") {
+            setWalletPaise(data.available_paise);
           }
         }
       } catch {

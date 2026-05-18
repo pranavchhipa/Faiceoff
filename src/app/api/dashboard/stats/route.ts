@@ -87,12 +87,17 @@ export async function GET() {
           .then(({ data }) => data?.balance_after_paise ?? 0)
           .catch(() => 0),
 
-        // Campaigns
+        // Campaigns — only count NEW-flow collab_sessions (linked to a
+        // collab_request from the current package-based model). Old
+        // pre-Chunk-D sessions with collab_request_id IS NULL are stale
+        // data from the legacy direct-start flow and shouldn't inflate the
+        // creator's "active collabs" badge.
         Promise.resolve(
           admin
             .from("collab_sessions")
-            .select("id, status")
-            .eq("creator_id", creator.id),
+            .select("id, status, collab_request_id")
+            .eq("creator_id", creator.id)
+            .not("collab_request_id", "is", null),
         )
           .then(({ data }) => {
             const campaigns = data ?? [];
