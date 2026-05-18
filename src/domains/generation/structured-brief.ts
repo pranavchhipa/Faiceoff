@@ -78,6 +78,26 @@ export const StructuredBriefSchema = z.object({
    * `buildAnchorPrompt`. Sanitized before interpolation.
    */
   pack_text: z.string().max(500).optional().nullable(),
+  /**
+   * Phase 6c — normalised label bounding box from the Phase 6a vision call.
+   * When present, runGeneration builds a 3-panel composite (full + label
+   * crop + wordmark crop) and sends THAT to Gemini instead of the raw
+   * product image, dramatically improving label fidelity.
+   */
+  label_bbox: z
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      w: z.number().min(0).max(1),
+      h: z.number().min(0).max(1),
+    })
+    .optional()
+    .nullable(),
+  /**
+   * Phase 6e — when true, force the Stage 2 product-refinement pass
+   * regardless of OCR drift. Toggle in Studio under "High detail mode".
+   */
+  high_detail_mode: z.boolean().optional().default(false),
   _meta: z
     .object({
       creator_id: z.string().uuid().optional(),

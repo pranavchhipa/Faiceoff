@@ -13,9 +13,19 @@ function getEnvVar(name: string): string {
   return value;
 }
 
+/**
+ * OpenAI/OpenRouter chat message content. String works for text-only models.
+ * Array form is required for vision — each part is either
+ *   { type: 'text', text }                    — text segment
+ *   { type: 'image_url', image_url: { url } } — image (URL or data URL)
+ */
+export type ChatMessageContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail?: 'auto' | 'low' | 'high' } };
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | ChatMessageContentPart[];
 }
 
 export interface ChatCompletionOptions {

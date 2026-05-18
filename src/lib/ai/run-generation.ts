@@ -36,6 +36,13 @@ import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { upscaleImage } from "@/lib/ai/upscaler-client";
+import { buildProductComposite } from "@/lib/ai/product-composite";
+import {
+  extractTextFromImage,
+  normalizedEditDistance,
+  shouldTriggerStage2,
+} from "@/lib/ai/ocr-client";
+import { track } from "@/lib/observability/analytics";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
   generateImage,
@@ -392,10 +399,44 @@ export async function runGeneration(generationId: string): Promise<void> {
     if (!productImageUrl) {
       throw new Error("Brief is missing product_image_url");
     }
-    const productImage = await fetchImageBytes(
+    const productImageRaw = await fetchImageBytes(
       productImageUrl,
       "product image",
     );
+
+    // ── 3b. Phase 6c — 3-panel composite when label_bbox is present ────────
+    // Gives Gemini a "full / label crop / wordmark detail" view of the same
+    // product. Falls through to original bytes when label_bbox is null or
+    // sharp errors. composite_built/skipped fires for telemetry.
+    const labelBboxRaw = brief.label_bbox as
+      | { x: number; y: number; w: number; h: number }
+      | null
+      | undefined;
+    const composite = await buildProductComposite({
+      productImageBytes: productImageRaw.bytes,
+      productImageMime: productImageRaw.mimeType,
+      labelBbox: labelBboxRaw ?? null,
+    });
+    const productImage = {
+      bytes: composite.bytes,
+      mimeType: composite.mimeType,
+    };
+    if (composite.composited) {
+      track(
+        "composite_built",
+        { generation_id: generationId, label_bbox_present: true },
+        brandId,
+      );
+    } else {
+      track(
+        "composite_skipped",
+        {
+          generation_id: generationId,
+          reason: labelBboxRaw ? "sharp_failed_or_invalid_bbox" : "no_label_bbox",
+        },
+        brandId,
+      );
+    }
 
     // ── 4. Assemble creative prompt via LLM ─────────────────────────────────
     let assembledPrompt: string;
@@ -433,6 +474,8 @@ export async function runGeneration(generationId: string): Promise<void> {
         // Phase 2.2.b — exact pack/label text → PRODUCT TEXT LOCK block
         packText:
           typeof brief.pack_text === "string" ? brief.pack_text : null,
+        // Phase 6c — anchor prompt mentions the composite when active
+        compositeApplied: composite.composited,
         generationId,
       });
     } catch (geminiErr) {
@@ -473,34 +516,38 @@ export async function runGeneration(generationId: string): Promise<void> {
       return;
     }
 
-    // ── 5b. Stage 2: Product refinement pass ───────────────────────────────
-    // Take the stage-1 image and ask Gemini to edit ONLY the product to
-    // pixel-match the reference. Face / body / scene stay untouched.
+    // ── 5b. Stage 2: Product refinement pass (Phase 6e smart trigger) ──────
+    // The original env-gated ENABLE_PRODUCT_REFINEMENT toggle is replaced
+    // with `shouldTriggerStage2()` — fires when high_detail_mode is on OR
+    // pack_text > 50 chars (dense label, likely worth the extra pass).
+    // OCR-driven trigger fires AFTER upscale (section 6).
     //
     // Diffusion models are far better at "preserve this region from
-    // reference" than "generate this from scratch" — so this second pass
-    // typically jumps product fidelity from ~70-80% to ~90-95%.
-    //
-    // Kill switch: ENABLE_PRODUCT_REFINEMENT=false skips stage 2 (e.g. for
-    // cost-sensitive A/B tests or rollback if Gemini's edit endpoint mis-
-    // behaves on a particular SKU).
+    // reference" than "generate this from scratch", so when Stage 2 fires
+    // product fidelity jumps from ~70-80% to ~90-95%.
     //
     // Failure mode: if refinement throws, fall back to stage-1 output. The
     // brand still gets a usable image; we just lose the product-fidelity
-    // boost. Telemetry is logged so we can see the refinement success rate.
-    // Default OFF on Pro: single Pro pass already produces ~95% product
-    // fidelity, so the second refinement call mostly burns budget without
-    // a quality bump. Set ENABLE_PRODUCT_REFINEMENT=true to force it on.
-    const refinementEnabled =
-      (process.env.ENABLE_PRODUCT_REFINEMENT ?? "false") === "true";
-
+    // boost. Sentry-logged so we can see the refinement success rate.
     let finalImage: { bytes: Uint8Array; mimeType: string } = {
       bytes: geminiResult.bytes,
       mimeType: geminiResult.mimeType,
     };
     let refinementApplied = false;
+    let stage2TriggeredBy:
+      | "manual"
+      | "ocr_fail"
+      | "dense_label"
+      | null = null;
 
-    if (refinementEnabled) {
+    const preUpscaleTrigger = shouldTriggerStage2({
+      highDetailMode: brief.high_detail_mode === true,
+      ocrDrift: null,
+      packTextLength:
+        typeof brief.pack_text === "string" ? brief.pack_text.length : 0,
+    });
+
+    if (preUpscaleTrigger.trigger) {
       try {
         const refineStart = Date.now();
         const refined = await refineProductInImage({
@@ -514,11 +561,21 @@ export async function runGeneration(generationId: string): Promise<void> {
         });
         finalImage = { bytes: refined.bytes, mimeType: refined.mimeType };
         refinementApplied = true;
+        stage2TriggeredBy = preUpscaleTrigger.reason as
+          | "manual"
+          | "dense_label";
+        track(
+          "stage2_triggered",
+          {
+            generation_id: generationId,
+            trigger_type: stage2TriggeredBy,
+          },
+          brandId,
+        );
         console.log(
-          `[run-generation] gen=${generationId} stage 2 refinement complete in ${Date.now() - refineStart}ms`,
+          `[run-generation] gen=${generationId} stage 2 refinement complete (reason=${stage2TriggeredBy}) in ${Date.now() - refineStart}ms`,
         );
       } catch (refineErr) {
-        // Graceful degradation — keep stage-1 output and surface to Sentry.
         const msg =
           refineErr instanceof Error ? refineErr.message : String(refineErr);
         console.warn(
@@ -567,6 +624,102 @@ export async function runGeneration(generationId: string): Promise<void> {
       }
     }
 
+    // ── 5d. OCR validation + drift-based Stage 2 fallback (Phase 6e) ───────
+    // Only runs when the brand provided pack_text. OCR the (upscaled) image,
+    // compare against pack_text. If drift > 0.3 AND we haven't already
+    // refined → run Stage 2 NOW on the upscaled bytes, then re-OCR to
+    // confirm. The result lands in generations.ocr_validation_result for
+    // admin review.
+    let ocrValidationResult:
+      | { extracted: string; drift: number; confidence: number }
+      | null = null;
+    const packText =
+      typeof brief.pack_text === "string" ? brief.pack_text.trim() : "";
+    if (packText.length > 0) {
+      const ocr = await extractTextFromImage({
+        imageBytes: finalImage.bytes,
+        bbox: labelBboxRaw ?? null,
+      });
+      const drift = normalizedEditDistance(ocr.text, packText);
+      ocrValidationResult = {
+        extracted: ocr.text,
+        drift,
+        confidence: ocr.confidence,
+      };
+
+      if (drift > 0.3 && !refinementApplied) {
+        try {
+          const refined = await refineProductInImage({
+            generatedImage: {
+              bytes: finalImage.bytes,
+              mimeType: finalImage.mimeType,
+            },
+            productImage,
+            aspectRatio,
+            generationId,
+          });
+          finalImage = { bytes: refined.bytes, mimeType: refined.mimeType };
+          refinementApplied = true;
+          stage2TriggeredBy = "ocr_fail";
+          track(
+            "stage2_triggered",
+            { generation_id: generationId, trigger_type: "ocr_fail" },
+            brandId,
+          );
+          // Re-OCR to update the persisted validation result.
+          const reOcr = await extractTextFromImage({
+            imageBytes: finalImage.bytes,
+            bbox: labelBboxRaw ?? null,
+          });
+          ocrValidationResult = {
+            extracted: reOcr.text,
+            drift: normalizedEditDistance(reOcr.text, packText),
+            confidence: reOcr.confidence,
+          };
+          track(
+            "ocr_validation_failed",
+            {
+              generation_id: generationId,
+              drift_score: drift,
+              triggered_stage2: true,
+              post_refinement_drift: ocrValidationResult.drift,
+            },
+            brandId,
+          );
+        } catch (refineErr) {
+          const msg =
+            refineErr instanceof Error
+              ? refineErr.message
+              : String(refineErr);
+          console.warn(
+            `[run-generation] gen=${generationId} OCR-triggered stage 2 failed: ${msg}`,
+          );
+          Sentry.captureException(refineErr, {
+            tags: { route: "run-generation", phase: "refinement_ocr" },
+            extra: { generation_id: generationId, drift },
+          });
+          track(
+            "ocr_validation_failed",
+            {
+              generation_id: generationId,
+              drift_score: drift,
+              triggered_stage2: false,
+            },
+            brandId,
+          );
+        }
+      } else {
+        track(
+          "ocr_validation_passed",
+          {
+            generation_id: generationId,
+            drift_score: drift,
+          },
+          brandId,
+        );
+      }
+    }
+
     // ── 6. R2 upload + sidecar provenance (Phase 3.2) ──────────────────────
     // Image bytes go to R2 UNTOUCHED — no sharp re-encode, pixel-perfect from
     // Gemini (or upscaler). Provenance metadata lives in a sidecar JSON at a
@@ -591,6 +744,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       ai_generated: true,
       upscaled: upscaleApplied,
       refinement_applied: refinementApplied,
+      stage2_triggered_by: stage2TriggeredBy,
     };
 
     let r2Url: string;
@@ -701,6 +855,9 @@ export async function runGeneration(generationId: string): Promise<void> {
         assembled_prompt: assembledPrompt,
         generation_attempts: geminiResult.attempts,
         provider_prediction_id: geminiResult.providerPredictionId,
+        // Phase 6e — OCR drift + Stage 2 trigger reason for admin audit.
+        ocr_validation_result: ocrValidationResult,
+        stage2_triggered_by: stage2TriggeredBy,
       })
       .eq("id", generationId);
 

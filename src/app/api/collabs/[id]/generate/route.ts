@@ -167,6 +167,20 @@ export async function POST(
     global_credits_left: globalCredits - 1,
   }, user.id);
 
+  // Phase 6 telemetry — pack_text engagement signal. The Studio's auto-fill
+  // (Phase 6b) is supposed to drive this to ~0% over time; if it stays high
+  // we know the vision call isn't being trusted.
+  const packTextLen = typeof brief.pack_text === "string" ? brief.pack_text.trim().length : 0;
+  if (packTextLen === 0) {
+    track("pack_text_left_empty", { generation_id: gen.id }, user.id);
+  } else {
+    track(
+      "pack_text_manually_edited",
+      { generation_id: gen.id, text_length: packTextLen },
+      user.id,
+    );
+  }
+
   after(async () => {
     try {
       await runGenerationsBatch([gen.id]);

@@ -69,6 +69,13 @@ interface Generation {
 
 type PillKey = string | null;
 
+interface LabelBbox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 interface Brief {
   product_name: string;
   product_image_url: string;
@@ -79,6 +86,16 @@ interface Brief {
    * Gemini anchor prompt and scanned by compliance.
    */
   pack_text: string;
+  /**
+   * Phase 6c — normalised 0..1 label bounding box from the vision call.
+   * Used by runGeneration to build the 3-panel product composite.
+   */
+  label_bbox: LabelBbox | null;
+  /**
+   * Phase 6e — when true, forces Stage 2 product refinement regardless of
+   * OCR drift. Surfaced as the "High detail mode" toggle.
+   */
+  high_detail_mode: boolean;
   setting: PillKey;
   time_lighting: PillKey;
   mood_palette: PillKey;
@@ -96,6 +113,8 @@ const DEFAULT_BRIEF: Brief = {
   product_name: "",
   product_image_url: "",
   pack_text: "",
+  label_bbox: null,
+  high_detail_mode: false,
   setting: null,
   time_lighting: null,
   mood_palette: null,
@@ -293,6 +312,30 @@ export default function BrandStudioPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const outputCardRef = useRef<HTMLDivElement>(null);
 
+  // Phase 6a/6b — vision-call suggestions for the uploaded product image.
+  // suggestionsLoading = true while the suggest-brief endpoint is in flight.
+  // `suggestion` = the latest result (or null if not fetched yet).
+  // `suggestedKeys` = set of pill keys we pre-selected from the suggestion
+  // so the UI can render a ✨ chip and the "Apply all" CTA.
+  const [suggestion, setSuggestion] = useState<{
+    productCategory: string;
+    extractedPackText: { primary: string; secondary: string; finePrint: string };
+    suggestions: {
+      interaction: string[];
+      setting: string[];
+      pose_energy: string[];
+      outfit_style: string[];
+      time_lighting: string[];
+      mood_palette: string[];
+      expression: string[];
+      camera_framing: string[];
+    };
+    labelBbox: LabelBbox | null;
+    confidence: "high" | "medium" | "low";
+  } | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [packTextWasAutoFilled, setPackTextWasAutoFilled] = useState(false);
+
   // Load session
   useEffect(() => {
     fetch(`/api/collabs/${collabId}`, { cache: "no-store" })
@@ -462,11 +505,93 @@ export default function BrandStudioPage() {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Upload failed");
       setBrief((b) => ({ ...b, product_image_url: d.url }));
+      // Phase 6a/6b — fire suggestions in background. Failure is silent so
+      // the brand can keep filling the form by hand.
+      void fetchSuggestions(d.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingImg(false);
     }
+  }
+
+  // Phase 6a/6b — background vision call. Never throws; on any failure the
+  // suggestion stays null and the form behaves like Phase 5.
+  async function fetchSuggestions(productImageUrl: string) {
+    setSuggestionsLoading(true);
+    setSuggestion(null);
+    try {
+      const res = await fetch("/api/campaigns/suggest-brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_image_url: productImageUrl }),
+      });
+      if (!res.ok) return;
+      const d = (await res.json()) as {
+        suggestion: {
+          productCategory: string;
+          extractedPackText: { primary: string; secondary: string; finePrint: string };
+          suggestions: typeof DEFAULT_BRIEF extends infer _ ? Record<string, string[]> : never;
+          labelBbox: LabelBbox | null;
+          confidence: "high" | "medium" | "low";
+        };
+        cache_hit: boolean;
+      };
+      const s = d.suggestion;
+      setSuggestion({
+        productCategory: s.productCategory,
+        extractedPackText: s.extractedPackText,
+        suggestions: {
+          interaction: s.suggestions.interaction ?? [],
+          setting: s.suggestions.setting ?? [],
+          pose_energy: s.suggestions.pose_energy ?? [],
+          outfit_style: s.suggestions.outfit_style ?? [],
+          time_lighting: s.suggestions.time_lighting ?? [],
+          mood_palette: s.suggestions.mood_palette ?? [],
+          expression: s.suggestions.expression ?? [],
+          camera_framing: s.suggestions.camera_framing ?? [],
+        },
+        labelBbox: s.labelBbox,
+        confidence: s.confidence,
+      });
+      // Auto-apply pack_text + label_bbox so the brand sees pre-filled values
+      // they can edit. Pills stay as-is until brand clicks "Apply suggestions".
+      const autoPackText = [s.extractedPackText.primary, s.extractedPackText.secondary]
+        .filter(Boolean)
+        .join(" — ");
+      setBrief((b) => ({
+        ...b,
+        // Only pre-fill pack_text if the brand hasn't typed anything yet.
+        pack_text: b.pack_text ? b.pack_text : autoPackText.slice(0, 500),
+        label_bbox: s.labelBbox,
+      }));
+      if (autoPackText) setPackTextWasAutoFilled(true);
+    } catch {
+      // silent — keep form usable
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }
+
+  // Phase 6a — bulk-apply suggested pills (only fills slots brand hasn't touched).
+  function applyAllSuggestions() {
+    if (!suggestion) return;
+    setBrief((b) => ({
+      ...b,
+      setting: b.setting ?? suggestion.suggestions.setting[0] ?? null,
+      interaction: b.interaction ?? suggestion.suggestions.interaction[0] ?? null,
+      pose_energy: b.pose_energy ?? suggestion.suggestions.pose_energy[0] ?? null,
+      outfit_style: b.outfit_style ?? suggestion.suggestions.outfit_style[0] ?? null,
+      time_lighting: b.time_lighting ?? suggestion.suggestions.time_lighting[0] ?? null,
+      mood_palette: b.mood_palette ?? suggestion.suggestions.mood_palette[0] ?? null,
+      expression: b.expression ?? suggestion.suggestions.expression[0] ?? null,
+      camera_framing: b.camera_framing ?? suggestion.suggestions.camera_framing[0] ?? null,
+    }));
+  }
+
+  // Phase 6a — discard the suggestion display without touching brand values.
+  function clearSuggestions() {
+    setSuggestion(null);
   }
 
   async function handleGenerate() {
@@ -715,12 +840,27 @@ export default function BrandStudioPage() {
                 </div>
                 <div>
                   <label className="mb-1 flex items-center justify-between font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                    <span>Text on packaging (optional but recommended)</span>
+                    <span className="flex items-center gap-1.5">
+                      Text on packaging (optional but recommended)
+                      {packTextWasAutoFilled && (
+                        <span
+                          className="rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-1.5 py-px text-[8px] font-700 text-[var(--color-primary)]"
+                          title="Auto-detected from your product image. Review before generating."
+                        >
+                          ✨ AUTO
+                        </span>
+                      )}
+                    </span>
                     <span className="font-mono text-[9px] tabular-nums text-[var(--color-muted-foreground)]/70">{brief.pack_text.length}/500</span>
                   </label>
                   <textarea
                     value={brief.pack_text}
-                    onChange={(e) => setBrief((b) => ({ ...b, pack_text: e.target.value.slice(0, 500) }))}
+                    onChange={(e) => {
+                      const v = e.target.value.slice(0, 500);
+                      setBrief((b) => ({ ...b, pack_text: v }));
+                      // Brand edited the value — clear the auto-filled chip.
+                      if (packTextWasAutoFilled) setPackTextWasAutoFilled(false);
+                    }}
                     placeholder={"e.g. Glenfiddich 12 — Single Malt Scotch Whisky — 750 ml"}
                     rows={2}
                     maxLength={500}
@@ -730,12 +870,76 @@ export default function BrandStudioPage() {
                     Exact wording from the packaging — brand name, tagline, variant, volume. The AI will reproduce this character-for-character on the product so it doesn&apos;t hallucinate misspellings.
                   </p>
                 </div>
+                {/* Phase 6e — High detail mode toggle */}
+                <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/60 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={brief.high_detail_mode}
+                    onChange={(e) => setBrief((b) => ({ ...b, high_detail_mode: e.target.checked }))}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--color-primary)]"
+                  />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[12px] font-600 leading-tight text-[var(--color-foreground)]">
+                      High detail mode <span className="font-400 text-[11px] text-[var(--color-muted-foreground)]">(recommended for dense labels / fine print)</span>
+                    </span>
+                    <span className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
+                      Forces an additional refinement pass for sharper product text. Generation may take 5–10s longer.
+                    </span>
+                  </div>
+                </label>
                 <p className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
                   Tip: use a clean, well-lit product photo. The AI uses this as the source-of-truth for the product&apos;s shape, color and labeling.
                 </p>
               </div>
             </div>
           </BriefSection>
+
+          {/* Phase 6a/6b — vision-call suggestion banner */}
+          {(suggestionsLoading || suggestion) && (
+            <div className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/[0.04] px-4 py-3">
+              {suggestionsLoading ? (
+                <div className="flex items-center gap-2 text-[12px] font-600 text-[var(--color-foreground)]">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-primary)]" />
+                  <span>✨ Analyzing your product…</span>
+                </div>
+              ) : suggestion ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[12px] font-600 text-[var(--color-foreground)]">
+                        ✨ Suggested settings for this product
+                      </span>
+                      <span className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
+                        {suggestion.productCategory
+                          ? `Detected as ${suggestion.productCategory.replace(/_/g, " ")}.`
+                          : ""}
+                        {" "}Click below to apply, or pick your own.
+                      </span>
+                    </div>
+                    <span className="rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary)]">
+                      {suggestion.confidence}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={applyAllSuggestions}
+                      className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-1.5 text-[12px] font-600 text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+                    >
+                      Apply all suggestions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearSuggestions}
+                      className="rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+                    >
+                      Clear suggestions
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Scene */}
           <BriefSection

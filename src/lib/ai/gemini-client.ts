@@ -67,6 +67,12 @@ export function buildAnchorPrompt(
   aspectRatio: string,
   faceRefCount: number,
   packText?: string | null,
+  /**
+   * Phase 6c — when true, prepends a line telling the model the product
+   * reference is a 3-panel composite (full / label crop / wordmark detail).
+   * Only emit when product-composite actually ran successfully.
+   */
+  compositeApplied?: boolean,
 ): string {
   const trimmedPackText =
     typeof packText === "string" ? packText.trim() : "";
@@ -87,7 +93,9 @@ export function buildAnchorPrompt(
     "",
     // ── OPENING ANCHOR — PRODUCT ───────────────────────────────────────
     "PRODUCT LOCK (read carefully):",
-    "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Reproduce its packaging exactly:",
+    compositeApplied
+      ? "The product reference (the LAST image attached) is a 3-panel composite: left = full product, middle = label crop, right = wordmark detail. Use ALL three panels — the label and wordmark panels are zoomed-in views of the same product, intended to help you reproduce small text accurately."
+      : "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Reproduce its packaging exactly:",
     "",
     "  • Brand wordmark / logo — exact spelling, exact font, exact placement, exact colour",
     "  • All text on the packaging — readable in the final image, character-for-character match",
@@ -201,6 +209,12 @@ export interface GenerateImageParams {
    * and the text is sanitized + delimited (injection-safe).
    */
   packText?: string | null;
+  /**
+   * Phase 6c — when true, the anchor prompt mentions that the productImage
+   * is a 3-panel composite (full + label + wordmark). Set by runGeneration
+   * after `buildProductComposite` returns composited=true.
+   */
+  compositeApplied?: boolean;
 }
 
 export interface GenerateImageResult {
@@ -252,6 +266,7 @@ async function callGeminiOnce(
     params.aspectRatio,
     params.faceRefs.length,
     params.packText,
+    params.compositeApplied,
   );
 
   const parts: Array<
