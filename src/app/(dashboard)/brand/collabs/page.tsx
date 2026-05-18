@@ -27,10 +27,14 @@ interface Collab {
   created_at: string;
 }
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
-  active:    { label: "Active",    color: "text-emerald-600",            bg: "bg-emerald-500/10",            icon: Zap },
-  completed: { label: "Completed", color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", icon: CheckCircle2 },
-  paused:    { label: "Paused",    color: "text-yellow-600",             bg: "bg-yellow-500/10",             icon: Clock },
+// `bg`/`color` are kept for any callers that still want the soft-tint chip,
+// but the on-image status pill (which sits over arbitrary product photos —
+// white iPhone, dark KitKat, etc.) uses `dot` against a dark backdrop so the
+// label stays readable on every background. Don't tint the pill itself.
+const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string; icon: React.ComponentType<{ className?: string }> }> = {
+  active:    { label: "Active",    color: "text-emerald-600",            bg: "bg-emerald-500/10",            dot: "bg-emerald-400",                icon: Zap },
+  completed: { label: "Completed", color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", dot: "bg-[var(--color-primary)]",     icon: CheckCircle2 },
+  paused:    { label: "Paused",    color: "text-yellow-600",             bg: "bg-yellow-500/10",             dot: "bg-yellow-400",                 icon: Clock },
 };
 
 const TIER_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; bar: string }> = {
@@ -287,7 +291,6 @@ function CollabCard({
   variant: "active" | "past";
 }) {
   const statusMeta = STATUS_META[collab.status] ?? STATUS_META.active;
-  const StatusIcon = statusMeta.icon;
   const tier = collab.package_tier ? TIER_META[collab.package_tier] : null;
   const TierIcon = tier?.icon;
   const progress = collab.final_images_target
@@ -373,9 +376,15 @@ function CollabCard({
                 <FileImage className="h-8 w-8 text-[var(--color-muted-foreground)]" />
               </div>
             )}
-            {/* Status pill on the image */}
-            <span className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-700 uppercase backdrop-blur-md ${statusMeta.bg} ${statusMeta.color}`}>
-              <StatusIcon className="h-2.5 w-2.5" />
+            {/* Status pill on the image — dark backdrop + white text so it
+                stays readable on any product background (white iPhone,
+                dark KitKat, gradient jersey, etc.). The 10%-alpha tinted
+                chip was invisible on light-bg product shots. */}
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[9px] font-700 uppercase text-white backdrop-blur-md ring-1 ring-white/10">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${statusMeta.dot}`} />
+                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+              </span>
               {statusMeta.label}
             </span>
           </div>

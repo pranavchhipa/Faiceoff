@@ -130,7 +130,12 @@ export default function BrandDashboardPage() {
 
     async function load() {
       setLoading(true);
-      const [statsRes, collabsRes, creditsRes, vaultRes] =
+      // /api/dashboard/stats — campaign counts + brand profile. Its wallet
+      // field reads the sealed legacy `wallet_transactions_archive` table
+      // and is always 0 — we IGNORE stats.walletBalance and source the
+      // live wallet + credits from /api/billing/balance instead (same
+      // source the topbar BalanceChip uses, so they stay in sync).
+      const [statsRes, collabsRes, billingRes, vaultRes] =
         await Promise.allSettled([
           fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
             r.ok ? r.json() : null
@@ -138,7 +143,7 @@ export default function BrandDashboardPage() {
           fetch("/api/collabs", { cache: "no-store" }).then((r) =>
             r.ok ? r.json() : null
           ),
-          fetch("/api/credits/balance", { cache: "no-store" }).then((r) =>
+          fetch("/api/billing/balance", { cache: "no-store" }).then((r) =>
             r.ok ? r.json() : null
           ),
           fetch("/api/vault?pageSize=4", { cache: "no-store" }).then((r) =>
@@ -147,6 +152,27 @@ export default function BrandDashboardPage() {
         ]);
 
       if (cancelled) return;
+
+      // Pull the live wallet + credits from billing first so we can fold
+      // them into the stats object below (single source of truth, no
+      // double-render of stale paise values).
+      let liveWalletPaise: number | null = null;
+      let liveCredits: number | null = null;
+      if (billingRes.status === "fulfilled" && billingRes.value) {
+        const b = billingRes.value as {
+          wallet_available_paise?: number;
+          wallet_balance_paise?: number;
+          credits_remaining?: number;
+        };
+        if (typeof b.wallet_available_paise === "number") {
+          liveWalletPaise = b.wallet_available_paise;
+        } else if (typeof b.wallet_balance_paise === "number") {
+          liveWalletPaise = b.wallet_balance_paise;
+        }
+        if (typeof b.credits_remaining === "number") {
+          liveCredits = b.credits_remaining;
+        }
+      }
 
       if (statsRes.status === "fulfilled" && statsRes.value) {
         const d = statsRes.value;
@@ -157,7 +183,9 @@ export default function BrandDashboardPage() {
             activeCollabs: d.stats.activeCollabs,
             totalCampaigns: d.stats.totalCampaigns ?? 0,
             totalGenerations: d.stats.totalGenerations ?? 0,
-            walletBalance: d.stats.walletBalance ?? 0,
+            // Prefer billing-view wallet; fall back to legacy field only if
+            // billing call failed entirely.
+            walletBalance: liveWalletPaise ?? d.stats.walletBalance ?? 0,
           });
         }
       }
@@ -169,12 +197,8 @@ export default function BrandDashboardPage() {
         setCollabs(list.slice(0, 5));
       }
 
-      if (creditsRes.status === "fulfilled" && creditsRes.value) {
-        setCreditsBalance(
-          creditsRes.value.credits_balance_paise ??
-            creditsRes.value.balance ??
-            0
-        );
+      if (liveCredits !== null) {
+        setCreditsBalance(liveCredits);
       }
 
       if (vaultRes.status === "fulfilled" && vaultRes.value) {
@@ -339,7 +363,7 @@ export default function BrandDashboardPage() {
               Credits
             </p>
             <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {Math.round(creditsBalance / 100)}
+              {creditsBalance.toLocaleString("en-IN")}
             </p>
             <Link
               href="/brand/credits"
@@ -574,7 +598,7 @@ export default function BrandDashboardPage() {
                   Credits remaining
                 </span>
                 <span className="font-700 text-[14px] text-[var(--color-foreground)]">
-                  {Math.round(creditsBalance / 100)}
+                  {creditsBalance.toLocaleString("en-IN")}
                 </span>
               </div>
             </div>
