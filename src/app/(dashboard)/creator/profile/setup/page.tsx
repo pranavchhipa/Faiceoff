@@ -245,9 +245,9 @@ export default function ProfileSetupPage() {
           Your shareable creator page.
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
-          Pick the categories you want brands to discover you in. We&apos;ll generate
-          a hand-crafted demo of you in each — no real-product needed. Drop the
-          link in your Instagram bio and you&apos;re open for business.
+          Pick the categories you want brands to discover you in. We&apos;ll build
+          a hand-crafted Style Reel of you in each — no real-product needed. Drop
+          the link in your Instagram bio and you&apos;re open for business.
         </p>
       </div>
 
@@ -338,12 +338,12 @@ export default function ProfileSetupPage() {
         <div className="mb-4 flex items-baseline justify-between">
           <div>
             <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              3 · Your AI demos
+              3 · Your Style Reel
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               {anyPending
-                ? "Generating… each demo takes ~60-90 seconds."
-                : "Hand-crafted samples of you in each category. Brand-safe — no real logos."}
+                ? "Generating… each frame takes ~60-90 seconds."
+                : "Hand-crafted style frames of you in each category. Brand-safe — no real logos."}
             </p>
           </div>
           {!anyPending && (
@@ -358,7 +358,7 @@ export default function ProfileSetupPage() {
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              Generate my demos
+              Build my Style Reel
             </Button>
           )}
         </div>
@@ -466,7 +466,7 @@ export default function ProfileSetupPage() {
         {!status?.creator?.published && !canPublish && (
           <p className="mt-3 text-[12px] text-[var(--color-muted-foreground)]">
             <ArrowRight className="mr-1 inline h-3 w-3" />
-            Generate at least 1 demo first to unlock Publish.
+            Build at least 1 Style Reel frame first to unlock Publish.
           </p>
         )}
       </section>

@@ -300,14 +300,14 @@ export default async function CreatorProfilePage(
         <section className="mx-auto max-w-6xl px-4 py-16 lg:px-8">
           <div className="mb-8">
             <span className="font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary)]">
-              AI Demo Gallery
+              Style Reel
             </span>
             <h2 className="mt-2 font-display text-[28px] font-800 tracking-tight text-[var(--color-foreground)] md:text-[36px]">
               See {c.display_name.split(" ")[0]} in action.
             </h2>
             <p className="mt-2 max-w-2xl text-[14px] text-[var(--color-muted-foreground)]">
-              These are AI-generated demos using {c.display_name.split(" ")[0]}&apos;s licensed
-              likeness. Your campaign will produce custom images with your actual product.
+              Hand-crafted style frames using {c.display_name.split(" ")[0]}&apos;s licensed
+              likeness — to show range. Your campaign will produce custom images with your actual product.
             </p>
           </div>
 
@@ -331,7 +331,7 @@ export default async function CreatorProfilePage(
                     </span>
                   </div>
                   <div className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider text-white backdrop-blur-md ring-1 ring-white/15">
-                    AI Demo
+                    Style Frame
                   </div>
                 </figure>
               );

@@ -28,7 +28,7 @@ import {
 type Admin = any;
 
 const MAX_FACE_REFS = 3;
-const REFERENCE_PHOTO_BUCKET = "creator-photos";
+const REFERENCE_PHOTO_BUCKET = "reference-photos";
 const SIGNED_URL_TTL_SECONDS = 600;
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "";
 

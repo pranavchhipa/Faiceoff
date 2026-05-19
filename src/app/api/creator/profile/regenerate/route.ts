@@ -85,7 +85,10 @@ export async function POST(request: Request) {
   }
 
   const previousCount: number = current?.regeneration_count ?? 0;
-  const nextCount = previousCount + 1;
+  // Retrying a FAILED sample is a system fault, not the creator's choice —
+  // don't burn a regen credit on it. Only count "ready → regen" cycles.
+  const isFailedRetry = current?.status === "failed";
+  const nextCount = isFailedRetry ? previousCount : previousCount + 1;
 
   // Free quota check — block beyond 3 for MVP. (Future: deduct 1 credit
   // from creator wallet once that exists.)
