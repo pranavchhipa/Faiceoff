@@ -1,0 +1,118 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- migration 00056: Creator public share profile + auto-generated demo samples
+--
+-- Creators can now create a public shareable profile at /creators/<slug> that
+-- brands discover via direct link or Instagram bio. The profile shows the
+-- creator's selected categories (max 4 of 10) and AI-generated demo images
+-- of the creator in each category — generated using their face refs and
+-- hand-written category prompts (zero real-brand names).
+--
+-- Demo regeneration: 3 free per category, then 1 credit each.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- ── Extend creators table ─────────────────────────────────────────────────────
+alter table public.creators
+  -- URL-safe handle for the public profile (e.g. "burhrani-benya")
+  -- Derived from IG handle on first setup; creator can customize later.
+  add column if not exists profile_slug text unique,
+  -- 1-4 categories from the enum below
+  add column if not exists selected_categories text[] not null default '{}',
+  -- True once creator hits "Publish" on the setup page
+  add column if not exists profile_published boolean not null default false,
+  -- Theme preference (default = warm-luxe). Future: more presets
+  add column if not exists profile_theme text not null default 'default',
+  -- Analytics: incremented by public profile page on each unique view
+  add column if not exists profile_view_count integer not null default 0,
+  -- When the profile was first published (for "Joined Faiceoff" badge)
+  add column if not exists profile_published_at timestamptz;
+
+create index if not exists creators_profile_slug_idx
+  on public.creators(profile_slug)
+  where profile_slug is not null;
+
+create index if not exists creators_profile_published_idx
+  on public.creators(profile_published)
+  where profile_published = true;
+
+comment on column public.creators.profile_slug          is 'URL-safe public handle for /creators/<slug>';
+comment on column public.creators.selected_categories   is 'Array of category keys (max 4) — see DEMO_PROMPTS in src/lib/profile/demo-prompts.ts';
+comment on column public.creators.profile_published     is 'True after creator hits Publish on setup page';
+comment on column public.creators.profile_theme         is 'UI theme preset for the public profile';
+comment on column public.creators.profile_view_count    is 'Total public profile views';
+comment on column public.creators.profile_published_at  is 'First publish timestamp';
+
+-- ── New table: creator_demo_samples ──────────────────────────────────────────
+-- One row per (creator, category) showing the AI-generated showcase image.
+-- Status drives the UI:
+--   pending  — job queued, UI shows spinner
+--   ready    — image_url set, displayed
+--   failed   — Gemini / Hive / R2 failed; show "Try again" button
+-- Old samples after a regen get is_visible=false (archived, not deleted, for
+-- audit + verify-page lookups).
+create table if not exists public.creator_demo_samples (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  category text not null,
+  -- Final R2 URL of the demo image
+  image_url text,
+  -- FK to the generations row that produced this demo (audit trail)
+  generation_id uuid references public.generations(id) on delete set null,
+  -- Lifecycle state
+  status text not null default 'pending'
+    check (status in ('pending', 'ready', 'failed')),
+  -- Hide-but-keep flag (set to false when superseded by a regen)
+  is_visible boolean not null default true,
+  -- Free count tracker (per category, accumulates across is_visible=false rows)
+  regeneration_count integer not null default 0,
+  -- Why the job failed, if applicable (for ops debugging)
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Only ONE visible demo per (creator, category)
+create unique index if not exists creator_demo_samples_visible_unique_idx
+  on public.creator_demo_samples(creator_id, category)
+  where is_visible = true;
+
+create index if not exists creator_demo_samples_creator_idx
+  on public.creator_demo_samples(creator_id);
+
+create index if not exists creator_demo_samples_status_idx
+  on public.creator_demo_samples(status)
+  where status = 'pending';
+
+comment on table  public.creator_demo_samples            is 'AI-generated category showcase images for creator public profiles';
+comment on column public.creator_demo_samples.category   is 'One of: fashion, beauty, tech, food, travel, fitness, home, automotive, jewelry, kids_family';
+comment on column public.creator_demo_samples.is_visible is 'False = archived (superseded by regen). Public profile only shows is_visible=true';
+comment on column public.creator_demo_samples.regeneration_count is 'How many times this category was regenerated by this creator (free quota = 3, then 1 credit each)';
+
+-- ── RLS ──────────────────────────────────────────────────────────────────────
+alter table public.creator_demo_samples enable row level security;
+
+-- Public profile pages can read READY + VISIBLE demos for PUBLISHED creators
+create policy "demo_samples_public_read"
+  on public.creator_demo_samples for select
+  using (
+    status = 'ready'
+    and is_visible = true
+    and exists (
+      select 1 from public.creators c
+      where c.id = creator_demo_samples.creator_id
+        and c.profile_published = true
+    )
+  );
+
+-- Creators can read their own demos (any status, any visibility)
+create policy "demo_samples_self_read"
+  on public.creator_demo_samples for select
+  using (
+    exists (
+      select 1 from public.creators c
+      where c.id = creator_demo_samples.creator_id
+        and c.user_id = auth.uid()
+    )
+  );
+
+-- All writes go through the admin client (server-side), so no write policy
+-- for end users. Service role bypasses RLS anyway.

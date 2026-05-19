@@ -17,6 +17,7 @@ import {
   Megaphone,
   Tags,
   Inbox,
+  Share2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -331,6 +332,38 @@ export default function CreatorDashboardPage() {
             </div>
             <span className="flex shrink-0 items-center gap-1 text-[13px] font-700 text-amber-600">
               Review <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        </motion.div>
+      )}
+
+      {/* ── PUBLIC PROFILE CTA — share-link feature, shown when ready ── */}
+      {isOnboardingComplete && hasPackages && (
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.06 }}
+        >
+          <Link
+            href="/creator/profile/setup"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/10 via-[var(--color-primary)]/5 to-transparent p-4 no-underline transition-colors hover:from-emerald-500/15"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-[var(--color-primary)] text-white">
+                <Share2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  Set up your shareable creator profile
+                </p>
+                <p className="text-[12px] text-[var(--color-muted-foreground)]">
+                  Pick 4 categories → AI-demos auto-generate → drop the link in your IG bio.
+                </p>
+              </div>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-[13px] font-700 text-emerald-600">
+              Set up <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </Link>
         </motion.div>

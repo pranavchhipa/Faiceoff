@@ -11,6 +11,7 @@ import {
   Megaphone,
   TrendingUp,
   Tags,
+  Share2,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -26,6 +27,7 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Requests", href: "/creator/requests", icon: Inbox, group: "Primary" },
   { label: "Collabs", href: "/creator/collabs", icon: Megaphone, group: "Primary" },
   { label: "My Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
+  { label: "Public Profile", href: "/creator/profile/setup", icon: Share2, group: "Primary" },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee, group: "Primary" },
   { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
