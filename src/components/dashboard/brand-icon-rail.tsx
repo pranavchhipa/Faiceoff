@@ -67,9 +67,8 @@ export function BrandIconRail() {
   return (
     <TooltipProvider delayDuration={120} skipDelayDuration={80}>
       <aside
-        className={`sticky top-0 hidden h-screen shrink-0 flex-col items-center border-r border-[var(--color-border)] bg-[var(--color-card)] py-3 transition-[width] duration-200 ease-in-out lg:flex ${
-          expanded ? "w-56" : "w-14"
-        }`}
+        style={{ width: expanded ? "224px" : "56px" }}
+        className="sticky top-0 hidden h-screen shrink-0 flex-col items-center overflow-hidden border-r border-[var(--color-border)] bg-[var(--color-card)] py-3 transition-all duration-200 ease-in-out lg:flex"
       >
         {/* ── Logo ── */}
         <Link
@@ -93,11 +92,7 @@ export function BrandIconRail() {
         </Link>
 
         {/* Divider below logo */}
-        <div
-          className={`my-3 h-px bg-[var(--color-border)] transition-[width] duration-200 ${
-            expanded ? "w-[calc(100%-2rem)]" : "w-6"
-          }`}
-        />
+        <div className="my-3 h-px w-6 bg-[var(--color-border)]" />
 
         {/* ── Nav items ── */}
         <nav
