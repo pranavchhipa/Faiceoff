@@ -34,6 +34,10 @@ Two-sided marketplace where **creators license their face** and **brands generat
 - ✅ Sentry, PostHog (3 funnel events), rate limits, EXIF metadata embed
 - ✅ Brand requests page (`/brand/requests`) — all sent requests with Pay / timer / Open Studio
 - ✅ Creator requests page (`/creator/requests`) — product image, tier, brief, Accept/Decline
+- ✅ Instagram OAuth integration (migration 00055) — Connect Instagram in creator onboarding
+  pulls verified handle, follower count, profile pic, bio, insights via Meta's Graph API.
+  Personal accounts get manual-entry fallback. Token encrypted with `KYC_ENCRYPTION_KEY`.
+  Setup runbook: `docs/INSTAGRAM_OAUTH_SETUP.md`. Daily token refresh cron at 4:30 UTC.
 
 ### What's BROKEN / soft-failing right now
 | Issue | Impact | Fix |
@@ -52,6 +56,11 @@ Two-sided marketplace where **creators license their face** and **brands generat
 7. **PostHog account + key** — events fire but no dashboard
 8. **Legal copy** (T&C / Privacy / Refund / DPDP) — required before public launch
 9. **Mobile QA testing** — needs to be done on real phone, screenshots back to agent
+10. **Meta App creation + Instagram OAuth keys** — `INSTAGRAM_APP_ID` + `INSTAGRAM_APP_SECRET`
+    from developers.facebook.com. Code is shipped (migration 00055 + routes + UI). Without
+    these env vars the "Connect Instagram" button shows a 500 error. Setup steps:
+    `docs/INSTAGRAM_OAUTH_SETUP.md`. Production also needs Meta App Review approval for
+    `instagram_business_basic` + `instagram_business_manage_insights`.
 
 ---
 
