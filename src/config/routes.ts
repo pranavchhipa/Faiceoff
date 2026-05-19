@@ -20,6 +20,8 @@ const MARKETING_PATHS = [
   "/contact",
   "/terms",
   "/privacy",
+  "/refund",
+  "/creator-agreement",
   "/dpdp",
 ];
 
@@ -45,6 +47,9 @@ export function isPublicPath(pathname: string): boolean {
   if (MARKETING_PATHS.includes(pathname)) return true;
   if (pathname === "/u" || pathname.startsWith("/u/")) return true;
   if (pathname === "/verify" || pathname.startsWith("/verify/")) return true;
+  // Public creator share profiles — /creators/<slug>. Brands click these
+  // from IG bio links etc. without an account; no auth required.
+  if (pathname === "/creators" || pathname.startsWith("/creators/")) return true;
   return false;
 }
 
