@@ -10,24 +10,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BRAND_SIDE_NAV } from "@/config/nav-items.brand";
+import { CREATOR_SIDE_NAV } from "@/config/nav-items.creator";
 
 /**
- * BrandIconRail — collapsible vertical sidebar (desktop only).
+ * CreatorIconRail — collapsible vertical sidebar for creators (desktop only).
  *
- * Collapsed (default): 56px icon-only rail with hover tooltips.
- * Expanded: 224px rail showing Faiceoff logo + wordmark + nav labels.
- *
- * Preference persisted in localStorage so it survives navigation.
+ * Replaces the old top pill-tab nav. Same expand/collapse pattern as
+ * BrandIconRail: closed = 56px icon-only rail with tooltips, open = 224px
+ * with Faiceoff logo + wordmark + nav labels.
  */
-export function BrandIconRail() {
+export function CreatorIconRail() {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     try {
-      if (localStorage.getItem("brand-sidebar-expanded") === "true") {
+      if (localStorage.getItem("creator-sidebar-expanded") === "true") {
         setExpanded(true);
       }
     } catch {
@@ -39,14 +37,13 @@ export function BrandIconRail() {
     setExpanded((v) => {
       const next = !v;
       try {
-        localStorage.setItem("brand-sidebar-expanded", String(next));
+        localStorage.setItem("creator-sidebar-expanded", String(next));
       } catch {}
       return next;
     });
   }
 
-  // Partition nav by group so we can insert dividers + headers
-  const grouped = BRAND_SIDE_NAV.reduce<Record<string, typeof BRAND_SIDE_NAV>>(
+  const grouped = CREATOR_SIDE_NAV.reduce<Record<string, typeof CREATOR_SIDE_NAV>>(
     (acc, item) => {
       const g = item.group ?? "Default";
       if (!acc[g]) acc[g] = [];
@@ -56,11 +53,11 @@ export function BrandIconRail() {
     {},
   );
   const groupOrder = Array.from(
-    new Set(BRAND_SIDE_NAV.map((i) => i.group ?? "Default")),
+    new Set(CREATOR_SIDE_NAV.map((i) => i.group ?? "Default")),
   );
 
   function isActive(href: string) {
-    if (href === "/brand/dashboard") return pathname === href;
+    if (href === "/creator/dashboard") return pathname === href;
     return pathname.startsWith(href);
   }
 
@@ -73,7 +70,7 @@ export function BrandIconRail() {
       >
         {/* ── Logo ── */}
         <Link
-          href="/brand/dashboard"
+          href="/creator/dashboard"
           aria-label="Faiceoff home"
           className={`flex h-10 items-center transition-transform hover:scale-[1.03] ${
             expanded ? "w-full gap-2.5 px-4" : "w-10 justify-center"
@@ -110,7 +107,6 @@ export function BrandIconRail() {
               key={group}
               className={`flex flex-col gap-0.5 ${expanded ? "w-full" : "items-center"}`}
             >
-              {/* Group divider */}
               {idx > 0 && (
                 <div
                   className={`my-1.5 h-px bg-[var(--color-border)] ${
@@ -119,7 +115,6 @@ export function BrandIconRail() {
                 />
               )}
 
-              {/* Group heading — only in expanded state */}
               {expanded && groupOrder.length > 1 && (
                 <p className="mb-1 px-3 text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                   {group}

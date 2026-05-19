@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { BrandIconRail } from "@/components/dashboard/brand-icon-rail";
-import { CreatorPillNav } from "@/components/dashboard/creator-pill-nav";
+import { CreatorIconRail } from "@/components/dashboard/creator-icon-rail";
 import { AdminSectionSidebar } from "@/components/dashboard/admin-section-sidebar";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
@@ -114,13 +114,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Compose the top bar's left slot per role
   let leftSlot: ReactNode = null;
   if (role === "creator") {
-    // Desktop: pill nav. Mobile: hamburger + compact wordmark.
+    // Desktop: CreatorIconRail handles nav — show page title in topbar.
+    // Mobile: hamburger + compact wordmark.
     leftSlot = (
       <>
         {hamburger}
-        <div className="hidden lg:block">
-          <CreatorPillNav />
-        </div>
+        <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
+          <PageTitle />
+        </span>
         <span className="flex items-center gap-2 font-display text-base font-800 tracking-tight lg:hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -155,6 +156,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)]">
       {/* Desktop role-specific sidebar/rail (hidden on mobile) */}
       {role === "brand" && <BrandIconRail />}
+      {role === "creator" && <CreatorIconRail />}
       {role === "admin" && <AdminSectionSidebar />}
 
       {/* Main column */}
@@ -231,6 +233,7 @@ function AdminPageTitle() {
 function PageTitle() {
   const path = usePathname();
   const map: Record<string, string> = {
+    // Brand
     "/brand/dashboard": "Overview",
     "/brand/discover": "Discover creators",
     "/brand/collabs": "Collabs",
@@ -240,6 +243,22 @@ function PageTitle() {
     "/brand/credits": "Credits",
     "/brand/wallet": "Wallet",
     "/brand/settings": "Settings",
+    "/brand/inbox": "Inbox",
+    // Creator
+    "/creator/dashboard": "Overview",
+    "/creator/requests": "Requests",
+    "/creator/collabs": "Collabs",
+    "/creator/packages": "My Packages",
+    "/creator/earnings": "Earnings",
+    "/creator/withdraw": "Withdraw",
+    "/creator/likeness": "Likeness",
+    "/creator/approvals": "Approvals",
+    "/creator/licenses": "Licenses",
+    "/creator/analytics": "Analytics",
+    "/creator/blocked-categories": "Blocked categories",
+    "/creator/settings": "Settings",
+    "/creator/inbox": "Inbox",
+    // Admin
     "/admin": "Triage overview",
     "/admin/safety": "Safety review",
     "/admin/stuck-gens": "Stuck generations",
