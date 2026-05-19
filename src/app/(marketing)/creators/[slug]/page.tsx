@@ -237,13 +237,13 @@ export default async function CreatorProfilePage(
       )}
 
       {/* ── Floating top navigation ─────────────────────────────────────── */}
-      <header className="relative z-50 mx-auto flex max-w-[1400px] items-center justify-between px-5 pt-6 lg:px-10">
+      <header className="relative z-50 mx-auto flex max-w-[1400px] items-center justify-between px-4 pt-4 sm:px-5 sm:pt-6 lg:px-10">
         <Link href="/" aria-label="Faiceoff home" className="group inline-flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-mark.png"
             alt="Faiceoff"
-            className="h-9 w-9 rounded-md object-contain transition-transform group-hover:scale-105"
+            className="h-8 w-8 rounded-md object-contain transition-transform group-hover:scale-105 sm:h-9 sm:w-9"
           />
           <span className="hidden font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[#a89570] sm:inline">
             Faiceoff
@@ -251,23 +251,24 @@ export default async function CreatorProfilePage(
         </Link>
         <Link
           href={ctaHref}
-          className="group inline-flex h-10 items-center gap-2 rounded-full bg-[#f5ebd6] px-5 text-[13px] font-700 tracking-tight text-[#0a0908] transition hover:bg-[#e8825d] hover:text-white"
+          className="group inline-flex h-11 items-center gap-1.5 rounded-full bg-[#f5ebd6] px-4 text-[12px] font-700 tracking-tight text-[#0a0908] transition hover:bg-[#e8825d] hover:text-white sm:gap-2 sm:px-5 sm:text-[13px]"
           style={{ fontFamily: "Outfit, system-ui" }}
         >
-          Launch a Campaign
+          <span className="hidden sm:inline">Launch a Campaign</span>
+          <span className="sm:hidden">Launch</span>
           <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       </header>
 
       {/* ── HERO — Magazine-cover split ─────────────────────────────────── */}
-      <section className="relative z-10 mx-auto max-w-[1400px] px-5 pt-10 pb-20 lg:px-10 lg:pt-16 lg:pb-32">
+      <section className="relative z-10 mx-auto max-w-[1400px] px-4 pt-8 pb-14 sm:px-5 sm:pt-10 sm:pb-20 lg:px-10 lg:pt-16 lg:pb-32">
         {/* Issue meta strip */}
-        <div className="mb-10 flex items-center justify-between font-mono text-[10px] font-700 uppercase tracking-[0.28em] text-[#a89570]">
+        <div className="mb-6 flex items-center justify-between font-mono text-[9px] font-700 uppercase tracking-[0.22em] text-[#a89570] sm:mb-10 sm:text-[10px] sm:tracking-[0.28em]">
           <span>Issue №{String(editionNo).padStart(3, "0")} · {publishedDateLabel}</span>
           <span className="hidden sm:inline">Creator Edition</span>
         </div>
 
-        <div className="grid gap-10 lg:grid-cols-[460px_1fr] lg:gap-16">
+        <div className="grid gap-7 sm:gap-10 lg:grid-cols-[460px_1fr] lg:gap-16">
           {/* Portrait — left */}
           <div className="relative">
             <div className="relative aspect-[4/5] w-full max-w-[460px] overflow-hidden rounded-sm bg-[#1a1612]">
@@ -304,9 +305,9 @@ export default async function CreatorProfilePage(
             </div>
 
             {/* Caption — magazine credit */}
-            <div className="mt-3 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-[#6e6457]">
-              <span>Pict. AI Studio · Faiceoff</span>
-              <span>{c.instagram_handle ? `@${c.instagram_handle}` : ""}</span>
+            <div className="mt-3 flex items-baseline justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-[#6e6457] sm:text-[10px] sm:tracking-[0.22em]">
+              <span className="truncate">Pict. AI Studio · Faiceoff</span>
+              <span className="truncate">{c.instagram_handle ? `@${c.instagram_handle}` : ""}</span>
             </div>
           </div>
 
@@ -326,10 +327,10 @@ export default async function CreatorProfilePage(
 
             {/* MASSIVE name */}
             <h1
-              className="font-800 leading-[0.88] tracking-[-0.04em] text-[#f5ebd6]"
+              className="break-words font-800 leading-[0.9] tracking-[-0.035em] text-[#f5ebd6] sm:leading-[0.88] sm:tracking-[-0.04em]"
               style={{
                 fontFamily: "Outfit, system-ui",
-                fontSize: "clamp(56px, 11vw, 168px)",
+                fontSize: "clamp(44px, 12vw, 160px)",
               }}
             >
               {c.display_name}
@@ -353,7 +354,7 @@ export default async function CreatorProfilePage(
             {/* Bio */}
             {c.bio && (
               <p
-                className="mt-7 max-w-xl text-[17px] leading-relaxed text-[#d9c9aa]"
+                className="mt-5 max-w-xl text-[15px] leading-relaxed text-[#d9c9aa] sm:mt-7 sm:text-[17px]"
                 style={{ fontFamily: "Outfit, system-ui" }}
               >
                 {c.bio}
@@ -361,7 +362,7 @@ export default async function CreatorProfilePage(
             )}
 
             {/* Stats inline */}
-            <div className="mt-9 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-[#2a2520] pt-7">
+            <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[#2a2520] pt-6 sm:mt-9 sm:flex sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-3 sm:pt-7">
               {c.instagram_followers !== null && c.instagram_followers > 0 && (
                 <HeroStat
                   value={compactNumber(c.instagram_followers)}
@@ -389,18 +390,21 @@ export default async function CreatorProfilePage(
             </div>
 
             {/* CTA */}
-            <div className="mt-10 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <Link
                 href={ctaHref}
-                className="group inline-flex h-14 items-center gap-3 rounded-full bg-[#e8825d] px-7 text-[15px] font-800 tracking-tight text-white shadow-[0_8px_30px_-8px_rgba(232,130,93,0.6)] transition hover:bg-[#e96d3f]"
+                className="group inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-[#e8825d] px-6 text-[14px] font-800 tracking-tight text-white shadow-[0_8px_30px_-8px_rgba(232,130,93,0.6)] transition hover:bg-[#e96d3f] sm:w-auto sm:gap-3 sm:px-7 sm:text-[15px]"
                 style={{ fontFamily: "Outfit, system-ui" }}
               >
                 <Sparkles className="h-4 w-4" />
-                Brief {firstName} — launch a campaign
+                <span>
+                  Brief {firstName}
+                  <span className="hidden sm:inline"> — launch a campaign</span>
+                </span>
                 <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
               {defaultPackage && (
-                <span className="font-mono text-[11px] font-600 uppercase tracking-[0.18em] text-[#8d8275]">
+                <span className="text-center font-mono text-[11px] font-600 uppercase tracking-[0.18em] text-[#8d8275] sm:text-left">
                   starts at <span className="text-[#f5ebd6]">{inr(defaultPackage.price_paise)}</span>
                 </span>
               )}
@@ -412,31 +416,31 @@ export default async function CreatorProfilePage(
       {/* ── PORTFOLIO — magazine bento ──────────────────────────────────── */}
       {orderedSamples.length > 0 && (
         <section
-          className="relative z-10 border-y border-[#2a2520] bg-[#0d0c0a]/40 px-5 py-20 lg:px-10 lg:py-28"
+          className="relative z-10 border-y border-[#2a2520] bg-[#0d0c0a]/40 px-4 py-14 sm:px-5 sm:py-20 lg:px-10 lg:py-28"
         >
           <div className="mx-auto max-w-[1400px]">
-            <div className="mb-10 flex items-end justify-between gap-6">
+            <div className="mb-7 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between md:gap-6">
               <div>
-                <div className="font-mono text-[11px] font-700 uppercase tracking-[0.28em] text-[#a89570]">
+                <div className="font-mono text-[10px] font-700 uppercase tracking-[0.24em] text-[#a89570] sm:text-[11px] sm:tracking-[0.28em]">
                   The Portfolio
                 </div>
                 <h2
                   className="mt-2 font-800 leading-[0.95] tracking-[-0.02em] text-[#f5ebd6]"
                   style={{
                     fontFamily: "Outfit, system-ui",
-                    fontSize: "clamp(36px, 5vw, 64px)",
+                    fontSize: "clamp(30px, 5vw, 64px)",
                   }}
                 >
                   See {firstName} in action.
                 </h2>
               </div>
-              <p className="hidden max-w-sm text-[13px] leading-relaxed text-[#8d8275] md:block">
+              <p className="max-w-md text-[13px] leading-relaxed text-[#8d8275]">
                 Hand-crafted style frames using {firstName}&apos;s licensed likeness.
                 Your campaign will produce custom images with your actual product.
               </p>
             </div>
 
-            <div className="grid auto-rows-[230px] grid-cols-12 gap-3 md:auto-rows-[280px] md:gap-4">
+            <div className="grid auto-rows-[280px] grid-cols-12 gap-2.5 sm:auto-rows-[260px] sm:gap-3 md:auto-rows-[280px] md:gap-4">
               {orderedSamples.map((s, idx) => {
                 const def = DEMO_CATEGORIES[s.category];
                 return (
@@ -481,7 +485,7 @@ export default async function CreatorProfilePage(
       )}
 
       {/* ── NUMBERS — full-bleed stats strip ────────────────────────────── */}
-      <section className="relative z-10 px-5 py-20 lg:px-10 lg:py-28">
+      <section className="relative z-10 px-4 py-14 sm:px-5 sm:py-20 lg:px-10 lg:py-28">
         <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-px overflow-hidden rounded-sm bg-[#2a2520] md:grid-cols-4">
           <BigStat
             value={data.stats.completed_collabs.toString()}
@@ -505,24 +509,24 @@ export default async function CreatorProfilePage(
 
       {/* ── PRICING — premium tier cards ────────────────────────────────── */}
       {data.packages.length > 0 && (
-        <section className="relative z-10 border-t border-[#2a2520] bg-[#0d0c0a]/40 px-5 py-20 lg:px-10 lg:py-28">
+        <section className="relative z-10 border-t border-[#2a2520] bg-[#0d0c0a]/40 px-4 py-14 sm:px-5 sm:py-20 lg:px-10 lg:py-28">
           <div className="mx-auto max-w-[1400px]">
-            <div className="mb-12 grid items-end gap-6 md:grid-cols-[1fr_auto]">
+            <div className="mb-9 flex flex-col gap-4 sm:mb-12 md:grid md:grid-cols-[1fr_auto] md:items-end md:gap-6">
               <div>
-                <div className="font-mono text-[11px] font-700 uppercase tracking-[0.28em] text-[#a89570]">
+                <div className="font-mono text-[10px] font-700 uppercase tracking-[0.24em] text-[#a89570] sm:text-[11px] sm:tracking-[0.28em]">
                   The Rate Card
                 </div>
                 <h2
                   className="mt-2 font-800 leading-[0.95] tracking-[-0.02em] text-[#f5ebd6]"
                   style={{
                     fontFamily: "Outfit, system-ui",
-                    fontSize: "clamp(36px, 5vw, 64px)",
+                    fontSize: "clamp(30px, 5vw, 64px)",
                   }}
                 >
                   Pick a tier.<br />Ship in 48 hours.
                 </h2>
               </div>
-              <p className="max-w-sm text-[13px] leading-relaxed text-[#8d8275]">
+              <p className="max-w-md text-[13px] leading-relaxed text-[#8d8275]">
                 Pay only when {firstName} approves the final image. Licensed for your
                 brand, traceable forever.
               </p>
@@ -606,29 +610,29 @@ export default async function CreatorProfilePage(
       )}
 
       {/* ── PULL-QUOTE / Brand testimonial placeholder ──────────────────── */}
-      <section className="relative z-10 px-5 py-24 lg:px-10 lg:py-32">
+      <section className="relative z-10 px-4 py-16 sm:px-5 sm:py-24 lg:px-10 lg:py-32">
         <div className="mx-auto max-w-3xl text-center">
-          <Quote className="mx-auto h-7 w-7 text-[#e8825d]" />
+          <Quote className="mx-auto h-6 w-6 text-[#e8825d] sm:h-7 sm:w-7" />
           <blockquote
-            className="mt-6 font-700 leading-[1.15] tracking-[-0.02em] text-[#f5ebd6]"
+            className="mt-5 font-700 leading-[1.2] tracking-[-0.02em] text-[#f5ebd6] sm:mt-6 sm:leading-[1.15]"
             style={{
               fontFamily: "Outfit, system-ui",
-              fontSize: "clamp(24px, 4vw, 42px)",
+              fontSize: "clamp(20px, 4vw, 42px)",
             }}
           >
             &ldquo;Skipped a full studio shoot. Briefed at 11pm, had three licensed
             campaign images ready before standup.&rdquo;
           </blockquote>
-          <div className="mt-6 font-mono text-[10.5px] font-700 uppercase tracking-[0.22em] text-[#8d8275]">
+          <div className="mt-5 font-mono text-[10px] font-700 uppercase tracking-[0.2em] text-[#8d8275] sm:mt-6 sm:text-[10.5px] sm:tracking-[0.22em]">
             Brand Partner · 2026
           </div>
         </div>
       </section>
 
       {/* ── FINAL CTA — full bleed ───────────────────────────────────────── */}
-      <section className="relative z-10 mx-5 mb-10 overflow-hidden rounded-sm border border-[#2a2520] lg:mx-10">
+      <section className="relative z-10 mx-4 mb-8 overflow-hidden rounded-sm border border-[#2a2520] sm:mx-5 sm:mb-10 lg:mx-10">
         <div
-          className="relative px-6 py-20 md:px-16 md:py-28"
+          className="relative px-5 py-14 sm:px-6 sm:py-20 md:px-16 md:py-28"
           style={{
             background:
               "linear-gradient(135deg, #1a1612 0%, #2a1f15 50%, #1a1612 100%)",
@@ -642,16 +646,16 @@ export default async function CreatorProfilePage(
                 "radial-gradient(circle, rgba(232,130,93,0.5) 0%, transparent 60%)",
             }}
           />
-          <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
-            <div>
-              <div className="font-mono text-[11px] font-700 uppercase tracking-[0.28em] text-[#a89570]">
+          <div className="relative flex flex-col items-start gap-6 sm:gap-8 md:grid md:grid-cols-[1fr_auto] md:items-center">
+            <div className="w-full">
+              <div className="font-mono text-[10px] font-700 uppercase tracking-[0.24em] text-[#a89570] sm:text-[11px] sm:tracking-[0.28em]">
                 Ready when you are
               </div>
               <h2
                 className="mt-3 max-w-2xl font-800 leading-[0.95] tracking-[-0.02em] text-[#f5ebd6]"
                 style={{
                   fontFamily: "Outfit, system-ui",
-                  fontSize: "clamp(40px, 6vw, 72px)",
+                  fontSize: "clamp(32px, 6vw, 72px)",
                 }}
               >
                 Brief {firstName}.
@@ -659,7 +663,7 @@ export default async function CreatorProfilePage(
                 <span className="text-[#e8825d]">Skip the shoot.</span>
               </h2>
               <p
-                className="mt-4 max-w-xl text-[15px] leading-relaxed text-[#a89570]"
+                className="mt-4 max-w-xl text-[14px] leading-relaxed text-[#a89570] sm:text-[15px]"
                 style={{ fontFamily: "Outfit, system-ui" }}
               >
                 One brief. Three days. Licensed campaign-ready images with
@@ -669,19 +673,19 @@ export default async function CreatorProfilePage(
             </div>
             <Link
               href={ctaHref}
-              className="group inline-flex h-16 shrink-0 items-center gap-3 rounded-full bg-[#f5ebd6] px-8 text-[16px] font-800 tracking-tight text-[#0a0908] transition hover:bg-[#e8825d] hover:text-white"
+              className="group inline-flex h-14 w-full shrink-0 items-center justify-center gap-2.5 rounded-full bg-[#f5ebd6] px-6 text-[15px] font-800 tracking-tight text-[#0a0908] transition hover:bg-[#e8825d] hover:text-white sm:h-16 sm:w-auto sm:gap-3 sm:px-8 sm:text-[16px]"
               style={{ fontFamily: "Outfit, system-ui" }}
             >
               Launch a Campaign
-              <ArrowUpRight className="h-5 w-5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 sm:h-5 sm:w-5" />
             </Link>
           </div>
         </div>
       </section>
 
       {/* ── Minimal footer ──────────────────────────────────────────────── */}
-      <footer className="relative z-10 border-t border-[#2a2520] px-5 py-8 lg:px-10">
-        <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 sm:flex-row">
+      <footer className="relative z-10 border-t border-[#2a2520] px-4 py-7 sm:px-5 sm:py-8 lg:px-10">
+        <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-5 text-center sm:flex-row sm:gap-4 sm:text-left">
           <Link href="/" className="group inline-flex items-center gap-2 opacity-80 hover:opacity-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -689,14 +693,14 @@ export default async function CreatorProfilePage(
               alt="Faiceoff"
               className="h-7 w-7 rounded-md object-contain"
             />
-            <span className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[#a89570]">
-              Powered by Faiceoff · India&apos;s licensed-AI marketplace
+            <span className="font-mono text-[9px] font-700 uppercase tracking-[0.2em] text-[#a89570] sm:text-[10px] sm:tracking-[0.22em]">
+              Powered by Faiceoff
             </span>
           </Link>
-          <div className="flex items-center gap-5 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[#6e6457]">
+          <div className="flex items-center gap-4 font-mono text-[9.5px] font-700 uppercase tracking-[0.2em] text-[#6e6457] sm:gap-5 sm:text-[10px] sm:tracking-[0.22em]">
             <Link href="/terms" className="hover:text-[#f5ebd6]">Terms</Link>
             <Link href="/privacy" className="hover:text-[#f5ebd6]">Privacy</Link>
-            <Link href="/verify" className="hover:text-[#f5ebd6]">Verify a license</Link>
+            <Link href="/verify" className="hover:text-[#f5ebd6]">Verify</Link>
           </div>
         </div>
       </footer>
@@ -728,19 +732,19 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 
 function BigStat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex flex-col gap-2 bg-[#0d0c0a] p-7 md:p-10">
+    <div className="flex flex-col gap-2 bg-[#0d0c0a] p-5 sm:p-7 md:p-10">
       <Star className="h-4 w-4 text-[#e8825d]" />
       <div
         className="font-800 tracking-[-0.03em] text-[#f5ebd6]"
         style={{
           fontFamily: "Outfit, system-ui",
-          fontSize: "clamp(40px, 5vw, 72px)",
+          fontSize: "clamp(32px, 5vw, 72px)",
           lineHeight: 1,
         }}
       >
         {value}
       </div>
-      <div className="font-mono text-[10.5px] font-700 uppercase tracking-[0.22em] text-[#8d8275]">
+      <div className="font-mono text-[9.5px] font-700 uppercase tracking-[0.2em] text-[#8d8275] sm:text-[10.5px] sm:tracking-[0.22em]">
         {label}
       </div>
     </div>
