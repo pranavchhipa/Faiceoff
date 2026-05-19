@@ -94,6 +94,31 @@ export function BrandIconRail() {
         {/* Divider below logo */}
         <div className="my-3 h-px w-6 bg-[var(--color-border)]" />
 
+        {/* ── Expand / Collapse toggle — top of rail so it's always visible ── */}
+        <div className={`mb-1 ${expanded ? "w-full px-2" : ""}`}>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            className={`flex items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)] ${
+              expanded
+                ? "h-8 w-full gap-2 px-3 text-[12px] font-600"
+                : "h-8 w-8"
+            }`}
+          >
+            {expanded ? (
+              <>
+                <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+                <span>Collapse</span>
+              </>
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+
+        <div className="mb-2 h-px w-6 bg-[var(--color-border)]" />
+
         {/* ── Nav items ── */}
         <nav
           className={`flex flex-1 flex-col gap-0.5 overflow-y-auto ${
@@ -177,28 +202,6 @@ export function BrandIconRail() {
           ))}
         </nav>
 
-        {/* ── Expand / Collapse toggle ── */}
-        <div className={`mt-3 ${expanded ? "w-full px-2" : ""}`}>
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-            className={`flex items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)] ${
-              expanded
-                ? "h-9 w-full gap-2 px-3 text-[12px] font-600"
-                : "h-8 w-8"
-            }`}
-          >
-            {expanded ? (
-              <>
-                <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
-                <span>Collapse</span>
-              </>
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </div>
       </aside>
     </TooltipProvider>
   );
