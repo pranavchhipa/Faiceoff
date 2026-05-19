@@ -95,6 +95,9 @@ export default function InstagramPage() {
   const [statusLoading, setStatusLoading] = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // True if the creator already finished onboarding earlier — connecting IG
+  // post-onboarding should NOT push them back through categories/compliance.
+  const [alreadyOnboarded, setAlreadyOnboarded] = useState(false);
 
   // Pick up callback messages from URL params
   const igError = searchParams.get("ig_error");
@@ -118,6 +121,19 @@ export default function InstagramPage() {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus, igConnected]);
+
+  // Detect "already onboarded" creators so connecting IG post-launch doesn't
+  // reset their onboarding_step back to 'categories'.
+  useEffect(() => {
+    fetch("/api/dashboard/stats", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.creator?.onboarding_step === "complete") {
+          setAlreadyOnboarded(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     saveDraft({ igHandle, igFollowers, ytHandle, ytSubscribers, bio });
@@ -179,8 +195,16 @@ export default function InstagramPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to save");
-      await advanceStep();
       clearDraft();
+
+      // If the creator already completed onboarding earlier, do NOT push them
+      // back into the categories step. Just save and return to dashboard.
+      if (alreadyOnboarded) {
+        router.push("/creator/dashboard");
+        return;
+      }
+
+      await advanceStep();
       router.push("/dashboard/onboarding/categories");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -189,9 +213,17 @@ export default function InstagramPage() {
 
   async function handleSkip() {
     setSaving(true); setError(null);
-    try { clearDraft(); await advanceStep(); router.push("/dashboard/onboarding/categories"); }
-    catch (err) { setError(err instanceof Error ? err.message : "Something went wrong"); }
-    finally { setSaving(false); }
+    try {
+      clearDraft();
+      if (alreadyOnboarded) {
+        router.push("/creator/dashboard");
+        return;
+      }
+      await advanceStep();
+      router.push("/dashboard/onboarding/categories");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally { setSaving(false); }
   }
 
   const errorBanner = igError
