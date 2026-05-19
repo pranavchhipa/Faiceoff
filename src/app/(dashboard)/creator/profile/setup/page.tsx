@@ -391,82 +391,184 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 4 · Publish + share ── */}
-      <section className="mb-10 rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-primary)]/[0.06] via-transparent to-transparent p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* ── Section 4 · Your link + Publish ──────────────────────────────── */}
+      <section className="mb-10">
+        <div className="mb-5 flex items-baseline justify-between">
           <div>
             <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              4 · Go live
+              4 · Your creator link
             </h2>
-            <p className="mt-1 max-w-md text-[13px] text-[var(--color-muted-foreground)]">
-              Publishing exposes <code className="font-mono text-[12px]">faiceoff.com/creators/{liveSlug ?? "your-handle"}</code> to anyone with the link.
-              {status?.creator?.published && (
-                <>
-                  {" "}You can unpublish anytime — link returns 404 until you flip it back on.
-                </>
-              )}
+            <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
+              One link, always live. Update the handle anytime above — the old URL stops working the moment you save.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+        </div>
+
+        {/* The link card — premium, single, prominent */}
+        <div
+          className={`relative overflow-hidden rounded-2xl border ${
+            status?.creator?.published
+              ? "border-emerald-400/40 bg-gradient-to-br from-emerald-500/[0.08] via-[var(--color-card)] to-[var(--color-card)]"
+              : "border-[var(--color-border)] bg-[var(--color-card)]"
+          }`}
+        >
+          {/* Decorative glow */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-25 blur-3xl"
+            style={{
+              background: status?.creator?.published
+                ? "radial-gradient(circle, #10b981, transparent 60%)"
+                : "radial-gradient(circle, var(--color-primary), transparent 60%)",
+            }}
+          />
+
+          {/* Status pill row */}
+          <div className="relative flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-3">
+            <div className="flex items-center gap-2">
+              {status?.creator?.published ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-emerald-600">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  Live · public
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-secondary)] px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-muted-foreground)]" />
+                  Draft · only you can see
+                </span>
+              )}
+              <span className="hidden text-[11px] text-[var(--color-muted-foreground)] sm:inline">
+                Only one link active per creator.
+              </span>
+            </div>
+            {status?.creator?.view_count !== undefined && status.creator.view_count > 0 && (
+              <span className="font-mono text-[11px] font-600 text-[var(--color-muted-foreground)]">
+                {status.creator.view_count.toLocaleString("en-IN")} {status.creator.view_count === 1 ? "view" : "views"}
+              </span>
+            )}
+          </div>
+
+          {/* URL display */}
+          <div className="relative px-5 py-6 text-center">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Your shareable URL
+            </p>
+            <p className="mt-2 break-all font-display text-[20px] font-700 tracking-tight text-[var(--color-foreground)] md:text-[26px]">
+              faiceoff.com/creators/
+              <span className="text-[var(--color-primary)]">
+                {liveSlug ?? slugDraft ?? "your-handle"}
+              </span>
+            </p>
+          </div>
+
+          {/* Action row */}
+          <div className="relative grid grid-cols-2 gap-px border-t border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-4">
+            {/* Copy */}
+            <button
+              type="button"
+              onClick={copyLink}
+              disabled={!liveSlug}
+              className="flex items-center justify-center gap-2 bg-[var(--color-card)] px-3 py-3.5 text-[12.5px] font-700 text-[var(--color-foreground)] transition hover:bg-[var(--color-secondary)] disabled:opacity-40"
+              title={liveSlug ? "Copy link" : "Save categories first to enable"}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copyState === "copied" ? "Copied" : "Copy link"}
+            </button>
+
+            {/* Preview */}
+            <Link
+              href={liveSlug ? `/creators/${liveSlug}?preview=1` : "#"}
+              target="_blank"
+              aria-disabled={!liveSlug}
+              onClick={(e) => {
+                if (!liveSlug) e.preventDefault();
+              }}
+              className={`flex items-center justify-center gap-2 bg-[var(--color-card)] px-3 py-3.5 text-[12.5px] font-700 transition hover:bg-[var(--color-secondary)] ${
+                liveSlug
+                  ? "text-[var(--color-foreground)]"
+                  : "pointer-events-none text-[var(--color-muted-foreground)] opacity-40"
+              }`}
+              title={liveSlug ? "Preview as a brand would see it" : "Save first"}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview
+            </Link>
+
+            {/* View live (only when published) OR Share */}
+            {status?.creator?.published && liveSlug ? (
+              <Link
+                href={`/creators/${liveSlug}`}
+                target="_blank"
+                className="flex items-center justify-center gap-2 bg-[var(--color-card)] px-3 py-3.5 text-[12.5px] font-700 text-[var(--color-foreground)] transition hover:bg-[var(--color-secondary)]"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Open live
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="flex items-center justify-center gap-2 bg-[var(--color-card)] px-3 py-3.5 text-[12.5px] font-700 text-[var(--color-muted-foreground)] opacity-40"
+                title="Publish first to open the public version"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Open live
+              </button>
+            )}
+
+            {/* Publish / Unpublish — primary CTA */}
             {status?.creator?.published ? (
-              <Button
+              <button
                 type="button"
                 onClick={() => handlePublish(false)}
                 disabled={publishing}
-                className="h-9 gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-[13px] font-700 text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)]"
-              >
-                <EyeOff className="h-3.5 w-3.5" />
-                Unpublish
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={() => handlePublish(true)}
-                disabled={publishing || !canPublish}
-                className="h-9 gap-2 rounded-lg bg-emerald-500 px-4 text-[13px] font-700 text-white hover:opacity-90 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-[var(--color-card)] px-3 py-3.5 text-[12.5px] font-700 text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
               >
                 {publishing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Eye className="h-3.5 w-3.5" />
+                  <EyeOff className="h-3.5 w-3.5" />
                 )}
-                Publish profile
-              </Button>
+                Unpublish
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handlePublish(true)}
+                disabled={publishing || !canPublish}
+                className="flex items-center justify-center gap-2 bg-emerald-500 px-3 py-3.5 text-[12.5px] font-700 text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {publishing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Publish
+              </button>
             )}
           </div>
         </div>
 
-        {status?.creator?.published && liveUrl && (
-          <div className="mt-5 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
-            <span className="flex h-7 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 text-[11px] font-700 uppercase tracking-wider text-emerald-500">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Live
-            </span>
-            <code className="flex-1 truncate font-mono text-[12.5px] text-[var(--color-foreground)]">
-              {liveUrl}
-            </code>
-            <button
-              type="button"
-              onClick={copyLink}
-              className="flex h-7 items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-secondary)] px-2.5 text-[11px] font-700 text-[var(--color-foreground)] hover:bg-[var(--color-card)]"
-            >
-              <Copy className="h-3 w-3" />
-              {copyState === "copied" ? "Copied!" : "Copy"}
-            </button>
-            <Link
-              href={`/creators/${liveSlug}`}
-              target="_blank"
-              className="flex h-7 items-center gap-1.5 rounded-md bg-[var(--color-primary)] px-2.5 text-[11px] font-700 text-[var(--color-primary-foreground)] hover:opacity-90"
-            >
-              <Share2 className="h-3 w-3" />
-              View
-            </Link>
-          </div>
-        )}
-        {!status?.creator?.published && !canPublish && (
+        {/* Helper text below the card */}
+        {!status?.creator?.published && (
           <p className="mt-3 text-[12px] text-[var(--color-muted-foreground)]">
-            <ArrowRight className="mr-1 inline h-3 w-3" />
-            Build at least 1 Style Reel frame first to unlock Publish.
+            {!canPublish ? (
+              <>
+                <ArrowRight className="mr-1 inline h-3 w-3" />
+                Build at least 1 Style Reel frame to unlock Publish.
+              </>
+            ) : (
+              <>
+                <Eye className="mr-1 inline h-3 w-3" />
+                Preview shows the exact page brands will see. Looks good? Hit Publish.
+              </>
+            )}
+          </p>
+        )}
+        {status?.creator?.published && (
+          <p className="mt-3 text-[12px] text-[var(--color-muted-foreground)]">
+            <CheckCircle2 className="mr-1 inline h-3 w-3 text-emerald-500" />
+            You&apos;re live. Drop the URL in your Instagram bio, WhatsApp, anywhere — only this one link is active.
           </p>
         )}
       </section>

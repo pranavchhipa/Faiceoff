@@ -33,6 +33,8 @@ const APP_URL =
 
 interface PublicProfileResponse {
   slug: string;
+  published: boolean;
+  preview: boolean;
   published_at: string | null;
   theme: string;
   is_live: boolean;
@@ -66,10 +68,18 @@ interface PublicProfileResponse {
   };
 }
 
-async function fetchProfile(slug: string): Promise<PublicProfileResponse | null> {
-  const res = await fetch(`${APP_URL}/api/public/creators/${slug}`, {
-    // Revalidate every 60s — profile data is fairly static
-    next: { revalidate: 60 },
+async function fetchProfile(
+  slug: string,
+  opts: { preview?: boolean; cookieHeader?: string | null } = {},
+): Promise<PublicProfileResponse | null> {
+  const url = `${APP_URL}/api/public/creators/${slug}${opts.preview ? "?preview=1" : ""}`;
+  const res = await fetch(url, {
+    // Preview = no cache (need fresh + auth), public = revalidate every 60s
+    next: opts.preview ? { revalidate: 0 } : { revalidate: 60 },
+    cache: opts.preview ? "no-store" : undefined,
+    headers: opts.cookieHeader
+      ? { cookie: opts.cookieHeader }
+      : undefined,
   });
   if (!res.ok) return null;
   return (await res.json()) as PublicProfileResponse;
@@ -127,10 +137,30 @@ const TIER_META: Record<string, { label: string; tagline: string; emoji: string 
 };
 
 export default async function CreatorProfilePage(
-  { params }: { params: Promise<{ slug: string }> },
+  {
+    params,
+    searchParams,
+  }: {
+    params: Promise<{ slug: string }>;
+    searchParams: Promise<{ preview?: string }>;
+  },
 ) {
   const { slug } = await params;
-  const data = await fetchProfile(slug);
+  const sp = await searchParams;
+  const wantsPreview = sp.preview === "1";
+
+  // For preview, forward the caller's cookies so the API can verify ownership.
+  let cookieHeader: string | null = null;
+  if (wantsPreview) {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    cookieHeader = h.get("cookie");
+  }
+
+  const data = await fetchProfile(slug, {
+    preview: wantsPreview,
+    cookieHeader,
+  });
   if (!data) notFound();
 
   const c = data.creator;
@@ -149,6 +179,19 @@ export default async function CreatorProfilePage(
 
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
+      {/* ── Preview banner (only when owner previews unpublished) ─────────── */}
+      {data.preview && (
+        <div className="sticky top-0 z-50 flex items-center justify-center gap-2 border-b border-amber-400/40 bg-amber-500/10 px-4 py-2 text-center text-[12px] font-600 text-amber-700 backdrop-blur-md">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+          Preview mode · this profile isn&apos;t public yet. Publish it from
+          {" "}
+          <Link href="/creator/profile/setup" className="font-700 underline underline-offset-2">
+            setup
+          </Link>
+          {" "}to make it live.
+        </div>
+      )}
+
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <header className="relative overflow-hidden border-b border-[var(--color-border)] bg-gradient-to-br from-[var(--color-primary)]/[0.08] via-[var(--color-background)] to-[var(--color-background)]">
         {/* Decorative grain dots */}

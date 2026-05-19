@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -7,18 +8,24 @@ type Admin = any;
 /**
  * GET /api/public/creators/[slug]
  *
- * Public endpoint — no auth required. Returns the data needed to render the
- * brand-facing creator profile page. Increments profile_view_count.
+ * Public endpoint — no auth required by default. Returns the data needed to
+ * render the brand-facing creator profile page. Increments profile_view_count.
  *
  * Returns 404 if:
  *   - No creator with this slug
- *   - profile_published = false
+ *   - profile_published = false  AND  ?preview=1 is NOT set / not the owner
+ *
+ * Preview mode: when `?preview=1` is on the URL and the authenticated user
+ * owns this creator row, we bypass the published check so the creator can
+ * see exactly what brands will see before flipping the switch.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
+  const url = new URL(request.url);
+  const isPreview = url.searchParams.get("preview") === "1";
 
   if (!slug || typeof slug !== "string") {
     return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
@@ -26,7 +33,9 @@ export async function GET(
 
   const admin = createAdminClient() as Admin;
 
-  // ── Resolve creator ──────────────────────────────────────────────────────
+  // ── Resolve creator (preview-aware) ──────────────────────────────────────
+  // Build the query without the published filter, then enforce it in code so
+  // we can branch on auth for preview mode.
   const { data: creator } = await admin
     .from("creators")
     .select(
@@ -49,32 +58,45 @@ export async function GET(
       `,
     )
     .eq("profile_slug", slug.toLowerCase())
-    .eq("profile_published", true)
     .maybeSingle();
 
   if (!creator) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // ── Bump view count (best-effort, fire-and-forget) ──────────────────────
-  // Read-modify-write; supabase-js doesn't expose `col + 1` server-side here.
-  // Race conditions are fine — analytics aren't billing-grade.
-  void (async () => {
-    try {
-      const { data: row } = await admin
-        .from("creators")
-        .select("profile_view_count")
-        .eq("id", creator.id)
-        .maybeSingle();
-      const next = (row?.profile_view_count ?? 0) + 1;
-      await admin
-        .from("creators")
-        .update({ profile_view_count: next })
-        .eq("id", creator.id);
-    } catch {
-      // ignore
+  // If not published, only allow viewing in preview mode and only the OWNER.
+  if (!creator.profile_published) {
+    if (!isPreview) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-  })();
+    // Owner check via Supabase auth
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.id !== creator.user_id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
+
+  // ── Bump view count (best-effort, fire-and-forget) ──────────────────────
+  // Skip in preview mode — don't inflate analytics with owner's own views.
+  if (!isPreview) {
+    void (async () => {
+      try {
+        const { data: row } = await admin
+          .from("creators")
+          .select("profile_view_count")
+          .eq("id", creator.id)
+          .maybeSingle();
+        const next = (row?.profile_view_count ?? 0) + 1;
+        await admin
+          .from("creators")
+          .update({ profile_view_count: next })
+          .eq("id", creator.id);
+      } catch {
+        // ignore
+      }
+    })();
+  }
 
   // ── Display name from users table ────────────────────────────────────────
   const { data: userRow } = await admin
@@ -126,6 +148,8 @@ export async function GET(
 
   return NextResponse.json({
     slug: creator.profile_slug,
+    published: Boolean(creator.profile_published),
+    preview: isPreview && !creator.profile_published,
     published_at: creator.profile_published_at,
     theme: creator.profile_theme ?? "default",
     is_live: Boolean(creator.is_live),
