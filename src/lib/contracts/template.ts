@@ -12,10 +12,11 @@
  */
 
 export const CONTRACT_CONSTANTS = {
-  TEMPLATE_VERSION: "v1.2026-04",
+  TEMPLATE_VERSION: "v1.2026-05",
   GOVERNING_LAW: "Laws of India",
-  JURISDICTION: "Mumbai, Maharashtra, India",
-  PLATFORM_ENTITY_NAME: "Faiceoff Platform Pvt. Ltd.",
+  JURISDICTION: "Gautam Budh Nagar, Uttar Pradesh, India",
+  // Operating entity: Faiceoff is operated by Isometrica Experiences Pvt. Ltd.
+  PLATFORM_ENTITY_NAME: "Isometrica Experiences Pvt. Ltd.",
 } as const;
 
 export type LicenseTemplate = "creation" | "creation_promotion";

@@ -272,7 +272,7 @@ export default async function VerifyPage({
               The license ID you scanned or entered does not match any record in our system.
               If you believe this is an error, contact{" "}
               <a
-                href="mailto:marketing@rectangled.io"
+                href="mailto:support@faiceoff.com"
                 className="text-[var(--color-primary)] hover:underline"
               >
                 support

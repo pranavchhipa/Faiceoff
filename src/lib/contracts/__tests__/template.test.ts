@@ -45,13 +45,13 @@ function stripDashesAndDigits(markdown: string): string {
 }
 
 describe("CONTRACT_CONSTANTS", () => {
-  it("exports template version v1.2026-04", () => {
-    expect(CONTRACT_CONSTANTS.TEMPLATE_VERSION).toBe("v1.2026-04");
+  it("exports current template version", () => {
+    expect(CONTRACT_CONSTANTS.TEMPLATE_VERSION).toMatch(/^v\d+\.\d{4}-\d{2}$/);
   });
 
-  it("locks jurisdiction to Mumbai, Maharashtra, India", () => {
+  it("locks jurisdiction to Gautam Budh Nagar, UP, India (registered office district)", () => {
     expect(CONTRACT_CONSTANTS.JURISDICTION).toBe(
-      "Mumbai, Maharashtra, India",
+      "Gautam Budh Nagar, Uttar Pradesh, India",
     );
   });
 
@@ -59,8 +59,10 @@ describe("CONTRACT_CONSTANTS", () => {
     expect(CONTRACT_CONSTANTS.GOVERNING_LAW).toBe("Laws of India");
   });
 
-  it("platform entity name defined", () => {
-    expect(CONTRACT_CONSTANTS.PLATFORM_ENTITY_NAME).toMatch(/Faiceoff/);
+  it("platform entity name is the operating company", () => {
+    expect(CONTRACT_CONSTANTS.PLATFORM_ENTITY_NAME).toBe(
+      "Isometrica Experiences Pvt. Ltd.",
+    );
   });
 });
 
@@ -231,10 +233,10 @@ describe("generateContract", () => {
     expect(markdown).not.toContain("### 3.1 Promotion Scope");
   });
 
-  it("governing law section names Mumbai jurisdiction + IT Act reference", () => {
+  it("governing law section names Gautam Budh Nagar jurisdiction + IT Act reference", () => {
     const { markdown } = generateContract(SAMPLE_INPUT);
     expect(markdown).toContain("Laws of India");
-    expect(markdown).toContain("Mumbai, Maharashtra");
+    expect(markdown).toContain("Gautam Budh Nagar, Uttar Pradesh");
     expect(markdown).toMatch(/Arbitration and Conciliation Act/);
   });
 

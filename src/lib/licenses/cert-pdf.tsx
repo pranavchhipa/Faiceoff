@@ -95,7 +95,7 @@ const STANDARD_RESTRICTIONS: string[] = [
   "Use that defames, demeans, or portrays the Licensor in a false or misleading manner.",
   "Use of the Licensor's name, voice, or likeness as a celebrity endorsement or paid testimonial unless separately negotiated.",
   "Modification of the image to alter the Licensor's identity, ethnicity, body, or to combine with content the Licensor has not approved.",
-  "Use after the Term ends, or after revocation by the Licensor or by Faiceoff Platform Pvt. Ltd.",
+  "Use after the Term ends, or after revocation by the Licensor or by Isometrica Experiences Pvt. Ltd.",
   "Re-uploading the image to AI training datasets, model fine-tuning corpora, or stock-image platforms.",
 ];
 
@@ -657,7 +657,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
   return (
     <Document
       title={`Faiceoff Licence Certificate — ${certNumber}`}
-      author="Faiceoff Platform Pvt. Ltd."
+      author="Isometrica Experiences Pvt. Ltd."
       subject="AI Likeness Licence Certificate"
       creator="Faiceoff Platform"
       keywords="licence, ai, likeness, india, faiceoff"
@@ -822,7 +822,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
         <View style={styles.footer} fixed>
           <View style={styles.footerLeft}>
             <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>Faiceoff Platform Pvt. Ltd.</Text>
+              <Text style={styles.footerBold}>Isometrica Experiences Pvt. Ltd.</Text>
               {" · Issued in compliance with the DPDP Act 2023 & IT Act 2000."}
             </Text>
             <Text style={styles.footerText}>
@@ -995,7 +995,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
           <View style={styles.signRow}>
             <View style={styles.signBlock}>
               <Text style={styles.signLabel}>Issued by</Text>
-              <Text style={styles.signValue}>Faiceoff Platform Pvt. Ltd.</Text>
+              <Text style={styles.signValue}>Isometrica Experiences Pvt. Ltd.</Text>
               <Text style={styles.signMeta}>Mumbai, India</Text>
               <Text style={styles.signMeta}>
                 Issued: {formatDate(license.issued_at)}
@@ -1015,7 +1015,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
         <View style={styles.footer} fixed>
           <View style={styles.footerLeft}>
             <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>Faiceoff Platform Pvt. Ltd.</Text>
+              <Text style={styles.footerBold}>Isometrica Experiences Pvt. Ltd.</Text>
               {" · faiceoff.com · Mumbai, Maharashtra, India"}
             </Text>
             <Text style={styles.footerText}>

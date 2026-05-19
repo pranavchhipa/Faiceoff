@@ -218,8 +218,8 @@ function wrap(title: string, opts: WrapOpts): string {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td style="font-size:11.5px;color:${COLORS.muted};line-height:1.6;">
-                    <strong style="color:${COLORS.inkSoft};">Faiceoff Platform Pvt. Ltd.</strong><br>
-                    India's AI face licensing marketplace · Made in India<br>
+                    <strong style="color:${COLORS.inkSoft};">Isometrica Experiences Pvt. Ltd.</strong> · B-23, Sector 63, Noida — 201301<br>
+                    Operating Faiceoff — India's AI face licensing marketplace<br>
                     <a href="mailto:${SUPPORT_EMAIL}" style="color:${COLORS.goldDeep};text-decoration:none;">${SUPPORT_EMAIL}</a>
                     &nbsp;·&nbsp;
                     <a href="${APP_URL}" style="color:${COLORS.goldDeep};text-decoration:none;">${APP_URL.replace(/^https?:\/\//, "")}</a>

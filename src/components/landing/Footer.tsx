@@ -13,6 +13,7 @@
 
 import type { SVGProps } from "react";
 import Link from "next/link";
+import { COMPANY } from "@/lib/constants/company";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Inline social-icon SVGs.
@@ -68,10 +69,10 @@ const PRODUCT_LINKS = [
 ] as const;
 
 const COMPANY_LINKS = [
+  { href: "/contact", label: "Contact" },
   { href: "#", label: "About" },
   { href: "#", label: "Blog" },
   { href: "#", label: "Careers" },
-  { href: "#", label: "Press" },
 ] as const;
 
 const LEGAL_LINKS = [
@@ -131,6 +132,37 @@ export function Footer() {
               &mdash; built for creators, trusted by brands.
             </p>
 
+            {/* Contact block — address + phone + email */}
+            <address
+              className="not-italic mt-6 space-y-1.5 text-[13px] leading-relaxed"
+              style={{ color: "var(--lp-muted)" }}
+            >
+              <div style={{ color: "var(--lp-ink-soft)", fontWeight: 600 }}>
+                {COMPANY.legalName}
+              </div>
+              <div>{COMPANY.address.inline}</div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <a
+                  href={COMPANY.phone.tel}
+                  className="hover:underline"
+                  style={{ color: "var(--lp-ink-soft)", textUnderlineOffset: 3 }}
+                >
+                  {COMPANY.phone.display}
+                </a>
+                <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+                <a
+                  href={`mailto:${COMPANY.emails.hello}`}
+                  className="hover:underline"
+                  style={{ color: "var(--lp-ink-soft)", textUnderlineOffset: 3 }}
+                >
+                  {COMPANY.emails.hello}
+                </a>
+              </div>
+              <div className="text-[12px]" style={{ opacity: 0.8 }}>
+                {COMPANY.hours}
+              </div>
+            </address>
+
             {/* socials */}
             <div className="mt-6 flex items-center gap-2">
               {[
@@ -178,7 +210,7 @@ export function Footer() {
           }}
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span>&copy; {year} Faiceoff Platform Pvt. Ltd.</span>
+            <span>&copy; {year} {COMPANY.legalName}</span>
             <span aria-hidden>&middot;</span>
             <span>
               Made in India{" "}
