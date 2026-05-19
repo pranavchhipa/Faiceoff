@@ -54,6 +54,8 @@ export async function GET(
       instagram_account_type,
       instagram_verified,
       instagram_media_count,
+      youtube_handle,
+      youtube_subscribers,
       is_live
       `,
     )
@@ -163,6 +165,8 @@ export async function GET(
       instagram_account_type: creator.instagram_account_type,
       instagram_verified: Boolean(creator.instagram_verified),
       instagram_media_count: creator.instagram_media_count,
+      youtube_handle: creator.youtube_handle ?? null,
+      youtube_subscribers: creator.youtube_subscribers ?? null,
     },
     categories: creator.selected_categories ?? [],
     samples: (samples ?? []).map((s: { id: string; category: string; image_url: string; created_at: string }) => ({

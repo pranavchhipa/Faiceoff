@@ -46,6 +46,8 @@ interface PublicProfileResponse {
     instagram_account_type: string | null;
     instagram_verified: boolean;
     instagram_media_count: number | null;
+    youtube_handle: string | null;
+    youtube_subscribers: number | null;
   };
   categories: DemoCategoryKey[];
   samples: Array<{
@@ -325,16 +327,15 @@ export default async function CreatorProfilePage(
               </div>
             )}
 
-            {/* MASSIVE name */}
+            {/* Name */}
             <h1
-              className="break-words font-800 leading-[0.9] tracking-[-0.035em] text-[#f5ebd6] sm:leading-[0.88] sm:tracking-[-0.04em]"
+              className="break-words font-800 leading-[0.95] tracking-[-0.03em] text-[#f5ebd6] sm:leading-[0.92] sm:tracking-[-0.035em]"
               style={{
                 fontFamily: "Outfit, system-ui",
-                fontSize: "clamp(44px, 12vw, 160px)",
+                fontSize: "clamp(36px, 7vw, 88px)",
               }}
             >
               {c.display_name}
-              <span className="text-[#e8825d]">.</span>
             </h1>
 
             {/* Handle */}
@@ -361,33 +362,26 @@ export default async function CreatorProfilePage(
               </p>
             )}
 
-            {/* Stats inline */}
-            <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[#2a2520] pt-6 sm:mt-9 sm:flex sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-3 sm:pt-7">
-              {c.instagram_followers !== null && c.instagram_followers > 0 && (
-                <HeroStat
-                  value={compactNumber(c.instagram_followers)}
-                  label="followers"
-                />
-              )}
-              {data.stats.completed_collabs > 0 && (
-                <HeroStat
-                  value={data.stats.completed_collabs.toString()}
-                  label="collabs done"
-                />
-              )}
-              {data.stats.approval_rate_pct !== null && (
-                <HeroStat
-                  value={`${data.stats.approval_rate_pct}%`}
-                  label="approval rate"
-                />
-              )}
-              {c.instagram_media_count !== null && c.instagram_media_count > 0 && (
-                <HeroStat
-                  value={compactNumber(c.instagram_media_count)}
-                  label="IG posts"
-                />
-              )}
-            </div>
+            {/* Stats inline — creator marketplace metrics only.
+                Social-platform numbers (IG followers / YouTube subs) live in
+                the dedicated SocialCard section below. */}
+            {(data.stats.completed_collabs > 0 ||
+              data.stats.approval_rate_pct !== null) && (
+              <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[#2a2520] pt-6 sm:mt-9 sm:flex sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-3 sm:pt-7">
+                {data.stats.completed_collabs > 0 && (
+                  <HeroStat
+                    value={data.stats.completed_collabs.toString()}
+                    label="collabs done"
+                  />
+                )}
+                {data.stats.approval_rate_pct !== null && (
+                  <HeroStat
+                    value={`${data.stats.approval_rate_pct}%`}
+                    label="approval rate"
+                  />
+                )}
+              </div>
+            )}
 
             {/* CTA */}
             <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
@@ -412,6 +406,69 @@ export default async function CreatorProfilePage(
           </div>
         </div>
       </section>
+
+      {/* ── SOCIAL — IG + YouTube cards ─────────────────────────────────── */}
+      {(c.instagram_handle || c.youtube_handle) && (
+        <section className="relative z-10 mx-auto max-w-[1400px] px-4 pb-14 sm:px-5 sm:pb-20 lg:px-10 lg:pb-24">
+          <div className="mb-5 flex items-end justify-between gap-3 sm:mb-7">
+            <div>
+              <div className="font-mono text-[10px] font-700 uppercase tracking-[0.24em] text-[#a89570] sm:text-[11px] sm:tracking-[0.28em]">
+                Audience
+              </div>
+              <h2
+                className="mt-1.5 font-800 leading-[0.95] tracking-[-0.02em] text-[#f5ebd6] sm:mt-2"
+                style={{
+                  fontFamily: "Outfit, system-ui",
+                  fontSize: "clamp(24px, 3.5vw, 40px)",
+                }}
+              >
+                Where {firstName} shows up.
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            {c.instagram_handle && (
+              <SocialCard
+                platform="instagram"
+                handle={c.instagram_handle}
+                href={`https://instagram.com/${c.instagram_handle}`}
+                primaryStat={
+                  c.instagram_followers !== null && c.instagram_followers > 0
+                    ? compactNumber(c.instagram_followers)
+                    : "—"
+                }
+                primaryLabel="followers"
+                secondaryStat={
+                  c.instagram_media_count !== null && c.instagram_media_count > 0
+                    ? compactNumber(c.instagram_media_count)
+                    : null
+                }
+                secondaryLabel="posts"
+                verified={c.instagram_verified}
+                accountType={c.instagram_account_type}
+              />
+            )}
+            {c.youtube_handle && (
+              <SocialCard
+                platform="youtube"
+                handle={c.youtube_handle.replace(/^@/, "")}
+                href={`https://youtube.com/${c.youtube_handle.startsWith("@") ? c.youtube_handle : `@${c.youtube_handle}`}`}
+                primaryStat={
+                  c.youtube_subscribers !== null && c.youtube_subscribers > 0
+                    ? compactNumber(c.youtube_subscribers)
+                    : "—"
+                }
+                primaryLabel="subscribers"
+                secondaryStat={null}
+                secondaryLabel={null}
+                verified={false}
+                accountType={null}
+              />
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── PORTFOLIO — magazine bento ──────────────────────────────────── */}
       {orderedSamples.length > 0 && (
@@ -473,7 +530,7 @@ export default async function CreatorProfilePage(
                         </div>
                       </div>
                       <span className="rounded-full bg-black/60 px-2 py-0.5 font-mono text-[8.5px] font-700 uppercase tracking-wider text-white/70 backdrop-blur-md ring-1 ring-white/10">
-                        AI · Demo
+                        Made by Faiceoff
                       </span>
                     </figcaption>
                   </figure>
@@ -727,6 +784,145 @@ function HeroStat({ value, label }: { value: string; label: string }) {
         {label}
       </div>
     </div>
+  );
+}
+
+/* Social platform brand SVGs (inline, no external assets) */
+function IgGlyph({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <defs>
+        <radialGradient id="ig-grad" cx="30%" cy="107%" r="150%">
+          <stop offset="0%" stopColor="#ffd600" />
+          <stop offset="30%" stopColor="#ff6930" />
+          <stop offset="60%" stopColor="#e2436f" />
+          <stop offset="90%" stopColor="#c837ab" />
+          <stop offset="100%" stopColor="#6559ca" />
+        </radialGradient>
+      </defs>
+      <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig-grad)" />
+      <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.6" fill="none" />
+      <circle cx="17.2" cy="6.8" r="1" fill="white" />
+    </svg>
+  );
+}
+
+function YtGlyph({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <rect x="2" y="5" width="20" height="14" rx="4" fill="#FF0000" />
+      <polygon points="10,8.5 10,15.5 16,12" fill="white" />
+    </svg>
+  );
+}
+
+function SocialCard({
+  platform,
+  handle,
+  href,
+  primaryStat,
+  primaryLabel,
+  secondaryStat,
+  secondaryLabel,
+  verified,
+  accountType,
+}: {
+  platform: "instagram" | "youtube";
+  handle: string;
+  href: string;
+  primaryStat: string;
+  primaryLabel: string;
+  secondaryStat: string | null;
+  secondaryLabel: string | null;
+  verified: boolean;
+  accountType: string | null;
+}) {
+  const Icon = platform === "instagram" ? IgGlyph : YtGlyph;
+  const platformLabel = platform === "instagram" ? "Instagram" : "YouTube";
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="group relative flex items-center gap-4 overflow-hidden rounded-sm border border-[#2a2520] bg-[#0d0c0a] p-5 transition hover:border-[#3a3530] hover:bg-[#1a1612] sm:p-6"
+    >
+      {/* Subtle hover glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-2xl transition group-hover:opacity-30"
+        style={{
+          background:
+            platform === "instagram"
+              ? "radial-gradient(circle, #e2436f, transparent 70%)"
+              : "radial-gradient(circle, #FF0000, transparent 70%)",
+        }}
+      />
+
+      {/* Platform icon */}
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
+        <Icon className="h-10 w-10 sm:h-12 sm:w-12" />
+      </div>
+
+      {/* Identity + stats */}
+      <div className="relative min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] font-700 uppercase tracking-[0.2em] text-[#a89570]">
+            {platformLabel}
+          </span>
+          {verified && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-px font-mono text-[8.5px] font-700 uppercase tracking-wider text-emerald-400">
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              Verified
+            </span>
+          )}
+          {accountType && (
+            <span className="font-mono text-[8.5px] font-700 uppercase tracking-wider text-[#8d8275]">
+              · {accountType.replace("_", " ")}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 truncate font-display text-[15px] font-700 text-[#f5ebd6] sm:text-[16px]">
+          @{handle}
+        </div>
+        <div className="mt-3 flex items-baseline gap-5">
+          <div>
+            <div
+              className="font-800 tracking-[-0.02em] text-[#f5ebd6]"
+              style={{
+                fontFamily: "Outfit, system-ui",
+                fontSize: "clamp(22px, 2.5vw, 30px)",
+                lineHeight: 1,
+              }}
+            >
+              {primaryStat}
+            </div>
+            <div className="mt-1 font-mono text-[9.5px] font-700 uppercase tracking-[0.18em] text-[#8d8275]">
+              {primaryLabel}
+            </div>
+          </div>
+          {secondaryStat && secondaryLabel && (
+            <div>
+              <div
+                className="font-800 tracking-[-0.02em] text-[#d9c9aa]"
+                style={{
+                  fontFamily: "Outfit, system-ui",
+                  fontSize: "clamp(18px, 2vw, 24px)",
+                  lineHeight: 1,
+                }}
+              >
+                {secondaryStat}
+              </div>
+              <div className="mt-1 font-mono text-[9.5px] font-700 uppercase tracking-[0.18em] text-[#8d8275]">
+                {secondaryLabel}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ArrowUpRight className="relative h-4 w-4 shrink-0 text-[#a89570] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#f5ebd6]" />
+    </a>
   );
 }
 
