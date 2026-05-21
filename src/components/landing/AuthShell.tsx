@@ -86,7 +86,7 @@ export function AuthShell({
             >
               {/* Subtle watermark */}
               <motion.img
-                src="/logo-mark.svg"
+                src="/logo-mark.png"
                 alt=""
                 aria-hidden
                 className="absolute -right-16 -bottom-16 h-[260px] w-auto opacity-10 pointer-events-none"

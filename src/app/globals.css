@@ -4,15 +4,6 @@
    Faiceoff — Hybrid Soft Luxe v2 Design System
    ============================================================ */
 
-/* ── Theme-adaptive logo (see src/components/brand/logo.tsx) ──
-   <Logo variant="full" adaptive /> renders BOTH lockups; these rules show
-   the navy lockup on light theme and the cream lockup on .dark. Tailwind's
-   dark: variant isn't wired to html.dark in this project, so we toggle here. */
-.fco-logo-dark { display: none; }
-.fco-logo-light { display: inline-block; }
-html.dark .fco-logo-light { display: none; }
-html.dark .fco-logo-dark { display: inline-block; }
-
 /* ── shadcn/ui semantic tokens mapped to Faiceoff palette ── */
 :root {
   --radius: 0.625rem;
