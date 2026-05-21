@@ -45,8 +45,10 @@ interface Ticket {
 interface Message {
   id: string;
   sender_kind: string;
-  body: string;
+  body: string | null;
   action_tag: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
   created_at: string;
 }
 
@@ -81,7 +83,7 @@ export default async function TicketDetailPage({ params }: Props) {
   const [{ data: messages }, { data: raiser }] = await Promise.all([
     admin
       .from("ticket_messages")
-      .select("id, sender_kind, body, action_tag, created_at")
+      .select("id, sender_kind, body, action_tag, attachment_url, attachment_name, created_at")
       .eq("ticket_id", id)
       .order("created_at", { ascending: true }),
     admin.from("users").select("display_name, email").eq("id", t.user_id).maybeSingle(),
@@ -141,9 +143,21 @@ export default async function TicketDetailPage({ params }: Props) {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 13, color: "var(--cc-fg)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-                  {m.body}
-                </div>
+                {m.attachment_url && (
+                  <a href={m.attachment_url} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: m.body ? 8 : 0 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+                    <img
+                      src={m.attachment_url}
+                      alt={m.attachment_name ?? "Screenshot"}
+                      style={{ maxHeight: 240, maxWidth: "100%", borderRadius: 6, border: "1px solid var(--cc-border)", display: "block" }}
+                    />
+                  </a>
+                )}
+                {m.body && (
+                  <div style={{ fontSize: 13, color: "var(--cc-fg)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                    {m.body}
+                  </div>
+                )}
               </div>
             );
           })}

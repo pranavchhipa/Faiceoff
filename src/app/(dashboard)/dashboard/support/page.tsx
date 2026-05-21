@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   Clock,
   ArrowLeft,
+  Paperclip,
+  X,
 } from "lucide-react";
 
 interface Ticket {
@@ -35,9 +37,24 @@ interface Ticket {
 interface Message {
   id: string;
   sender_kind: "user" | "operator";
-  body: string;
+  body: string | null;
   action_tag: string | null;
+  attachment_url: string | null;
+  attachment_type: string | null;
+  attachment_name: string | null;
   created_at: string;
+}
+
+/** Upload a screenshot to /api/support/upload; returns the metadata or null. */
+async function uploadScreenshot(
+  file: File,
+): Promise<{ url: string; type: string; name: string } | null> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/support/upload", { method: "POST", body: fd });
+  if (!res.ok) return null;
+  const d = await res.json();
+  return { url: d.url, type: d.type, name: d.name };
 }
 
 const CATEGORIES = [
@@ -229,6 +246,26 @@ function NewTicketForm({
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<{ url: string; type: string; name: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const result = await uploadScreenshot(file);
+      if (!result) {
+        setError("Couldn't upload that image. Try a JPG/PNG under 8MB.");
+        return;
+      }
+      setAttachment(result);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -238,7 +275,14 @@ function NewTicketForm({
       const res = await fetch("/api/support/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, category, message }),
+        body: JSON.stringify({
+          subject,
+          category,
+          message,
+          attachment_url: attachment?.url ?? null,
+          attachment_type: attachment?.type ?? null,
+          attachment_name: attachment?.name ?? null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -297,12 +341,48 @@ function NewTicketForm({
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          required
           rows={5}
           maxLength={4000}
           placeholder="What happened? Include any details that help us resolve it fast."
           className="w-full resize-y rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
         />
+      </div>
+
+      {/* Screenshot attachment */}
+      <div>
+        <label className="mb-1.5 block text-[12px] font-700 text-[var(--color-foreground)]">
+          Screenshot <span className="font-400 text-[var(--color-muted-foreground)]">(optional)</span>
+        </label>
+        {attachment ? (
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={attachment.url}
+              alt={attachment.name}
+              className="max-h-40 rounded-lg border border-[var(--color-border)] object-contain"
+            />
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              aria-label="Remove screenshot"
+              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-foreground)] text-[var(--color-background)] shadow"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[13px] font-600 text-[var(--color-muted-foreground)] transition hover:border-[var(--color-primary)]/40 hover:text-[var(--color-foreground)]">
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            {uploading ? "Uploading…" : "Attach a screenshot"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={handleFile}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        )}
       </div>
 
       {error && (
@@ -338,6 +418,21 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyAttach, setReplyAttach] = useState<{ url: string; type: string; name: string } | null>(null);
+  const [replyUploading, setReplyUploading] = useState(false);
+
+  async function handleReplyFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReplyUploading(true);
+    try {
+      const result = await uploadScreenshot(file);
+      if (result) setReplyAttach(result);
+    } finally {
+      setReplyUploading(false);
+      e.target.value = "";
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -358,16 +453,22 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
 
   async function sendReply(e: React.FormEvent) {
     e.preventDefault();
-    if (!reply.trim()) return;
+    if (!reply.trim() && !replyAttach) return;
     setSending(true);
     try {
       const res = await fetch(`/api/support/tickets/${ticketId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: reply }),
+        body: JSON.stringify({
+          message: reply,
+          attachment_url: replyAttach?.url ?? null,
+          attachment_type: replyAttach?.type ?? null,
+          attachment_name: replyAttach?.name ?? null,
+        }),
       });
       if (res.ok) {
         setReply("");
+        setReplyAttach(null);
         await load();
       }
     } finally {
@@ -436,7 +537,19 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
                       </span>
                     )}
                   </div>
-                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{m.body}</p>
+                  {m.attachment_url && (
+                    <a href={m.attachment_url} target="_blank" rel="noreferrer" className="mb-1.5 block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={m.attachment_url}
+                        alt={m.attachment_name ?? "Screenshot"}
+                        className="max-h-56 rounded-lg border border-black/10 object-contain"
+                      />
+                    </a>
+                  )}
+                  {m.body && (
+                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{m.body}</p>
+                  )}
                   <p className={`mt-1 text-[10px] ${isUser ? "text-[var(--color-primary-foreground)]/60" : "text-[var(--color-muted-foreground)]"}`}>
                     {timeAgo(m.created_at)}
                   </p>
@@ -460,22 +573,55 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
         )}
 
         {ticket.status !== "closed" && (
-          <form onSubmit={sendReply} className="mt-3 flex items-end gap-2">
-            <textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              rows={2}
-              placeholder="Type a reply…"
-              className="flex-1 resize-y rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
-            />
-            <button
-              type="submit"
-              disabled={sending || !reply.trim()}
-              className="flex h-[42px] items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 text-[13px] font-700 text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-            >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
-          </form>
+          <div className="mt-3">
+            {replyAttach && (
+              <div className="relative mb-2 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={replyAttach.url}
+                  alt={replyAttach.name}
+                  className="max-h-32 rounded-lg border border-[var(--color-border)] object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setReplyAttach(null)}
+                  aria-label="Remove screenshot"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-foreground)] text-[var(--color-background)] shadow"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+            <form onSubmit={sendReply} className="flex items-end gap-2">
+              <label
+                className="flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+                title="Attach a screenshot"
+              >
+                {replyUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleReplyFile}
+                  disabled={replyUploading}
+                  className="hidden"
+                />
+              </label>
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={2}
+                placeholder="Type a reply…"
+                className="flex-1 resize-y rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
+              />
+              <button
+                type="submit"
+                disabled={sending || (!reply.trim() && !replyAttach)}
+                className="flex h-[42px] items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 text-[13px] font-700 text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </form>
+          </div>
         )}
       </div>
     </div>

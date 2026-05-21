@@ -66,6 +66,9 @@ export async function POST(request: Request) {
     message?: unknown;
     related_collab_session_id?: unknown;
     related_generation_id?: unknown;
+    attachment_url?: unknown;
+    attachment_type?: unknown;
+    attachment_name?: unknown;
   };
   try {
     body = await request.json();
@@ -79,6 +82,8 @@ export async function POST(request: Request) {
     typeof body.category === "string" && VALID_CATEGORIES.includes(body.category)
       ? body.category
       : "other";
+  const attachmentUrl =
+    typeof body.attachment_url === "string" && body.attachment_url ? body.attachment_url : null;
 
   if (!subject || subject.length > 140) {
     return NextResponse.json(
@@ -86,11 +91,15 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (!message || message.length > 4000) {
+  // Message required unless a screenshot is attached
+  if (!attachmentUrl && (!message || message.length > 4000)) {
     return NextResponse.json(
       { error: "Message is required (max 4000 chars)" },
       { status: 400 },
     );
+  }
+  if (message.length > 4000) {
+    return NextResponse.json({ error: "Message too long (max 4000 chars)" }, { status: 400 });
   }
 
   const admin = createAdminClient() as Admin;
@@ -132,12 +141,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create ticket" }, { status: 500 });
   }
 
-  // First message = the body
+  // First message = the body + optional screenshot
   await admin.from("ticket_messages").insert({
     ticket_id: ticket.id,
     sender_kind: "user",
     sender_user_id: user.id,
-    body: message,
+    body: message || null,
+    attachment_url: attachmentUrl,
+    attachment_type:
+      typeof body.attachment_type === "string" ? body.attachment_type : null,
+    attachment_name:
+      typeof body.attachment_name === "string" ? body.attachment_name : null,
   });
 
   return NextResponse.json({ ticket_id: ticket.id, status: "open" }, { status: 201 });

@@ -21,15 +21,25 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { message?: unknown };
+  let body: {
+    message?: unknown;
+    attachment_url?: unknown;
+    attachment_type?: unknown;
+    attachment_name?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (!message || message.length > 4000) {
+  const attachmentUrl =
+    typeof body.attachment_url === "string" && body.attachment_url ? body.attachment_url : null;
+  if (!attachmentUrl && (!message || message.length > 4000)) {
     return NextResponse.json({ error: "Message required (max 4000 chars)" }, { status: 400 });
+  }
+  if (message.length > 4000) {
+    return NextResponse.json({ error: "Message too long (max 4000 chars)" }, { status: 400 });
   }
 
   const admin = createAdminClient() as Admin;
@@ -53,7 +63,12 @@ export async function POST(
     ticket_id: id,
     sender_kind: "user",
     sender_user_id: user.id,
-    body: message,
+    body: message || null,
+    attachment_url: attachmentUrl,
+    attachment_type:
+      typeof body.attachment_type === "string" ? body.attachment_type : null,
+    attachment_name:
+      typeof body.attachment_name === "string" ? body.attachment_name : null,
   });
 
   // Re-open if it was resolved/waiting; flag unread for operator

@@ -36,7 +36,7 @@ export async function GET(
 
   const { data: messages } = await admin
     .from("ticket_messages")
-    .select("id, sender_kind, body, action_tag, created_at")
+    .select("id, sender_kind, body, action_tag, attachment_url, attachment_type, attachment_name, created_at")
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
 
