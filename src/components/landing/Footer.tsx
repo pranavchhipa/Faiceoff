@@ -14,6 +14,7 @@
 import type { SVGProps } from "react";
 import Link from "next/link";
 import { COMPANY } from "@/lib/constants/company";
+import { Logo } from "@/components/brand/logo";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Inline social-icon SVGs.
@@ -102,26 +103,9 @@ export function Footer() {
             <Link
               href="/"
               aria-label="Faiceoff home"
-              className="inline-flex items-center gap-2.5"
+              className="inline-flex items-center"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-mark.png"
-                alt="Faiceoff"
-                className="h-9 w-9 rounded-md"
-              />
-              <span
-                className="lp-display"
-                style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: "var(--lp-ink)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                Faiceoff
-                <span style={{ color: "var(--lp-gold)" }}>.</span>
-              </span>
+              <Logo variant="full" tone="dark" className="h-9 w-auto" />
             </Link>
 
             <p

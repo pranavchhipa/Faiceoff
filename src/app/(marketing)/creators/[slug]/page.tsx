@@ -30,6 +30,7 @@ import {
   Star,
 } from "lucide-react";
 import { DEMO_CATEGORIES, type DemoCategoryKey } from "@/lib/profile/demo-prompts";
+import { Logo } from "@/components/brand/logo";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
@@ -263,16 +264,12 @@ export default async function CreatorProfilePage(
 
       {/* ── Floating top navigation ─────────────────────────────────────── */}
       <header className="relative z-50 mx-auto flex max-w-[1400px] items-center justify-between px-4 pt-4 sm:px-5 sm:pt-6 lg:px-10">
-        <Link href="/" aria-label="Faiceoff home" className="group inline-flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-mark.png"
-            alt="Faiceoff"
-            className="h-8 w-8 rounded-md object-contain transition-transform group-hover:scale-105 sm:h-9 sm:w-9"
+        <Link href="/" aria-label="Faiceoff home" className="group inline-flex items-center">
+          <Logo
+            variant="full"
+            tone="light"
+            className="h-7 w-auto transition-transform group-hover:scale-[1.03] sm:h-8"
           />
-          <span className="hidden font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[#a89570] sm:inline">
-            Faiceoff
-          </span>
         </Link>
         <Link
           href={ctaHref}
@@ -810,12 +807,7 @@ export default async function CreatorProfilePage(
       <footer className="relative z-10 border-t border-[#2a2520] px-4 py-7 sm:px-5 sm:py-8 lg:px-10">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-5 text-center sm:flex-row sm:gap-4 sm:text-left">
           <Link href="/" className="group inline-flex items-center gap-2 opacity-80 hover:opacity-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo-mark.png"
-              alt="Faiceoff"
-              className="h-7 w-7 rounded-md object-contain"
-            />
+            <Logo variant="mark" className="h-7 w-7" />
             <span className="font-mono text-[9px] font-700 uppercase tracking-[0.2em] text-[#a89570] sm:text-[10px] sm:tracking-[0.22em]">
               Powered by Faiceoff
             </span>

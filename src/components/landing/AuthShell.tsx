@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { CREATORS } from "./images";
+import { Logo } from "@/components/brand/logo";
 
 const SIDE_PHOTOS: Record<"creator" | "brand" | "success", { src: string; label: string }> = {
   creator: CREATORS.priya,
@@ -39,8 +40,7 @@ export function AuthShell({
 
       <header className="relative z-10 px-4 md:px-8 py-4 flex items-center justify-between max-w-6xl mx-auto">
         <Link href="/" aria-label="Faiceoff home" className="inline-flex items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/landing/logo-dark.png" alt="Faiceoff" className="h-7 w-auto" />
+          <Logo variant="full" tone="dark" className="h-7 w-auto" />
         </Link>
         <Link
           href="/"
@@ -86,7 +86,7 @@ export function AuthShell({
             >
               {/* Subtle watermark */}
               <motion.img
-                src="/landing/logo-mark.png"
+                src="/logo-mark.png"
                 alt=""
                 aria-hidden
                 className="absolute -right-16 -bottom-16 h-[260px] w-auto opacity-10 pointer-events-none"

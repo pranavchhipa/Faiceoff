@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { Logo } from "@/components/brand/logo";
 import { CREATOR_SIDE_NAV } from "@/config/nav-items.creator";
 
 /**
@@ -26,19 +27,13 @@ export function CreatorPillNav() {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Compact logo + wordmark — clicks home */}
+      {/* Compact logo — clicks home */}
       <Link
         href="/creator/dashboard"
         aria-label="Faiceoff home"
-        className="flex shrink-0 items-center gap-2 font-display text-base font-800 tracking-tight text-[var(--color-foreground)] hover:text-[var(--color-primary)]"
+        className="flex shrink-0 items-center transition-opacity hover:opacity-90"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-mark.png"
-          alt=""
-          className="h-7 w-7 object-contain"
-        />
-        Faiceoff<span className="text-[var(--color-primary)]">.</span>
+        <Logo variant="full" adaptive className="h-6 w-auto" />
       </Link>
 
       <span className="hidden h-5 w-px bg-[var(--color-border)] md:block" />

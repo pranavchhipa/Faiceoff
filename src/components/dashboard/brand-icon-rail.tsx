@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Logo } from "@/components/brand/logo";
 import { BRAND_SIDE_NAV } from "@/config/nav-items.brand";
 
 /**
@@ -78,16 +79,10 @@ export function BrandIconRail() {
             expanded ? "w-full gap-2.5 px-4" : "w-10 justify-center"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-mark.png"
-            alt="Faiceoff"
-            className="h-7 w-7 shrink-0 object-contain"
-          />
-          {expanded && (
-            <span className="truncate font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
-              Faiceoff<span className="text-[var(--color-primary)]">.</span>
-            </span>
+          {expanded ? (
+            <Logo variant="full" adaptive className="h-6 w-auto" />
+          ) : (
+            <Logo variant="mark" className="h-7 w-7 shrink-0" />
           )}
         </Link>
 

@@ -11,6 +11,7 @@ import { TopBar } from "@/components/dashboard/top-bar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { CommandPalette, useCommandPalette } from "@/components/dashboard/command-palette";
 import { MobileDrawerNav } from "@/components/dashboard/mobile-drawer-nav";
+import { Logo } from "@/components/brand/logo";
 import { Menu } from "lucide-react";
 
 /**
@@ -122,16 +123,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
           <PageTitle />
         </span>
-        <span className="flex items-center gap-2 font-display text-base font-800 tracking-tight lg:hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-mark.png"
-            alt=""
-            aria-hidden
-            className="h-6 w-6 object-contain"
-          />
-          Faiceoff<span className="text-[var(--color-primary)]">.</span>
-        </span>
+        <Logo variant="full" adaptive className="h-6 w-auto lg:hidden" />
       </>
     );
   } else if (role === "brand") {

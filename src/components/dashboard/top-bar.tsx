@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { NotificationBell } from "./notification-bell";
 import { UserMenu } from "./user-menu";
 import { BalanceChip } from "./balance-chip";
+import { Logo } from "@/components/brand/logo";
 import type { Role } from "@/config/routes";
 
 interface TopBarProps {
@@ -46,21 +47,13 @@ export function TopBar({
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {leftSlot ?? (
           <div className="flex min-w-0 items-center gap-3">
-            {/* Brand wordmark — clickable home link, mirrors creator pill nav */}
+            {/* Brand mark — clickable home link */}
             <Link
               href={role === "admin" ? "/admin" : "/brand/dashboard"}
               aria-label="Faiceoff home"
-              className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-90"
+              className="flex shrink-0 items-center transition-opacity hover:opacity-90"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-mark.png"
-                alt="Faiceoff"
-                className="h-6 w-6 object-contain"
-              />
-              <span className="font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
-                Faiceoff<span className="text-[var(--color-primary)]">.</span>
-              </span>
+              <Logo variant="mark" className="h-7 w-7" />
             </Link>
             {/* Divider + current page title */}
             <span className="hidden h-4 w-px bg-[var(--color-border)] md:block" />

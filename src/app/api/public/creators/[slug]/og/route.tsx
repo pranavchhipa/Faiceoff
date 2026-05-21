@@ -5,6 +5,11 @@ import { DEMO_CATEGORIES, type DemoCategoryKey } from "@/lib/profile/demo-prompt
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.NEXT_PUBLIC_BASE_URL ??
+  "https://faiceoff.com";
+
 export const runtime = "nodejs";
 
 /**
@@ -82,38 +87,18 @@ export async function GET(
           }}
         />
 
-        {/* Brand bar */}
+        {/* Brand bar — official cream lockup on the dark OG canvas */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "12px",
-            fontSize: "18px",
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
+            gap: "16px",
             zIndex: 1,
           }}
         >
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #c9a96e 0%, #8b6914 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "18px",
-              color: "#1a1410",
-              fontWeight: 800,
-            }}
-          >
-            F
-          </div>
-          <span>
-            Faiceoff<span style={{ color: "#c9a96e" }}>.</span>
-          </span>
-          <span style={{ color: "#8b7355", marginLeft: "16px", fontSize: "14px" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+          <img src={`${APP_URL}/logo-full-light.png`} height="34" style={{ height: "34px", width: "auto" }} />
+          <span style={{ color: "#8b7355", fontSize: "14px", display: "flex" }}>
             India&apos;s AI face licensing marketplace
           </span>
         </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 
 /**
  * Marketing nav — light editorial header.
@@ -55,12 +56,8 @@ export function Nav() {
     >
       <div className="lp-container flex h-16 items-center justify-between md:h-[72px]">
         {/* Brand */}
-        <Link href="/" aria-label="Faiceoff home" className="flex items-center gap-2.5 shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.png" alt="Faiceoff" className="h-8 w-8 rounded-md" />
-          <span className="lp-display text-[20px] font-700 tracking-tight" style={{ color: "var(--lp-ink)" }}>
-            Faiceoff<span style={{ color: "var(--lp-gold)" }}>.</span>
-          </span>
+        <Link href="/" aria-label="Faiceoff home" className="flex items-center shrink-0">
+          <Logo variant="full" tone="dark" className="h-8 w-auto" />
         </Link>
 
         {/* Center links — desktop */}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Logo } from "@/components/brand/logo";
 import { BRAND_SIDE_NAV } from "@/config/nav-items.brand";
 import { CREATOR_SIDE_NAV } from "@/config/nav-items.creator";
 import { ADMIN_SIDE_NAV } from "@/config/nav-items.admin";
@@ -58,14 +59,8 @@ export function MobileDrawerNav({ role, open, onClose }: MobileDrawerNavProps) {
         className="w-[280px] border-r border-[var(--color-border)] bg-[var(--color-card)] p-0 [&>[data-slot=sheet-close-button]]:hidden"
       >
         <SheetHeader className="border-b border-[var(--color-border)] p-4">
-          <SheetTitle className="flex items-center gap-2 font-display text-lg font-800 tracking-tight">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo-mark.png"
-              alt="Faiceoff"
-              className="h-7 w-7 object-contain"
-            />
-            Faiceoff<span className="text-[var(--color-primary)]">.</span>
+          <SheetTitle className="flex items-center gap-2">
+            <Logo variant="full" adaptive className="h-6 w-auto" />
             <span className="ml-auto rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
               {role}
             </span>
