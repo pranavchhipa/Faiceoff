@@ -19,6 +19,12 @@ import {
   ArrowUpRight,
   AtSign,
   CheckCircle2,
+  Globe,
+  Link2,
+  Mail,
+  MessageCircle,
+  Phone,
+  Play,
   Quote,
   Sparkles,
   Star,
@@ -50,6 +56,7 @@ interface PublicProfileResponse {
     youtube_subscribers: number | null;
   };
   categories: DemoCategoryKey[];
+  links: Array<{ id: string; label: string; url: string }>;
   samples: Array<{
     id: string;
     category: DemoCategoryKey;
@@ -125,6 +132,22 @@ function compactNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
   return n.toString();
+}
+
+/**
+ * Pick an icon for a custom link button based on its URL. Keeps the public
+ * page self-contained (no per-link icon stored in DB).
+ */
+function linkGlyph(url: string) {
+  const u = url.toLowerCase();
+  if (u.startsWith("mailto:")) return <Mail className="h-4 w-4" />;
+  if (u.startsWith("tel:")) return <Phone className="h-4 w-4" />;
+  if (u.includes("wa.me") || u.includes("whatsapp")) return <MessageCircle className="h-4 w-4" />;
+  if (u.includes("youtube.com") || u.includes("youtu.be")) return <Play className="h-4 w-4" />;
+  if (u.includes("instagram.com")) return <AtSign className="h-4 w-4" />;
+  // Has a real domain → globe; otherwise generic link
+  if (/^https?:\/\//.test(u)) return <Globe className="h-4 w-4" />;
+  return <Link2 className="h-4 w-4" />;
 }
 
 const TIER_META: Record<string, { label: string; tagline: string; symbol: string }> = {
@@ -466,6 +489,49 @@ export default async function CreatorProfilePage(
                 accountType={null}
               />
             )}
+          </div>
+        </section>
+      )}
+
+      {/* ── LINKS — Linktree-style custom buttons ───────────────────────── */}
+      {data.links.length > 0 && (
+        <section className="relative z-10 mx-auto max-w-[1400px] px-4 pb-14 sm:px-5 sm:pb-20 lg:px-10 lg:pb-24">
+          <div className="mb-5 sm:mb-7">
+            <div className="font-mono text-[10px] font-700 uppercase tracking-[0.24em] text-[#a89570] sm:text-[11px] sm:tracking-[0.28em]">
+              Links
+            </div>
+            <h2
+              className="mt-1.5 font-800 leading-[0.95] tracking-[-0.02em] text-[#f5ebd6] sm:mt-2"
+              style={{
+                fontFamily: "Outfit, system-ui",
+                fontSize: "clamp(24px, 3.5vw, 40px)",
+              }}
+            >
+              More from {firstName}.
+            </h2>
+          </div>
+
+          <div className="mx-auto grid max-w-2xl gap-2.5 sm:gap-3">
+            {data.links.map((link) => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer nofollow"
+                className="group flex items-center gap-3 rounded-sm border border-[#2a2520] bg-[#0d0c0a] px-5 py-4 transition hover:border-[#3a3530] hover:bg-[#1a1612]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a1612] text-[#a89570] ring-1 ring-[#2a2520] group-hover:text-[#e8825d]">
+                  {linkGlyph(link.url)}
+                </span>
+                <span
+                  className="flex-1 truncate font-700 tracking-tight text-[#f5ebd6]"
+                  style={{ fontFamily: "Outfit, system-ui", fontSize: "15px" }}
+                >
+                  {link.label}
+                </span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-[#6e6457] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#f5ebd6]" />
+              </a>
+            ))}
           </div>
         </section>
       )}

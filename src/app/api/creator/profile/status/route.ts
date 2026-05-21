@@ -26,7 +26,7 @@ export async function GET() {
   const { data: creator } = await admin
     .from("creators")
     .select(
-      "id, profile_slug, selected_categories, profile_published, profile_published_at, profile_theme, profile_view_count",
+      "id, profile_slug, selected_categories, profile_published, profile_published_at, profile_theme, profile_view_count, profile_links",
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -50,6 +50,7 @@ export async function GET() {
       published_at: creator.profile_published_at,
       theme: creator.profile_theme,
       view_count: creator.profile_view_count,
+      links: creator.profile_links ?? [],
     },
     samples: samples ?? [],
   });

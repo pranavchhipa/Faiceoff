@@ -56,6 +56,7 @@ export async function GET(
       instagram_media_count,
       youtube_handle,
       youtube_subscribers,
+      profile_links,
       is_live
       `,
     )
@@ -169,6 +170,7 @@ export async function GET(
       youtube_subscribers: creator.youtube_subscribers ?? null,
     },
     categories: creator.selected_categories ?? [],
+    links: Array.isArray(creator.profile_links) ? creator.profile_links : [],
     samples: (samples ?? []).map((s: { id: string; category: string; image_url: string; created_at: string }) => ({
       id: s.id,
       category: s.category,

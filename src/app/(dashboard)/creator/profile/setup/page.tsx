@@ -18,13 +18,19 @@ import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Eye,
   EyeOff,
+  GripVertical,
+  Link2,
   Loader2,
+  Plus,
   RefreshCcw,
   Share2,
   Sparkles,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +54,12 @@ interface DemoSample {
   created_at: string;
 }
 
+interface ProfileLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
 interface ProfileStatus {
   creator: {
     slug: string | null;
@@ -56,6 +68,7 @@ interface ProfileStatus {
     published_at: string | null;
     theme: string;
     view_count: number;
+    links: ProfileLink[];
   } | null;
   samples: DemoSample[];
 }
@@ -71,6 +84,12 @@ export default function ProfileSetupPage() {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [errBanner, setErrBanner] = useState<string | null>(null);
 
+  // Custom link buttons (Linktree-style)
+  const [links, setLinks] = useState<ProfileLink[]>([]);
+  const [linksDirty, setLinksDirty] = useState(false);
+  const [savingLinks, setSavingLinks] = useState(false);
+  const [linksSaved, setLinksSaved] = useState(false);
+
   // ── Fetch initial state ─────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     try {
@@ -85,11 +104,15 @@ export default function ProfileSetupPage() {
         if (!slugDraft && data.creator.slug) {
           setSlugDraft(data.creator.slug);
         }
+        // Hydrate links only if the creator hasn't started editing them
+        if (!linksDirty) {
+          setLinks(data.creator.links ?? []);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [selected.length, slugDraft]);
+  }, [selected.length, slugDraft, linksDirty]);
 
   useEffect(() => {
     refresh();
@@ -198,6 +221,66 @@ export default function ProfileSetupPage() {
       await refresh();
     } finally {
       setPublishing(false);
+    }
+  }
+
+  // ── Custom links handlers ───────────────────────────────────────────────
+  function addLink() {
+    if (links.length >= 10) return;
+    setLinks((prev) => [
+      ...prev,
+      { id: `new-${Date.now()}`, label: "", url: "" },
+    ]);
+    setLinksDirty(true);
+    setLinksSaved(false);
+  }
+  function updateLink(id: string, field: "label" | "url", value: string) {
+    setLinks((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, [field]: value } : l)),
+    );
+    setLinksDirty(true);
+    setLinksSaved(false);
+  }
+  function removeLink(id: string) {
+    setLinks((prev) => prev.filter((l) => l.id !== id));
+    setLinksDirty(true);
+    setLinksSaved(false);
+  }
+  function moveLink(id: string, dir: -1 | 1) {
+    setLinks((prev) => {
+      const idx = prev.findIndex((l) => l.id === id);
+      if (idx < 0) return prev;
+      const next = idx + dir;
+      if (next < 0 || next >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[next]] = [copy[next], copy[idx]];
+      return copy;
+    });
+    setLinksDirty(true);
+    setLinksSaved(false);
+  }
+  async function saveLinks() {
+    setSavingLinks(true);
+    setErrBanner(null);
+    try {
+      // Drop empty rows (both fields blank)
+      const payload = links.filter((l) => l.label.trim() || l.url.trim());
+      const res = await fetch("/api/creator/profile/links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: payload }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrBanner(data.error ?? "Failed to save links");
+        return;
+      }
+      setLinks(data.links ?? []);
+      setLinksDirty(false);
+      setLinksSaved(true);
+      setTimeout(() => setLinksSaved(false), 2200);
+    } finally {
+      setSavingLinks(false);
     }
   }
 
@@ -391,12 +474,133 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 4 · Your link + Publish ──────────────────────────────── */}
+      {/* ── Section 4 · Custom links (Linktree-style) ────────────────────── */}
+      <section className="mb-10">
+        <div className="mb-4 flex items-baseline justify-between">
+          <div>
+            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+              4 · Your links
+            </h2>
+            <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
+              Add buttons to anything — YouTube, your website, WhatsApp, latest work. They appear on your public page.
+            </p>
+          </div>
+          {links.length < 10 && (
+            <Button
+              type="button"
+              onClick={addLink}
+              className="h-9 gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-[13px] font-700 text-[var(--color-foreground)] hover:bg-[var(--color-secondary)]"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add link
+            </Button>
+          )}
+        </div>
+
+        {links.length === 0 ? (
+          <button
+            type="button"
+            onClick={addLink}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)]/40 px-6 py-10 text-center transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)]"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-secondary)]">
+              <Link2 className="h-4.5 w-4.5 text-[var(--color-muted-foreground)]" />
+            </div>
+            <p className="text-[13px] font-600 text-[var(--color-foreground)]">
+              Add your first link
+            </p>
+            <p className="max-w-xs text-[12px] text-[var(--color-muted-foreground)]">
+              e.g. &ldquo;My YouTube&rdquo; → youtube.com/@you, or &ldquo;WhatsApp me&rdquo; → wa.me/91…
+            </p>
+          </button>
+        ) : (
+          <div className="space-y-2">
+            {links.map((link, idx) => (
+              <div
+                key={link.id}
+                className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2.5"
+              >
+                {/* Reorder */}
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => moveLink(link.id, -1)}
+                    disabled={idx === 0}
+                    aria-label="Move up"
+                    className="flex h-4 w-5 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] disabled:opacity-25"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveLink(link.id, 1)}
+                    disabled={idx === links.length - 1}
+                    aria-label="Move down"
+                    className="flex h-4 w-5 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] disabled:opacity-25"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+                <GripVertical className="hidden h-4 w-4 shrink-0 text-[var(--color-border)] sm:block" />
+
+                {/* Inputs */}
+                <div className="grid flex-1 gap-2 sm:grid-cols-[180px_1fr]">
+                  <Input
+                    value={link.label}
+                    onChange={(e) => updateLink(link.id, "label", e.target.value)}
+                    placeholder="Button label"
+                    maxLength={40}
+                    className="h-9 text-[13px]"
+                  />
+                  <Input
+                    value={link.url}
+                    onChange={(e) => updateLink(link.id, "url", e.target.value)}
+                    placeholder="youtube.com/@you  ·  wa.me/91…  ·  yoursite.com"
+                    className="h-9 font-mono text-[12px]"
+                  />
+                </div>
+
+                {/* Remove */}
+                <button
+                  type="button"
+                  onClick={() => removeLink(link.id)}
+                  aria-label="Remove link"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] hover:bg-red-500/10 hover:text-red-500"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+
+            {/* Save bar */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[12px] text-[var(--color-muted-foreground)]">
+                {links.length} / 10 links
+              </span>
+              <Button
+                type="button"
+                onClick={saveLinks}
+                disabled={savingLinks || !linksDirty}
+                className="h-9 gap-2 rounded-lg bg-[var(--color-primary)] px-5 text-[13px] font-700 text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+              >
+                {savingLinks ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : linksSaved ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : null}
+                {linksSaved ? "Saved" : "Save links"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── Section 5 · Your link + Publish ──────────────────────────────── */}
       <section className="mb-10">
         <div className="mb-5 flex items-baseline justify-between">
           <div>
             <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              4 · Your creator link
+              5 · Your creator link
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               One link, always live. Update the handle anytime above — the old URL stops working the moment you save.
