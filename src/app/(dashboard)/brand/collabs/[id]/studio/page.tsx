@@ -422,6 +422,42 @@ export default function BrandStudioPage() {
     }
   }
 
+  // Bulk-send every ready_for_brand_review image to the creator at once.
+  async function handleBulkSend() {
+    if (reviewAction) return;
+    const readyIds = recentGens
+      .filter((g) => g.status === "ready_for_brand_review")
+      .map((g) => g.id);
+    if (readyIds.length === 0) return;
+    setReviewAction("send");
+    setError(null);
+    try {
+      const res = await fetch("/api/generations/bulk-send-for-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ generation_ids: readyIds }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Failed to send");
+      const sentIds = new Set(readyIds);
+      setRecentGens((prev) =>
+        prev.map((g) =>
+          sentIds.has(g.id) && g.status === "ready_for_brand_review"
+            ? { ...g, status: "ready_for_approval" }
+            : g,
+        ),
+      );
+      setToast({
+        kind: "success",
+        text: `Sent ${d.sent} image${d.sent === 1 ? "" : "s"} to ${creator.name ?? "creator"} — 48h to approve`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setReviewAction(null);
+    }
+  }
+
   async function handleDiscard(genId: string) {
     if (reviewAction) return;
     if (!confirm("Discard this image? This can't be undone.")) return;
@@ -1186,6 +1222,19 @@ export default function BrandStudioPage() {
               </div>
             )}
           </div>
+
+          {/* Bulk send-to-creator — appears when 2+ images await review */}
+          {recentGens.filter((g) => g.status === "ready_for_brand_review").length >= 2 && (
+            <button
+              type="button"
+              onClick={handleBulkSend}
+              disabled={reviewAction !== null}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-[13px] font-700 text-[var(--color-primary-foreground)] transition hover:opacity-90 disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              Send all {recentGens.filter((g) => g.status === "ready_for_brand_review").length} ready images to {creator.name ?? "creator"}
+            </button>
+          )}
 
           {/* Recent grid */}
           {recentGens.length > 1 && (

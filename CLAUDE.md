@@ -38,6 +38,22 @@ Two-sided marketplace where **creators license their face** and **brands generat
   pulls verified handle, follower count, profile pic, bio, insights via Meta's Graph API.
   Personal accounts get manual-entry fallback. Token encrypted with `KYC_ENCRYPTION_KEY`.
   Setup runbook: `docs/INSTAGRAM_OAUTH_SETUP.md`. Daily token refresh cron at 4:30 UTC.
+- ✅ Creator public share profile (migrations 00056/00057) — `/creators/<slug>`, dark
+  editorial design, AI "Style Reel" demos (Gemini, no real brands), Linktree-style custom
+  link buttons, brand "Launch a Campaign" CTA. Setup at `/creator/profile/setup`. Official
+  logo via `<Logo>` component (`src/components/brand/logo.tsx`) — needs `logo-full-dark.png`
+  + `logo-full-light.png` + `logo-mark.png` in `/public`.
+- ✅ In-app notifications (migration 00058) — `notifications` table + `src/lib/notifications/emit.ts`
+  emitNotification helper, wired into collab request/accept, payment, approval approve/reject,
+  bulk-send. Topbar `NotificationBell` polls `/api/notifications` (45s) with dropdown feed.
+- ✅ Support tickets (migration 00059) — creators/brands raise tickets at `/creator/support`
+  + `/brand/support` (shared page at `/dashboard/support`). Land in Control Centre
+  `/<ccSlug>/tickets` where operator replies, triages, resolves, and grants credits directly
+  (server actions in `tickets/actions.ts`, guarded by `getCurrentSession()`). Grant-credits
+  increments `brands.credits_remaining` + notifies the brand.
+- ✅ Bulk send-for-approval — brand studio "Send all N ready images to creator" button
+  (`/api/generations/bulk-send-for-approval`); creator collab page now shows pending +
+  approved + rejected (full studio output, not just approved).
 
 ### What's BROKEN / soft-failing right now
 | Issue | Impact | Fix |

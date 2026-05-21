@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Tags,
   Share2,
+  LifeBuoy,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -35,6 +36,7 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Licenses", href: "/creator/licenses", icon: FileSignature, group: "Secondary" },
   { label: "Analytics", href: "/creator/analytics", icon: TrendingUp, group: "Secondary" },
   { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldOff, group: "Secondary" },
+  { label: "Support", href: "/creator/support", icon: LifeBuoy, group: "Secondary" },
   { label: "Settings", href: "/creator/settings", icon: SettingsIcon, group: "Secondary" },
 ];
 

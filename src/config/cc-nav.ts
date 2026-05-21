@@ -19,6 +19,7 @@ import {
   Server,
   Lock,
   ScrollText,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,7 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "OPS" },
   { segment: "moderation", label: "Moderation", icon: Shield, group: "OPS" },
   { segment: "disputes", label: "Disputes", icon: Scale, group: "OPS" },
+  { segment: "tickets", label: "Support tickets", icon: LifeBuoy, group: "OPS" },
 
   // CONFIG — knobs you turn
   { segment: "ai", label: "AI pipeline", icon: Cpu, group: "CONFIG" },

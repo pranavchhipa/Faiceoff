@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/redis/rate-limiter";
 import { track } from "@/lib/observability/analytics";
 import { sendCreatorCollabRequest } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -150,6 +151,16 @@ export async function POST(request: Request) {
           packageTier: pkg.tier as string,
           pricePaise: pkg.price_paise as number,
           requestId: reqRow.id,
+        });
+      }
+      // In-app notification to the creator
+      if (creator.user_id) {
+        await emitNotification(admin, {
+          userId: creator.user_id,
+          type: "collab_request",
+          title: `New collab request from ${brandData?.company_name ?? "a brand"}`,
+          body: `${(product_name as string).trim()} · ${pkg.tier} package. Respond within 72h.`,
+          href: "/creator/requests",
         });
       }
     } catch (err) {

@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   User as UserIcon,
   Send,
+  LifeBuoy,
 } from "lucide-react";
 
 export interface NavItem {
@@ -42,6 +43,7 @@ export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Library", href: "/brand/vault", icon: Library, group: "Work" },
   { label: "Licenses", href: "/brand/licenses", icon: FileSignature, group: "Work" },
   { label: "Wallet", href: "/brand/wallet", icon: Wallet, group: "Money" },
+  { label: "Support", href: "/brand/support", icon: LifeBuoy, group: "Account" },
   { label: "Settings", href: "/brand/settings", icon: SettingsIcon, group: "Account" },
 ];
 

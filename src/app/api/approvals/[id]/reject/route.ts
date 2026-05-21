@@ -25,6 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { releaseReserve } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandRejected } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 
 // ── Inline Zod schema ─────────────────────────────────────────────────────────
 
@@ -257,6 +258,13 @@ export async function POST(
         productName,
         feedback: feedback ?? null,
         refundPaise: costPaise,
+      });
+      await emitNotification(admin, {
+        userId: brand.user_id,
+        type: "approval_rejected",
+        title: `${creatorUser?.display_name ?? "Creator"} requested changes`,
+        body: `${productName} wasn't approved${feedback ? `: "${feedback}"` : "."} Credit refunded — retry in Studio.`,
+        href: "/brand/collabs",
       });
     } catch (mailErr) {
       console.warn("[approvals/reject] email notify failed", mailErr);

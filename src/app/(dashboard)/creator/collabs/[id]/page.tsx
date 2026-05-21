@@ -261,6 +261,9 @@ export default function CreatorCollabWorkspacePage() {
     (g) => g.status === "ready_for_approval",
   );
   const approvedImages = generations.filter((g) => g.status === "approved");
+  // Studio output the creator has already actioned (rejected) — shown as
+  // history so they see the full set of generated images, not just approved.
+  const rejectedImages = generations.filter((g) => g.status === "rejected");
 
   const expectedEarning =
     session.package_price_paise != null
@@ -488,6 +491,7 @@ export default function CreatorCollabWorkspacePage() {
           <ImagesTab
             pending={pendingImages}
             approvedList={approvedImages}
+            rejectedList={rejectedImages}
             onAction={reload}
             onZoom={(url) => setLightboxUrl(url)}
           />
@@ -598,11 +602,13 @@ function Stat({
 function ImagesTab({
   pending,
   approvedList,
+  rejectedList = [],
   onAction,
   onZoom,
 }: {
   pending: Generation[];
   approvedList: Generation[];
+  rejectedList?: Generation[];
   onAction: () => void;
   onZoom: (url: string) => void;
 }) {
@@ -636,7 +642,7 @@ function ImagesTab({
     onAction();
   }
 
-  if (pending.length === 0 && approvedList.length === 0) {
+  if (pending.length === 0 && approvedList.length === 0 && rejectedList.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
         <ImageIcon className="mx-auto mb-3 h-10 w-10 text-[var(--color-muted-foreground)]" />
@@ -704,6 +710,41 @@ function ImagesTab({
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 font-mono text-[9px] font-700 text-white backdrop-blur-sm">
                     <CheckCircle2 className="h-2.5 w-2.5" />
                     Approved
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {rejectedList.length > 0 && (
+        <section>
+          <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            Not selected — {rejectedList.length}
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {rejectedList.map((g) => (
+              <button
+                type="button"
+                key={g.id}
+                onClick={() => g.image_url && onZoom(g.image_url)}
+                className="group relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] opacity-70 transition-opacity hover:opacity-100"
+              >
+                {g.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={g.image_url}
+                    alt="Not selected"
+                    className="h-full w-full object-cover grayscale transition-all group-hover:grayscale-0"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <ImageIcon className="h-8 w-8 text-[var(--color-muted-foreground)]" />
+                  </div>
+                )}
+                <div className="absolute bottom-2 right-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[9px] font-700 text-white backdrop-blur-sm">
+                    Not selected
                   </span>
                 </div>
               </button>

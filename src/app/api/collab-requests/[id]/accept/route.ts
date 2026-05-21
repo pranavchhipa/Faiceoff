@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandRequestAccepted } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -88,6 +89,14 @@ export async function POST(
           requestId: req.id,
         });
       }
+      // In-app notification to the brand → pay to unlock
+      await emitNotification(admin, {
+        userId: brandData.user_id,
+        type: "collab_accepted",
+        title: `${creatorUser?.display_name ?? "Creator"} accepted your request`,
+        body: `Pay to unlock the collab for "${req.product_name}".`,
+        href: "/brand/requests",
+      });
     } catch (err) {
       console.error("[collab-requests/accept] notification failed", err);
     }

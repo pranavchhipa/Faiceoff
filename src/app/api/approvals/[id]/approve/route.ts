@@ -33,6 +33,7 @@ import {
   sendCollabCompletedBrand,
   sendCollabCompletedCreator,
 } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 
 // ── Admin client helper ───────────────────────────────────────────────────────
 
@@ -372,6 +373,14 @@ export async function POST(
           generationId,
         });
       }
+      // In-app notification to the brand
+      await emitNotification(admin, {
+        userId: brand.user_id,
+        type: "approval_approved",
+        title: `${creatorName} approved your image`,
+        body: `${productName} is approved — license issued. View it in your library.`,
+        href: "/brand/vault",
+      });
 
       // 2. Brand + creator: licence issued
       if (licenseId) {

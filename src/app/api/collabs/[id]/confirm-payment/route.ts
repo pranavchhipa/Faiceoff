@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
 import { verifyRazorpayPaymentSignature } from "@/lib/payments/razorpay/webhook";
 import { sendCreatorPaymentReceived } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -201,6 +202,15 @@ export async function POST(
           productName: req.product_name as string,
           pricePaise: req.package_price_paise as number,
           collabSessionId: session.id,
+        });
+      }
+      if (creatorRow.user_id) {
+        await emitNotification(admin, {
+          userId: creatorRow.user_id,
+          type: "payment_received",
+          title: `${brandData?.company_name ?? "A brand"} paid — collab is live`,
+          body: `"${req.product_name}" is funded. Images will come to you for approval.`,
+          href: "/creator/collabs",
         });
       }
     } catch (err) {

@@ -90,7 +90,7 @@ export function TopBar({
         </button>
 
         <BalanceChip role={role} />
-        <NotificationBell count={0} />
+        <NotificationBell />
         <UserMenu
           displayName={displayName}
           email={email}
