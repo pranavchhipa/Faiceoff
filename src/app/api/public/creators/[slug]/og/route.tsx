@@ -87,7 +87,7 @@ export async function GET(
           }}
         />
 
-        {/* Brand bar — official cream lockup on the dark OG canvas */}
+        {/* Brand bar — wordmark rendered as text (Satori-safe, no external img) */}
         <div
           style={{
             display: "flex",
@@ -96,8 +96,17 @@ export async function GET(
             zIndex: 1,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-          <img src={`${APP_URL}/logo-full-light.png`} height="34" style={{ height: "34px", width: "auto" }} />
+          <span
+            style={{
+              display: "flex",
+              fontSize: "26px",
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "#f5ebd6",
+            }}
+          >
+            Faiceoff
+          </span>
           <span style={{ color: "#8b7355", fontSize: "14px", display: "flex" }}>
             India&apos;s AI face licensing marketplace
           </span>

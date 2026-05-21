@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 110" fill="none">
+  <!-- Starburst mark (cream, for dark backgrounds) -->
+  <g transform="translate(5,5) scale(1.0)">
+    <polygon points="50.0,2.0 53.3,33.3 68.4,5.7 59.4,35.9 83.9,16.1 64.1,40.6 94.3,31.6 66.7,46.7 98.0,50.0 66.7,53.3 94.3,68.4 64.1,59.4 83.9,83.9 59.4,64.1 68.4,94.3 53.3,66.7 50.0,98.0 46.7,66.7 31.6,94.3 40.6,64.1 16.1,83.9 35.9,59.4 5.7,68.4 33.3,53.3 2.0,50.0 33.3,46.7 5.7,31.6 35.9,40.6 16.1,16.1 40.6,35.9 31.6,5.7 46.7,33.3" fill="#F5EBD6"/>
+  </g>
+  <!-- Wordmark: "Faice" serif + "off" heavy sans -->
+  <text x="120" y="74" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-style="italic" fill="#F5EBD6" letter-spacing="-1">Faice</text>
+  <text x="322" y="74" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="800" fill="#F5EBD6" letter-spacing="-2">off</text>
+</svg>

@@ -50,7 +50,7 @@ export function AdminSectionSidebar({ counts = {} }: AdminSectionSidebarProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo-mark.png"
+            src="/logo-mark.svg"
             alt="Faiceoff"
             className="h-7 w-7 object-contain"
           />

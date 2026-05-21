@@ -5,10 +5,10 @@
  * NEVER typeset "Faiceoff" as text with a styled dot — that is not the
  * official wordmark.
  *
- * Official assets (in /public):
- *   - logo-mark.png        — split starburst mark, tone-agnostic (square)
- *   - logo-full-dark.png   — navy lockup (mark + wordmark) for LIGHT bg
- *   - logo-full-light.png  — cream lockup (mark + wordmark) for DARK bg
+ * Official assets (in /public, SVG so they never 404 or pixelate):
+ *   - logo-mark.svg        — gold starburst mark, works on light + dark (square)
+ *   - logo-full-dark.svg   — navy lockup (mark + wordmark) for LIGHT bg
+ *   - logo-full-light.svg  — cream lockup (mark + wordmark) for DARK bg
  *
  * Usage:
  *   <Logo variant="mark" className="h-8 w-8" />            // square icon spots
@@ -37,9 +37,9 @@ interface LogoProps {
 }
 
 const SRC = {
-  mark: "/logo-mark.png",
-  "full-dark": "/logo-full-dark.png",
-  "full-light": "/logo-full-light.png",
+  mark: "/logo-mark.svg",
+  "full-dark": "/logo-full-dark.svg",
+  "full-light": "/logo-full-light.svg",
 } as const;
 
 export function Logo({
