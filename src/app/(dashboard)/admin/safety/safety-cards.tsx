@@ -309,7 +309,7 @@ export function SafetyCards() {
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)]">
                           {it.image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={it.image_url}
                               alt=""
                               className="h-full w-full object-cover"
@@ -368,7 +368,7 @@ export function SafetyCards() {
                 <div className="relative mt-4 aspect-[16/10] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
                   {selected.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={selected.image_url}
                       alt=""
                       className="h-full w-full object-cover"

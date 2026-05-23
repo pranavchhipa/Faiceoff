@@ -573,7 +573,7 @@ export default function CampaignDetailPage() {
                     {/* Image or placeholder */}
                     <div className="shrink-0 size-16 rounded-[var(--radius-input)] bg-[var(--color-neutral-100)] flex items-center justify-center overflow-hidden">
                       {gen.image_url ? (
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={gen.image_url}
                           alt="Generated"
                           className="size-full object-cover"

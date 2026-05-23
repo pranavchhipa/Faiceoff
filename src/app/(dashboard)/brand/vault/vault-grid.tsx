@@ -192,7 +192,7 @@ function VaultLightbox({
             <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[var(--color-secondary)] md:aspect-auto md:min-h-[560px]">
               {item.image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <img loading="lazy" decoding="async"
                   src={item.image_url}
                   alt={brief.product_name ?? "Licensed generation"}
                   className="h-full w-full object-contain"

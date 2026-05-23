@@ -369,7 +369,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
         <div className="flex shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-secondary)] px-6 py-4">
           {photo && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img
+            <img loading="lazy" decoding="async"
               src={photo}
               alt=""
               className="size-11 shrink-0 rounded-full object-cover object-top"
@@ -510,7 +510,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
               <div className="size-14 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--color-border)]">
                 {productUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={productUrl} alt="" className="size-full object-cover" />
+                  <img loading="lazy" decoding="async" src={productUrl} alt="" className="size-full object-cover" />
                 ) : (
                   <span className="flex size-full items-center justify-center text-xs text-[var(--color-muted-foreground)]">
                     Upload

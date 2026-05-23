@@ -615,7 +615,7 @@ export default function NewGenerationPage() {
             {brief.productImageUrl ? (
               <div className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={brief.productImageUrl}
                   alt="Product"
                   className="size-14 shrink-0 rounded-lg border border-[var(--color-neutral-200)] object-contain bg-white"

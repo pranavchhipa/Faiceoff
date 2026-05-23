@@ -276,7 +276,7 @@ export default function InstagramPage() {
               <div className="flex items-center gap-3">
                 {status.profile_pic_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={status.profile_pic_url}
                     alt={status.handle ?? ""}
                     className="h-12 w-12 rounded-full object-cover ring-2 ring-emerald-400/30"

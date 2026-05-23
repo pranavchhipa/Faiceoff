@@ -255,7 +255,7 @@ export default function SettingsPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
                   ) : up.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={up.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={up.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
                     <span className="font-display text-[26px] font-800 text-[var(--color-foreground)]">{initial}</span>
                   )}

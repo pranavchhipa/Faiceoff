@@ -101,55 +101,64 @@ export async function GET(
     })();
   }
 
-  // ── Display name from users table ────────────────────────────────────────
-  const { data: userRow } = await admin
-    .from("users")
-    .select("display_name, avatar_url")
-    .eq("id", creator.user_id)
-    .maybeSingle();
+  // ── All creator-scoped reads run in PARALLEL (they only need creator.id) ──
+  // Was 6 sequential round-trips (~600ms on a warm DB); now 1 round-trip wide.
+  const [
+    userRes,
+    samplesRes,
+    packagesRes,
+    completedRes,
+    approvedRes,
+    rejectedRes,
+  ] = await Promise.all([
+    admin
+      .from("users")
+      .select("display_name, avatar_url")
+      .eq("id", creator.user_id)
+      .maybeSingle(),
+    admin
+      .from("creator_demo_samples")
+      .select("id, category, image_url, created_at")
+      .eq("creator_id", creator.id)
+      .eq("is_visible", true)
+      .eq("status", "ready"),
+    admin
+      .from("creator_packages")
+      .select("id, tier, price_paise, final_images, description")
+      .eq("creator_id", creator.id)
+      .eq("is_active", true)
+      .order("price_paise", { ascending: true }),
+    admin
+      .from("collab_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", creator.id)
+      .eq("status", "completed"),
+    admin
+      .from("approvals")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", creator.id)
+      .eq("status", "approved"),
+    admin
+      .from("approvals")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", creator.id)
+      .eq("status", "rejected"),
+  ]);
 
-  // ── Demo samples (only visible + ready) ─────────────────────────────────
-  const { data: samples } = await admin
-    .from("creator_demo_samples")
-    .select("id, category, image_url, created_at")
-    .eq("creator_id", creator.id)
-    .eq("is_visible", true)
-    .eq("status", "ready");
-
-  // ── Active creator packages (tiers + pricing) ───────────────────────────
-  const { data: packages } = await admin
-    .from("creator_packages")
-    .select("id, tier, price_paise, final_images, description")
-    .eq("creator_id", creator.id)
-    .eq("is_active", true)
-    .order("price_paise", { ascending: true });
-
-  // ── Trust metrics — completed collabs + approval rate ───────────────────
-  const { count: completedCollabs } = await admin
-    .from("collab_sessions")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_id", creator.id)
-    .eq("status", "completed");
+  const userRow = userRes.data;
+  const samples = samplesRes.data;
+  const packages = packagesRes.data;
+  const completedCollabs = completedRes.count;
 
   // Approval rate (approved / (approved + rejected)) — best effort
   let approvalRate: number | null = null;
-  const { count: approvedCount } = await admin
-    .from("approvals")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_id", creator.id)
-    .eq("status", "approved");
-  const { count: rejectedCount } = await admin
-    .from("approvals")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_id", creator.id)
-    .eq("status", "rejected");
-  const a = approvedCount ?? 0;
-  const r = rejectedCount ?? 0;
+  const a = approvedRes.count ?? 0;
+  const r = rejectedRes.count ?? 0;
   if (a + r >= 3) {
     approvalRate = Math.round((a / (a + r)) * 100);
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     slug: creator.profile_slug,
     published: Boolean(creator.profile_published),
     preview: isPreview && !creator.profile_published,
@@ -191,4 +200,14 @@ export async function GET(
       approval_rate_pct: approvalRate,
     },
   });
+
+  // Edge-cache published profiles (60s fresh, 5m stale-while-revalidate).
+  // Preview responses are owner-only + must stay fresh, so no caching there.
+  if (!isPreview) {
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300",
+    );
+  }
+  return res;
 }

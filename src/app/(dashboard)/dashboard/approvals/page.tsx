@@ -255,7 +255,7 @@ export default function ApprovalsPage() {
                   {/* Image thumbnail or placeholder */}
                   <div className="shrink-0 size-14 sm:size-20 rounded-xl bg-[var(--color-lilac)] flex items-center justify-center overflow-hidden">
                     {gen?.image_url ? (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={gen.image_url}
                         alt="Generated content"
                         className="size-full object-cover"
@@ -309,7 +309,7 @@ export default function ApprovalsPage() {
                 {gen?.structured_brief?.product_name && (
                   <div className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--color-outline-variant)]/15 bg-[var(--color-surface-container-low)] px-4 py-3">
                     {gen.structured_brief.product_image_url && (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={gen.structured_brief.product_image_url}
                         alt={gen.structured_brief.product_name}
                         className="size-12 shrink-0 rounded-lg border border-[var(--color-outline-variant)]/15 object-contain bg-white"

@@ -208,7 +208,7 @@ export default function SendRequestPage() {
             <div className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-3">
               <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={productImageUrl}
                   alt="Product preview"
                   className="h-full w-full object-cover"

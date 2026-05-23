@@ -808,7 +808,7 @@ export default function BrandStudioPage() {
                 {brief.product_image_url ? (
                   <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-[var(--color-border)]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={brief.product_image_url}
                       alt="Product"
                       className="h-full w-full object-cover"
@@ -1125,7 +1125,7 @@ export default function BrandStudioPage() {
                   aria-label="View full size"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={heroGen.image_url}
                     alt="Latest generation"
                     className="h-full w-full object-contain"
@@ -1272,7 +1272,7 @@ export default function BrandStudioPage() {
               className="relative max-h-full max-w-[1400px]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <img loading="lazy" decoding="async"
                 src={lightboxUrl}
                 alt="Generated image full size"
                 className="max-h-[92vh] max-w-full rounded-lg object-contain shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6)]"
@@ -1380,7 +1380,7 @@ export default function BrandStudioPage() {
                   <div className="relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
                     {heroGen.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={heroGen.image_url}
                         alt="Attempt 1"
                         className="h-full w-full object-cover"
@@ -1519,7 +1519,7 @@ function GenCell({ gen, collabId }: { gen: Generation; collabId: string }) {
       {gen.image_url ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={gen.image_url} alt="Generation" className="h-full w-full object-cover" />
+          <img loading="lazy" decoding="async" src={gen.image_url} alt="Generation" className="h-full w-full object-cover" />
           {/* Bottom status pill */}
           <div className="absolute inset-x-1 bottom-1">
             <span className={`inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 font-mono text-[8px] font-700 backdrop-blur-md ${tone.bg} ${tone.text}`}>

@@ -497,7 +497,7 @@ export default function GenerationDetailPage({
         {generation.structured_brief?.product_name && (
           <div className="mb-6 flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-ocean)]/10 p-4">
             {generation.structured_brief.product_image_url && (
-              <img
+              <img loading="lazy" decoding="async"
                 src={generation.structured_brief.product_image_url}
                 alt={generation.structured_brief.product_name}
                 className="size-16 shrink-0 rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] object-contain bg-white"
@@ -526,7 +526,7 @@ export default function GenerationDetailPage({
           </h3>
           <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)]">
             {generation.image_url && !imageLoadFailed ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={generation.image_url}
                 alt="AI-generated content"
                 className="w-full max-h-[32rem] object-contain"

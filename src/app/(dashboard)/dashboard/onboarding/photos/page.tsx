@@ -277,7 +277,7 @@ export default function PhotosPage() {
                   className="relative aspect-square rounded-[var(--radius-input)] overflow-hidden border border-[var(--color-border)] group"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={photo.url}
                     alt="Reference photo"
                     className="size-full object-cover"

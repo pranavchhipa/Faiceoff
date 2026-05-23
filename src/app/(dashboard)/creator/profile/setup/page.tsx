@@ -811,7 +811,7 @@ function DemoCard({
       {/* Image / state */}
       {status === "ready" && sample?.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <img loading="lazy" decoding="async"
           src={sample.image_url}
           alt={`${label} demo`}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"

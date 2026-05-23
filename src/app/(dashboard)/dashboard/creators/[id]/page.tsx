@@ -184,7 +184,7 @@ export default function CreatorProfilePage({
         {/* HERO */}
         <div className="relative h-[240px] sm:h-[280px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <img loading="lazy" decoding="async"
             src={heroPhoto}
             alt={creator.display_name}
             className="absolute inset-0 h-full w-full object-cover"

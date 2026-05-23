@@ -294,7 +294,7 @@ export default function CreatorCatalogPage() {
                     )}
                     {hasPhoto ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={photo}
                         alt={creator.display_name}
                         className="h-full w-full object-cover object-top"

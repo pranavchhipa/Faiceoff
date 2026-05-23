@@ -356,7 +356,7 @@ function NewTicketForm({
         {attachment ? (
           <div className="relative inline-block">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <img loading="lazy" decoding="async"
               src={attachment.url}
               alt={attachment.name}
               className="max-h-40 rounded-lg border border-[var(--color-border)] object-contain"
@@ -540,7 +540,7 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
                   {m.attachment_url && (
                     <a href={m.attachment_url} target="_blank" rel="noreferrer" className="mb-1.5 block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={m.attachment_url}
                         alt={m.attachment_name ?? "Screenshot"}
                         className="max-h-56 rounded-lg border border-black/10 object-contain"
@@ -577,7 +577,7 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
             {replyAttach && (
               <div className="relative mb-2 inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={replyAttach.url}
                   alt={replyAttach.name}
                   className="max-h-32 rounded-lg border border-[var(--color-border)] object-contain"

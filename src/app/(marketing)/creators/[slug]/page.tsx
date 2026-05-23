@@ -296,7 +296,7 @@ export default async function CreatorProfilePage(
             <div className="relative aspect-[4/5] w-full max-w-[460px] overflow-hidden rounded-sm bg-[#1a1612]">
               {c.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <img loading="lazy" decoding="async"
                   src={c.avatar_url}
                   alt={c.display_name}
                   className="absolute inset-0 h-full w-full object-cover"
@@ -569,7 +569,7 @@ export default async function CreatorProfilePage(
                     className={`group relative overflow-hidden rounded-sm bg-[#1a1612] ${bentoClassFor(idx, orderedSamples.length)}`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={s.image_url}
                       alt={`${c.display_name} · ${def.label}`}
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.05]"

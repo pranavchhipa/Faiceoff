@@ -569,7 +569,7 @@ function VaultCell({ gen }: { gen: Generation }) {
     <div className="group relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
       {gen.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <img loading="lazy" decoding="async"
           src={gen.image_url}
           alt="Approved generation"
           className="h-full w-full object-cover"
@@ -796,7 +796,7 @@ function BrandLicenseSection({
               <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
                 {gen?.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={gen.image_url} alt="" className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={gen.image_url} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center">
                     <ImageIcon className="h-5 w-5 text-[var(--color-muted-foreground)]" />

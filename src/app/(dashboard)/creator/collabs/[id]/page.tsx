@@ -524,7 +524,7 @@ export default function CreatorCollabWorkspacePage() {
             className="relative max-h-full max-w-[1400px]"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <img loading="lazy" decoding="async"
               src={lightboxUrl}
               alt="Full size"
               className="max-h-[92vh] max-w-full rounded-lg object-contain shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6)]"
@@ -693,7 +693,7 @@ function ImagesTab({
               >
                 {g.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={g.image_url}
                     alt="Approved"
                     className="h-full w-full object-cover transition-transform group-hover:scale-105"
@@ -732,7 +732,7 @@ function ImagesTab({
               >
                 {g.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={g.image_url}
                     alt="Not selected"
                     className="h-full w-full object-cover grayscale transition-all group-hover:grayscale-0"
@@ -780,7 +780,7 @@ function ApprovalCard({
       >
         {gen.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <img loading="lazy" decoding="async"
             src={gen.image_url}
             alt="Pending approval"
             className="h-full w-full object-cover"
@@ -1087,7 +1087,7 @@ function LicenseSection({
               <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-card)]">
                 {gen?.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={gen.image_url}
                     alt=""
                     className="h-full w-full object-cover"
