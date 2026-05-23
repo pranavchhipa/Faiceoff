@@ -86,10 +86,18 @@ export function BalanceChip({ role }: Props) {
     }
 
     load();
-    const handle = setInterval(load, REFRESH_MS);
+    // Pause polling in background tabs; refresh on return.
+    const handle = setInterval(() => {
+      if (!document.hidden) load();
+    }, REFRESH_MS);
+    const onVis = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
       clearInterval(handle);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [role]);
 

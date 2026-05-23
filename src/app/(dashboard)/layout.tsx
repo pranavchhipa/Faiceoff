@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { BrandIconRail } from "@/components/dashboard/brand-icon-rail";
@@ -9,10 +10,20 @@ import { CreatorIconRail } from "@/components/dashboard/creator-icon-rail";
 import { AdminSectionSidebar } from "@/components/dashboard/admin-section-sidebar";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { CommandPalette, useCommandPalette } from "@/components/dashboard/command-palette";
+import { useCommandPalette } from "@/components/dashboard/command-palette";
 import { MobileDrawerNav } from "@/components/dashboard/mobile-drawer-nav";
 import { Logo } from "@/components/brand/logo";
 import { Menu } from "lucide-react";
+
+// ⌘K palette is mounted on every dashboard page but only opened occasionally —
+// load its bundle lazily (client-only) so it doesn't weigh down initial paint.
+const CommandPalette = dynamic(
+  () =>
+    import("@/components/dashboard/command-palette").then((m) => ({
+      default: m.CommandPalette,
+    })),
+  { ssr: false },
+);
 
 /**
  * DashboardLayout — the single entry point for all internal pages.

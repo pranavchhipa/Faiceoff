@@ -90,8 +90,20 @@ export function NotificationBell() {
 
   useEffect(() => {
     load();
-    const h = setInterval(load, REFRESH_MS);
-    return () => clearInterval(h);
+    // Only poll while the tab is visible — pause in background tabs to save
+    // requests + battery, refetch immediately when the user returns.
+    const tick = () => {
+      if (!document.hidden) load();
+    };
+    const h = setInterval(tick, REFRESH_MS);
+    const onVis = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(h);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [load]);
 
   // Close on outside click / Escape
