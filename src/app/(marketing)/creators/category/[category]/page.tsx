@@ -18,6 +18,7 @@ import {
 } from "@/lib/profile/demo-prompts";
 import { listPublishedCreators } from "@/lib/profile/public-creators";
 import { CreatorCard } from "@/components/creators/creator-card";
+import { MarketingDarkFooter } from "@/components/marketing/dark-footer";
 import { Logo } from "@/components/brand/logo";
 
 const APP_URL =
@@ -274,6 +275,8 @@ export default async function CategoryPage(
           </div>
         </div>
       </section>
+
+      <MarketingDarkFooter />
     </div>
   );
 }

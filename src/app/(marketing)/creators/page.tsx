@@ -12,6 +12,7 @@ import { ArrowUpRight } from "lucide-react";
 import { listPublishedCreators } from "@/lib/profile/public-creators";
 import { DEMO_CATEGORIES, ALL_CATEGORY_KEYS } from "@/lib/profile/demo-prompts";
 import { CreatorCard } from "@/components/creators/creator-card";
+import { MarketingDarkFooter } from "@/components/marketing/dark-footer";
 import { Logo } from "@/components/brand/logo";
 
 const APP_URL =
@@ -157,6 +158,8 @@ export default async function CreatorsDirectoryPage() {
           </div>
         </div>
       </section>
+
+      <MarketingDarkFooter />
     </div>
   );
 }
