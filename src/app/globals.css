@@ -4,6 +4,38 @@
    Faiceoff — Hybrid Soft Luxe v2 Design System
    ============================================================ */
 
+/* ── Article prose (SEO content pages: /learn, /earn) ──
+   Dark editorial reading styles. Pages write semantic HTML inside
+   .article-prose and these rules handle typography. */
+.article-prose { color: #c9bda6; font-size: 16.5px; line-height: 1.75; }
+.article-prose > * + * { margin-top: 1.1rem; }
+.article-prose h2 {
+  font-family: Outfit, system-ui, sans-serif;
+  font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+  color: #f5ebd6; font-size: clamp(22px, 3.2vw, 30px);
+  margin-top: 2.4rem; margin-bottom: 0.2rem;
+}
+.article-prose h3 {
+  font-family: Outfit, system-ui, sans-serif;
+  font-weight: 700; color: #f5ebd6; font-size: 18px;
+  margin-top: 1.6rem;
+}
+.article-prose p { color: #c9bda6; }
+.article-prose strong { color: #f5ebd6; font-weight: 700; }
+.article-prose a { color: #e8825d; text-decoration: underline; text-underline-offset: 3px; }
+.article-prose a:hover { color: #f0a486; }
+.article-prose ul { padding-left: 0; list-style: none; }
+.article-prose ul > li { position: relative; padding-left: 1.4rem; margin-top: 0.6rem; }
+.article-prose ul > li::before {
+  content: ""; position: absolute; left: 0; top: 0.62em;
+  width: 0.8rem; height: 2px; background: #e8825d;
+}
+.article-prose blockquote {
+  border-left: 2px solid #e8825d; padding-left: 1.1rem;
+  color: #d9c9aa; font-style: italic; margin-left: 0;
+}
+.article-prose .lead { font-size: 18px; color: #d9c9aa; }
+
 /* ── shadcn/ui semantic tokens mapped to Faiceoff palette ── */
 :root {
   --radius: 0.625rem;

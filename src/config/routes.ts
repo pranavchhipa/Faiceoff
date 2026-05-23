@@ -47,9 +47,14 @@ export function isPublicPath(pathname: string): boolean {
   if (MARKETING_PATHS.includes(pathname)) return true;
   if (pathname === "/u" || pathname.startsWith("/u/")) return true;
   if (pathname === "/verify" || pathname.startsWith("/verify/")) return true;
-  // Public creator share profiles — /creators/<slug>. Brands click these
-  // from IG bio links etc. without an account; no auth required.
+  // Public creator share profiles + directory + category pages.
   if (pathname === "/creators" || pathname.startsWith("/creators/")) return true;
+  // SEO content surfaces (Tier 2): learn hub/articles, earn page, and
+  // industry sub-pages under /for-brands and /for-creators.
+  if (pathname === "/learn" || pathname.startsWith("/learn/")) return true;
+  if (pathname === "/earn" || pathname.startsWith("/earn/")) return true;
+  if (pathname.startsWith("/for-brands/")) return true;
+  if (pathname.startsWith("/for-creators/")) return true;
   return false;
 }
 

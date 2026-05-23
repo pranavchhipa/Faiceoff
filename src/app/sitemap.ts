@@ -26,11 +26,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/creators`,     lastModified: now, changeFrequency: "daily",   priority: 0.95 },
     { url: `${base}/for-brands`,   lastModified: now, changeFrequency: "weekly",  priority: 0.9 },
     { url: `${base}/for-creators`, lastModified: now, changeFrequency: "weekly",  priority: 0.9 },
+    { url: `${base}/earn`,         lastModified: now, changeFrequency: "weekly",  priority: 0.85 },
+    { url: `${base}/learn`,        lastModified: now, changeFrequency: "weekly",  priority: 0.7 },
     { url: `${base}/pricing`,      lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/contact`,      lastModified: now, changeFrequency: "monthly", priority: 0.4 },
   ];
 
-  // Category landing pages
+  // Learn articles (content/authority)
+  const learnRoutes: MetadataRoute.Sitemap = [
+    "what-is-ai-face-licensing",
+    "ai-photoshoot-vs-traditional",
+    "is-ai-influencer-legal-india",
+  ].map((slug) => ({
+    url: `${base}/learn/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
+  // Industry landing pages
+  const industryRoutes: MetadataRoute.Sitemap = [
+    "fashion", "beauty", "tech", "food", "travel",
+    "fitness", "jewellery", "home", "automotive", "d2c",
+  ].map((ind) => ({
+    url: `${base}/for-brands/${ind}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
+
+  // Creator category landing pages
   const categoryRoutes: MetadataRoute.Sitemap = ALL_CATEGORY_KEYS.map((cat) => ({
     url: `${base}/creators/category/${cat}`,
     lastModified: now,
@@ -52,5 +77,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB hiccup — serve static + category routes only
   }
 
-  return [...staticRoutes, ...categoryRoutes, ...creatorRoutes];
+  return [
+    ...staticRoutes,
+    ...learnRoutes,
+    ...industryRoutes,
+    ...categoryRoutes,
+    ...creatorRoutes,
+  ];
 }

@@ -65,6 +65,8 @@ function LinkedinGlyph(props: SVGProps<SVGSVGElement>) {
 const PRODUCT_LINKS = [
   { href: "/for-creators", label: "For Creators" },
   { href: "/for-brands", label: "For Brands" },
+  { href: "/earn", label: "Earn" },
+  { href: "/learn", label: "Learn" },
   { href: "/pricing", label: "Pricing" },
   { href: "/verify", label: "Verify Licence" },
 ] as const;
