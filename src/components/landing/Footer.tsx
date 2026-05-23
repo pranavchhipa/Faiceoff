@@ -69,6 +69,18 @@ const PRODUCT_LINKS = [
   { href: "/verify", label: "Verify Licence" },
 ] as const;
 
+// SEO surfaces — sitewide internal links to the creator directory + the
+// highest-intent category landings. Footer links appear on every page, so
+// these give the programmatic SEO pages strong, consistent link equity.
+const BROWSE_LINKS = [
+  { href: "/creators", label: "All Creators" },
+  { href: "/creators/category/fashion", label: "Fashion" },
+  { href: "/creators/category/beauty", label: "Beauty" },
+  { href: "/creators/category/tech", label: "Tech" },
+  { href: "/creators/category/travel", label: "Travel" },
+  { href: "/creators/category/fitness", label: "Fitness" },
+] as const;
+
 const COMPANY_LINKS = [
   { href: "/contact", label: "Contact" },
   { href: "#", label: "About" },
@@ -99,7 +111,7 @@ export function Footer() {
       <div className="lp-container py-16 md:py-20">
         <div className="grid gap-12 md:gap-10 md:grid-cols-12">
           {/* ── Brand block ───────────────────────────────────── */}
-          <div className="md:col-span-6">
+          <div className="md:col-span-4">
             <Link
               href="/"
               aria-label="Faiceoff home"
@@ -170,6 +182,9 @@ export function Footer() {
               ))}
             </div>
           </div>
+
+          {/* ── Browse (SEO surfaces) ─────────────────────────── */}
+          <FooterColumn heading="Browse" links={BROWSE_LINKS} />
 
           {/* ── Product ───────────────────────────────────────── */}
           <FooterColumn heading="Product" links={PRODUCT_LINKS} />

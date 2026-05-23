@@ -29,7 +29,7 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import { DEMO_CATEGORIES, type DemoCategoryKey } from "@/lib/profile/demo-prompts";
+import { DEMO_CATEGORIES, ALL_CATEGORY_KEYS, type DemoCategoryKey } from "@/lib/profile/demo-prompts";
 import { Logo } from "@/components/brand/logo";
 
 const APP_URL =
@@ -860,6 +860,35 @@ export default async function CreatorProfilePage(
               Launch a Campaign
               <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 sm:h-5 sm:w-5" />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Browse by category (interlinking — every profile → all categories) ── */}
+      <section className="relative z-10 border-t border-[#2a2520] px-4 py-10 sm:px-5 lg:px-10">
+        <div className="mx-auto max-w-[1400px]">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[#6e6457]">
+            Browse more AI creators
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/creators"
+              className="inline-flex items-center rounded-full border border-[#2a2520] px-3 py-1.5 font-mono text-[10.5px] font-700 uppercase tracking-wider text-[#a89570] transition hover:border-[#e8825d]/50 hover:text-[#f5ebd6]"
+            >
+              All Creators
+            </Link>
+            {ALL_CATEGORY_KEYS.map((key) => {
+              const def = DEMO_CATEGORIES[key];
+              return (
+                <Link
+                  key={key}
+                  href={`/creators/category/${key}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#2a2520] px-3 py-1.5 font-mono text-[10.5px] font-700 uppercase tracking-wider text-[#a89570] transition hover:border-[#e8825d]/50 hover:text-[#f5ebd6]"
+                >
+                  {def.emoji} {def.label.split(" & ")[0]}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
