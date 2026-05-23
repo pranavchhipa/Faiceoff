@@ -58,6 +58,14 @@ const RESERVED_SLUGS = new Set([
   "withdraw",
   "creator-agreement",
   "contact",
+  "category",
+  "categories",
+  "directory",
+  "browse",
+  "all",
+  "learn",
+  "blog",
+  "earn",
 ]);
 
 export function validateSlug(slug: string): { ok: true } | { ok: false; reason: string } {

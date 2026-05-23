@@ -229,6 +229,59 @@ export default async function CreatorProfilePage(
       })
     : "—";
 
+  // ── schema.org JSON-LD — Person + Offers + Breadcrumb (rich results) ──
+  const profileUrl = `${APP_URL}/creators/${data.slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": `${profileUrl}#person`,
+        name: c.display_name,
+        url: profileUrl,
+        image: c.avatar_url ?? undefined,
+        description: c.bio ?? `${c.display_name} — verified AI creator on Faiceoff.`,
+        sameAs: c.instagram_handle
+          ? [`https://instagram.com/${c.instagram_handle}`]
+          : undefined,
+        ...(c.instagram_followers
+          ? {
+              interactionStatistic: {
+                "@type": "InteractionCounter",
+                interactionType: "https://schema.org/FollowAction",
+                userInteractionCount: c.instagram_followers,
+              },
+            }
+          : {}),
+      },
+      ...(data.packages.length > 0
+        ? [
+            {
+              "@type": "Service",
+              "@id": `${profileUrl}#service`,
+              serviceType: "Licensed AI likeness content",
+              provider: { "@id": `${profileUrl}#person` },
+              areaServed: "IN",
+              offers: data.packages.map((p) => ({
+                "@type": "Offer",
+                name: p.tier,
+                price: (p.price_paise / 100).toFixed(2),
+                priceCurrency: "INR",
+                url: profileUrl,
+              })),
+            },
+          ]
+        : []),
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Creators", item: `${APP_URL}/creators` },
+          { "@type": "ListItem", position: 2, name: c.display_name, item: profileUrl },
+        ],
+      },
+    ],
+  };
+
   return (
     <div
       className="min-h-screen overflow-x-hidden text-[#f5ebd6] selection:bg-[#e8825d]/30"
@@ -238,6 +291,14 @@ export default async function CreatorProfilePage(
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
       }}
     >
+      {/* schema.org structured data — only for published (indexable) profiles */}
+      {!data.preview && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+
       {/* Decorative film grain */}
       <div
         aria-hidden

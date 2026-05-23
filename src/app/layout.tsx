@@ -81,9 +81,9 @@ const SITE_URL =
     ? "https://faiceoff.com"
     : "http://localhost:3000");
 
-const SITE_TITLE = "Faiceoff — A House for Licensed Likeness";
+const SITE_TITLE = "Faiceoff — Real verified faces. Licensed for AI.";
 const SITE_DESC =
-  "The marketplace where creators license their likeness and brands generate authentic, consented AI content. Fair face, fair deal.";
+  "Real, verified human faces — licensed for AI. Brands create authentic, consented AI content with verified Indian creators. Pay only on approval.";
 
 export const metadata: Metadata = {
   title: SITE_TITLE,
@@ -91,13 +91,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "Faiceoff",
   keywords: [
-    "AI likeness licensing",
-    "creator marketplace India",
-    "influencer AI",
-    "brand UGC",
-    "consent-first AI",
-    "DPDP compliant",
-    "Razorpay payouts",
+    "verified faces for AI",
+    "license your face for AI",
+    "AI influencer India",
+    "AI model for brands",
+    "consented AI content",
+    "AI UGC marketplace",
+    "real faces AI licensing",
+    "DPDP compliant AI",
   ],
   alternates: { canonical: "/" },
   openGraph: {
