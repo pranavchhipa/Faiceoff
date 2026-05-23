@@ -59,4 +59,15 @@ export const COMPANY = {
 
   /** Compliance badges shown in footer + license PDF */
   compliance: ["DPDP Act", "GST", "IT Act"] as const,
+
+  /**
+   * Social profile URLs. Leave a value empty ("") to HIDE that icon — the
+   * footer only renders socials with a real URL, so we never ship dead links.
+   * Fill these in when the handles are live.
+   */
+  socials: {
+    instagram: "", // e.g. "https://instagram.com/faiceoff"
+    twitter: "",   // e.g. "https://x.com/faiceoff"
+    linkedin: "",  // e.g. "https://linkedin.com/company/faiceoff"
+  },
 } as const;

@@ -63,10 +63,8 @@ function LinkedinGlyph(props: SVGProps<SVGSVGElement>) {
 }
 
 const PRODUCT_LINKS = [
-  { href: "/for-creators", label: "For Creators" },
   { href: "/for-brands", label: "For Brands" },
-  { href: "/earn", label: "Earn" },
-  { href: "/learn", label: "Learn" },
+  { href: "/for-creators", label: "For Creators" },
   { href: "/pricing", label: "Pricing" },
   { href: "/verify", label: "Verify Licence" },
 ] as const;
@@ -83,11 +81,12 @@ const BROWSE_LINKS = [
   { href: "/creators/category/fitness", label: "Fitness" },
 ] as const;
 
-const COMPANY_LINKS = [
+// Resources — all real pages. Removed dead About/Blog/Careers '#' links
+// (bad for SEO + UX). Re-add only when those pages actually exist.
+const RESOURCE_LINKS = [
+  { href: "/learn", label: "Learn" },
+  { href: "/earn", label: "Earn" },
   { href: "/contact", label: "Contact" },
-  { href: "#", label: "About" },
-  { href: "#", label: "Blog" },
-  { href: "#", label: "Careers" },
 ] as const;
 
 const LEGAL_LINKS = [
@@ -161,28 +160,37 @@ export function Footer() {
               </div>
             </address>
 
-            {/* socials */}
-            <div className="mt-6 flex items-center gap-2">
-              {[
-                { Icon: TwitterX, label: "X / Twitter" },
-                { Icon: InstagramGlyph, label: "Instagram" },
-                { Icon: LinkedinGlyph, label: "LinkedIn" },
-              ].map(({ Icon, label }) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  className="h-9 w-9 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
-                  style={{
-                    background: "var(--lp-paper)",
-                    border: "1px solid var(--lp-border)",
-                    color: "var(--lp-ink-soft)",
-                  }}
-                >
-                  <Icon />
-                </a>
-              ))}
-            </div>
+            {/* socials — only render handles that are actually configured,
+                so we never ship dead '#' links (bad for SEO + UX) */}
+            {(COMPANY.socials.instagram ||
+              COMPANY.socials.twitter ||
+              COMPANY.socials.linkedin) && (
+              <div className="mt-6 flex items-center gap-2">
+                {[
+                  { Icon: TwitterX, label: "X / Twitter", href: COMPANY.socials.twitter },
+                  { Icon: InstagramGlyph, label: "Instagram", href: COMPANY.socials.instagram },
+                  { Icon: LinkedinGlyph, label: "LinkedIn", href: COMPANY.socials.linkedin },
+                ]
+                  .filter((s) => Boolean(s.href))
+                  .map(({ Icon, label, href }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={label}
+                      className="h-9 w-9 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                      style={{
+                        background: "var(--lp-paper)",
+                        border: "1px solid var(--lp-border)",
+                        color: "var(--lp-ink-soft)",
+                      }}
+                    >
+                      <Icon />
+                    </a>
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* ── Browse (SEO surfaces) ─────────────────────────── */}
@@ -191,8 +199,8 @@ export function Footer() {
           {/* ── Product ───────────────────────────────────────── */}
           <FooterColumn heading="Product" links={PRODUCT_LINKS} />
 
-          {/* ── Company ───────────────────────────────────────── */}
-          <FooterColumn heading="Company" links={COMPANY_LINKS} />
+          {/* ── Resources ─────────────────────────────────────── */}
+          <FooterColumn heading="Resources" links={RESOURCE_LINKS} />
 
           {/* ── Legal ─────────────────────────────────────────── */}
           <FooterColumn heading="Legal" links={LEGAL_LINKS} />
