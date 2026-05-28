@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { categories?: unknown; slug?: unknown };
+  let body: { categories?: unknown; slug?: unknown; city?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -155,13 +155,24 @@ export async function POST(request: Request) {
     existingByCategory.set(s.category, { status: s.status });
   }
 
-  // ── Persist creators row (slug + categories) ────────────────────────────
+  // ── Optional: city ── update inline so the profile setup form can manage
+  // the location pin alongside categories + slug in one save.
+  let cityToSave: string | null | undefined;
+  if (typeof body.city === "string") {
+    const trimmed = body.city.trim().slice(0, 80);
+    cityToSave = trimmed || null;
+  }
+
+  // ── Persist creators row (slug + categories + optional city) ──────────
+  const updatePayload: Record<string, unknown> = {
+    profile_slug: slug,
+    selected_categories: categories,
+  };
+  if (cityToSave !== undefined) updatePayload.city = cityToSave;
+
   const { error: upErr } = await admin
     .from("creators")
-    .update({
-      profile_slug: slug,
-      selected_categories: categories,
-    })
+    .update(updatePayload)
     .eq("id", creator.id);
   if (upErr) {
     return NextResponse.json({ error: upErr.message }, { status: 500 });

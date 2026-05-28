@@ -27,6 +27,8 @@ async function loadCreators(): Promise<CreatorCard[]> {
       user_id,
       kyc_status,
       is_live,
+      city,
+      created_at,
       users!inner ( display_name ),
       creator_categories ( category, is_active ),
       creator_packages ( tier, price_paise, is_active )
@@ -121,6 +123,8 @@ async function loadCreators(): Promise<CreatorCard[]> {
       primary_category: cats[0]?.category ?? null,
       categories: cats.map((cc) => cc.category),
       is_verified: c.kyc_status === "approved",
+      city: c.city ?? null,
+      created_at: c.created_at ?? null,
     };
   });
 }

@@ -23,6 +23,10 @@ export interface PublicCreatorCard {
   account_type: string | null;
   verified: boolean;
   is_live: boolean;
+  /** Free-text creator city (Mumbai, Delhi, etc.). Surfaced on cards + profile hero. */
+  city: string | null;
+  /** ISO timestamp the creator row was created — drives "Newest" sort + "New" badge. */
+  created_at: string;
 }
 
 /**
@@ -41,7 +45,8 @@ export async function listPublishedCreators(
       `
       id, user_id, profile_slug, selected_categories,
       instagram_followers, instagram_profile_pic_url,
-      instagram_account_type, instagram_verified, is_live
+      instagram_account_type, instagram_verified, is_live,
+      city, created_at
       `,
     )
     .eq("profile_published", true)
@@ -96,6 +101,8 @@ export async function listPublishedCreators(
       instagram_account_type: string | null;
       instagram_verified: boolean | null;
       is_live: boolean | null;
+      city: string | null;
+      created_at: string;
     }) => {
       const u = userById.get(c.user_id);
       return {
@@ -108,6 +115,8 @@ export async function listPublishedCreators(
         account_type: c.instagram_account_type,
         verified: Boolean(c.instagram_verified),
         is_live: Boolean(c.is_live),
+        city: c.city ?? null,
+        created_at: c.created_at,
       };
     },
   );

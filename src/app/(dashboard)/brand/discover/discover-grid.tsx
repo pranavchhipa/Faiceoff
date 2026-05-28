@@ -31,10 +31,19 @@ import {
   ArrowRight,
   ChevronDown,
   Heart,
+  MapPin,
   Search,
   SlidersHorizontal,
   X,
 } from "lucide-react";
+
+/** Returns true if the creator joined within the last 14 days. */
+function isNewCreator(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < 14 * 24 * 60 * 60 * 1000;
+}
 
 /* ───────── Types ───────── */
 
@@ -50,6 +59,10 @@ export interface CreatorCard {
   primary_category: string | null;
   categories: string[];
   is_verified: boolean;
+  /** Free-text creator city. Drives the location pin overlay on cards. */
+  city: string | null;
+  /** ISO timestamp creator joined — powers Newest sort + "New" badge (last 14d). */
+  created_at: string | null;
 }
 
 /* ───────── Format helpers ───────── */
@@ -629,6 +642,10 @@ function CreatorCardCmp({
             {c.display_name[0]?.toUpperCase() ?? "?"}
           </div>
         )}
+        {/* "New" badge — top-left, only for creators that joined recently */}
+        {isNewCreator(c.created_at) && (
+          <span className="card-new">New</span>
+        )}
         <button
           type="button"
           className={`card-save ${saved ? "saved" : ""}`}
@@ -637,6 +654,13 @@ function CreatorCardCmp({
         >
           <Heart size={16} strokeWidth={2} fill={saved ? "currentColor" : "none"} />
         </button>
+        {/* Location pin — bottom-left, only when city is set */}
+        {c.city && (
+          <span className="card-loc">
+            <MapPin size={10} strokeWidth={2.4} />
+            {c.city}
+          </span>
+        )}
       </div>
       <div className="card-body">
         <div className="card-name-row">
@@ -818,9 +842,15 @@ export function DiscoverGrid({ creators }: Props) {
         );
         break;
       case "newest":
-        // No created_at on the card shape (yet) — fall back to ID order so the
-        // sort option doesn't appear broken. Wire to creator.created_at later.
-        arr.sort((a, b) => b.id.localeCompare(a.id));
+        // created_at is now threaded through the card shape (migration 00063
+        // wired city + threading via brand/discover/page.tsx). Sort desc so the
+        // freshest signups bubble to the top; null → 0 keeps legacy rows at the
+        // bottom rather than randomising the order.
+        arr.sort((a, b) => {
+          const at = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return bt - at;
+        });
         break;
       default:
         // "popular" — proxy: followers desc, then categories count desc as tiebreaker
@@ -1319,6 +1349,45 @@ const PAGE_CSS = `
   background: var(--accent);
   border-color: var(--accent);
   color: var(--bg);
+}
+/* "New" pill — accent-filled, sits top-left over the image. */
+.fco-discover-v2 .card-new {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 4px 9px;
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 4px;
+  font-family: var(--font-label, var(--font-body));
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px -4px rgba(232, 130, 93, 0.55);
+}
+/* Location pin — bottom-left, frosted dark pill. */
+.fco-discover-v2 .card-loc {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: rgba(10, 9, 8, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(245, 235, 214, 0.08);
+  border-radius: 4px;
+  font-family: var(--font-label, var(--font-body));
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245, 235, 214, 0.9);
 }
 .fco-discover-v2 .card-body {
   padding: 16px 16px 18px;

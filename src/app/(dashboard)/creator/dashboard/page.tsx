@@ -358,7 +358,7 @@ export default function CreatorDashboardPage() {
                   Build your Style Previews & share your creator link
                 </p>
                 <p className="text-[12px] text-[var(--color-muted-foreground)]">
-                  Pick 4 categories → Style Previews auto-builds → drop the link in your IG bio.
+                  Pick 4 categories → Style Previews auto-build → drop the link in your IG bio.
                 </p>
               </div>
             </div>

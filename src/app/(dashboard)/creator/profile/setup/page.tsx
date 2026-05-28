@@ -82,6 +82,7 @@ interface ProfileStatus {
     links: ProfileLink[];
     cover_image_path: string | null;
     cover_image_url: string | null;
+    city: string | null;
   } | null;
   samples: DemoSample[];
 }
@@ -109,6 +110,10 @@ export default function ProfileSetupPage() {
   const [coverDragActive, setCoverDragActive] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  // ── City (location pin on Discover cards + public profile hero) ─────────
+  const [cityDraft, setCityDraft] = useState("");
+  const cityHydratedRef = useRef(false);
+
   // ── Fetch initial state ─────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     try {
@@ -131,6 +136,11 @@ export default function ProfileSetupPage() {
         // is fresh (1h) so it'll just work in the <img> below.
         if (data.creator.cover_image_url) {
           setCoverImageUrl(data.creator.cover_image_url);
+        }
+        // Hydrate city once (don't clobber whatever the creator is typing).
+        if (!cityHydratedRef.current) {
+          setCityDraft(data.creator.city ?? "");
+          cityHydratedRef.current = true;
         }
       }
     } finally {
@@ -192,6 +202,8 @@ export default function ProfileSetupPage() {
         body: JSON.stringify({
           categories: selected,
           slug: slugDraft || undefined,
+          // Send city when the creator has something typed (empty string clears it)
+          city: cityDraft.trim() ? cityDraft.trim() : undefined,
         }),
       });
       const data = await res.json();
@@ -407,7 +419,7 @@ export default function ProfileSetupPage() {
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
           Pick the categories you want brands to discover you in. We&apos;ll build
-          a hand-crafted Style Previews of you in each — no real-product needed. Drop
+          a hand-crafted Style Preview of you in each — no real-product needed. Drop
           the link in your Instagram bio and you&apos;re open for business.
         </p>
       </div>
@@ -580,24 +592,38 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 2 · Slug ── */}
+      {/* ── Section 2 · Slug + city ── */}
       <section className="mb-10">
         <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
           2 · Your public URL
         </h2>
         <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
-          Keep it short — easier to drop in a DM or bio.
+          Keep the handle short — easier to drop in a DM or bio. The city shows as a small location pin on brand discovery + your profile hero.
         </p>
-        <div className="mt-3 flex items-stretch overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
-          <span className="flex items-center bg-[var(--color-secondary)] px-3 font-mono text-[12px] font-600 text-[var(--color-muted-foreground)]">
-            faiceoff.com/creators/
-          </span>
-          <Input
-            value={slugDraft}
-            onChange={(e) => handleSlugChange(e.target.value)}
-            placeholder="your-handle"
-            className="h-11 flex-1 rounded-none border-0 font-mono text-[13px] focus-visible:ring-0"
-          />
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_220px]">
+          <div className="flex items-stretch overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
+            <span className="flex items-center bg-[var(--color-secondary)] px-3 font-mono text-[12px] font-600 text-[var(--color-muted-foreground)]">
+              faiceoff.com/creators/
+            </span>
+            <Input
+              value={slugDraft}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              placeholder="your-handle"
+              className="h-11 flex-1 rounded-none border-0 font-mono text-[13px] focus-visible:ring-0"
+            />
+          </div>
+          <div className="flex items-stretch overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
+            <span className="flex items-center bg-[var(--color-secondary)] px-3 font-mono text-[10.5px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              City
+            </span>
+            <Input
+              value={cityDraft}
+              onChange={(e) => setCityDraft(e.target.value.slice(0, 80))}
+              placeholder="Mumbai"
+              maxLength={80}
+              className="h-11 flex-1 rounded-none border-0 text-[13px] focus-visible:ring-0"
+            />
+          </div>
         </div>
         {slugError && (
           <p className="mt-2 text-[12px] text-red-500">{slugError}</p>
@@ -993,7 +1019,7 @@ export default function ProfileSetupPage() {
             {!canPublish ? (
               <>
                 <ArrowRight className="mr-1 inline h-3 w-3" />
-                Build at least 1 Style Previews frame to unlock Publish.
+                Build at least 1 Style Preview to unlock Publish.
               </>
             ) : (
               <>
