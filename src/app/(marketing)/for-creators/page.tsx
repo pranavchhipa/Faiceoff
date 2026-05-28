@@ -17,6 +17,10 @@ import {
   Lock,
   IndianRupee,
   Receipt,
+  Upload,
+  Wand2,
+  Link2,
+  Inbox,
 } from "lucide-react";
 import { BrandDemo } from "@/components/landing/BrandDemo";
 import { CREATOR_PRIYA, WATERMARK_MASK } from "@/components/landing/images";
@@ -35,6 +39,7 @@ export default function ForCreatorsPage() {
     <div className="relative">
       <Hero />
       <HeroStats />
+      <GoLiveJourney />
       <CreatorPromise />
       <LiveInbox />
       <HowItWorks />
@@ -451,6 +456,436 @@ function HeroStats() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2b · GO LIVE IN 4 STEPS — visual journey
+   The "share-a-link → brands reach out" story, told as a flow of four cards.
+   Each card maps to one of the actual onboarding steps:
+     1. Upload reference photos        (/creator/likeness)
+     2. Get your AI likeness           (/creator/profile/setup · Style Previews)
+     3. Share your link in your bio    (/creators/<slug>)
+     4. Let brands reach out           (/creator/requests · /creator/approvals)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function GoLiveJourney() {
+  const steps = [
+    {
+      n: "01",
+      icon: Upload,
+      t: "Upload your images",
+      d: "Drop a few clean photos. We use them to train your private AI face model — never shared, never reused.",
+      preview: (
+        <PreviewCard label="Reference photos">
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="aspect-square rounded-md" style={{ background: "var(--lp-gold-tint)" }} />
+            <div className="aspect-square rounded-md" style={{ background: "var(--lp-paper-2)" }} />
+            <div className="aspect-square rounded-md" style={{ background: "var(--lp-gold-tint)" }} />
+            <div
+              className="aspect-square rounded-md flex items-center justify-center text-[14px]"
+              style={{
+                background: "var(--lp-paper-2)",
+                border: "1px dashed var(--lp-gold-soft)",
+                color: "var(--lp-gold-deep)",
+              }}
+            >
+              +
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <span
+              className="text-[10px]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: "var(--lp-muted)",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}
+            >
+              3 of 30
+            </span>
+            <span
+              className="text-[10px]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: "var(--lp-gold-deep)",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
+              KYC verified
+            </span>
+          </div>
+        </PreviewCard>
+      ),
+    },
+    {
+      n: "02",
+      icon: Wand2,
+      t: "Get your AI likeness",
+      d: "Pick the categories you want to be discovered in — your Style Previews auto-build with you in each.",
+      preview: (
+        <PreviewCard label="Style Previews">
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="aspect-[4/5] rounded-md" style={{ background: "linear-gradient(135deg, var(--lp-gold-tint), var(--lp-paper-2))" }} />
+            <div className="aspect-[4/5] rounded-md" style={{ background: "linear-gradient(135deg, var(--lp-paper-2), var(--lp-gold-tint))" }} />
+            <div className="aspect-[4/5] rounded-md" style={{ background: "linear-gradient(225deg, var(--lp-gold-tint), var(--lp-paper-2))" }} />
+            <div className="aspect-[4/5] rounded-md" style={{ background: "linear-gradient(45deg, var(--lp-paper-2), var(--lp-gold-tint))" }} />
+          </div>
+          <div className="mt-3 flex items-center gap-1.5">
+            {["Fashion", "Beauty", "Travel", "Tech"].map((c) => (
+              <span
+                key={c}
+                className="text-[9px] px-2 py-0.5 rounded-full"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  background: "var(--lp-paper-2)",
+                  color: "var(--lp-ink-soft)",
+                  border: "1px solid var(--lp-border)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </PreviewCard>
+      ),
+    },
+    {
+      n: "03",
+      icon: Link2,
+      t: "Share it in your bio",
+      d: "Drop your faiceoff.com/@handle link in your Instagram bio. One link, your whole licensing setup.",
+      preview: (
+        <PreviewCard label="Your creator link">
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg"
+            style={{
+              background: "var(--lp-paper-2)",
+              border: "1px solid var(--lp-border)",
+            }}
+          >
+            <Link2 size={12} style={{ color: "var(--lp-gold-deep)" }} />
+            <span
+              className="flex-1 text-[12px] truncate"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: "var(--lp-ink)",
+              }}
+            >
+              faiceoff.com/@anya
+            </span>
+            <span
+              className="px-2 py-1 rounded text-[9px] font-bold"
+              style={{
+                fontFamily: "var(--font-mono)",
+                background: "var(--lp-ink)",
+                color: "var(--lp-paper)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Copy
+            </span>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <div
+              className="h-6 w-6 rounded-full"
+              style={{ background: "var(--lp-gold-tint)", border: "1px solid var(--lp-gold-soft)" }}
+            />
+            <span
+              className="text-[10px]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: "var(--lp-muted)",
+                letterSpacing: "0.10em",
+              }}
+            >
+              @anya · Mumbai · Lifestyle
+            </span>
+          </div>
+        </PreviewCard>
+      ),
+    },
+    {
+      n: "04",
+      icon: Inbox,
+      t: "Let brands reach out",
+      d: "Verified brands brief you. You approve every image before it ships. Get paid in INR to your bank.",
+      preview: (
+        <PreviewCard label="Brand request inbox">
+          <div
+            className="px-3 py-2.5 rounded-lg"
+            style={{
+              background: "var(--lp-paper-2)",
+              border: "1px solid var(--lp-border)",
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <div
+                className="h-5 w-5 rounded-md flex items-center justify-center text-[9px] font-bold"
+                style={{
+                  background: "var(--lp-ink)",
+                  color: "var(--lp-paper)",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                AC
+              </div>
+              <span
+                className="text-[11px] truncate"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 600,
+                  color: "var(--lp-ink)",
+                }}
+              >
+                Athleisure Co.
+              </span>
+              <span
+                className="ml-auto text-[9px]"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--lp-gold-deep)",
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                ₹1,875
+              </span>
+            </div>
+            <p
+              className="text-[10.5px] leading-relaxed truncate"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: "var(--lp-muted)",
+              }}
+            >
+              You in white sneakers, soft pink…
+            </p>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <span
+              className="flex-1 px-2 py-1 rounded text-[10px] flex items-center justify-center gap-1"
+              style={{
+                background: "var(--lp-ink)",
+                color: "var(--lp-paper)",
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+              }}
+            >
+              <CheckCheck size={10} /> Approve
+            </span>
+            <span
+              className="px-2 py-1 rounded text-[10px]"
+              style={{
+                border: "1px solid var(--lp-border)",
+                color: "var(--lp-muted)",
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+              }}
+            >
+              Skip
+            </span>
+          </div>
+        </PreviewCard>
+      ),
+    },
+  ];
+
+  return (
+    <section className={SECTION_CLASS}>
+      <div className="lp-container">
+        <div className="grid lg:grid-cols-[1fr_1.15fr] gap-12 lg:gap-20 items-start">
+          {/* Left: editorial copy + 4 step labels */}
+          <div className="lg:sticky lg:top-28">
+            <span className="lp-pill lp-pill-gold">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--lp-gold-deep)" }}
+              />
+              Go live in 4 steps
+            </span>
+
+            <h2
+              className="mt-6 text-[clamp(2.1rem,4.8vw,3.8rem)] leading-[1.02]"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+                letterSpacing: "-0.025em",
+                color: "var(--lp-ink)",
+              }}
+            >
+              Your next brand shoot starts with{" "}
+              <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+                a link
+              </span>
+              .
+            </h2>
+
+            <p
+              className="mt-6 max-w-md text-base leading-relaxed"
+              style={{ color: "var(--lp-ink-soft)" }}
+            >
+              No studio bookings, no agency middlemen, no DMs to chase. License
+              your face once — keep earning every time a brand briefs you.
+            </p>
+
+            {/* 4 mini step labels (echoes the journey on the right) */}
+            <ul className="mt-9 space-y-5">
+              {steps.map((s) => (
+                <li key={s.t} className="flex items-start gap-4">
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: "var(--lp-paper)",
+                      border: "1px solid var(--lp-gold-soft)",
+                      color: "var(--lp-gold-deep)",
+                    }}
+                  >
+                    <s.icon size={16} strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0">
+                    <div
+                      className="text-[15px]"
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 600,
+                        color: "var(--lp-ink)",
+                        letterSpacing: "-0.005em",
+                      }}
+                    >
+                      {s.n.replace(/^0/, "")}. {s.t}.
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-10">
+              <Link href="/auth/signup/creator" className="lp-btn-primary">
+                Start the 4 steps
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: 4 step cards in a vertical flow */}
+          <div className="relative">
+            {/* Vertical connector line behind the cards (decorative) */}
+            <div
+              aria-hidden
+              className="hidden md:block absolute left-[26px] top-12 bottom-12 w-px"
+              style={{
+                background:
+                  "repeating-linear-gradient(180deg, var(--lp-gold-soft) 0 6px, transparent 6px 14px)",
+              }}
+            />
+
+            <ol className="space-y-6 md:space-y-7">
+              {steps.map((s) => (
+                <li
+                  key={s.n}
+                  className="relative grid md:grid-cols-[56px_1fr] gap-4 md:gap-6"
+                >
+                  {/* Numbered badge */}
+                  <div className="flex md:block">
+                    <div
+                      className="relative h-13 w-13 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0"
+                      style={{
+                        background: "var(--lp-paper)",
+                        border: "1px solid var(--lp-gold-soft)",
+                        boxShadow: "0 4px 12px -6px rgba(168,122,42,0.25)",
+                      }}
+                    >
+                      <span
+                        className="text-[13px]"
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 700,
+                          color: "var(--lp-gold-deep)",
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        {s.n}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div
+                    className="rounded-2xl p-5 md:p-6"
+                    style={{
+                      background: "var(--lp-paper)",
+                      border: "1px solid var(--lp-border)",
+                      boxShadow: "var(--shadow-card-landing)",
+                    }}
+                  >
+                    <h3
+                      className="text-[18px] md:text-[20px] mb-2 leading-snug"
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 600,
+                        color: "var(--lp-ink)",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {s.t}
+                    </h3>
+                    <p
+                      className="text-[13.5px] leading-relaxed"
+                      style={{ color: "var(--lp-ink-soft)" }}
+                    >
+                      {s.d}
+                    </p>
+                    <div className="mt-5">{s.preview}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Small framed preview used inside each GoLiveJourney step card. */
+function PreviewCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-xl p-3.5"
+      style={{
+        background: "var(--lp-paper-2)",
+        border: "1px solid var(--lp-border)",
+      }}
+    >
+      <div
+        className="text-[9.5px] mb-2.5"
+        style={{
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--lp-muted)",
+          fontWeight: 600,
+        }}
+      >
+        ▸ {label}
+      </div>
+      {children}
+    </div>
   );
 }
 
