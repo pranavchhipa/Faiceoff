@@ -169,7 +169,12 @@ html.dark body {
   /* ── Typography ── */
   --font-display: var(--font-outfit);
   --font-sans: var(--font-plus-jakarta-sans);
-  --font-mono: var(--font-jetbrains-mono);
+  /* HARD RULE: NO MONOSPACE anywhere in Faiceoff. The Tailwind `font-mono`
+     class still resolves but renders in Plus Jakarta Sans so any legacy
+     usage just looks like a regular sans-serif label. For uppercase labels
+     use `font-mono` + letter-spacing + text-transform: uppercase; do NOT
+     introduce a real mono family. */
+  --font-mono: var(--font-plus-jakarta-sans);
   --font-headline: var(--font-space-grotesk);
   --font-body: var(--font-manrope);
   --font-label: var(--font-manrope);
@@ -611,7 +616,10 @@ pre code {
   /* fonts (Fraunces display + Inter body, loaded via @import below) */
   --font-display: "Fraunces", "Times New Roman", serif;
   --font-body:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* HARD RULE: no real monospace. --font-mono inside .landing-scope resolves
+     to the body font so legacy `font-mono` classes render as a regular
+     sans-serif label. Use uppercase + letter-spacing for label affect. */
+  --font-mono:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   font-family: var(--font-body);
 }

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import {
   Outfit,
   Plus_Jakarta_Sans as PlusJakartaSans,
-  JetBrains_Mono as JetBrainsMono,
   Space_Grotesk,
   Manrope,
   Fraunces,
@@ -24,13 +23,6 @@ const plusJakartaSans = PlusJakartaSans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-plus-jakarta-sans",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrainsMono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -126,7 +118,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} ${manrope.variable} ${fraunces.variable} ${inter.variable}`}
+      className={`${outfit.variable} ${plusJakartaSans.variable} ${spaceGrotesk.variable} ${manrope.variable} ${fraunces.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <head>
