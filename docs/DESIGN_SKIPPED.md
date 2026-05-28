@@ -66,6 +66,16 @@ Global `replace_all` was used to rename consistently. A few sentences now read a
 
 - **`.tmp/claude-design/`** — gitignored extraction location for Claude Design bundles. Safe to delete locally any time; not tracked.
 
+### 7) Migrations awaiting manual application in production
+
+Code ships migrations under `supabase/migrations/` but they don't auto-apply on Vercel deploy — Pranav must paste each into the Supabase SQL editor when ready. Required for related features to work end-to-end:
+
+- **`00058_notifications.sql`** — notifications table + RLS. Without it, the topbar bell will keep returning empty results and emitNotification calls silently fail (logged, not thrown). Required for any in-app notification to show.
+- **`00059_support_tickets.sql`** — support_tickets + ticket_messages. Required for /creator/support, /brand/support, and the Control Centre ticket queue.
+- **`00060_ticket_attachments.sql`** — screenshot upload columns on ticket_messages.
+- **`00061_perf_indexes.sql`** — composite indexes on collab_sessions / approvals / ticket_messages / creator_demo_samples. Pure performance — no feature breaks without it, but hot queries are slower.
+- **`00062_notifications_realtime.sql`** — adds `public.notifications` to the `supabase_realtime` publication. Without it, the NotificationBell's realtime subscription won't receive INSERTs — bell still works via the 20s poll fallback, but "instant" notifications + toast popups won't fire.
+
 ---
 
 ## Resolved

@@ -3,13 +3,26 @@
 /**
  * NotificationBell — live notification feed in the topbar.
  *
- * Fetches /api/notifications on mount + every 45s, shows unread count badge,
- * and opens a dropdown panel with the latest 30. Clicking a row marks it read
- * and navigates to its href. "Mark all read" clears the badge.
+ * Three layers of freshness (so a new notification feels instant even when
+ * one layer is wobbly):
+ *
+ *   1. Initial fetch on mount + a 20s visible-tab poll (was 45s — too slow
+ *      to feel "real-time" even as a fallback).
+ *   2. Supabase realtime subscription on `public.notifications` INSERTs
+ *      filtered to the current user's id — pushes new rows to the bell
+ *      the moment they're written server-side. Requires the table to be
+ *      in the supabase_realtime publication (see migration 00062).
+ *   3. A sonner toast pops for every NEW notification that arrives via
+ *      realtime, so the brand/creator sees the message even if their bell
+ *      is closed. Clicking the toast deep-links to the notification's href.
+ *
+ * Marking-read flow is unchanged — single-row optimistic update + POST to
+ * /api/notifications/read; "Mark all read" clears the badge in one shot.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Bell,
   CheckCheck,
@@ -21,6 +34,7 @@ import {
   LifeBuoy,
   Sparkles,
 } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface Notification {
   id: string;
@@ -32,7 +46,7 @@ interface Notification {
   created_at: string;
 }
 
-const REFRESH_MS = 45_000;
+const POLL_MS = 20_000;
 
 function iconFor(type: string) {
   switch (type) {
@@ -71,31 +85,40 @@ function timeAgo(iso: string): string {
 
 export function NotificationBell() {
   const router = useRouter();
+  const { user, supabase } = useAuth();
+
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
+  // bumps a short animation class on the bell when a brand-new notification
+  // arrives via realtime — visual cue to glance at the badge.
+  const [pulseKey, setPulseKey] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Track seen ids so realtime + poll never both toast / dupe the same row.
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      setItems(data.notifications ?? []);
+      const fetched: Notification[] = data.notifications ?? [];
+      setItems(fetched);
       setUnread(data.unread ?? 0);
+      // Prime the seen set so realtime doesn't re-toast already-fetched rows.
+      for (const n of fetched) seenIdsRef.current.add(n.id);
     } catch {
       // best-effort
     }
   }, []);
 
+  // Initial load + visible-tab poll (20s fallback in case realtime is down).
   useEffect(() => {
     load();
-    // Only poll while the tab is visible — pause in background tabs to save
-    // requests + battery, refetch immediately when the user returns.
     const tick = () => {
       if (!document.hidden) load();
     };
-    const h = setInterval(tick, REFRESH_MS);
+    const h = setInterval(tick, POLL_MS);
     const onVis = () => {
       if (!document.hidden) load();
     };
@@ -105,6 +128,59 @@ export function NotificationBell() {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [load]);
+
+  // ── Realtime — instant push for new notifications ───────────────────────
+  // Subscribes to INSERT events on public.notifications filtered by the
+  // current user's id. Requires the table to be in the supabase_realtime
+  // publication (migration 00062). If realtime is unavailable, the poll
+  // above still picks new rows within 20s.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`notif:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const row = payload.new as Notification | undefined;
+          if (!row || !row.id) return;
+          // Dedupe — if we already saw this id from the initial fetch or a
+          // previous realtime event, skip the toast + state update.
+          if (seenIdsRef.current.has(row.id)) return;
+          seenIdsRef.current.add(row.id);
+
+          // Push to the dropdown list (newest first), cap to 30 like the API
+          setItems((prev) => [row, ...prev].slice(0, 30));
+          if (!row.read_at) setUnread((u) => u + 1);
+
+          // Animate the bell briefly so the user notices
+          setPulseKey((k) => k + 1);
+
+          // Pop a sonner toast — click navigates to the href
+          toast(row.title, {
+            description: row.body ?? undefined,
+            duration: 6_000,
+            action: row.href
+              ? {
+                  label: "Open",
+                  onClick: () => router.push(row.href as string),
+                }
+              : undefined,
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, supabase, router]);
 
   // Close on outside click / Escape
   useEffect(() => {
@@ -127,7 +203,9 @@ export function NotificationBell() {
 
   async function markAllRead() {
     setUnread(0);
-    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+    setItems((prev) =>
+      prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })),
+    );
     try {
       await fetch("/api/notifications/read", {
         method: "POST",
@@ -138,10 +216,13 @@ export function NotificationBell() {
   }
 
   async function handleRowClick(n: Notification) {
-    // Optimistically mark read
     if (!n.read_at) {
       setUnread((u) => Math.max(0, u - 1));
-      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x,
+        ),
+      );
       fetch("/api/notifications/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -154,17 +235,57 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
+      {/* Local keyframes for the brief bell shake when a new notification
+          arrives, and the badge ping ring. Scoped via classnames so they
+          don't leak. Using a plain <style> + dangerouslySetInnerHTML to avoid
+          any styled-jsx / App Router edge cases. */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes fco-notif-shake {
+              0%   { transform: rotate(0); }
+              15%  { transform: rotate(-14deg); }
+              30%  { transform: rotate(12deg); }
+              45%  { transform: rotate(-8deg); }
+              60%  { transform: rotate(6deg); }
+              75%  { transform: rotate(-3deg); }
+              100% { transform: rotate(0); }
+            }
+            @keyframes fco-notif-ping {
+              75%, 100% { transform: scale(2); opacity: 0; }
+            }
+            .fco-notif-ping {
+              animation: fco-notif-ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+            }
+            .fco-notif-shake {
+              animation: fco-notif-shake 0.7s ease-in-out 1;
+              transform-origin: 50% 0%;
+            }
+          `,
+        }}
+      />
+
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={unread > 0 ? `${unread} new notifications` : "Notifications"}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)]"
       >
-        <Bell className="h-4 w-4" />
+        <Bell
+          key={pulseKey}
+          className={`h-4 w-4 ${pulseKey > 0 ? "fco-notif-shake" : ""}`}
+        />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-700 text-[var(--color-primary-foreground)] ring-2 ring-[var(--color-background)]">
-            {unread > 9 ? "9+" : unread}
-          </span>
+          <>
+            {/* Subtle ping ring under the badge — the unread state's "I'm alive" cue */}
+            <span
+              aria-hidden
+              className="fco-notif-ping absolute -right-1 -top-1 h-4 w-4 rounded-full bg-[var(--color-primary)] opacity-60"
+            />
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-700 text-[var(--color-primary-foreground)] ring-2 ring-[var(--color-background)]">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          </>
         )}
       </button>
 
