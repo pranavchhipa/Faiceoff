@@ -753,8 +753,12 @@ export function DiscoverGrid({ creators }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [savedSet, setSavedSet] = useState<Set<string>>(() => new Set());
 
-  // Load saved creators from localStorage on mount (client-only, never SSR).
+  // Offline-first hydrate: localStorage paints instantly on mount, then the
+  // server fetch reconciles (cross-device sync). Server wins on conflict —
+  // a heart cleared on the phone shouldn't reappear when the laptop loads
+  // a stale cache. Migration 00064 backs this.
   useEffect(() => {
+    // 1. Instant paint from localStorage so the heart doesn't flash empty.
     try {
       const raw = window.localStorage.getItem("fco.saved_creators");
       if (raw) {
@@ -762,11 +766,25 @@ export function DiscoverGrid({ creators }: Props) {
         if (Array.isArray(arr)) setSavedSet(new Set(arr));
       }
     } catch {
-      /* localStorage unavailable — silently fall back to in-memory only */
+      /* localStorage unavailable — fall back to server-only */
     }
+
+    // 2. Reconcile with the server. AbortController prevents a stale fetch
+    //    from clobbering the user's mid-flight toggles when the page unmounts.
+    const controller = new AbortController();
+    fetch("/api/brand/saved", { cache: "no-store", signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || !Array.isArray(d.creator_ids)) return;
+        setSavedSet(new Set(d.creator_ids as string[]));
+      })
+      .catch(() => {
+        /* network failure → keep the localStorage view */
+      });
+    return () => controller.abort();
   }, []);
 
-  // Persist saved set on change.
+  // Persist saved set on change (localStorage stays the offline cache).
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -803,10 +821,34 @@ export function DiscoverGrid({ creators }: Props) {
   }, []);
 
   const toggleSave = useCallback((id: string) => {
+    // Optimistic toggle: flip local state immediately, then fire the matching
+    // server mutation. On failure we roll back so the heart doesn't lie about
+    // what's actually persisted server-side.
     setSavedSet((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const willBeSaved = !next.has(id);
+      if (willBeSaved) next.add(id);
+      else next.delete(id);
+
+      void fetch(`/api/brand/saved/${encodeURIComponent(id)}`, {
+        method: willBeSaved ? "POST" : "DELETE",
+      })
+        .then((r) => {
+          if (r.ok) return;
+          // Server rejected → revert this single id (and localStorage in the
+          // useEffect above will re-mirror the corrected state).
+          setSavedSet((curr) => {
+            const fixed = new Set(curr);
+            if (willBeSaved) fixed.delete(id);
+            else fixed.add(id);
+            return fixed;
+          });
+        })
+        .catch(() => {
+          /* network failure → leave the optimistic state; the next page load
+             will reconcile from the server */
+        });
+
       return next;
     });
   }, []);
