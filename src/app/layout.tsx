@@ -73,9 +73,9 @@ const SITE_URL =
     ? "https://faiceoff.com"
     : "http://localhost:3000");
 
-const SITE_TITLE = "Faiceoff — Real verified faces. Licensed for AI.";
+const SITE_TITLE = "Faiceoff — Real faces. Licensed for AI.";
 const SITE_DESC =
-  "Real, verified human faces — licensed for AI. Brands create authentic, consented AI content with verified Indian creators. Pay only on approval.";
+  "Real faces. Licensed for AI. Brands create authentic, consented AI content with verified Indian creators. Pay only on approval.";
 
 export const metadata: Metadata = {
   title: SITE_TITLE,
