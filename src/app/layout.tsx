@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import {
   Outfit,
   Plus_Jakarta_Sans as PlusJakartaSans,
-  Space_Grotesk,
-  Manrope,
   Fraunces,
   Inter,
 } from "next/font/google";
@@ -23,20 +21,6 @@ const plusJakartaSans = PlusJakartaSans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-plus-jakarta-sans",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-space-grotesk",
-  display: "swap",
-});
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -118,7 +102,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${plusJakartaSans.variable} ${spaceGrotesk.variable} ${manrope.variable} ${fraunces.variable} ${inter.variable}`}
+      className={`${outfit.variable} ${plusJakartaSans.variable} ${fraunces.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <head>

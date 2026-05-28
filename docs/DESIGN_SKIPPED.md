@@ -51,16 +51,9 @@ Global `replace_all` was used to rename consistently. A few sentences now read a
 - Visually identical, so this is low priority. Rename class-by-class to `font-sans uppercase tracking-wider` as files are touched.
 - See `docs/DESIGN_SKIPPED.md` itself (this file) is the place to track that — don't reintroduce JetBrains Mono regardless. Locked in CLAUDE.md as a hard rule.
 
-### 3b) Space Grotesk + Manrope are still loaded but the design system has consolidated on Outfit + Plus Jakarta Sans
+### 3b) ~~Space Grotesk + Manrope still loaded~~ — RESOLVED
 
-- `src/app/layout.tsx` still imports `Space_Grotesk` (`--font-headline`) and `Manrope` (`--font-body`).
-- `src/app/globals.css` still maps Tailwind's `--font-headline` / `--font-body` to those two via `@theme`.
-- ~24 occurrences across 6 files reference `font-headline` / `font-body` Tailwind utility classes (`creators/[slug]`, `brand/collabs`, `brand/discover`, `globals.css`, and the now-deleted MarketingHeader).
-- Plan when this is picked up:
-  1. Audit every `font-headline` / `font-body` class — most are decorative and can collapse to `font-display` (Outfit) or just the default body font (Plus Jakarta Sans).
-  2. Once usage is zero, drop the two `next/font/google` imports + the two CSS variable mappings.
-  3. Remove the `--font-headline` / `--font-body` entries from `@theme` in `globals.css`.
-- Risk: pages that rely on the two fonts will visually shift slightly to Outfit / Plus Jakarta Sans. Want Pranav's eyes on each surface before final removal — that's why this is parked here, not swept in an autonomous run.
+Both fonts have been dropped. See Resolved log below.
 
 ### 4) Letter-spacing tune after mono → Plus Jakarta Sans swap
 
@@ -93,3 +86,7 @@ Code ships migrations under `supabase/migrations/` but they don't auto-apply on 
 
 - ✅ **Stale preview HTML files** — `public/design-preview.html` + `public/collabs-light-preview.html` both deleted (theme decision locked, no more preview iteration). Cleanup commit alongside the theme-lock decision.
 - ✅ **Dead component `src/app/(marketing)/MarketingHeader.tsx`** — legacy purple-gradient marketing header, zero callers, deleted in the autonomous run alongside the design-unification audit.
+- ✅ **Space Grotesk + Manrope** — Removed from `layout.tsx` (imports, instances, html className variables). `globals.css @theme` now aliases `--font-headline` → Outfit and `--font-body` / `--font-label` → Plus Jakarta Sans. Zero `font-headline` / `font-body` Tailwind class usages in the codebase so no visual fallout. Page-scoped CSS in `[slug]`/`brand/collabs`/`brand/discover` was already Plus Jakarta Sans direct, untouched.
+- ✅ **Style Previews grammar nits** — `setup/page.tsx:332` ("a hand-crafted Style Preview"), `setup/page.tsx:762` ("1 Style Preview to unlock"), `creator/dashboard/page.tsx:361` ("Style Previews auto-build") fixed.
+- ✅ **`creators.city` + `created_at` threading** — migration 00063 + threaded through `listPublishedCreators`, `loadCreators`, `CreatorCard`. Location pin + "New" badge live on `/brand/discover`; "Newest" sort uses real created_at desc.
+- ✅ **Server-side persistence for brand Saved creators** — migration 00064 + `GET /api/brand/saved` + `POST/DELETE /api/brand/saved/[creatorId]`. Discover Heart is offline-first (localStorage paints, server reconciles, mutations optimistic with rollback).

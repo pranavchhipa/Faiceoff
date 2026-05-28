@@ -175,9 +175,12 @@ html.dark body {
      use `font-mono` + letter-spacing + text-transform: uppercase; do NOT
      introduce a real mono family. */
   --font-mono: var(--font-plus-jakarta-sans);
-  --font-headline: var(--font-space-grotesk);
-  --font-body: var(--font-manrope);
-  --font-label: var(--font-manrope);
+  /* Space Grotesk + Manrope were removed (migration to a 2-family system
+     Outfit + Plus Jakarta Sans). The Tailwind utilities --font-headline /
+     --font-body / --font-label still resolve cleanly via these aliases. */
+  --font-headline: var(--font-outfit);
+  --font-body: var(--font-plus-jakarta-sans);
+  --font-label: var(--font-plus-jakarta-sans);
 
   /* ── Stitch UI Palette (Material3) ── */
   --color-primary: #6a1cf6;
