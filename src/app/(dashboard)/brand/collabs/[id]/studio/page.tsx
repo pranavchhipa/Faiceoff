@@ -386,6 +386,80 @@ export default function BrandStudioPage() {
   const [retryOpen, setRetryOpen] = useState(false);
   const [retryNotes, setRetryNotes] = useState("");
 
+  // ── Multi-image selection for batch send-to-creator ─────────────────────
+  // Brands can tick multiple ready_for_brand_review images (hero + recents)
+  // and send them all to the creator in one shot via the floating action bar
+  // that appears at the bottom of the right column.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  // If a selected gen leaves ready_for_brand_review (sent / discarded /
+  // retried), drop it from the selection so the action bar count stays honest.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const stillSelectable = new Set(
+        recentGens
+          .filter((g) => g.status === "ready_for_brand_review")
+          .map((g) => g.id),
+      );
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (stillSelectable.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [recentGens]);
+
+  async function handleSendSelected() {
+    if (reviewAction) return;
+    const ids = Array.from(selectedIds).filter((id) =>
+      recentGens.some(
+        (g) => g.id === id && g.status === "ready_for_brand_review",
+      ),
+    );
+    if (ids.length === 0) return;
+    setReviewAction("send");
+    setError(null);
+    try {
+      const res = await fetch("/api/generations/bulk-send-for-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ generation_ids: ids }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Failed to send");
+      const sent = new Set(ids);
+      setRecentGens((prev) =>
+        prev.map((g) =>
+          sent.has(g.id) && g.status === "ready_for_brand_review"
+            ? { ...g, status: "ready_for_approval" }
+            : g,
+        ),
+      );
+      clearSelection();
+      setToast({
+        kind: "success",
+        text: `Sent ${d.sent ?? ids.length} image${
+          (d.sent ?? ids.length) === 1 ? "" : "s"
+        } to ${creator.name ?? "creator"} — 48h to approve`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setReviewAction(null);
+    }
+  }
+
   // ── Lightbox (click an output image to view full-size) ──
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   // Close on Escape
@@ -1223,7 +1297,9 @@ export default function BrandStudioPage() {
             )}
           </div>
 
-          {/* Bulk send-to-creator — appears when 2+ images await review */}
+          {/* Bulk send-to-creator — appears when 2+ images await review.
+              Kept as a fast "send everything ready" shortcut alongside the
+              per-image selection bar below. */}
           {recentGens.filter((g) => g.status === "ready_for_brand_review").length >= 2 && (
             <button
               type="button"
@@ -1236,21 +1312,108 @@ export default function BrandStudioPage() {
             </button>
           )}
 
-          {/* Recent grid */}
-          {recentGens.length > 1 && (
+          {/* All generations gallery — every gen from this collab (hero is
+              the first item too, but we show it again here so brands can
+              select it together with older shots). Checkboxes appear on
+              ready_for_brand_review cards; selection drives the floating
+              "Send N to creator" action bar at the bottom of the viewport. */}
+          {recentGens.length > 0 && (
             <div>
-              <p className="mb-2 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Recent ({recentGens.length})
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                  All generations ({recentGens.length})
+                </p>
+                {recentGens.filter((g) => g.status === "ready_for_brand_review").length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ready = recentGens
+                        .filter((g) => g.status === "ready_for_brand_review")
+                        .map((g) => g.id);
+                      // Toggle: if every ready id is already selected, clear; else select all ready.
+                      const allSelected = ready.every((id) => selectedIds.has(id));
+                      if (allSelected) {
+                        clearSelection();
+                      } else {
+                        setSelectedIds(new Set(ready));
+                      }
+                    }}
+                    className="font-mono text-[10px] font-700 uppercase tracking-[0.14em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-foreground)]"
+                  >
+                    {recentGens
+                      .filter((g) => g.status === "ready_for_brand_review")
+                      .every((g) => selectedIds.has(g.id)) &&
+                    recentGens.some((g) => g.status === "ready_for_brand_review")
+                      ? "Deselect all"
+                      : "Select all ready"}
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-2">
-                {recentGens.slice(1).map((g) => (
-                  <GenCell key={g.id} gen={g} collabId={collabId} />
+                {recentGens.map((g) => (
+                  <GenCell
+                    key={g.id}
+                    gen={g}
+                    collabId={collabId}
+                    selected={selectedIds.has(g.id)}
+                    onToggleSelect={toggleSelect}
+                    onPreview={(url) => setLightboxUrl(url)}
+                  />
                 ))}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Floating multi-select action bar ──
+          Appears bottom-center when any ready_for_brand_review images are
+          ticked. Sits above the existing toast / lightbox UIs. */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
+          >
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-primary)]/40 bg-[var(--color-card)] px-4 py-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.55)] backdrop-blur-md">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary)]/15">
+                <CheckCircle2 className="h-4 w-4 text-[var(--color-primary)]" />
+              </span>
+              <div className="flex flex-col">
+                <span className="font-display text-[14px] font-800 leading-none text-[var(--color-foreground)]">
+                  {selectedIds.size} image{selectedIds.size === 1 ? "" : "s"} selected
+                </span>
+                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                  Send to {creator.name ?? "creator"} for approval
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="rounded-lg px-3 py-2 text-[12px] font-700 text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendSelected}
+                disabled={reviewAction !== null}
+                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_8px_20px_-8px_rgba(201,169,110,0.6)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+              >
+                {reviewAction === "send" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                <span>Send {selectedIds.size} for approval</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Lightbox (full-size view of generated image) ── */}
       <AnimatePresence>
@@ -1507,39 +1670,124 @@ function StatusChip({ status }: { status: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Cell
 // ─────────────────────────────────────────────────────────────────────────────
-function GenCell({ gen, collabId }: { gen: Generation; collabId: string }) {
+function GenCell({
+  gen,
+  collabId,
+  selected,
+  onToggleSelect,
+  onPreview,
+}: {
+  gen: Generation;
+  collabId: string;
+  /** Whether this cell is in the brand's current multi-select. */
+  selected?: boolean;
+  /** Toggles selection. Only wired for ready_for_brand_review cells. */
+  onToggleSelect?: (id: string) => void;
+  /** Opens the image in the shared lightbox. */
+  onPreview?: (url: string) => void;
+}) {
   const isPending = PENDING_STATUSES.has(gen.status);
   const tone = STATUS_TONE[gen.status] ?? STATUS_TONE.draft;
+  const selectable = gen.status === "ready_for_brand_review";
+
+  // Plain <div> outer — the click target inside is more nuanced than a single
+  // <Link>, so we render the right element per-action.
+  const inner = gen.image_url ? (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        loading="lazy"
+        decoding="async"
+        src={gen.image_url}
+        alt="Generation"
+        className={`h-full w-full object-cover transition-transform duration-300 ${
+          selected ? "scale-[0.96]" : "group-hover:scale-[1.02]"
+        }`}
+      />
+      {/* Bottom status pill */}
+      <div className="pointer-events-none absolute inset-x-1 bottom-1">
+        <span className={`inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 font-mono text-[8px] font-700 backdrop-blur-md ${tone.bg} ${tone.text}`}>
+          <Clock className="h-2 w-2" />
+          {STATUS_LABEL[gen.status] ?? gen.status}
+        </span>
+      </div>
+    </>
+  ) : (
+    <div className="flex h-full flex-col items-center justify-center gap-1.5 p-2 text-center">
+      {isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />
+      ) : (
+        <ImageIcon className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+      )}
+      <p className="font-mono text-[9px] leading-tight text-[var(--color-muted-foreground)]">
+        {STATUS_LABEL[gen.status] ?? gen.status}
+      </p>
+    </div>
+  );
 
   return (
-    <Link
-      href={gen.status === "ready_for_brand_review" ? `/brand/collabs/${collabId}?review=${gen.id}` : "#"}
-      className={`group relative aspect-square overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] ${gen.status === "ready_for_brand_review" ? "cursor-pointer" : "pointer-events-none"}`}
+    <div
+      className={`group relative aspect-square overflow-hidden rounded-xl border bg-[var(--color-secondary)] transition-all ${
+        selected
+          ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/40"
+          : "border-[var(--color-border)]"
+      }`}
     >
+      {/* Image (click → lightbox preview when one exists; for stuck pending cells,
+          there's nothing to click). */}
       {gen.image_url ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img loading="lazy" decoding="async" src={gen.image_url} alt="Generation" className="h-full w-full object-cover" />
-          {/* Bottom status pill */}
-          <div className="absolute inset-x-1 bottom-1">
-            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 font-mono text-[8px] font-700 backdrop-blur-md ${tone.bg} ${tone.text}`}>
-              <Clock className="h-2 w-2" />
-              {STATUS_LABEL[gen.status] ?? gen.status}
-            </span>
-          </div>
-        </>
+        <button
+          type="button"
+          onClick={() => onPreview?.(gen.image_url!)}
+          className="block h-full w-full cursor-zoom-in"
+          aria-label="Preview image"
+        >
+          {inner}
+        </button>
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-1.5 p-2 text-center">
-          {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />
-          ) : (
-            <ImageIcon className="h-4 w-4 text-[var(--color-muted-foreground)]" />
-          )}
-          <p className="font-mono text-[9px] leading-tight text-[var(--color-muted-foreground)]">
-            {STATUS_LABEL[gen.status] ?? gen.status}
-          </p>
-        </div>
+        <div className="block h-full w-full">{inner}</div>
       )}
-    </Link>
+
+      {/* Selection checkbox — top-left, visible on hover for selectable
+          cells, always visible once selected. Stops propagation so the
+          click doesn't also open the lightbox. */}
+      {selectable && onToggleSelect && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect(gen.id);
+          }}
+          aria-label={selected ? "Deselect image" : "Select image"}
+          className={`absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border transition-all ${
+            selected
+              ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)] opacity-100"
+              : "border-white/60 bg-black/55 text-white opacity-0 backdrop-blur-md group-hover:opacity-100"
+          }`}
+        >
+          {selected ? (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          ) : (
+            <span className="h-3 w-3 rounded-sm border border-white/80" />
+          )}
+        </button>
+      )}
+
+      {/* Open-in-review deep link — appears as a tiny overflow tap target so
+          brands who prefer the per-image review page can still get there.
+          (Selection / preview is the primary path; this is the legacy escape
+          hatch.) */}
+      {gen.status === "ready_for_brand_review" && (
+        <Link
+          href={`/brand/collabs/${collabId}?review=${gen.id}`}
+          aria-label="Open review"
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-white/30 bg-black/55 text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Maximize2 className="h-3 w-3" />
+        </Link>
+      )}
+    </div>
   );
 }
