@@ -17,7 +17,7 @@
  * Styles are inlined in a single <style> block scoped under .fco-collabs-v2.
  */
 
-import { useEffect, useState } from "react";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -146,26 +146,23 @@ function Seal({ size = 12 }: { size?: number }) {
 /* ───────── Page ───────── */
 
 export default function BrandCollabsPage() {
-  const [collabs, setCollabs] = useState<Collab[]>([]);
-  const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Module-scoped cache means tab-back to /brand/collabs paints instantly
+  // off whatever the dashboard's prefetch (or the previous visit here)
+  // already put in the cache. Browser cache + Cache-Control headers
+  // shadow the cold-load case.
+  const { data, loading: rawLoading } = useCachedFetch<{
+    collabs?: Collab[];
+    pending_payments?: { status: string }[];
+  }>("/api/collabs");
 
-  useEffect(() => {
-    // /api/collabs now returns Cache-Control headers — let the browser cache
-    // absorb the second-visit case (most users hop between Dashboard and
-    // Collabs within the 15s freshness window).
-    fetch("/api/collabs")
-      .then((r) => (r.ok ? r.json() : { collabs: [], pending_payments: [] }))
-      .then((d) => {
-        setCollabs(d.collabs ?? []);
-        const reqs = (d.pending_payments ?? []) as { status: string }[];
-        setPendingRequestCount(
-          reqs.filter((r) => r.status === "pending" || r.status === "accepted")
-            .length,
-        );
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const collabs: Collab[] = data?.collabs ?? [];
+  const pendingRequestCount = (data?.pending_payments ?? []).filter(
+    (r) => r.status === "pending" || r.status === "accepted",
+  ).length;
+  // Only show the loading skeleton on a true cold visit. If we already have
+  // a cached payload, paint it instantly while the background revalidate
+  // refreshes the cache.
+  const loading = rawLoading && !data;
 
   const active = collabs.filter((c) => c.status === "active");
   const past = collabs.filter((c) => c.status !== "active");

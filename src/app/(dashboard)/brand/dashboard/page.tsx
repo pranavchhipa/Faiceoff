@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -108,113 +109,88 @@ const fadeUp = {
 
 export default function BrandDashboardPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<BrandProfile | null>(null);
-  const [stats, setStats] = useState<BrandStats>({
-    activeCampaigns: 0,
-    totalCampaigns: 0,
-    totalGenerations: 0,
-    walletBalance: 0,
-  });
-  const [collabs, setCollabs] = useState<CollabSession[]>([]);
-  const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
-  const [creditsBalance, setCreditsBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  // displayName intentionally not used in the dashboard header any more —
-  // identity / avatar live in the topbar UserMenu only.
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      // /api/dashboard/stats — campaign counts + brand profile. Its wallet
-      // field reads the sealed legacy `wallet_transactions_archive` table
-      // and is always 0 — we IGNORE stats.walletBalance and source the
-      // live wallet + credits from /api/billing/balance instead (same
-      // source the topbar BalanceChip uses, so they stay in sync).
-      // All four endpoints now ship `Cache-Control: private, max-age=15,
-      // stale-while-revalidate=60` — letting the default fetch cache
-      // absorb tab-back navigations within a 75s window. Removed
-      // `cache: "no-store"` so the browser cache actually fires.
-      const [statsRes, collabsRes, billingRes, vaultRes] =
-        await Promise.allSettled([
-          fetch("/api/dashboard/stats").then((r) => (r.ok ? r.json() : null)),
-          fetch("/api/collabs").then((r) => (r.ok ? r.json() : null)),
-          fetch("/api/billing/balance").then((r) => (r.ok ? r.json() : null)),
-          fetch("/api/vault?pageSize=4").then((r) => (r.ok ? r.json() : null)),
-        ]);
-
-      if (cancelled) return;
-
-      // Pull the live wallet + credits from billing first so we can fold
-      // them into the stats object below (single source of truth, no
-      // double-render of stale paise values).
-      let liveWalletPaise: number | null = null;
-      let liveCredits: number | null = null;
-      if (billingRes.status === "fulfilled" && billingRes.value) {
-        const b = billingRes.value as {
-          wallet_available_paise?: number;
-          wallet_balance_paise?: number;
-          credits_remaining?: number;
-        };
-        if (typeof b.wallet_available_paise === "number") {
-          liveWalletPaise = b.wallet_available_paise;
-        } else if (typeof b.wallet_balance_paise === "number") {
-          liveWalletPaise = b.wallet_balance_paise;
-        }
-        if (typeof b.credits_remaining === "number") {
-          liveCredits = b.credits_remaining;
-        }
-      }
-
-      if (statsRes.status === "fulfilled" && statsRes.value) {
-        const d = statsRes.value;
-        if (d.brand) setProfile(d.brand);
-        if (d.stats) {
-          setStats({
-            activeCampaigns: d.stats.activeCampaigns ?? 0,
-            activeCollabs: d.stats.activeCollabs,
-            totalCampaigns: d.stats.totalCampaigns ?? 0,
-            totalGenerations: d.stats.totalGenerations ?? 0,
-            // Prefer billing-view wallet; fall back to legacy field only if
-            // billing call failed entirely.
-            walletBalance: liveWalletPaise ?? d.stats.walletBalance ?? 0,
-          });
-        }
-      }
-
-      if (collabsRes.status === "fulfilled" && collabsRes.value) {
-        const list: CollabSession[] = Array.isArray(collabsRes.value)
-          ? collabsRes.value
-          : (collabsRes.value.collabs ?? collabsRes.value.sessions ?? []);
-        setCollabs(list.slice(0, 5));
-      }
-
-      if (liveCredits !== null) {
-        setCreditsBalance(liveCredits);
-      }
-
-      if (vaultRes.status === "fulfilled" && vaultRes.value) {
-        setVaultItems(
-          (vaultRes.value.items as VaultItem[])?.slice(0, 4) ?? []
-        );
-      }
-
-      setLoading(false);
-    }
-
-    load();
-    return () => {
-      cancelled = true;
+  // ── Cached fetchers — survive unmount/remount across tab switches ──
+  // First visit fires the network; every subsequent visit paints from the
+  // module-scoped cache instantly + revalidates in the background. The
+  // 8s freshness window means "switch away → switch back inside 8 seconds"
+  // does ZERO network calls — felt as instant.
+  const enabled = !!user;
+  const { data: statsData, loading: statsLoading } = useCachedFetch<{
+    brand?: BrandProfile;
+    stats?: {
+      activeCampaigns?: number;
+      activeCollabs?: number;
+      totalCampaigns?: number;
+      totalGenerations?: number;
+      walletBalance?: number;
     };
-  }, [user]);
+  }>("/api/dashboard/stats", { enabled });
+
+  const { data: collabsData, loading: collabsLoading } = useCachedFetch<
+    | CollabSession[]
+    | { collabs?: CollabSession[]; sessions?: CollabSession[] }
+  >("/api/collabs", { enabled });
+
+  const { data: billingData, loading: billingLoading } = useCachedFetch<{
+    wallet_available_paise?: number;
+    wallet_balance_paise?: number;
+    credits_remaining?: number;
+  }>("/api/billing/balance", { enabled });
+
+  const { data: vaultData, loading: vaultLoading } = useCachedFetch<{
+    items?: VaultItem[];
+  }>("/api/vault?pageSize=4", { enabled });
+
+  // We have data the moment ANY of the cached endpoints comes back. Skeleton
+  // only paints when literally nothing is in cache yet (true cold visit).
+  const loading =
+    statsLoading && collabsLoading && billingLoading && vaultLoading;
+
+  // ── Derive view state from the cached responses ──
+  const profile: BrandProfile | null = statsData?.brand ?? null;
+
+  const liveWalletPaise: number | null =
+    typeof billingData?.wallet_available_paise === "number"
+      ? billingData.wallet_available_paise
+      : typeof billingData?.wallet_balance_paise === "number"
+        ? billingData.wallet_balance_paise
+        : null;
+  const liveCredits: number | null =
+    typeof billingData?.credits_remaining === "number"
+      ? billingData.credits_remaining
+      : null;
+
+  const stats: BrandStats = useMemo(
+    () => ({
+      activeCampaigns: statsData?.stats?.activeCampaigns ?? 0,
+      activeCollabs: statsData?.stats?.activeCollabs,
+      totalCampaigns: statsData?.stats?.totalCampaigns ?? 0,
+      totalGenerations: statsData?.stats?.totalGenerations ?? 0,
+      walletBalance:
+        liveWalletPaise ?? statsData?.stats?.walletBalance ?? 0,
+    }),
+    [statsData, liveWalletPaise],
+  );
+
+  const collabs: CollabSession[] = useMemo(() => {
+    if (!collabsData) return [];
+    const list: CollabSession[] = Array.isArray(collabsData)
+      ? collabsData
+      : (collabsData.collabs ?? collabsData.sessions ?? []);
+    return list.slice(0, 5);
+  }, [collabsData]);
+
+  const vaultItems: VaultItem[] = useMemo(
+    () => (vaultData?.items ?? []).slice(0, 4),
+    [vaultData],
+  );
+  const creditsBalance = liveCredits ?? 0;
 
   const walletPaise = stats.walletBalance;
   const activeCount = stats.activeCollabs ?? stats.activeCampaigns;
 
-  if (loading) return <BrandDashboardSkeleton />;
+  if (loading && !statsData && !collabsData) return <BrandDashboardSkeleton />;
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
