@@ -24,7 +24,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Browse AI Creators — Real Verified Faces for Brands | Faiceoff",
   description:
-    "Discover verified Indian creators licensing their face for AI content. Browse by category, see real Style Reels, and launch a campaign — pay only on approval.",
+    "Discover verified Indian creators licensing their face for AI content. Browse by category, see real Style Previews, and launch a campaign — pay only on approval.",
   alternates: { canonical: `${APP_URL}/creators` },
   openGraph: {
     title: "Browse AI Creators — Real Verified Faces | Faiceoff",
@@ -74,7 +74,7 @@ export default async function CreatorsDirectoryPage() {
         </h1>
         <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[#a89570]">
           Every creator here has verified their identity and licensed their likeness for
-          consented AI content. Browse by category, preview their Style Reel, and brief them
+          consented AI content. Browse by category, preview their Style Previews, and brief them
           in minutes — you pay only when they approve the final image.
         </p>
       </section>

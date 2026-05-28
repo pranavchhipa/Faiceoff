@@ -39,7 +39,7 @@ Two-sided marketplace where **creators license their face** and **brands generat
   Personal accounts get manual-entry fallback. Token encrypted with `KYC_ENCRYPTION_KEY`.
   Setup runbook: `docs/INSTAGRAM_OAUTH_SETUP.md`. Daily token refresh cron at 4:30 UTC.
 - ✅ Creator public share profile (migrations 00056/00057) — `/creators/<slug>`, dark
-  editorial design, AI "Style Reel" demos (Gemini, no real brands), Linktree-style custom
+  editorial design, AI "Style Previews" demos (Gemini, no real brands), Linktree-style custom
   link buttons, brand "Launch a Campaign" CTA. Setup at `/creator/profile/setup`. Official
   logo via `<Logo>` component (`src/components/brand/logo.tsx`) — needs `logo-full-dark.png`
   + `logo-full-light.png` + `logo-mark.png` in `/public`.

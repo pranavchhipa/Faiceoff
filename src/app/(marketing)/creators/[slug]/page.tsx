@@ -7,7 +7,7 @@
  *
  * Layout (top → bottom):
  *   nav · hero (avatar + Faiceoff seal + name + handle + followers + bio)
- *   trust strip · Style Reel (2×2) · categories chips · pricing tiers · CTA
+ *   trust strip · Style Previews (2×2) · categories chips · pricing tiers · CTA
  *   custom links (Linktree-style) · footer
  *
  * Data: pulled from /api/public/creators/[slug] (PublicProfileResponse).
@@ -507,32 +507,6 @@ const PAGE_CSS = `
   filter: saturate(0.92) contrast(1.02);
 }
 .fco-profile-v2 .tile:hover img { transform: scale(1.04); filter: saturate(1) contrast(1.04); }
-.fco-profile-v2 .tile-caption {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  font-family: var(--font-label);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(245, 235, 214, 0.85);
-  background: rgba(10, 9, 8, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  padding: 4px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(245, 235, 214, 0.08);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.fco-profile-v2 .tile-caption .star {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 .fco-profile-v2 .tile-tag {
   position: absolute;
   top: 8px;
@@ -901,7 +875,7 @@ export default async function CreatorProfilePage(
   const c = data.creator;
   const firstName = c.display_name.split(" ")[0] || c.display_name;
 
-  // Order samples by category selection so the Style Reel reads like a deck
+  // Order samples by category selection so the Style Previews reads like a deck
   const samplesByCategory = new Map(data.samples.map((s) => [s.category, s]));
   const orderedSamples = data.categories
     .map((cat) => samplesByCategory.get(cat))
@@ -1151,10 +1125,10 @@ export default async function CreatorProfilePage(
             </div>
           </div>
 
-          {/* ── Style Reel — 2×2 AI demo grid ─────────────────────────── */}
+          {/* ── Style Previews — 2×2 AI demo grid ─────────────────────────── */}
           {reelSamples.length > 0 && (
             <section className="section">
-              <div className="eyebrow">Style Reel · AI Generated</div>
+              <div className="eyebrow">Style Previews · AI Generated</div>
               <div className="reel">
                 {reelSamples.map((s) => {
                   const def = DEMO_CATEGORIES[s.category];
@@ -1169,9 +1143,6 @@ export default async function CreatorProfilePage(
                         decoding="async"
                       />
                       <span className="tile-tag">{label}</span>
-                      <span className="tile-caption">
-                        <span className="star" aria-hidden /> Made by Faiceoff
-                      </span>
                     </div>
                   );
                 })}

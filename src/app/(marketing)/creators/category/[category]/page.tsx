@@ -137,7 +137,7 @@ export async function generateMetadata(
   const def = DEMO_CATEGORIES[category];
   const niche = def.label;
   const title = `${niche} AI Creators in India — Verified Faces | Faiceoff`;
-  const description = `Hire verified ${niche.toLowerCase()} creators for AI brand content. Real, consented faces licensed for AI — browse Style Reels and launch a campaign. Pay on approval.`;
+  const description = `Hire verified ${niche.toLowerCase()} creators for AI brand content. Real, consented faces licensed for AI — browse Style Previews and launch a campaign. Pay on approval.`;
   return {
     title,
     description,

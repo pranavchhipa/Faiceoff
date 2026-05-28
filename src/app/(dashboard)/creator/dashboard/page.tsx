@@ -355,10 +355,10 @@ export default function CreatorDashboardPage() {
               </div>
               <div>
                 <p className="font-700 text-[14px] text-[var(--color-foreground)]">
-                  Build your Style Reel & share your creator link
+                  Build your Style Previews & share your creator link
                 </p>
                 <p className="text-[12px] text-[var(--color-muted-foreground)]">
-                  Pick 4 categories → Style Reel auto-builds → drop the link in your IG bio.
+                  Pick 4 categories → Style Previews auto-builds → drop the link in your IG bio.
                 </p>
               </div>
             </div>
