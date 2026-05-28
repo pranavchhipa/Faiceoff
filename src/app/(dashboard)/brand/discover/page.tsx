@@ -6,9 +6,7 @@
  * island) which handles search + category filter state.
  */
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DiscoverGrid, type CreatorCard } from "./discover-grid";
@@ -137,40 +135,8 @@ export default async function BrandDiscoverPage() {
 
   const creators = await loadCreators();
 
-  return (
-    <div className="w-full max-w-[1320px]">
-      {/* ═══════════ Header ═══════════ */}
-      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-            <Sparkles className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
-            {creators.length} licensed{" "}
-            {creators.length === 1 ? "face" : "faces"} · KYC verified ·
-            consented
-          </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
-            Discover creators
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            Browse trained likenesses. Start a session in seconds — every rupee
-            goes to the creator.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/brand/collabs"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] font-600 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
-          >
-            My collabs
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      {/* Search + filter + grid live in the client island so they can
-          re-filter without a server round-trip. */}
-      <DiscoverGrid creators={creators} />
-    </div>
-  );
+  // DiscoverGrid owns the entire UI now (header + filters + grid + mobile
+  // sheet). Page-scoped dark editorial design from Claude Design lives inside
+  // the client island so its styles can't leak.
+  return <DiscoverGrid creators={creators} />;
 }
