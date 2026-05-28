@@ -99,6 +99,7 @@ Two-sided marketplace where **creators license their face** and **brands generat
 
 ## Design System — "Hybrid Soft Luxe v2"
 
+- **📋 Skipped-items log:** see `docs/DESIGN_SKIPPED.md`. When porting a Claude Design screen, anything that can't be wired right now (missing DB field, copy nit, dead asset, deferred persistence) gets APPENDED there — don't invent your own list. Single cleanup PR addresses everything at the end of the design migration.
 - **Fonts**: Outfit (display 500-800), Plus Jakarta Sans (body 400-600). For small uppercase labels / eyebrows / pill text, use Plus Jakarta Sans with `text-transform: uppercase` + `letter-spacing: 0.14em-0.22em`.
 - **🚫 HARD RULE: NO MONOSPACE FONT anywhere in Faiceoff.** Pranav explicitly rejected monospace. Never use JetBrains Mono, Menlo, Consolas, `ui-monospace`, `monospace` keyword, or any condensed/mono family — not in `layout.tsx` next/font imports, not in any `--font-mono` CSS variable, not in inline `font-family` declarations. The Tailwind `font-mono` class is kept alive but its CSS variable now resolves to Plus Jakarta Sans, so existing usages render as a regular sans-serif label. Do NOT reintroduce a real monospace family even if a design mock seems to call for one.
 - **NEVER use italic fonts** — bold geometric sans only
