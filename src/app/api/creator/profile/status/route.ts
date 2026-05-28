@@ -26,7 +26,7 @@ export async function GET() {
   const { data: creator } = await admin
     .from("creators")
     .select(
-      "id, profile_slug, selected_categories, profile_published, profile_published_at, profile_theme, profile_view_count, profile_links",
+      "id, profile_slug, selected_categories, profile_published, profile_published_at, profile_theme, profile_view_count, profile_links, cover_image_path",
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -42,6 +42,16 @@ export async function GET() {
     .eq("is_visible", true)
     .order("created_at", { ascending: true });
 
+  // Sign the cover image so the setup page can preview it without exposing
+  // the raw storage path. 1h is plenty for the page session.
+  let coverImageUrl: string | null = null;
+  if (creator.cover_image_path) {
+    const { data: signed } = await admin.storage
+      .from("reference-photos")
+      .createSignedUrl(creator.cover_image_path, 3600);
+    coverImageUrl = signed?.signedUrl ?? null;
+  }
+
   return NextResponse.json({
     creator: {
       slug: creator.profile_slug,
@@ -51,6 +61,8 @@ export async function GET() {
       theme: creator.profile_theme,
       view_count: creator.profile_view_count,
       links: creator.profile_links ?? [],
+      cover_image_path: creator.cover_image_path ?? null,
+      cover_image_url: coverImageUrl,
     },
     samples: samples ?? [],
   });

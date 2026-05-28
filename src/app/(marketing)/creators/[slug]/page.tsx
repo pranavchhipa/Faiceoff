@@ -22,6 +22,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DEMO_CATEGORIES, type DemoCategoryKey } from "@/lib/profile/demo-prompts";
+import {
+  detectPlatform,
+  platformLabel,
+  type SocialPlatform,
+} from "@/lib/profile/platform-detect";
+import { PlatformIcon } from "@/components/profile/platform-icon";
 import { Logo } from "@/components/brand/logo";
 import { COMPANY } from "@/lib/constants/company";
 
@@ -50,7 +56,17 @@ interface PublicProfileResponse {
     youtube_subscribers: number | null;
   };
   categories: DemoCategoryKey[];
-  links: Array<{ id: string; label: string; url: string }>;
+  links: Array<{
+    id: string;
+    label: string;
+    url: string;
+    /**
+     * Tagged by the links API when a creator saves their list. Older rows
+     * (saved before the tag column landed) don't have this — we fall back to
+     * a client-side detectPlatform() below so the icon row still works.
+     */
+    platform?: SocialPlatform | null;
+  }>;
   samples: Array<{
     id: string;
     category: DemoCategoryKey;
@@ -710,6 +726,33 @@ const PAGE_CSS = `
   background: var(--hair);
 }
 
+/* ====== PLATFORM ICONS (Linktree-style row) ====== */
+.fco-profile-v2 .platform-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.fco-profile-v2 .platform-chip {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--elev);
+  border: 1px solid var(--hair);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  text-decoration: none;
+  transition: transform 220ms ease, border-color 220ms ease, background 220ms ease, color 220ms ease;
+}
+.fco-profile-v2 .platform-chip:hover {
+  border-color: var(--accent);
+  background: var(--overlay);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
 /* ====== CUSTOM LINKS ====== */
 .fco-profile-v2 .links {
   display: flex;
@@ -1238,33 +1281,73 @@ export default async function CreatorProfilePage(
             </div>
           </div>
 
-          {/* ── Custom links (Linktree-style) ─────────────────────────── */}
-          {data.links.length > 0 && (
-            <section className="section">
-              <div className="eyebrow">More from {firstName}</div>
-              <div className="links">
-                {data.links.map((link) => (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer nofollow"
-                    className="link-btn"
-                  >
-                    <span className="left">
-                      <span className="ico">
-                        <LinkGlyph url={link.url} />
-                      </span>
-                      <span className="label-stack">
-                        <span className="label-text">{link.label}</span>
-                      </span>
-                    </span>
-                    <span className="ar" aria-hidden>↗</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* ── Custom links — split into platform-icon row + labeled buttons
+                Platform-tagged links (Instagram, YouTube, TikTok, X, etc.)
+                render as a compact icon row a la Linktree. Everything else
+                (a custom site, a WhatsApp number, a portfolio URL) keeps the
+                labeled-button treatment the page already had. Tag is either
+                stored alongside the link or detected client-side from the URL
+                — older saves stay backward-compatible. ───────────────────── */}
+          {(() => {
+            const tagged = data.links
+              .map((l) => ({ ...l, platform: l.platform ?? detectPlatform(l.url) }))
+              .filter((l) => l.platform);
+            const labeled = data.links
+              .map((l) => ({ ...l, platform: l.platform ?? detectPlatform(l.url) }))
+              .filter((l) => !l.platform);
+
+            if (data.links.length === 0) return null;
+
+            return (
+              <section className="section">
+                <div className="eyebrow">More from {firstName}</div>
+
+                {/* Platform icons row */}
+                {tagged.length > 0 && (
+                  <div className="platform-row">
+                    {tagged.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer nofollow"
+                        title={`${link.label} — ${platformLabel(link.platform as SocialPlatform)}`}
+                        aria-label={`${link.label} on ${platformLabel(link.platform as SocialPlatform)}`}
+                        className="platform-chip"
+                      >
+                        <PlatformIcon platform={link.platform as SocialPlatform} width={20} height={20} />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {/* Labeled buttons — unchanged for non-platform links */}
+                {labeled.length > 0 && (
+                  <div className="links">
+                    {labeled.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer nofollow"
+                        className="link-btn"
+                      >
+                        <span className="left">
+                          <span className="ico">
+                            <LinkGlyph url={link.url} />
+                          </span>
+                          <span className="label-stack">
+                            <span className="label-text">{link.label}</span>
+                          </span>
+                        </span>
+                        <span className="ar" aria-hidden>↗</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })()}
 
           {/* ── Footer ────────────────────────────────────────────────── */}
           <footer className="footer">

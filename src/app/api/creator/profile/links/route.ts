@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { detectPlatform, type SocialPlatform } from "@/lib/profile/platform-detect";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -13,6 +14,13 @@ interface ProfileLink {
   id: string;
   label: string;
   url: string;
+  /**
+   * Auto-detected from the URL host (Instagram, YouTube, etc.). The public
+   * /creators/<slug> page renders these as Linktree-style platform icons in
+   * a row, while links with `platform: null` keep rendering as the existing
+   * labeled buttons. Stored in the same JSONB column — no migration needed.
+   */
+  platform?: SocialPlatform | null;
 }
 
 /**
@@ -135,6 +143,10 @@ export async function POST(request: Request) {
       id: typeof r.id === "string" && r.id ? r.id : randomUUID(),
       label,
       url,
+      // Tag the link with the platform it points at so the public profile
+      // can split icon-row platforms from labeled buttons. Detection is
+      // host-based so we never have to trust client-supplied platform hints.
+      platform: detectPlatform(url),
     });
   }
 

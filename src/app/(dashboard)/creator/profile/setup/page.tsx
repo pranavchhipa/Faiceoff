@@ -13,17 +13,18 @@
  *   7. Copy link + QR snippet
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Camera,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Copy,
   Eye,
   EyeOff,
-  GripVertical,
+  ImagePlus,
   Link2,
   Loader2,
   Plus,
@@ -31,6 +32,7 @@ import {
   Share2,
   Sparkles,
   Trash2,
+  Upload as UploadIcon,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,13 @@ import {
   type DemoCategoryKey,
 } from "@/lib/profile/demo-prompts";
 import { validateSlug } from "@/lib/profile/slug";
+import {
+  detectPlatform,
+  platformLabel,
+  type SocialPlatform,
+} from "@/lib/profile/platform-detect";
+import { PlatformIcon } from "@/components/profile/platform-icon";
+import { compressImageForUpload } from "@/lib/utils/image-compression";
 
 interface DemoSample {
   id: string;
@@ -58,6 +67,8 @@ interface ProfileLink {
   id: string;
   label: string;
   url: string;
+  /** Auto-detected from URL host. Drives the platform-icon row on /creators/<slug>. */
+  platform?: SocialPlatform | null;
 }
 
 interface ProfileStatus {
@@ -69,6 +80,8 @@ interface ProfileStatus {
     theme: string;
     view_count: number;
     links: ProfileLink[];
+    cover_image_path: string | null;
+    cover_image_url: string | null;
   } | null;
   samples: DemoSample[];
 }
@@ -90,6 +103,12 @@ export default function ProfileSetupPage() {
   const [savingLinks, setSavingLinks] = useState(false);
   const [linksSaved, setLinksSaved] = useState(false);
 
+  // ── Cover image (own photo, shown on /creators/<slug> hero) ─────────────
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverDragActive, setCoverDragActive] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
   // ── Fetch initial state ─────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     try {
@@ -107,6 +126,11 @@ export default function ProfileSetupPage() {
         // Hydrate links only if the creator hasn't started editing them
         if (!linksDirty) {
           setLinks(data.creator.links ?? []);
+        }
+        // Hydrate the cover preview from whatever's on file. The signed URL
+        // is fresh (1h) so it'll just work in the <img> below.
+        if (data.creator.cover_image_url) {
+          setCoverImageUrl(data.creator.cover_image_url);
         }
       }
     } finally {
@@ -224,19 +248,73 @@ export default function ProfileSetupPage() {
     }
   }
 
+  // ── Cover image upload handler ──────────────────────────────────────────
+  // Uses the existing /api/creator/upload-cover route (stores under
+  // covers/<creator_id>/cover.<ext> in the reference-photos bucket and
+  // updates creators.cover_image_path). The endpoint returns a fresh signed
+  // URL so the preview is instant. Compression keeps mobile photos under
+  // the server's 8MB cap.
+  async function handleCoverUpload(file: File) {
+    setUploadingCover(true);
+    setErrBanner(null);
+    try {
+      let compressed = await compressImageForUpload(file, {
+        maxDimension: 1800,
+        quality: 0.84,
+        passThroughByteThreshold: 900_000,
+      });
+      if (compressed.size > 7_500_000) {
+        compressed = await compressImageForUpload(compressed, {
+          maxDimension: 1400,
+          quality: 0.72,
+          passThroughByteThreshold: 0,
+        });
+      }
+      const fd = new FormData();
+      fd.append("file", compressed);
+      const res = await fetch("/api/creator/upload-cover", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) {
+        setErrBanner(d.error ?? "Cover upload failed");
+        return;
+      }
+      if (d.cover_image_url) setCoverImageUrl(d.cover_image_url);
+    } catch (err) {
+      setErrBanner(err instanceof Error ? err.message : "Cover upload failed");
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  function onCoverDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setCoverDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) handleCoverUpload(file);
+  }
+
   // ── Custom links handlers ───────────────────────────────────────────────
   function addLink() {
     if (links.length >= 10) return;
     setLinks((prev) => [
       ...prev,
-      { id: `new-${Date.now()}`, label: "", url: "" },
+      { id: `new-${Date.now()}`, label: "", url: "", platform: null },
     ]);
     setLinksDirty(true);
     setLinksSaved(false);
   }
   function updateLink(id: string, field: "label" | "url", value: string) {
     setLinks((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, [field]: value } : l)),
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        if (field === "url") {
+          // Re-detect the platform live so the icon hint updates as the
+          // creator types. The server re-detects on save too — this is just
+          // a UX preview so the row's icon stays in sync with the URL field.
+          return { ...l, url: value, platform: detectPlatform(value) };
+        }
+        return { ...l, [field]: value };
+      }),
     );
     setLinksDirty(true);
     setLinksSaved(false);
@@ -392,6 +470,116 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
+      {/* ── Section 1b · Cover photo (own image, optional) ──
+          A real photo of you for the share-profile hero — sits alongside the
+          AI Style Previews so visitors see a real face first, then the
+          AI-generated frames. /api/creator/upload-cover handles storage.    */}
+      <section className="mb-10">
+        <div className="mb-4 flex items-baseline justify-between">
+          <div>
+            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+              1b · Your cover photo <span className="ml-2 font-mono text-[11px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Optional</span>
+            </h2>
+            <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
+              One real photo of you — shown on your share-profile hero. Helps brands recognise the real face behind the AI Style Previews.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {/* Big upload tile */}
+          <div className="sm:w-[200px]">
+            {coverImageUrl ? (
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-[var(--color-border)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImageUrl}
+                  alt="Your cover"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
+                  aria-label="Replace cover photo"
+                  className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-3 py-2.5 text-[12px] font-700 text-white transition hover:from-black/80"
+                >
+                  {uploadingCover ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadIcon className="h-3.5 w-3.5" />
+                  )}
+                  Replace photo
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setCoverDragActive(true); }}
+                onDragLeave={() => setCoverDragActive(false)}
+                onDrop={onCoverDrop}
+                disabled={uploadingCover}
+                className={`flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed transition-all ${
+                  coverDragActive
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                    : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)]"
+                } ${uploadingCover ? "cursor-wait opacity-70" : "cursor-pointer"}`}
+              >
+                {uploadingCover ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--color-primary)]" />
+                    <p className="text-[11.5px] font-600 text-[var(--color-muted-foreground)]">
+                      Uploading…
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-secondary)]">
+                      <ImagePlus className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+                    </div>
+                    <p className="px-4 text-center text-[12px] font-600 leading-snug text-[var(--color-muted-foreground)]">
+                      Drop or click<br />to upload your photo
+                    </p>
+                  </>
+                )}
+              </button>
+            )}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleCoverUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          {/* Side hint */}
+          <div className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]/40 p-4">
+            <div className="flex items-start gap-2.5">
+              <Camera className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+              <div className="space-y-2 text-[12.5px] leading-relaxed text-[var(--color-muted-foreground)]">
+                <p>
+                  <span className="font-700 text-[var(--color-foreground)]">Best photo to pick:</span> a clean, well-lit headshot or 3/4 portrait — no busy background, no group shot, no heavy filters.
+                </p>
+                <p>
+                  <span className="font-700 text-[var(--color-foreground)]">What we do with it:</span> show it as the cover of your share-profile only. Not used for AI training, not given to brands, not shared. You can replace or remove it any time.
+                </p>
+                <p className="text-[11.5px]">
+                  Max 8&nbsp;MB · JPG/PNG. We compress automatically before upload.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Section 2 · Slug ── */}
       <section className="mb-10">
         <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
@@ -482,7 +670,7 @@ export default function ProfileSetupPage() {
               4 · Your links
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
-              Add buttons to anything — YouTube, your website, WhatsApp, latest work. They appear on your public page.
+              Add buttons to anything — Instagram, YouTube, WhatsApp, your site, latest work. Social platforms (auto-detected) render as icons; everything else becomes a labeled button.
             </p>
           </div>
           {links.length < 10 && (
@@ -496,6 +684,32 @@ export default function ProfileSetupPage() {
             </Button>
           )}
         </div>
+
+        {/* Mini preview row — every link with a detected platform shows as a
+            Linktree-style icon. Updates live as the creator types URLs. */}
+        {links.some((l) => l.platform) && (
+          <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+            <p className="mb-2.5 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              ▸ Platform icons preview
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {links
+                .filter((l) => l.platform)
+                .map((l) => (
+                  <span
+                    key={`preview-${l.id}`}
+                    title={platformLabel(l.platform as SocialPlatform)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-foreground)] transition hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+                  >
+                    <PlatformIcon platform={l.platform as SocialPlatform} width={18} height={18} />
+                  </span>
+                ))}
+            </div>
+            <p className="mt-2.5 text-[11px] leading-snug text-[var(--color-muted-foreground)]">
+              These render as a Linktree-style icon row on your public profile. Add an Instagram, YouTube, or TikTok URL and it auto-detects.
+            </p>
+          </div>
+        )}
 
         {links.length === 0 ? (
           <button
@@ -541,7 +755,27 @@ export default function ProfileSetupPage() {
                     <ChevronDown className="h-3 w-3" />
                   </button>
                 </div>
-                <GripVertical className="hidden h-4 w-4 shrink-0 text-[var(--color-border)] sm:block" />
+                {/* Platform indicator — shows the auto-detected icon for any
+                    recognised social URL. Falls back to a generic link glyph
+                    while the URL is still being typed / unrecognised. */}
+                <div
+                  title={
+                    link.platform
+                      ? `Detected: ${platformLabel(link.platform)} — will render as a Linktree-style icon on your public profile.`
+                      : "Type a recognised URL (e.g. instagram.com/...) to render this as a platform icon. Otherwise it stays a labeled button."
+                  }
+                  className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border sm:flex ${
+                    link.platform
+                      ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
+                  }`}
+                >
+                  {link.platform ? (
+                    <PlatformIcon platform={link.platform} width={16} height={16} />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                </div>
 
                 {/* Inputs */}
                 <div className="grid flex-1 gap-2 sm:grid-cols-[180px_1fr]">
@@ -555,7 +789,7 @@ export default function ProfileSetupPage() {
                   <Input
                     value={link.url}
                     onChange={(e) => updateLink(link.id, "url", e.target.value)}
-                    placeholder="youtube.com/@you  ·  wa.me/91…  ·  yoursite.com"
+                    placeholder="instagram.com/@you  ·  youtube.com/@you  ·  yoursite.com"
                     className="h-9 font-mono text-[12px]"
                   />
                 </div>
