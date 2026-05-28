@@ -8,6 +8,22 @@ import {
 import { Providers } from "@/components/providers/providers";
 import "./globals.css";
 
+/* ── Vercel function region ──────────────────────────────────────────────
+   ROOT cause of the "everything is slow" reports: with no region config,
+   Vercel deploys serverless functions to iad1 (US East — Virginia). Every
+   page render for an Indian user was Mumbai → Virginia → Mumbai Supabase
+   → Virginia → Mumbai. ~500ms of latency BEFORE the function even ran.
+
+   Pinning to bom1 (Mumbai) keeps the entire request loop inside India:
+   Mumbai user → Mumbai function → Mumbai Supabase → Mumbai user. Cuts
+   the dead time per request by ~300-500ms — visible on every navigation.
+
+   Cascades to every nested route segment (App Router inherits region
+   from the closest layout / page that exports it). Set here at the root
+   so every dashboard + API route picks it up without per-file config.
+   ────────────────────────────────────────────────────────────────────── */
+export const preferredRegion = "bom1";
+
 /* ── Font configuration ── */
 
 const outfit = Outfit({
