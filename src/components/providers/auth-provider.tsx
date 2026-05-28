@@ -158,7 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRole(cached);
       setRoleResolvedForUserId(user.id);
       // Still refresh in background to pick up any role changes, but don't block UI
-      fetch("/api/whoami", { cache: "no-store" })
+      // Server caches /api/whoami at 30s + 5min SWR so background refreshes
+      // during a session are nearly free.
+      fetch("/api/whoami")
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
           if (!data) return;
@@ -181,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/whoami", { cache: "no-store" });
+        const res = await fetch("/api/whoami");
         if (!res.ok) throw new Error(`whoami ${res.status}`);
         const data = (await res.json()) as {
           loggedIn: boolean;

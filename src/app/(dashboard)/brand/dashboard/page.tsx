@@ -134,20 +134,16 @@ export default function BrandDashboardPage() {
       // and is always 0 — we IGNORE stats.walletBalance and source the
       // live wallet + credits from /api/billing/balance instead (same
       // source the topbar BalanceChip uses, so they stay in sync).
+      // All four endpoints now ship `Cache-Control: private, max-age=15,
+      // stale-while-revalidate=60` — letting the default fetch cache
+      // absorb tab-back navigations within a 75s window. Removed
+      // `cache: "no-store"` so the browser cache actually fires.
       const [statsRes, collabsRes, billingRes, vaultRes] =
         await Promise.allSettled([
-          fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : null
-          ),
-          fetch("/api/collabs", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : null
-          ),
-          fetch("/api/billing/balance", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : null
-          ),
-          fetch("/api/vault?pageSize=4", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : null
-          ),
+          fetch("/api/dashboard/stats").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/collabs").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/billing/balance").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/vault?pageSize=4").then((r) => (r.ok ? r.json() : null)),
         ]);
 
       if (cancelled) return;

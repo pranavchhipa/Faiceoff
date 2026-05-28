@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
+import { cachedJson } from "@/lib/http/cacheable";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMinPayoutPaise } from "@/lib/payouts";
@@ -73,7 +74,9 @@ export async function GET(_req: NextRequest) {
 
   const min_payout_paise = getMinPayoutPaise();
 
-  return NextResponse.json({
+  // Topbar BalanceChip polls this every 60s. 15s cache + 60s SWR cuts ~75%
+  // of the duplicated load when the creator just navigates between tabs.
+  return cachedJson({
     available_paise: row.available_paise,
     holding_paise: row.holding_paise,
     pending_count: row.pending_count,

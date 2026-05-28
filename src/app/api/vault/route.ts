@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listVaultImages, VaultError } from "@/lib/vault";
+import { cachedJson } from "@/lib/http/cacheable";
 
 type VaultStatusFilter = "all" | "approved" | "pending" | "rejected";
 
@@ -63,7 +64,10 @@ export async function GET(req: NextRequest) {
   // ── 4. Call service ──────────────────────────────────────────────────────────
   try {
     const result = await listVaultImages({ brandId, page, pageSize, status, search: query });
-    return NextResponse.json({
+    // Vault grids on /brand/dashboard + /brand/vault both hit this. 15s
+    // cache + 60s SWR keeps tab switches instant; the underlying delivered
+    // image data doesn't change minute-to-minute.
+    return cachedJson({
       items: result.items,
       total: result.total,
       page: result.page,

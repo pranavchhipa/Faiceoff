@@ -49,10 +49,14 @@ export function BalanceChip({ role }: Props) {
     // The stats route is only kept for activeCampaigns / pendingApprovals.
     async function load() {
       try {
+        // Use the browser cache. The server sets `private, max-age=15, swr=60`
+        // on both endpoints (see /api/billing/balance + /api/earnings/dashboard)
+        // so back-to-back navigations + the 60s poll itself land instantly
+        // from cache when nothing has changed.
         const liveRes =
           role === "brand"
-            ? await fetch("/api/billing/balance", { cache: "no-store" })
-            : await fetch("/api/earnings/dashboard", { cache: "no-store" });
+            ? await fetch("/api/billing/balance")
+            : await fetch("/api/earnings/dashboard");
 
         if (cancelled) return;
         if (!liveRes.ok) return;

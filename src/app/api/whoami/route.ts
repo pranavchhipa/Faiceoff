@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cachedJson } from "@/lib/http/cacheable";
 
 /**
  * GET /api/whoami
@@ -16,6 +17,11 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ loggedIn: false });
   }
+
+  // whoami is hit on every dashboard mount + every tab switch via the auth
+  // provider's background refresh. 30s cache + 5min SWR means navigations
+  // within 30s skip the network entirely and the next refresh still feels
+  // instant. Role doesn't change minute-to-minute, so this is safe.
 
   const admin = createAdminClient();
 
@@ -38,19 +44,22 @@ export async function GET() {
       .eq("creator_id", (await admin.from("creators").select("id").eq("user_id", user.id).maybeSingle()).data?.id ?? "00000000-0000-0000-0000-000000000000"),
   ]);
 
-  return NextResponse.json({
-    loggedIn: true,
-    auth: {
-      id: user.id,
-      email: user.email,
-      metadata_role: user.user_metadata?.role ?? null,
-      metadata_display_name: user.user_metadata?.display_name ?? null,
+  return cachedJson(
+    {
+      loggedIn: true,
+      auth: {
+        id: user.id,
+        email: user.email,
+        metadata_role: user.user_metadata?.role ?? null,
+        metadata_display_name: user.user_metadata?.display_name ?? null,
+      },
+      public_users_row: publicUser,
+      has_creator_row: Boolean(creator),
+      creator: creator,
+      has_brand_row: Boolean(brand),
+      brand: brand,
+      photo_count: photoCount ?? 0,
     },
-    public_users_row: publicUser,
-    has_creator_row: Boolean(creator),
-    creator: creator,
-    has_brand_row: Boolean(brand),
-    brand: brand,
-    photo_count: photoCount ?? 0,
-  });
+    { maxAge: 30, swr: 300 },
+  );
 }

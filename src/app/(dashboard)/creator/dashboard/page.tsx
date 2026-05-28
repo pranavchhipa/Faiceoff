@@ -134,12 +134,12 @@ export default function CreatorDashboardPage() {
     async function load() {
       setLoading(true);
       const [statsRes, earningsRes, approvalsRes, pkgRes, reqRes] = await Promise.allSettled([
-        fetch("/api/dashboard/stats", { cache: "no-store" }).then((r) =>
-          r.ok ? r.json() : null
-        ),
-        fetch("/api/earnings/dashboard", { cache: "no-store" }).then((r) =>
-          r.ok ? r.json() : null
-        ),
+        // Stats + earnings now ship Cache-Control headers — let the browser
+        // cache absorb tab-back navigations. The other three (approvals /
+        // packages / requests) still hit fresh because they change with
+        // every action.
+        fetch("/api/dashboard/stats").then((r) => (r.ok ? r.json() : null)),
+        fetch("/api/earnings/dashboard").then((r) => (r.ok ? r.json() : null)),
         fetch("/api/creator/approvals", { cache: "no-store" }).then((r) =>
           r.ok ? r.json() : null
         ),

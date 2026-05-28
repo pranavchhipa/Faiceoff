@@ -13,6 +13,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cachedJson } from "@/lib/http/cacheable";
 
 // ── Shape from v_brand_billing view ───────────────────────────────────────────
 
@@ -87,7 +88,9 @@ export async function GET(req: NextRequest) {
       wallet_available_paise: 0,
       lifetime_topup_paise: 0,
     };
-    return NextResponse.json(zeroBilling, { status: 200 });
+    // 15s cache + 60s SWR — wallet doesn't move every second, and the
+    // topbar BalanceChip polls every 60s anyway so freshness stays bounded.
+    return cachedJson(zeroBilling);
   }
 
   // ── 4. Return ──────────────────────────────────────────────────────────────
@@ -100,5 +103,5 @@ export async function GET(req: NextRequest) {
     lifetime_topup_paise: billing.lifetime_topup_paise as number,
   };
 
-  return NextResponse.json(response, { status: 200 });
+  return cachedJson(response);
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cachedJson } from "@/lib/http/cacheable";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -141,5 +142,8 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ collabs, role: roleFilter.role, pending_payments: pendingPayments });
+  // Brand collabs page + dashboard both hit this on mount + after every
+  // mutation. 15s + 60s SWR makes tab-back navigations instant; the
+  // /brand/collabs page is the most-clicked dashboard surface after login.
+  return cachedJson({ collabs, role: roleFilter.role, pending_payments: pendingPayments });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cachedJson } from "@/lib/http/cacheable";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -135,7 +136,10 @@ export async function GET() {
           : Promise.resolve(0),
       ]);
 
-      return NextResponse.json({
+      // Dashboard stats refresh frequency is bounded by the BalanceChip's
+      // 60s poll. 15s browser cache + 60s SWR means tab switches within a
+      // minute paint instantly from cache.
+      return cachedJson({
         role,
         creator,
         stats: {
@@ -215,7 +219,7 @@ export async function GET() {
           .catch(() => 0),
       ]);
 
-      return NextResponse.json({
+      return cachedJson({
         role,
         brand,
         stats: {

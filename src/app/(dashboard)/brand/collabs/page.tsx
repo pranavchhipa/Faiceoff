@@ -151,7 +151,10 @@ export default function BrandCollabsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/collabs", { cache: "no-store" })
+    // /api/collabs now returns Cache-Control headers — let the browser cache
+    // absorb the second-visit case (most users hop between Dashboard and
+    // Collabs within the 15s freshness window).
+    fetch("/api/collabs")
       .then((r) => (r.ok ? r.json() : { collabs: [], pending_payments: [] }))
       .then((d) => {
         setCollabs(d.collabs ?? []);
