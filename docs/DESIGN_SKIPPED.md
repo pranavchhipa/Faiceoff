@@ -51,6 +51,17 @@ Global `replace_all` was used to rename consistently. A few sentences now read a
 - Visually identical, so this is low priority. Rename class-by-class to `font-sans uppercase tracking-wider` as files are touched.
 - See `docs/DESIGN_SKIPPED.md` itself (this file) is the place to track that — don't reintroduce JetBrains Mono regardless. Locked in CLAUDE.md as a hard rule.
 
+### 3b) Space Grotesk + Manrope are still loaded but the design system has consolidated on Outfit + Plus Jakarta Sans
+
+- `src/app/layout.tsx` still imports `Space_Grotesk` (`--font-headline`) and `Manrope` (`--font-body`).
+- `src/app/globals.css` still maps Tailwind's `--font-headline` / `--font-body` to those two via `@theme`.
+- ~24 occurrences across 6 files reference `font-headline` / `font-body` Tailwind utility classes (`creators/[slug]`, `brand/collabs`, `brand/discover`, `globals.css`, and the now-deleted MarketingHeader).
+- Plan when this is picked up:
+  1. Audit every `font-headline` / `font-body` class — most are decorative and can collapse to `font-display` (Outfit) or just the default body font (Plus Jakarta Sans).
+  2. Once usage is zero, drop the two `next/font/google` imports + the two CSS variable mappings.
+  3. Remove the `--font-headline` / `--font-body` entries from `@theme` in `globals.css`.
+- Risk: pages that rely on the two fonts will visually shift slightly to Outfit / Plus Jakarta Sans. Want Pranav's eyes on each surface before final removal — that's why this is parked here, not swept in an autonomous run.
+
 ### 4) Letter-spacing tune after mono → Plus Jakarta Sans swap
 
 - Existing `tracking-[0.18em]` / `letter-spacing: 0.16em` values were dialled in for JetBrains Mono (wider glyphs). With Plus Jakarta Sans they may look slightly bunched on some surfaces.
@@ -81,3 +92,4 @@ Code ships migrations under `supabase/migrations/` but they don't auto-apply on 
 ## Resolved
 
 - ✅ **Stale preview HTML files** — `public/design-preview.html` + `public/collabs-light-preview.html` both deleted (theme decision locked, no more preview iteration). Cleanup commit alongside the theme-lock decision.
+- ✅ **Dead component `src/app/(marketing)/MarketingHeader.tsx`** — legacy purple-gradient marketing header, zero callers, deleted in the autonomous run alongside the design-unification audit.
