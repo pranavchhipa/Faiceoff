@@ -11,6 +11,22 @@ Running log of things consciously deferred during the **Claude Design → React 
 
 ---
 
+## 🔒 Theme decision — LOCKED
+
+**Single theme across all of Faiceoff: dark editorial + rust accent (`#e8825d`).**
+
+Tried + explicitly rejected by Pranav (do not reopen):
+- Light theme — all 6 palette variants (Notion warm, Mercury minimalist, Hermès bold, Tesla mono, Beehiiv plum, Saffron heritage)
+- Aurora Glass mixed-mode (light main + dark sidebar with gradient mesh)
+- Sunset Studio (vivid multi-color gradient bg, magenta/coral/violet accents)
+- Black & Gold luxury Art Deco
+
+Pranav's call: dark + rust is the actual Faiceoff aesthetic. Stick with it on every surface — public marketing, dashboard, onboarding, checkout — all dark, all rust accent. Gold radial gradient is reserved for the "Faiceoff Verified" seal SVG only, never a UI accent.
+
+If a future agent gets asked "let's try light theme" — point at this lock + this file before spinning up any experiments.
+
+---
+
 ## Open
 
 ### 1) Schema additions needed (creators table)
@@ -48,11 +64,10 @@ Global `replace_all` was used to rename consistently. A few sentences now read a
 
 ### 6) Stale / dead files
 
-- **`public/design-preview.html`** — early design exploration mockup written before Pranav switched to Claude Design. No longer linked anywhere. Delete on cleanup.
 - **`.tmp/claude-design/`** — gitignored extraction location for Claude Design bundles. Safe to delete locally any time; not tracked.
 
 ---
 
 ## Resolved
 
-_(empty — move bullets here with the resolution date when handled)_
+- ✅ **Stale preview HTML files** — `public/design-preview.html` + `public/collabs-light-preview.html` both deleted (theme decision locked, no more preview iteration). Cleanup commit alongside the theme-lock decision.
