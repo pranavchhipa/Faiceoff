@@ -1,14 +1,39 @@
 "use client";
 
+/**
+ * /brand/collabs — "Your collabs" (dark editorial)
+ *
+ * Redesigned in the same Claude Design aesthetic as the creator profile +
+ * brand discover. Data layer unchanged — still fetches /api/collabs and
+ * splits into active vs past. Visual / layout / motion all rewritten.
+ *
+ * Sections (top to bottom):
+ *   - Page header (title + count subtitle + Start new collab CTA)
+ *   - Pending requests nudge (only if any are pending/accepted)
+ *   - 4-stat tile strip (Active / Completed / Images / Total spent)
+ *   - Active section — 2-col card grid
+ *   - Past section — compact row list
+ *
+ * Styles are inlined in a single <style> block scoped under .fco-collabs-v2.
+ */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  Megaphone, Loader2, Plus, Clock, CheckCircle2, Zap,
-  ArrowRight, Image as ImageIcon, FileImage,
-  Send, Globe,
-} from "lucide-react";
 import Image from "next/image";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FileImage,
+  Image as ImageIcon,
+  Megaphone,
+  Plus,
+  Send,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
+/* ───────── Types ───────── */
 
 interface Collab {
   id: string;
@@ -27,23 +52,9 @@ interface Collab {
   created_at: string;
 }
 
-// `bg`/`color` are kept for any callers that still want the soft-tint chip,
-// but the on-image status pill (which sits over arbitrary product photos —
-// white iPhone, dark KitKat, etc.) uses `dot` against a dark backdrop so the
-// label stays readable on every background. Don't tint the pill itself.
-const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string; icon: React.ComponentType<{ className?: string }> }> = {
-  active:    { label: "Active",    color: "text-emerald-600",            bg: "bg-emerald-500/10",            dot: "bg-emerald-400",                icon: Zap },
-  completed: { label: "Completed", color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", dot: "bg-[var(--color-primary)]",     icon: CheckCircle2 },
-  paused:    { label: "Paused",    color: "text-yellow-600",             bg: "bg-yellow-500/10",             dot: "bg-yellow-400",                 icon: Clock },
-};
+/* ───────── Format helpers ───────── */
 
-const TIER_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; bar: string }> = {
-  frame:   { label: "Frame",   icon: ImageIcon, color: "text-sky-600",                bg: "bg-sky-500/10",                bar: "bg-sky-500" },
-  feature: { label: "Feature", icon: Zap,       color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary)]/10", bar: "bg-[var(--color-primary)]" },
-  cover:   { label: "Cover",   icon: Globe,     color: "text-violet-600",             bg: "bg-violet-500/10",             bar: "bg-violet-500" },
-};
-
-function fmt(paise: number) {
+function formatINR(paise: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -52,7 +63,87 @@ function fmt(paise: number) {
   }).format(paise / 100);
 }
 
-const fadeUp = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
+/* ───────── Status + tier meta (dark editorial palette) ───────── */
+
+const STATUS_META: Record<
+  string,
+  { label: string; dot: string; tint: string }
+> = {
+  active:    { label: "Active",    dot: "#5fb37a", tint: "rgba(95, 179, 122, 0.14)" },
+  completed: { label: "Completed", dot: "#e8825d", tint: "rgba(232, 130, 93, 0.14)" },
+  paused:    { label: "Paused",    dot: "#d4a557", tint: "rgba(212, 165, 87, 0.14)" },
+};
+
+const TIER_META: Record<
+  string,
+  { label: string; icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }> }
+> = {
+  frame:   { label: "Frame",   icon: ImageIcon },
+  feature: { label: "Feature", icon: Zap },
+  cover:   { label: "Cover",   icon: Sparkles },
+};
+
+/* ───────── Faiceoff verified seal (defs + usage) ───────── */
+
+function FaSealDefs() {
+  return (
+    <svg
+      width="0"
+      height="0"
+      style={{ position: "absolute", pointerEvents: "none" }}
+      aria-hidden
+    >
+      <defs>
+        <radialGradient id="faSealCollabs" cx="34" cy="28" r="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fff1b8" />
+          <stop offset="0.4" stopColor="#f0c34a" />
+          <stop offset="0.85" stopColor="#a87a2a" />
+          <stop offset="1" stopColor="#7a5418" />
+        </radialGradient>
+        <symbol id="faSealCollabsSym" viewBox="0 0 100 100">
+          <g fill="url(#faSealCollabs)">
+            <circle cx="50" cy="50" r="36" />
+            <circle cx="50" cy="14" r="9" />
+            <circle cx="75.46" cy="24.54" r="9" />
+            <circle cx="86" cy="50" r="9" />
+            <circle cx="75.46" cy="75.46" r="9" />
+            <circle cx="50" cy="86" r="9" />
+            <circle cx="24.54" cy="75.46" r="9" />
+            <circle cx="14" cy="50" r="9" />
+            <circle cx="24.54" cy="24.54" r="9" />
+          </g>
+          <ellipse
+            cx="36"
+            cy="25"
+            rx="11"
+            ry="4.5"
+            fill="#ffffff"
+            opacity="0.45"
+            transform="rotate(-32 36 25)"
+          />
+          <path
+            d="M 34 51 L 45 62 L 67 39"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </symbol>
+      </defs>
+    </svg>
+  );
+}
+
+function Seal({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
+      <use href="#faSealCollabsSym" />
+    </svg>
+  );
+}
+
+/* ───────── Page ───────── */
 
 export default function BrandCollabsPage() {
   const [collabs, setCollabs] = useState<Collab[]>([]);
@@ -61,178 +152,169 @@ export default function BrandCollabsPage() {
 
   useEffect(() => {
     fetch("/api/collabs", { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : { collabs: [], pending_payments: [] })
+      .then((r) => (r.ok ? r.json() : { collabs: [], pending_payments: [] }))
       .then((d) => {
         setCollabs(d.collabs ?? []);
-        // Count pending/accepted requests so we can show a nudge banner
-        // pointing the brand to /brand/requests where the request flow lives.
         const reqs = (d.pending_payments ?? []) as { status: string }[];
         setPendingRequestCount(
-          reqs.filter((r) => r.status === "pending" || r.status === "accepted").length,
+          reqs.filter((r) => r.status === "pending" || r.status === "accepted")
+            .length,
         );
       })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
-      </div>
-    );
-  }
+  const active = collabs.filter((c) => c.status === "active");
+  const past = collabs.filter((c) => c.status !== "active");
 
-  const active    = collabs.filter((c) => c.status === "active");
-  const completed = collabs.filter((c) => c.status !== "active");
-
-  // Aggregate stats for the header strip
-  const totalApproved   = collabs.reduce((s, c) => s + (c.approved_count ?? 0), 0);
-  const totalImagesTarget = collabs.reduce((s, c) => s + (c.final_images_target ?? 0), 0);
-  const totalSpentPaise = collabs.reduce((s, c) => s + (c.package_price_paise ?? 0), 0);
+  // Aggregate stats
+  const totalApproved = collabs.reduce(
+    (s, c) => s + (c.approved_count ?? 0),
+    0,
+  );
+  const totalImagesTarget = collabs.reduce(
+    (s, c) => s + (c.final_images_target ?? 0),
+    0,
+  );
+  const totalSpentPaise = collabs.reduce(
+    (s, c) => s + (c.package_price_paise ?? 0),
+    0,
+  );
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] px-4 py-6 lg:px-8 lg:py-8">
-      {/* ── Hero header ── */}
-      <motion.div
-        variants={fadeUp}
-        initial="initial"
-        animate="animate"
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
-      >
-        <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-            <Megaphone className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
-            Collabs
-          </p>
-          <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[42px]">
-            Your collabs
-          </h1>
-          <p className="mt-2 text-[13.5px] text-[var(--color-muted-foreground)]">
-            Live workspaces with creators you&apos;ve paid. Each one bundles Studio, Chat, and Vault.
-          </p>
-        </div>
-        <Link
-          href="/brand/discover"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition hover:-translate-y-0.5"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Start new collab
-        </Link>
-      </motion.div>
+    <div className="fco-collabs-v2">
+      <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
+      <FaSealDefs />
 
-      {/* ── Pending requests nudge (links to /brand/requests) ── */}
-      {pendingRequestCount > 0 && (
-        <Link
-          href="/brand/requests"
-          className="group mb-6 flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-4 transition hover:bg-[var(--color-primary)]/10"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
-              <Send className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="font-display text-[14px] font-800 text-[var(--color-foreground)]">
-                {pendingRequestCount} {pendingRequestCount === 1 ? "request" : "requests"} in progress
-              </p>
-              <p className="text-[12px] text-[var(--color-muted-foreground)]">
-                Track replies + payment status on the Requests page.
-              </p>
+      <main className="page">
+        {/* ── Header ───────────────────────────────────────────────── */}
+        <header className="ph">
+          <div className="ph-left">
+            <div className="eyebrow">
+              <Megaphone size={11} strokeWidth={2.2} />
+              Collabs
             </div>
+            <h1 className="ph-title">Your collabs</h1>
+            <p className="ph-sub">
+              Live workspaces with creators you&apos;ve paid. Each one bundles
+              Studio, Chat, and Vault.
+            </p>
           </div>
-          <span className="flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]">
-            View requests
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </Link>
-      )}
-
-      {/* ── Stats strip ── */}
-      {collabs.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile
-            icon={Zap}
-            label="Active"
-            value={active.length.toString()}
-            accent={active.length > 0}
-          />
-          <StatTile
-            icon={CheckCircle2}
-            label="Completed"
-            value={completed.length.toString()}
-          />
-          <StatTile
-            icon={ImageIcon}
-            label="Images"
-            value={`${totalApproved}/${totalImagesTarget || 0}`}
-            sub="approved"
-          />
-          <StatTile
-            icon={Megaphone}
-            label="Total spent"
-            value={fmt(totalSpentPaise)}
-          />
-        </div>
-      )}
-
-      {collabs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
-          <Megaphone className="mx-auto mb-3 h-10 w-10 text-[var(--color-muted-foreground)]" />
-          <p className="font-display text-[16px] font-700 text-[var(--color-foreground)]">No active collabs yet</p>
-          <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
-            {pendingRequestCount > 0
-              ? "Once a creator accepts your request and you pay, the collab lands here."
-              : "Discover a creator and send a collab request to get started."}
-          </p>
-          <Link
-            href={pendingRequestCount > 0 ? "/brand/requests" : "/brand/discover"}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)]"
-          >
-            {pendingRequestCount > 0 ? "View requests" : "Discover creators"}
+          <Link href="/brand/discover" className="cta-primary">
+            <Plus size={14} strokeWidth={2.4} />
+            Start new collab
           </Link>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* ── Active ── */}
-          {active.length > 0 && (
-            <section>
-              <div className="mb-3 flex items-center gap-2">
-                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-500">
-                  Active
-                </p>
-                <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-emerald-500/15 px-1.5 font-mono text-[9px] font-700 text-emerald-700 dark:text-emerald-400">
-                  {active.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {active.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.05} variant="active" />)}
-              </div>
-            </section>
-          )}
+        </header>
 
-          {/* ── Past ── */}
-          {completed.length > 0 && (
-            <section>
-              <div className="mb-3 flex items-center gap-2">
-                <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                  Past
-                </p>
-                <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-[var(--color-secondary)] px-1.5 font-mono text-[9px] font-700 text-[var(--color-muted-foreground)]">
-                  {completed.length}
-                </span>
+        {/* ── Pending requests nudge ───────────────────────────────── */}
+        {!loading && pendingRequestCount > 0 && (
+          <Link href="/brand/requests" className="nudge">
+            <span className="nudge-icon">
+              <Send size={15} strokeWidth={2} />
+            </span>
+            <div className="nudge-body">
+              <div className="nudge-title">
+                {pendingRequestCount}{" "}
+                {pendingRequestCount === 1 ? "request" : "requests"} in progress
               </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {completed.map((c, i) => <CollabCard key={c.id} collab={c} delay={i * 0.04} variant="past" />)}
+              <div className="nudge-sub">
+                Track replies + payment status on the Requests page.
               </div>
-            </section>
-          )}
-        </div>
-      )}
+            </div>
+            <span className="nudge-cta">
+              View requests <ArrowRight size={13} strokeWidth={2.4} />
+            </span>
+          </Link>
+        )}
+
+        {/* ── Stats strip ──────────────────────────────────────────── */}
+        {!loading && collabs.length > 0 && (
+          <div className="stats">
+            <StatTile
+              icon={Zap}
+              label="Active"
+              value={active.length.toString()}
+              accent={active.length > 0}
+            />
+            <StatTile
+              icon={CheckCircle2}
+              label="Completed"
+              value={past.length.toString()}
+            />
+            <StatTile
+              icon={ImageIcon}
+              label="Images"
+              value={`${totalApproved}/${totalImagesTarget || 0}`}
+              sub="approved"
+            />
+            <StatTile
+              icon={Megaphone}
+              label="Total spent"
+              value={formatINR(totalSpentPaise)}
+            />
+          </div>
+        )}
+
+        {/* ── Loading skeleton ─────────────────────────────────────── */}
+        {loading && (
+          <>
+            <div className="stats">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="stat-skel" />
+              ))}
+            </div>
+            <div className="section-head">
+              <span className="section-skel" />
+            </div>
+            <div className="cards">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="card-skel" />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Empty state ──────────────────────────────────────────── */}
+        {!loading && collabs.length === 0 && (
+          <EmptyState pendingRequests={pendingRequestCount} />
+        )}
+
+        {/* ── Active section ───────────────────────────────────────── */}
+        {!loading && active.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <span className="section-label active">Active</span>
+              <span className="section-count">{active.length}</span>
+            </div>
+            <div className="cards">
+              {active.map((c) => (
+                <CollabCard key={c.id} collab={c} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Past section ─────────────────────────────────────────── */}
+        {!loading && past.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <span className="section-label past">Past</span>
+              <span className="section-count">{past.length}</span>
+            </div>
+            <div className="rows">
+              {past.map((c) => (
+                <CollabRow key={c.id} collab={c} />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   );
 }
 
-/* ── Stat tile (header strip) ── */
+/* ───────── Stat tile ───────── */
+
 function StatTile({
   icon: Icon,
   label,
@@ -240,220 +322,866 @@ function StatTile({
   sub,
   accent,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
   label: string;
   value: string;
   sub?: string;
   accent?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-3.5 ${
-        accent
-          ? "border-emerald-500/30 bg-emerald-500/5"
-          : "border-[var(--color-border)] bg-[var(--color-card)]"
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-lg ${
-            accent
-              ? "bg-emerald-500/15 text-emerald-600"
-              : "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
-          }`}
-        >
-          <Icon className="h-3.5 w-3.5" />
+    <div className={`stat ${accent ? "stat-accent" : ""}`}>
+      <div className="stat-head">
+        <span className="stat-icon">
+          <Icon size={13} strokeWidth={2} />
         </span>
-        <p className="font-mono text-[9.5px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-          {label}
-        </p>
+        <span className="stat-label">{label}</span>
       </div>
-      <p className="mt-2 font-display text-[20px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-        {value}
-      </p>
-      {sub && (
-        <p className="mt-1 font-mono text-[10px] text-[var(--color-muted-foreground)]">
-          {sub}
-        </p>
-      )}
+      <div className="stat-value">{value}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
 }
 
-/* ── Collab card (active / past) ── */
-function CollabCard({
-  collab,
-  delay,
-  variant,
-}: {
-  collab: Collab;
-  delay: number;
-  variant: "active" | "past";
-}) {
-  const statusMeta = STATUS_META[collab.status] ?? STATUS_META.active;
+/* ───────── Collab card (active — large) ───────── */
+
+function CollabCard({ collab }: { collab: Collab }) {
+  const status = STATUS_META[collab.status] ?? STATUS_META.active;
   const tier = collab.package_tier ? TIER_META[collab.package_tier] : null;
   const TierIcon = tier?.icon;
-  const progress = collab.final_images_target
-    ? Math.round((collab.approved_count / collab.final_images_target) * 100)
-    : null;
-  const creditsLeft = collab.gen_credits_total != null
-    ? collab.gen_credits_total - collab.gen_credits_used
-    : null;
 
-  // Compact past card — visually quieter
-  if (variant === "past") {
-    return (
-      <motion.div
-        variants={{ initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }}
-        initial="initial"
-        animate="animate"
-        transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <Link
-          href={`/brand/collabs/${collab.id}`}
-          className="group flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 transition-all hover:border-[var(--color-primary)]/30"
-        >
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]">
-            {collab.product_image_url ? (
-              <Image
-                src={collab.product_image_url}
-                alt={collab.name}
-                fill
-                sizes="48px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <FileImage className="h-4 w-4 text-[var(--color-muted-foreground)]" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-700 text-[13px] text-[var(--color-foreground)]">
-              {collab.name}
-            </p>
-            <p className="truncate font-mono text-[10.5px] text-[var(--color-muted-foreground)]">
-              {statusMeta.label} · {collab.approved_count}/{collab.final_images_target ?? 0}
-            </p>
-          </div>
-          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-muted-foreground)] transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </motion.div>
-    );
-  }
+  const progress =
+    collab.final_images_target && collab.final_images_target > 0
+      ? Math.round((collab.approved_count / collab.final_images_target) * 100)
+      : null;
 
-  // Big active card — single click anywhere takes you to the full collab
-  // workspace (Studio / Vault / Chat / Details tabs).
+  const creditsLeft =
+    collab.gen_credits_total != null
+      ? collab.gen_credits_total - collab.gen_credits_used
+      : null;
+
   return (
-    <motion.div
-      variants={{ initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }}
-      initial="initial"
-      animate="animate"
-      transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <Link
-        href={`/brand/collabs/${collab.id}`}
-        className="group block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40 hover:shadow-[0_12px_32px_-12px_rgba(201,169,110,0.3)]"
-      >
-        {/* Top accent bar — colour matches package tier */}
-        <div className={`h-1 w-full ${tier?.bar ?? "bg-[var(--color-primary)]"}`} />
+    <Link href={`/brand/collabs/${collab.id}`} className="card">
+      {/* Product image (left) */}
+      <div className="card-img">
+        {collab.product_image_url ? (
+          <Image
+            src={collab.product_image_url}
+            alt={collab.name}
+            fill
+            sizes="160px"
+            className="card-img-el"
+            unoptimized
+          />
+        ) : (
+          <div className="card-img-fallback">
+            <FileImage size={26} strokeWidth={1.5} />
+          </div>
+        )}
+        <span
+          className="status-pill"
+          style={{ background: status.tint, borderColor: status.dot }}
+        >
+          <span
+            className="status-dot"
+            style={{ background: status.dot }}
+            aria-hidden
+          />
+          {status.label}
+        </span>
+      </div>
 
-        <div className="flex gap-0">
-          {/* Product image (left, square) */}
-          <div className="relative aspect-square w-[140px] shrink-0 overflow-hidden bg-[var(--color-secondary)] sm:w-[160px]">
-            {collab.product_image_url ? (
+      {/* Content (right) */}
+      <div className="card-body">
+        <div className="card-top">
+          <div className="card-title-row">
+            <h3 className="card-title">{collab.name}</h3>
+            {tier && TierIcon && (
+              <span className="tier-pill">
+                <TierIcon size={10} strokeWidth={2.2} />
+                {tier.label}
+              </span>
+            )}
+          </div>
+          <div className="counterpart">
+            {collab.counterpart_avatar_url ? (
               <Image
-                src={collab.product_image_url}
-                alt={collab.name}
-                fill
-                sizes="160px"
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                src={collab.counterpart_avatar_url}
+                alt=""
+                width={18}
+                height={18}
+                className="counterpart-avatar"
                 unoptimized
               />
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <FileImage className="h-8 w-8 text-[var(--color-muted-foreground)]" />
-              </div>
-            )}
-            {/* Status pill on the image — dark backdrop + white text so it
-                stays readable on any product background (white iPhone,
-                dark KitKat, gradient jersey, etc.). The 10%-alpha tinted
-                chip was invisible on light-bg product shots. */}
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[9px] font-700 uppercase text-white backdrop-blur-md ring-1 ring-white/10">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${statusMeta.dot}`} />
-                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+              <span className="counterpart-fallback">
+                {collab.counterpart_name.charAt(0).toUpperCase()}
               </span>
-              {statusMeta.label}
+            )}
+            <span className="counterpart-name">
+              with {collab.counterpart_name}
             </span>
+            <Seal size={12} />
           </div>
+        </div>
 
-          {/* Right content */}
-          <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
-            {/* Title + counterpart + tier chip */}
-            <div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-display text-[17px] font-800 leading-tight text-[var(--color-foreground)]">
-                    {collab.name}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
-                    {collab.counterpart_avatar_url ? (
-                      <Image
-                        src={collab.counterpart_avatar_url}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="h-4 w-4 rounded-full object-cover ring-1 ring-[var(--color-border)]"
-                        unoptimized
-                      />
-                    ) : (
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[8px] font-700 text-[var(--color-foreground)]">
-                        {collab.counterpart_name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    <span className="truncate">with {collab.counterpart_name}</span>
-                  </div>
-                </div>
-                {tier && TierIcon && (
-                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9.5px] font-700 uppercase ${tier.bg} ${tier.color}`}>
-                    <TierIcon className="h-2.5 w-2.5" />
-                    {tier.label}
+        <div className="card-bottom">
+          {progress !== null && (
+            <>
+              <div className="progress-row">
+                <span className="progress-text">
+                  <strong>{collab.approved_count}</strong>/
+                  {collab.final_images_target} approved
+                </span>
+                {creditsLeft !== null && (
+                  <span className="credits-left">
+                    <Zap size={10} strokeWidth={2.2} />
+                    {creditsLeft} credits left
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* Progress + open hint */}
-            <div className="mt-4">
-              {progress !== null && (
-                <>
-                  <div className="mb-1 flex items-center justify-between font-mono text-[10px] text-[var(--color-muted-foreground)]">
-                    <span>{collab.approved_count}/{collab.final_images_target} approved</span>
-                    {creditsLeft !== null && (
-                      <span>
-                        <Zap className="mr-0.5 inline h-2.5 w-2.5 text-[var(--color-primary)]" />
-                        {creditsLeft} credits left
-                      </span>
-                    )}
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-secondary)]">
-                    <div
-                      className={`h-full rounded-full transition-all ${tier?.bar ?? "bg-[var(--color-primary)]"}`}
-                      style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
-                  </div>
-                </>
-              )}
-              <div className="mt-3 flex items-center gap-1 font-mono text-[10.5px] font-700 uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                <span>Open workspace</span>
-                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
               </div>
-            </div>
+            </>
+          )}
+          <div className="open-cta">
+            Open workspace <ArrowRight size={12} strokeWidth={2.4} />
           </div>
         </div>
-      </Link>
-    </motion.div>
+      </div>
+    </Link>
   );
 }
+
+/* ───────── Collab row (past — compact) ───────── */
+
+function CollabRow({ collab }: { collab: Collab }) {
+  const status = STATUS_META[collab.status] ?? STATUS_META.completed;
+
+  return (
+    <Link href={`/brand/collabs/${collab.id}`} className="row">
+      <div className="row-img">
+        {collab.product_image_url ? (
+          <Image
+            src={collab.product_image_url}
+            alt={collab.name}
+            fill
+            sizes="56px"
+            className="row-img-el"
+            unoptimized
+          />
+        ) : (
+          <div className="row-img-fallback">
+            <FileImage size={14} strokeWidth={1.5} />
+          </div>
+        )}
+      </div>
+      <div className="row-body">
+        <div className="row-name">{collab.name}</div>
+        <div className="row-meta">
+          <span style={{ color: status.dot, fontWeight: 600 }}>
+            {status.label}
+          </span>
+          <span className="row-sep">·</span>
+          <span>with {collab.counterpart_name}</span>
+          <span className="row-sep">·</span>
+          <span>
+            {collab.approved_count}/{collab.final_images_target ?? 0} images
+          </span>
+        </div>
+      </div>
+      <ArrowRight className="row-arrow" size={14} strokeWidth={2} />
+    </Link>
+  );
+}
+
+/* ───────── Empty state ───────── */
+
+function EmptyState({ pendingRequests }: { pendingRequests: number }) {
+  const hasPending = pendingRequests > 0;
+  return (
+    <div className="empty">
+      <div className="empty-icon">
+        <Megaphone size={22} strokeWidth={1.8} />
+      </div>
+      <h2 className="empty-title">No active collabs yet</h2>
+      <p className="empty-sub">
+        {hasPending
+          ? "Once a creator accepts your request and you pay, the collab lands here."
+          : "Discover a creator and send a collab request to get started."}
+      </p>
+      <Link
+        href={hasPending ? "/brand/requests" : "/brand/discover"}
+        className="empty-cta"
+      >
+        {hasPending ? "View requests" : "Discover creators"}
+        <ArrowRight size={13} strokeWidth={2.4} />
+      </Link>
+    </div>
+  );
+}
+
+/* ───────── Page-scoped CSS ─────────
+   All selectors prefixed with .fco-collabs-v2 so the dark editorial styles
+   don't leak into the surrounding dashboard chrome (sidebar / topbar). */
+const PAGE_CSS = `
+.fco-collabs-v2 {
+  --bg: #0a0908;
+  --elev: #14110f;
+  --overlay: #1a1612;
+  --raised: #211c17;
+  --text: #f5ebd6;
+  --muted: #a89570;
+  --dim: #6e6457;
+  --hair: #2a2520;
+  --hair-soft: #1f1b17;
+  --accent: #e8825d;
+  --accent-deep: #c96a47;
+  --accent-soft: rgba(232, 130, 93, 0.12);
+  --success: #5fb37a;
+  --gold: #d4a557;
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-label: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  position: relative;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.fco-collabs-v2 *, .fco-collabs-v2 *::before, .fco-collabs-v2 *::after { box-sizing: border-box; }
+.fco-collabs-v2 ::selection { background: var(--accent); color: var(--bg); }
+
+/* Page-scoped film grain */
+.fco-collabs-v2::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+.fco-collabs-v2 .page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* ── Page header ── */
+.fco-collabs-v2 .ph {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.fco-collabs-v2 .ph-left { min-width: 0; flex: 1; }
+.fco-collabs-v2 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.fco-collabs-v2 .ph-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 44px;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.fco-collabs-v2 .ph-sub {
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 520px;
+  margin: 0;
+}
+.fco-collabs-v2 .cta-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: #1a0f08;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 200ms cubic-bezier(.2,.7,.2,1), background 200ms ease, box-shadow 200ms ease;
+  box-shadow: 0 8px 24px -8px rgba(232, 130, 93, 0.45);
+}
+.fco-collabs-v2 .cta-primary:hover {
+  background: #ec8e6a;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px -8px rgba(232, 130, 93, 0.55);
+}
+
+/* ── Pending requests nudge ── */
+.fco-collabs-v2 .nudge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(232, 130, 93, 0.3);
+  border-radius: 14px;
+  margin-bottom: 24px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.fco-collabs-v2 .nudge:hover {
+  background: rgba(232, 130, 93, 0.18);
+  border-color: var(--accent);
+}
+.fco-collabs-v2 .nudge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(232, 130, 93, 0.22);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.fco-collabs-v2 .nudge-body { flex: 1; min-width: 0; }
+.fco-collabs-v2 .nudge-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.fco-collabs-v2 .nudge-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.fco-collabs-v2 .nudge-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Stats strip ── */
+.fco-collabs-v2 .stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 36px;
+}
+@media (max-width: 700px) {
+  .fco-collabs-v2 .stats { grid-template-columns: repeat(2, 1fr); }
+}
+.fco-collabs-v2 .stat {
+  padding: 16px;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  border-radius: 14px;
+  transition: border-color 200ms ease;
+}
+.fco-collabs-v2 .stat:hover { border-color: var(--hair); }
+.fco-collabs-v2 .stat-accent {
+  border-color: rgba(95, 179, 122, 0.3);
+  background: linear-gradient(180deg, rgba(95, 179, 122, 0.06), var(--elev) 70%);
+}
+.fco-collabs-v2 .stat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.fco-collabs-v2 .stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--overlay);
+  border: 1px solid var(--hair);
+  color: var(--muted);
+}
+.fco-collabs-v2 .stat-accent .stat-icon {
+  background: rgba(95, 179, 122, 0.15);
+  border-color: rgba(95, 179, 122, 0.3);
+  color: var(--success);
+}
+.fco-collabs-v2 .stat-label {
+  font-family: var(--font-label);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.fco-collabs-v2 .stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  line-height: 1;
+}
+.fco-collabs-v2 .stat-sub {
+  margin-top: 4px;
+  font-family: var(--font-label);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+/* ── Section ── */
+.fco-collabs-v2 .section { margin-top: 8px; margin-bottom: 32px; }
+.fco-collabs-v2 .section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.fco-collabs-v2 .section-label {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.fco-collabs-v2 .section-label.active { color: var(--success); }
+.fco-collabs-v2 .section-label.past { color: var(--muted); }
+.fco-collabs-v2 .section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--overlay);
+  border: 1px solid var(--hair);
+  font-family: var(--font-label);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Cards grid (active) ── */
+.fco-collabs-v2 .cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .fco-collabs-v2 .cards { grid-template-columns: 1fr; }
+}
+
+/* ── Active card ── */
+.fco-collabs-v2 .card {
+  display: flex;
+  gap: 0;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 280ms cubic-bezier(.2,.7,.2,1), border-color 280ms ease, box-shadow 280ms ease;
+}
+.fco-collabs-v2 .card:hover {
+  transform: translateY(-2px);
+  border-color: var(--hair);
+  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.55);
+}
+.fco-collabs-v2 .card-img {
+  position: relative;
+  width: 160px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  background: var(--overlay);
+}
+@media (max-width: 480px) {
+  .fco-collabs-v2 .card-img { width: 120px; }
+}
+.fco-collabs-v2 .card-img-el {
+  object-fit: cover;
+  display: block;
+  transition: transform 520ms cubic-bezier(.2,.7,.2,1), filter 320ms ease;
+  filter: saturate(0.94) contrast(1.02);
+}
+.fco-collabs-v2 .card:hover .card-img-el {
+  transform: scale(1.04);
+  filter: saturate(1) contrast(1.05);
+}
+.fco-collabs-v2 .card-img-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+.fco-collabs-v2 .status-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.fco-collabs-v2 .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.fco-collabs-v2 .card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px;
+  gap: 14px;
+}
+.fco-collabs-v2 .card-top { min-width: 0; }
+.fco-collabs-v2 .card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.fco-collabs-v2 .card-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fco-collabs-v2 .tier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(232, 130, 93, 0.3);
+  border-radius: 999px;
+  font-family: var(--font-label);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.fco-collabs-v2 .counterpart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  min-width: 0;
+}
+.fco-collabs-v2 .counterpart-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.fco-collabs-v2 .counterpart-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--overlay);
+  border: 1px solid var(--hair);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 9.5px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.fco-collabs-v2 .counterpart-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fco-collabs-v2 .card-bottom { min-width: 0; }
+.fco-collabs-v2 .progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--dim);
+}
+.fco-collabs-v2 .progress-text strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.fco-collabs-v2 .credits-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.fco-collabs-v2 .progress-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--overlay);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.fco-collabs-v2 .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+  border-radius: 999px;
+  transition: width 360ms cubic-bezier(.2,.7,.2,1);
+}
+.fco-collabs-v2 .open-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  transition: transform 220ms ease;
+}
+.fco-collabs-v2 .card:hover .open-cta { transform: translateX(3px); }
+
+/* ── Past rows ── */
+.fco-collabs-v2 .rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 700px) {
+  .fco-collabs-v2 .rows { grid-template-columns: 1fr; }
+}
+.fco-collabs-v2 .row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.fco-collabs-v2 .row:hover {
+  border-color: var(--hair);
+  background: var(--overlay);
+}
+.fco-collabs-v2 .row-img {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--overlay);
+  flex-shrink: 0;
+}
+.fco-collabs-v2 .row-img-el { object-fit: cover; display: block; }
+.fco-collabs-v2 .row-img-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+.fco-collabs-v2 .row-body { flex: 1; min-width: 0; }
+.fco-collabs-v2 .row-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.fco-collabs-v2 .row-meta {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fco-collabs-v2 .row-sep { color: var(--dim); }
+.fco-collabs-v2 .row-arrow {
+  color: var(--dim);
+  flex-shrink: 0;
+  transition: transform 200ms ease, color 200ms ease;
+}
+.fco-collabs-v2 .row:hover .row-arrow {
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+/* ── Empty state ── */
+.fco-collabs-v2 .empty {
+  padding: 72px 24px;
+  text-align: center;
+  border: 1px dashed var(--hair);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(232, 130, 93, 0.025), transparent 60%);
+}
+.fco-collabs-v2 .empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--elev);
+  border: 1px solid var(--hair);
+  margin: 0 auto 20px;
+  color: var(--muted);
+}
+.fco-collabs-v2 .empty-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+.fco-collabs-v2 .empty-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 auto 24px;
+  max-width: 420px;
+}
+.fco-collabs-v2 .empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  background: var(--accent);
+  color: #1a0f08;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: transform 180ms ease, background 180ms ease;
+}
+.fco-collabs-v2 .empty-cta:hover {
+  background: #ec8e6a;
+  transform: translateY(-1px);
+}
+
+/* ── Skeletons ── */
+.fco-collabs-v2 .stat-skel {
+  height: 96px;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.fco-collabs-v2 .stat-skel::after,
+.fco-collabs-v2 .card-skel::after,
+.fco-collabs-v2 .section-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(168, 149, 112, 0.06) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: fco-collabs-shimmer 1.6s linear infinite;
+}
+.fco-collabs-v2 .section-skel {
+  display: inline-block;
+  height: 14px;
+  width: 120px;
+  border-radius: 4px;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  position: relative;
+  overflow: hidden;
+}
+.fco-collabs-v2 .card-skel {
+  height: 192px;
+  background: var(--elev);
+  border: 1px solid var(--hair-soft);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+@keyframes fco-collabs-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .fco-collabs-v2 .page { padding: 22px 16px 60px; }
+  .fco-collabs-v2 .ph { gap: 16px; }
+  .fco-collabs-v2 .ph-title { font-size: 32px; }
+  .fco-collabs-v2 .cta-primary { padding: 11px 16px; font-size: 12.5px; }
+  .fco-collabs-v2 .stat-value { font-size: 22px; }
+}
+`;
