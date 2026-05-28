@@ -109,9 +109,8 @@ Two-sided marketplace where **creators license their face** and **brands generat
   - `var(--color-card)` — card background
   - `var(--color-secondary)` — subtle background
   - `var(--color-border)` — borders
-  - `var(--color-primary)` — accent (**rust `#e8825d`** — Faiceoff brand color, unified across public + dashboard surfaces as of the dashboard-accent token swap)
-  - `var(--color-primary-foreground)` — text on primary (dark, reads on rust)
-  - **Note on gold:** the only place gold (`#d4a557` / radial gradient) lives is the "Faiceoff Verified" seal SVG. Don't reach for gold for any UI accent — that's rust's job now.
+  - `var(--color-primary)` — accent (gold)
+  - `var(--color-primary-foreground)` — text on primary
 - **Anti-pattern**: hardcoded `bg-white`, `text-[var(--color-ink)]`, `border-[var(--color-neutral-200)]` — these break dark mode. Always use canonical tokens above.
 - **Radius**: `--radius-card` `1rem`, `--radius-button` `0.625rem`, `--radius-pill` `9999px`, `--radius-input` `0.5rem`
 - **Logo**: `/public/logo-mark.png` — used in sidebars (no gold background, just the mark)
