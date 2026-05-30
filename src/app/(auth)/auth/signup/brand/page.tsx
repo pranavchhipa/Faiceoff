@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, Mail, Building2, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Mail, Building2, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 import { AuthShell, FormField } from "@/components/landing/AuthShell";
 
 export default function BrandSignupPage() {
   const router = useRouter();
   const [formState, setFormState] = useState({ email: "", companyName: "", password: "", confirmPassword: "" });
   const [showPw, setShowPw] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,6 +24,7 @@ export default function BrandSignupPage() {
     setError("");
     if (formState.password.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (formState.password !== formState.confirmPassword) { setError("Passwords don't match."); return; }
+    if (!acceptedTerms) { setError("Please accept the Terms and Privacy Policy to continue."); return; }
     setLoading(true);
 
     try {
@@ -34,6 +36,7 @@ export default function BrandSignupPage() {
           displayName: formState.companyName,
           password: formState.password,
           role: "brand",
+          accepted_terms: true,
         }),
       });
       const data = await res.json();
@@ -118,14 +121,33 @@ export default function BrandSignupPage() {
           </motion.p>
         )}
 
+        <label className="flex items-start gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${acceptedTerms ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background"}`}>
+            {acceptedTerms && <Check size={12} strokeWidth={3} />}
+          </span>
+          <span className="text-xs text-muted-foreground leading-relaxed">
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" className="font-semibold text-foreground underline underline-offset-2 hover:text-primary">Terms &amp; Conditions</Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="font-semibold text-foreground underline underline-offset-2 hover:text-primary">Privacy Policy</Link>,
+            and confirm I&apos;m authorised to license AI likeness usage on behalf of my company.
+          </span>
+        </label>
+
         <p className="text-xs text-muted-foreground leading-relaxed">
-          We'll send an 8-digit code to verify your email. By continuing you agree to our Terms and DPDP-compliant Privacy policy.
+          We&apos;ll send an 8-digit code to verify your email.
         </p>
 
         <motion.button
           type="submit"
           whileTap={{ scale: 0.98 }}
-          disabled={loading || !formState.email || !formState.companyName || !formState.password}
+          disabled={loading || !formState.email || !formState.companyName || !formState.password || !acceptedTerms}
           className="w-full py-3 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
         >
           {loading ? <><Loader2 size={18} className="animate-spin" /> Creating account…</> : <>Create brand account <ArrowRight size={18} /></>}

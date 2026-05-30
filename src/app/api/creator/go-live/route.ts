@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // POST /api/creator/go-live — toggle creators.is_live
-// Validates: onboarding_step = 'complete' + at least 1 active package
+// Validates: onboarding_step = 'complete' + verified + at least 1 active package
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
   const { data: creator, error: creatorErr } = await admin
     .from("creators")
-    .select("id, onboarding_step, is_live")
+    .select("id, onboarding_step, is_live, is_verified")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -35,6 +35,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Complete onboarding before going live" },
         { status: 400 }
+      );
+    }
+
+    // Gold-tick gate: a creator's packages can't go live to brands until a
+    // Control Centre operator has manually verified their identity.
+    if (creator.is_verified !== true) {
+      return NextResponse.json(
+        {
+          error: "verification_required",
+          message: "Get verified before going live. Submit your Aadhaar + PAN to earn the gold tick.",
+        },
+        { status: 403 }
       );
     }
 

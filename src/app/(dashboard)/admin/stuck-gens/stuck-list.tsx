@@ -10,7 +10,8 @@
 // empty so the page always looks alive.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle,
@@ -82,32 +83,32 @@ function briefSnippet(it: StuckGenItem): string | null {
 /* ── Main component ── */
 
 export function StuckList() {
-  const [items, setItems] = useState<StuckGenItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading, refresh: fetchItems } = useCachedFetch<{
+    items?: StuckGenItem[];
+  }>("/api/admin/stuck-gens");
+  // Local optimistic override so action handlers can splice rows out.
+  const [localItems, setLocalItems] = useState<StuckGenItem[] | null>(null);
+  const items = localItems ?? data?.items ?? [];
+  const loading = rawLoading && !data;
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [refundTarget, setRefundTarget] = useState<StuckGenItem | null>(null);
   const [refundPending, startRefundTransition] = useTransition();
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/stuck-gens", { cache: "no-store" });
-      if (res.ok) {
-        const data = (await res.json()) as { items: StuckGenItem[] };
-        setItems(data.items ?? []);
-      } else {
-        setItems([]);
-      }
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Reset local override when fresh server data lands.
   useEffect(() => {
-    void fetchItems();
-  }, [fetchItems]);
+    if (data?.items) setLocalItems(null);
+  }, [data]);
+
+  const setItems = (
+    updater: StuckGenItem[] | ((prev: StuckGenItem[]) => StuckGenItem[]),
+  ) => {
+    setLocalItems((prev) => {
+      const base = prev ?? data?.items ?? [];
+      const next = typeof updater === "function" ? updater(base) : updater;
+      invalidateCache("/api/admin/stuck-gens");
+      return next;
+    });
+  };
 
   async function handleRetry(item: StuckGenItem) {
     setActioningId(item.id);

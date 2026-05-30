@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import {
   ArrowLeft,
   FileText,
@@ -141,41 +142,25 @@ export default function LicenseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [license, setLicense] = useState<LicenseDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const { data, loading: rawLoading, error: fetchError } =
+    useCachedFetch<{ license?: LicenseDetail } | LicenseDetail>(
+      `/api/licenses/${id}`,
+    );
   const [pdfError, setPdfError] = useState(false);
 
-  useEffect(() => {
-    async function fetchLicense() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/licenses/${id}`);
-        if (!res.ok) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        const raw = data.license ?? data;
-        // Map canonical → legacy aliases so the existing JSX keeps reading
-        // creator_name / brand_name / exclusive without each call site
-        // changing. New rendering done in the list page; this detail page
-        // will get a full pass later.
-        setLicense({
-          ...raw,
-          creator_name: raw.creator_display_name ?? raw.creator_name ?? null,
-          brand_name: raw.brand_company_name ?? raw.brand_name ?? null,
-          exclusive: raw.is_category_exclusive ?? raw.exclusive ?? false,
-        });
-      } catch {
-        setNotFound(true);
-      }
-      setLoading(false);
-    }
-
-    fetchLicense();
-  }, [id]);
+  const license = useMemo<LicenseDetail | null>(() => {
+    if (!data) return null;
+    const raw = (data as { license?: LicenseDetail }).license ?? (data as LicenseDetail);
+    if (!raw) return null;
+    return {
+      ...raw,
+      creator_name: raw.creator_display_name ?? raw.creator_name ?? null,
+      brand_name: raw.brand_company_name ?? raw.brand_name ?? null,
+      exclusive: raw.is_category_exclusive ?? raw.exclusive ?? false,
+    };
+  }, [data]);
+  const loading = rawLoading && !data;
+  const notFound = !!fetchError;
 
   /* ── Loading ── */
   if (loading) {

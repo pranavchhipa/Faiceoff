@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Banknote, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 
 interface Withdrawal {
   id: string;
@@ -21,20 +22,14 @@ function fmt(paise: number) {
 }
 
 export default function AdminPayoutsPage() {
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading, refresh } = useCachedFetch<{
+    withdrawals?: Withdrawal[];
+  }>("/api/admin/payouts");
+  const withdrawals = data?.withdrawals ?? [];
+  const loading = rawLoading && !data;
+  const load = refresh;
   const [actingId, setActingId] = useState<string | null>(null);
   const [utrInputs, setUtrInputs] = useState<Record<string, string>>({});
-
-  async function load() {
-    setLoading(true);
-    const res = await fetch("/api/admin/payouts", { cache: "no-store" });
-    const d = res.ok ? await res.json() : { withdrawals: [] };
-    setWithdrawals(d.withdrawals ?? []);
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
 
   async function markPaid(id: string) {
     setActingId(id);
@@ -45,6 +40,7 @@ export default function AdminPayoutsPage() {
       body: JSON.stringify({ withdrawal_id: id, ...(utr ? { utr } : {}) }),
     });
     setActingId(null);
+    invalidateCache("/api/admin/payouts");
     await load();
   }
 

@@ -25,7 +25,6 @@ import {
   ArrowRight,
   Check,
   ShieldCheck,
-  FileBadge2,
   Sparkles,
   Lock,
   Wallet,
@@ -33,6 +32,7 @@ import {
   CheckCheck,
   Megaphone,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import {
   CREATOR_PRIYA,
   CREATOR_ARJUN,
@@ -74,12 +74,12 @@ const HERO_TRUST = [
 function Hero() {
   return (
     <section
-      className="relative pt-32 md:pt-40 pb-20 md:pb-28"
+      className="relative pt-24 md:pt-28 pb-20 md:pb-28"
       style={{ backgroundImage: "var(--gradient-hero)" }}
     >
       <div className="absolute inset-0 grain opacity-50 pointer-events-none" />
 
-      <div className="relative lp-container grid lg:grid-cols-[1.1fr_1fr] gap-14 lg:gap-20 items-center">
+      <div className="relative lp-container grid lg:grid-cols-[1.1fr_1fr] gap-14 lg:gap-20 items-start">
         {/* ── LEFT: copy ─────────────────────────────────────────────── */}
         <div>
           <div className="lp-eyebrow flex items-center gap-2 mb-7">
@@ -165,11 +165,123 @@ function Hero() {
   );
 }
 
-function HeroCollage() {
-  // Three slightly tilted overlapping creator cards + a floating "AI output"
-  // composite tucked beside the front card.
+/* Gold verified seal — the brand mark. 8-petal sunburst + white check,
+   gold radial fill. Reused on each creator card's name pill. */
+function GoldSeal({ size = 13 }: { size?: number }) {
   return (
-    <div className="relative w-full aspect-[1/1.05] max-w-[560px] mx-auto lg:mx-0 lg:ml-auto">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    >
+      <defs>
+        <radialGradient
+          id="lpHeroSeal"
+          cx="34"
+          cy="28"
+          r="58"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0" stopColor="#fff1b8" />
+          <stop offset="0.4" stopColor="#f0c34a" />
+          <stop offset="0.85" stopColor="#c9a96e" />
+          <stop offset="1" stopColor="#a3854f" />
+        </radialGradient>
+      </defs>
+      <g fill="url(#lpHeroSeal)">
+        <circle cx="50" cy="50" r="36" />
+        <circle cx="50" cy="14" r="9" />
+        <circle cx="75.46" cy="24.54" r="9" />
+        <circle cx="86" cy="50" r="9" />
+        <circle cx="75.46" cy="75.46" r="9" />
+        <circle cx="50" cy="86" r="9" />
+        <circle cx="24.54" cy="75.46" r="9" />
+        <circle cx="14" cy="50" r="9" />
+        <circle cx="24.54" cy="24.54" r="9" />
+      </g>
+      <path
+        d="M 34 51 L 45 62 L 67 39"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* One creator card. Label = name + gold seal + category. */
+function CreatorTag({ name, category }: { name: string; category: string }) {
+  return (
+    <div className="lp-collage-tag">
+      <span>{name}</span>
+      <GoldSeal size={13} />
+      <span className="dot">·</span>
+      <span className="cat">{category}</span>
+    </div>
+  );
+}
+
+/* Collage CSS injected inline (not via globals.css) — Next's CSS engine was
+   silently dropping this block from the global sheet. Shipping it with the
+   component guarantees it loads. Scoped under .lp-collage-stage. */
+const COLLAGE_CSS = `
+.lp-collage-stage .lp-collage-card {
+  opacity: 0;
+  transform: translateY(28px) scale(0.93) rotate(var(--rot, 0deg));
+  animation: lpCardRise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.45s ease;
+  will-change: transform;
+}
+.lp-collage-stage .lp-collage-card:hover {
+  transform: translateY(-10px) scale(1.04) rotate(0deg);
+  z-index: 60;
+  box-shadow: 0 44px 90px -34px rgba(26, 20, 16, 0.55);
+}
+@keyframes lpCardRise {
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(var(--rot, 0deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-collage-stage .lp-collage-card {
+    opacity: 1;
+    transform: rotate(var(--rot, 0deg));
+    animation: none;
+  }
+}
+.lp-collage-stage .lp-collage-tag {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(26, 20, 16, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fbf7ee;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.4);
+}
+.lp-collage-stage .lp-collage-tag .cat { color: #e5d9c2; font-weight: 500; }
+.lp-collage-stage .lp-collage-tag .dot { opacity: 0.45; }
+`;
+
+function HeroCollage() {
+  // Fanned showcase: two creator cards tilt out to the sides (faces clear of
+  // the centre), one hero card straight on top, plus a floating AI-output
+  // composite. Cards rise in on load + lift on hover. CSS is injected below
+  // (Next was dropping the equivalent block from globals.css).
+  return (
+    <div className="lp-collage-stage relative w-full aspect-[1/0.94] max-w-[560px] mx-auto lg:mx-0 lg:ml-auto">
+      <style dangerouslySetInnerHTML={{ __html: COLLAGE_CSS }} />
       {/* gold halo behind */}
       <div
         className="absolute inset-8 rounded-[34px] blur-3xl opacity-60 pointer-events-none"
@@ -179,160 +291,88 @@ function HeroCollage() {
         }}
       />
 
-      {/* back card — Meera (Delhi) — tilt left */}
+      {/* back-left card — Meera (Food) — tilt left, fanned out */}
       <div
-        className="absolute left-0 top-[10%] w-[58%] aspect-[3/4] overflow-hidden"
-        style={{
-          transform: "rotate(-7deg)",
-          borderRadius: 20,
-          border: "1px solid var(--lp-border)",
-          boxShadow: "var(--shadow-card-landing)",
-          background: "var(--lp-paper)",
-        }}
+        className="lp-collage-card absolute left-[-4%] top-[7%] w-[50%] aspect-[3/4] overflow-hidden"
+        style={
+          {
+            "--rot": "-8deg",
+            "--delay": "0.05s",
+            borderRadius: 20,
+            border: "1px solid var(--lp-border)",
+            boxShadow: "var(--shadow-card-landing)",
+            background: "var(--lp-paper)",
+          } as React.CSSProperties
+        }
       >
         <Image
           src={CREATOR_MEERA}
-          alt="Meera, food creator from Delhi"
+          alt="Meera, food creator"
           fill
-          sizes="(max-width: 1024px) 60vw, 320px"
-          className="object-cover"
+          sizes="(max-width: 1024px) 55vw, 300px"
+          className="object-cover object-[center_14%]"
           style={WATERMARK_MASK}
           unoptimized
           priority
         />
-        <div
-          className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            background: "rgba(26,20,16,0.78)",
-            color: "var(--lp-paper)",
-          }}
-        >
-          MEERA · DELHI
-        </div>
+        <CreatorTag name="Meera" category="Food" />
       </div>
 
-      {/* mid card — Arjun (Bengaluru) — tilt right, behind front */}
+      {/* back-right card — Arjun (Tech) — tilt right, fanned out */}
       <div
-        className="absolute right-0 top-[2%] w-[55%] aspect-[3/4] overflow-hidden"
-        style={{
-          transform: "rotate(6deg)",
-          borderRadius: 20,
-          border: "1px solid var(--lp-border)",
-          boxShadow: "var(--shadow-card-landing)",
-          background: "var(--lp-paper)",
-        }}
+        className="lp-collage-card absolute right-[-4%] top-[3%] w-[50%] aspect-[3/4] overflow-hidden"
+        style={
+          {
+            "--rot": "8deg",
+            "--delay": "0.12s",
+            borderRadius: 20,
+            border: "1px solid var(--lp-border)",
+            boxShadow: "var(--shadow-card-landing)",
+            background: "var(--lp-paper)",
+          } as React.CSSProperties
+        }
       >
         <Image
           src={CREATOR_ARJUN}
-          alt="Arjun, tech creator from Bengaluru"
+          alt="Arjun, tech creator"
           fill
-          sizes="(max-width: 1024px) 60vw, 320px"
-          className="object-cover"
+          sizes="(max-width: 1024px) 55vw, 300px"
+          className="object-cover object-[center_14%]"
           style={WATERMARK_MASK}
           unoptimized
         />
-        <div
-          className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            background: "rgba(26,20,16,0.78)",
-            color: "var(--lp-paper)",
-          }}
-        >
-          ARJUN · BENGALURU
-        </div>
+        <CreatorTag name="Arjun" category="Tech" />
       </div>
 
-      {/* front card — Priya (Mumbai) — straight, on top */}
+      {/* front card — Priya (Lifestyle) — straight, hero, on top.
+          Centred via left:50% + marginLeft:-28% (= half of w-56%) instead of
+          translateX, because the rise/hover animation owns the transform. */}
       <div
-        className="absolute left-[18%] bottom-0 w-[62%] aspect-[3/4] overflow-hidden"
-        style={{
-          borderRadius: 22,
-          border: "1px solid var(--lp-border)",
-          boxShadow: "0 30px 60px -30px rgba(26,20,16,0.45)",
-          background: "var(--lp-paper)",
-        }}
+        className="lp-collage-card absolute top-[16%] w-[56%] aspect-[3/4] overflow-hidden"
+        style={
+          {
+            "--rot": "0deg",
+            "--delay": "0.2s",
+            left: "50%",
+            marginLeft: "-28%",
+            borderRadius: 22,
+            border: "1px solid var(--lp-border)",
+            boxShadow: "0 36px 70px -28px rgba(26,20,16,0.55)",
+            background: "var(--lp-paper)",
+          } as React.CSSProperties
+        }
       >
         <Image
           src={CREATOR_PRIYA}
-          alt="Priya, lifestyle creator from Mumbai"
+          alt="Priya, lifestyle creator"
           fill
-          sizes="(max-width: 1024px) 70vw, 360px"
-          className="object-cover"
+          sizes="(max-width: 1024px) 65vw, 360px"
+          className="object-cover object-[center_12%]"
           style={WATERMARK_MASK}
           unoptimized
           priority
         />
-        <div
-          className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full flex items-center gap-1.5"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            background: "rgba(26,20,16,0.85)",
-            color: "var(--lp-paper)",
-          }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "var(--lp-gold)" }}
-          />
-          PRIYA · MUMBAI
-        </div>
-        <div
-          className="absolute right-3 top-3 px-2 py-1 rounded-full text-[9px] font-semibold flex items-center gap-1"
-          style={{
-            fontFamily: "var(--font-mono)",
-            background: "rgba(255,255,255,0.92)",
-            color: "var(--lp-ink)",
-            letterSpacing: "0.08em",
-          }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "var(--lp-emerald)" }}
-          />
-          VERIFIED
-        </div>
-      </div>
-
-      {/* floating AI composite — bottom right */}
-      <div
-        className="absolute right-[-2%] bottom-[8%] w-[42%] aspect-[4/5] overflow-hidden"
-        style={{
-          transform: "rotate(4deg)",
-          borderRadius: 16,
-          border: "1px solid var(--lp-border)",
-          boxShadow: "0 20px 40px -20px rgba(26,20,16,0.4)",
-          background: "var(--lp-paper)",
-        }}
-      >
-        <Image
-          src={PRIYA_COMPOSITES.sneaker}
-          alt="AI-generated brand campaign image with Priya"
-          fill
-          sizes="(max-width: 1024px) 40vw, 240px"
-          className="object-cover"
-          style={WATERMARK_MASK}
-          unoptimized
-        />
-        <div
-          className="absolute left-2 top-2 px-2 py-1 rounded-full text-[9px] font-semibold flex items-center gap-1"
-          style={{
-            fontFamily: "var(--font-mono)",
-            background: "var(--lp-gold-tint)",
-            color: "var(--lp-gold-deep)",
-            letterSpacing: "0.08em",
-          }}
-        >
-          <Sparkles className="h-2.5 w-2.5" />
-          AI &middot; APPROVED
-        </div>
+        <CreatorTag name="Priya" category="Lifestyle" />
       </div>
     </div>
   );
@@ -422,29 +462,39 @@ function TrustQuote() {
    3 · HOW IT WORKS
    ════════════════════════════════════════════════════════════════════════════ */
 
-const STEPS = [
+const STEPS: ReadonlyArray<{
+  n: string;
+  title: string;
+  body: string;
+  pillLabel: string;
+  icon: ComponentType<{ className?: string }>;
+  bullets: string[];
+}> = [
   {
     n: "01",
     title: "Creators license their face",
-    body: "Verify your identity, set your own price, and choose categories you'll allow. We embed your face anchor securely. You stay in control of every approval.",
-    image: CREATOR_MEERA,
+    body: "Verify your identity, set your own price, and choose the categories you'll allow. We embed your face anchor securely — you stay in control of every approval.",
     pillLabel: "Creator-side",
+    icon: ScanFace,
+    bullets: ["KYC-verified identity", "Set your own rate", "Pick allowed categories"],
   },
   {
     n: "02",
     title: "Brands create campaign images",
     body: "Pick a verified creator, upload your product, write a brief. Faiceoff AI assembles the shot — no studio booking, no model coordination, no production cycle.",
-    image: PRIYA_COMPOSITES.sneaker,
     pillLabel: "Brand-side",
+    icon: Sparkles,
+    bullets: ["Upload product + brief", "AI assembles the shot", "Iterate in minutes"],
   },
   {
     n: "03",
     title: "Creators approve and earn",
-    body: "Every image waits for the creator's green light before going live. Brand pays after acceptance. Creators receive 75% in INR, paid to their bank.",
-    image: PRIYA_COMPOSITES.skincare,
+    body: "Every image waits for the creator's green light before going live. The brand pays after acceptance, and creators receive 75% in INR — paid straight to their bank.",
     pillLabel: "Approval & payout",
+    icon: Wallet,
+    bullets: ["Creator green-lights each image", "Pay only on approval", "75% payout in INR"],
   },
-] as const;
+];
 
 function HowItWorks() {
   return (
@@ -463,63 +513,128 @@ function HowItWorks() {
           sub="No shoots. No middlemen. No confusion."
         />
 
-        <div className="mt-14 grid md:grid-cols-3 gap-5 lg:gap-6">
-          {STEPS.map((s) => (
-            <article
-              key={s.n}
-              className="lp-card overflow-hidden flex flex-col"
-              style={{ background: "var(--lp-paper)" }}
-            >
-              {/* image */}
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <Image
-                  src={s.image}
-                  alt={s.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 360px"
-                  className="object-cover"
-                  style={WATERMARK_MASK}
-                  unoptimized
-                />
-                <div
-                  className="absolute left-4 top-4 h-12 w-12 rounded-full flex items-center justify-center"
-                  style={{
-                    background: "var(--lp-gold)",
-                    color: "var(--lp-ink)",
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: 16,
-                    letterSpacing: "-0.02em",
-                    boxShadow: "0 6px 18px -8px rgba(201,169,110,0.6)",
-                  }}
-                >
-                  {s.n}
-                </div>
-              </div>
-
-              {/* body */}
-              <div className="p-6 md:p-7 flex flex-col gap-3 flex-1">
+        <div className="mt-14 grid md:grid-cols-3 gap-5 lg:gap-7 relative">
+          {STEPS.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.n} className="relative flex">
+              <article
+                className="lp-card relative flex flex-1 flex-col p-7 md:p-8 overflow-hidden"
+                style={{ background: "var(--lp-paper)" }}
+              >
+                {/* gold accent bar */}
                 <span
-                  className="lp-pill self-start"
+                  className="absolute inset-x-0 top-0 h-[3px]"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, var(--lp-gold), var(--lp-gold-soft))",
+                  }}
+                />
+
+                {/* header: solid-gold icon + big step number */}
+                <div className="flex items-start justify-between">
+                  <span
+                    className="flex items-center justify-center rounded-2xl"
+                    style={{
+                      width: 54,
+                      height: 54,
+                      background:
+                        "linear-gradient(145deg, var(--lp-gold), var(--lp-gold-deep))",
+                      color: "#fff",
+                      boxShadow: "0 10px 24px -10px rgba(201,169,110,0.9)",
+                    }}
+                  >
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <span
+                    aria-hidden
+                    className="lp-display select-none leading-none"
+                    style={{
+                      fontSize: 56,
+                      fontWeight: 800,
+                      letterSpacing: "-0.04em",
+                      background:
+                        "linear-gradient(160deg, var(--lp-gold), var(--lp-gold-deep))",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      color: "var(--lp-gold-deep)",
+                    }}
+                  >
+                    {s.n}
+                  </span>
+                </div>
+
+                {/* pill label */}
+                <span
+                  className="lp-pill self-start mt-5"
                   style={{ background: "var(--lp-paper-3)" }}
                 >
                   {s.pillLabel}
                 </span>
+
+                {/* title + body */}
                 <h3
-                  className="lp-display text-[22px] md:text-[24px]"
+                  className="lp-display mt-3 text-[22px] md:text-[23px]"
                   style={{ color: "var(--lp-ink)" }}
                 >
                   {s.title}
                 </h3>
                 <p
-                  className="text-[15px] leading-relaxed"
+                  className="mt-2.5 text-[14.5px] leading-relaxed"
                   style={{ color: "var(--lp-ink-soft)" }}
                 >
                   {s.body}
                 </p>
+
+                {/* bullets — pinned to the card bottom so all 3 cards align */}
+                <ul
+                  className="mt-auto flex flex-col gap-2.5 pt-5"
+                  style={{ borderTop: "1px solid var(--lp-border)", marginTop: "auto" }}
+                >
+                  {s.bullets.map((b) => (
+                    <li
+                      key={b}
+                      className="flex items-center gap-2.5 text-[13.5px] font-medium"
+                      style={{ color: "var(--lp-ink)" }}
+                    >
+                      <span
+                        className="flex shrink-0 items-center justify-center rounded-full"
+                        style={{
+                          width: 18,
+                          height: 18,
+                          background: "var(--lp-gold)",
+                          color: "#fff",
+                        }}
+                      >
+                        <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+                      </span>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+
+              </article>
+
+              {/* arrow connector — sibling of the card so it isn't clipped */}
+              {i < STEPS.length - 1 && (
+                <span
+                  aria-hidden
+                  className="absolute top-[58px] z-20 hidden h-9 w-9 items-center justify-center rounded-full md:flex"
+                  style={{
+                    right: "-1.875rem",
+                    background: "var(--lp-paper)",
+                    border: "1px solid var(--lp-border)",
+                    color: "var(--lp-gold-deep)",
+                    boxShadow: "var(--shadow-card-landing)",
+                  }}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              )}
               </div>
-            </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -726,7 +841,7 @@ const CREATOR_BULLETS = [
   },
   {
     title: "Withdraw to your bank",
-    body: "Direct UPI / IMPS payout. No middlemen, no payout delays.",
+    body: "Add your bank details once. After verification, earnings are transferred straight to your account — no middlemen.",
   },
   {
     title: "Track all requests in one place",
@@ -984,11 +1099,6 @@ const COMPLIANCE = [
     body: "No image is delivered until the creator explicitly approves it inside the Faiceoff app.",
   },
   {
-    icon: FileBadge2,
-    title: "GST-ready billing",
-    body: "Tax-compliant invoices for every transaction. Built-in TDS / TCS handling, IT Act aligned.",
-  },
-  {
     icon: ScanFace,
     title: "AI safety checks",
     body: "Three-layer compliance scan blocks unsafe categories before generation ever begins.",
@@ -1011,7 +1121,7 @@ function Compliance() {
           sub="Faiceoff is a marketplace, but it operates like infrastructure &mdash; designed to satisfy DPDP, GST, and IT-Act obligations end-to-end."
         />
 
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
           {COMPLIANCE.map(({ icon: Icon, title, body }) => (
             <article
               key={title}
@@ -1091,7 +1201,9 @@ function FinalCTA() {
               }}
             >
               Your face. Your rules.{" "}
-              <em className="lp-display-italic">Your income.</em>
+              <em className="lp-display-italic" style={{ color: "var(--lp-paper)" }}>
+                Your income.
+              </em>
             </h3>
 
             <ul
@@ -1101,7 +1213,7 @@ function FinalCTA() {
               {[
                 "75% creator share, paid in INR to your bank",
                 "Approve every image. Reject anything you don't like.",
-                "5 free credits + ₹0 signup fee",
+                "Free to join — ₹0 signup fee, no lock-in",
               ].map((b) => (
                 <li key={b} className="flex items-start gap-2">
                   <Check className="h-4 w-4 mt-1 shrink-0" />

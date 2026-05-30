@@ -16,11 +16,12 @@
  *   - exclusive licenses get a gold ribbon
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import {
   ChevronLeft,
   ChevronRight,
@@ -349,72 +350,43 @@ export default function LicensesList() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [items, setItems] = useState<LicenseItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(() =>
     Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1),
   );
   const [activeFilter, setActiveFilter] = useState<string>(
     searchParams.get("status") ?? "",
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Build the API URL from current page+filter. Cache key follows naturally,
+  // so re-mounting with the same filter+page paints from cache instantly.
+  const isClientFilter = activeFilter === "expiring_soon";
+  const apiStatus = isClientFilter ? "active" : activeFilter;
+  const qs = new URLSearchParams({
+    page: String(page),
+    pageSize: String(PAGE_SIZE),
+  });
+  if (apiStatus) qs.set("status", apiStatus);
+  const url = `/api/licenses/list?${qs.toString()}`;
+
+  const { data, loading: rawLoading, error: fetchError, refresh } =
+    useCachedFetch<ListResponse>(url);
+
+  const items: LicenseItem[] = (() => {
+    if (!data) return [];
+    if (isClientFilter)
+      return data.items.filter(
+        (it) => it.days_to_expiry >= 0 && it.days_to_expiry < 30,
+      );
+    return data.items;
+  })();
+  const total = isClientFilter ? items.length : data?.total ?? 0;
+  const loading = rawLoading && !data;
+  const error = fetchError ? "Couldn't load your licenses. Try refresh." : null;
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
     [total],
   );
-
-  const load = useCallback(
-    async (p: number, filter: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const qs = new URLSearchParams({
-          page: String(p),
-          pageSize: String(PAGE_SIZE),
-        });
-        // "expiring_soon" is a client-side filter (UI bucket) — API doesn't
-        // know it. Send the underlying status=active and filter the result.
-        let apiStatus = filter;
-        let postFilter: ((it: LicenseItem) => boolean) | null = null;
-        if (filter === "expiring_soon") {
-          apiStatus = "active";
-          postFilter = (it) =>
-            it.days_to_expiry >= 0 && it.days_to_expiry < 30;
-        }
-        if (apiStatus) qs.set("status", apiStatus);
-
-        const res = await fetch(`/api/licenses/list?${qs.toString()}`, {
-          cache: "no-store",
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data = (await res.json()) as ListResponse;
-        const list = postFilter ? data.items.filter(postFilter) : data.items;
-        setItems(list);
-        // When using a client-side filter, the total still represents the
-        // server-side filter (active). Adjust so the "X licenses" count
-        // reflects what the user sees.
-        setTotal(postFilter ? list.length : data.total);
-        setPage(data.page);
-      } catch (err) {
-        console.error("[brand/licenses] fetch failed", err);
-        setError("Couldn't load your licenses. Try refresh.");
-        setItems([]);
-        setTotal(0);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    void load(page, activeFilter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function changeFilter(filter: string) {
     setActiveFilter(filter);
@@ -424,7 +396,6 @@ export default function LicensesList() {
     if (filter) next.set("status", filter);
     else next.delete("status");
     router.replace(`?${next.toString()}`);
-    void load(1, filter);
   }
 
   function goPage(p: number) {
@@ -432,8 +403,8 @@ export default function LicensesList() {
     const next = new URLSearchParams(searchParams.toString());
     next.set("page", String(p));
     router.replace(`?${next.toString()}`);
-    void load(p, activeFilter);
   }
+
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
@@ -484,7 +455,7 @@ export default function LicensesList() {
 
         <button
           type="button"
-          onClick={() => load(page, activeFilter)}
+          onClick={() => refresh()}
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] disabled:opacity-50"
         >

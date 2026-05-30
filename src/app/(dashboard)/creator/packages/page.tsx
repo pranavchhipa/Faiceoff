@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import {
   Tags,
   Zap,
@@ -14,6 +16,7 @@ import {
   Image as ImageIcon,
   AlertCircle,
   CheckCircle2,
+  ShieldCheck,
   Loader2,
 } from "lucide-react";
 
@@ -272,36 +275,47 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
 
 export default function CreatorPackagesPage() {
   const router = useRouter();
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [isLive, setIsLive] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { data: pkgData, loading: pkgLoading } = useCachedFetch<{
+    packages?: Package[];
+  }>("/api/creator/packages");
+  const { data: whoamiData, loading: whoamiLoading } = useCachedFetch<{
+    creator?: { is_live?: boolean };
+  }>("/api/whoami");
+  // Verification status — packages can't go live until the creator is verified.
+  const { data: verData } = useCachedFetch<{
+    is_verified?: boolean;
+    status?: string;
+  }>("/api/creator/verification");
+  const isVerified = verData?.is_verified === true;
+  // Local overlays for optimistic edits on top of the cache.
+  const [localPackages, setLocalPackages] = useState<Package[] | null>(null);
+  const packages = localPackages ?? pkgData?.packages ?? [];
+  const [localIsLive, setLocalIsLive] = useState<boolean | null>(null);
+  const isLive = localIsLive ?? whoamiData?.creator?.is_live ?? false;
+  const loading = (pkgLoading && !pkgData) || (whoamiLoading && !whoamiData);
   const [saving, setSaving] = useState<Tier | null>(null);
   const [toggleLiveLoading, setToggleLiveLoading] = useState(false);
   const [showLiveCelebration, setShowLiveCelebration] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [pkgRes, creatorRes] = await Promise.all([
-        fetch("/api/creator/packages", { cache: "no-store" }),
-        fetch("/api/whoami", { cache: "no-store" }),
-      ]);
-      if (pkgRes.ok) {
-        const d = await pkgRes.json();
-        setPackages(d.packages ?? []);
-      }
-      if (creatorRes.ok) {
-        const d = await creatorRes.json();
-        setIsLive(d.creator?.is_live ?? false);
-      }
-    } catch (err) {
-      console.error("[packages] load error", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Re-sync local overlays when fresh server data lands.
+  useEffect(() => {
+    if (pkgData?.packages) setLocalPackages(null);
+  }, [pkgData]);
+  useEffect(() => {
+    if (whoamiData?.creator) setLocalIsLive(null);
+  }, [whoamiData]);
 
-  useEffect(() => { load(); }, [load]);
+  const setPackages = (updater: Package[] | ((prev: Package[]) => Package[])) => {
+    setLocalPackages((prev) => {
+      const base = prev ?? pkgData?.packages ?? [];
+      return typeof updater === "function" ? updater(base) : updater;
+    });
+  };
+  const setIsLive = (val: boolean) => {
+    setLocalIsLive(val);
+    invalidateCache("/api/whoami");
+  };
 
   const handleSave = async (tier: Tier, price_paise: number, final_images: number) => {
     setSaving(tier);
@@ -321,6 +335,7 @@ export default function CreatorPackagesPage() {
         const filtered = prev.filter((p) => p.tier !== tier);
         return [...filtered, d.package];
       });
+      invalidateCache("/api/creator/packages");
     } catch (err) {
       setLiveError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -342,6 +357,7 @@ export default function CreatorPackagesPage() {
         setPackages((prev) =>
           prev.map((p) => (p.id === pkg.id ? { ...p, is_active } : p))
         );
+        invalidateCache("/api/creator/packages");
       }
     } finally {
       setSaving(null);
@@ -359,7 +375,7 @@ export default function CreatorPackagesPage() {
       });
       const d = await res.json();
       if (!res.ok) {
-        setLiveError(d.error ?? "Failed to update live status");
+        setLiveError(d.message ?? d.error ?? "Failed to update live status");
       } else {
         setIsLive(d.is_live);
         if (d.is_live) setShowLiveCelebration(true);
@@ -458,26 +474,42 @@ export default function CreatorPackagesPage() {
 
         {/* Go Live toggle */}
         <div className="flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={handleToggleLive}
-            disabled={toggleLiveLoading || (!isLive && !hasActive)}
-            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-700 transition-all active:scale-[0.98] disabled:opacity-50 ${
-              isLive
-                ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-                : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)]"
-            }`}
-          >
-            {toggleLiveLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isLive ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <Star className="h-4 w-4" />
-            )}
-            {isLive ? "Live — visible to brands" : "Go Live"}
-          </button>
-          {!hasActive && !isLive && (
+          {!isVerified && !isLive ? (
+            // Not verified yet → route to verification instead of going live.
+            <Link
+              href="/creator/verify"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-transform hover:-translate-y-0.5"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Get verified to go live
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleToggleLive}
+              disabled={toggleLiveLoading || (!isLive && !hasActive)}
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-700 transition-all active:scale-[0.98] disabled:opacity-50 ${
+                isLive
+                  ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                  : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)]"
+              }`}
+            >
+              {toggleLiveLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isLive ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <Star className="h-4 w-4" />
+              )}
+              {isLive ? "Live — visible to brands" : "Go Live"}
+            </button>
+          )}
+          {!isVerified && !isLive && (
+            <p className="text-[11px] text-[var(--color-muted-foreground)]">
+              Packages go live to brands once you&apos;re verified.
+            </p>
+          )}
+          {isVerified && !hasActive && !isLive && (
             <p className="text-[11px] text-[var(--color-muted-foreground)]">
               Add at least one package to go live
             </p>

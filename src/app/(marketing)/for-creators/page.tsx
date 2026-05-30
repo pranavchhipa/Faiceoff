@@ -94,13 +94,13 @@ function Hero() {
             }}
           >
             Your face is your{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               IP
             </span>
             .
             <br />
             Start{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               earning
             </span>{" "}
             from it.
@@ -723,7 +723,7 @@ function GoLiveJourney() {
               }}
             >
               Your next brand shoot starts with{" "}
-              <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+              <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
                 a link
               </span>
               .
@@ -910,7 +910,7 @@ function CreatorPromise() {
               }}
             >
               Your{" "}
-              <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+              <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
                 likeness
               </span>
               . Your rules.
@@ -995,7 +995,7 @@ function LiveInbox() {
             }}
           >
             Your brand requests in{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               one simple inbox
             </span>
             .
@@ -1073,7 +1073,7 @@ function HowItWorks() {
             }}
           >
             Eight steps from{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               signup to payout
             </span>
             .
@@ -1182,7 +1182,7 @@ function WhyCreators() {
             }}
           >
             Built for creators who want{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               control and income
             </span>
             .
@@ -1274,7 +1274,7 @@ function CreatorControl() {
               You are not just a face.
               <br />
               You are the{" "}
-              <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+              <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
                 owner
               </span>
               .
@@ -1352,7 +1352,7 @@ function FAQ() {
               }}
             >
               Questions, answered{" "}
-              <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+              <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
                 straight
               </span>
               .
@@ -1456,7 +1456,7 @@ function FinalCTA() {
           }}
         >
           Your face has{" "}
-          <span style={{ fontStyle: "italic", fontWeight: 500 }}>
+          <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
             value
           </span>
           .
@@ -1468,8 +1468,8 @@ function FinalCTA() {
           className="mt-6 max-w-xl mx-auto text-base md:text-lg leading-relaxed"
           style={{ color: "var(--lp-ink-soft)" }}
         >
-          5 free credits when you sign up. No commitment. Withdraw the moment
-          your first image is approved.
+          Free to join, ₹0 signup fee. No commitment. Withdraw the moment your
+          first image is approved.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">

@@ -26,6 +26,7 @@ async function loadCreators(): Promise<CreatorCard[]> {
       cover_image_path,
       user_id,
       kyc_status,
+      is_verified,
       is_live,
       city,
       created_at,
@@ -122,7 +123,8 @@ async function loadCreators(): Promise<CreatorCard[]> {
       category_count: cats.length,
       primary_category: cats[0]?.category ?? null,
       categories: cats.map((cc) => cc.category),
-      is_verified: c.kyc_status === "approved",
+      // Gold tick = manually verified by a Control Centre operator.
+      is_verified: c.is_verified === true,
       city: c.city ?? null,
       created_at: c.created_at ?? null,
     };
@@ -139,8 +141,8 @@ export default async function BrandDiscoverPage() {
 
   const creators = await loadCreators();
 
-  // DiscoverGrid owns the entire UI now (header + filters + grid + mobile
-  // sheet). Page-scoped dark editorial design from Claude Design lives inside
-  // the client island so its styles can't leak.
+  // DiscoverGrid owns the entire UI: header + filter bar + chip strip + grid
+  // + mobile sheet. Visual language now matches the rest of the dashboard
+  // (canonical var(--color-*) tokens; no scoped CSS namespace).
   return <DiscoverGrid creators={creators} />;
 }

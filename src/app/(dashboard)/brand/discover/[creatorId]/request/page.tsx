@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -44,7 +45,11 @@ export default function SendRequestPage() {
   const creatorId = params.creatorId as string;
   const packageId = searchParams.get("package") ?? "";
 
-  const [pkg, setPkg] = useState<PackageInfo | null>(null);
+  const { data: pkgData } = useCachedFetch<{ package?: PackageInfo }>(
+    packageId ? `/api/creator/packages/${packageId}` : null,
+  );
+  const pkg = pkgData?.package ?? null;
+
   const [productName, setProductName] = useState("");
   const [briefOneLiner, setBriefOneLiner] = useState("");
   const [productImageUrl, setProductImageUrl] = useState("");
@@ -52,14 +57,6 @@ export default function SendRequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!packageId) return;
-    fetch(`/api/creator/packages/${packageId}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d?.package) setPkg(d.package); })
-      .catch(() => null);
-  }, [packageId]);
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -117,6 +114,8 @@ export default function SendRequestPage() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail ? `${d.error}: ${d.detail}` : (d.error ?? "Failed to send request"));
+      // Brand requests cache is now stale.
+      invalidateCache("/api/brand/requests");
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");

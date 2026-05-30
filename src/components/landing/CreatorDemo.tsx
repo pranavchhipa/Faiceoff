@@ -146,7 +146,7 @@ export function CreatorDemo() {
                   +₹{earnings.toLocaleString("en-IN")} added · wallet at ₹{walletTotal.toLocaleString("en-IN")}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Tap withdraw anytime. UPI lands in 30 seconds.
+                  Withdraw anytime — straight to your verified bank account.
                 </div>
               </motion.div>
             )}

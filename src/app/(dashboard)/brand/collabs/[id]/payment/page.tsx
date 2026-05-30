@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import {
   ArrowLeft,
   ArrowRight,
@@ -65,26 +66,15 @@ export default function CollabPaymentPage() {
   const router = useRouter();
   const requestId = params.id as string;
 
-  const [req, setReq] = useState<CollabRequest | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading } = useCachedFetch<{ request?: CollabRequest }>(
+    requestId ? `/api/collab-requests/${requestId}` : null,
+  );
+  const req = data?.request ?? null;
+  const loading = rawLoading && !data;
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paid, setPaid] = useState(false);
-
-  const loadRequest = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/collab-requests/${requestId}`, { cache: "no-store" });
-      if (res.ok) {
-        const d = await res.json();
-        setReq(d.request);
-        if (d.request?.status === "paid") setPaid(true);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [requestId]);
-
-  useEffect(() => { loadRequest(); }, [loadRequest]);
+  const [paidLocal, setPaidLocal] = useState(false);
+  const paid = paidLocal || req?.status === "paid";
 
   async function handlePay() {
     setError(null);
@@ -127,7 +117,11 @@ export default function CollabPaymentPage() {
             });
             const confirmData = await confirmRes.json();
             if (confirmData.ok) {
-              setPaid(true);
+              setPaidLocal(true);
+              // Wallet + collab lists are now stale.
+              invalidateCache("/api/billing/balance");
+              invalidateCache("/api/collabs");
+              invalidateCache("/api/brand/requests");
               router.replace(`/brand/collabs/${confirmData.collab_session_id}`);
             } else {
               // Surface server detail + Razorpay payment ID so support can

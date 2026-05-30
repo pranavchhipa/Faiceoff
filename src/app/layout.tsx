@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import {
   Outfit,
   Plus_Jakarta_Sans as PlusJakartaSans,
-  Fraunces,
-  Inter,
 } from "next/font/google";
 import { Providers } from "@/components/providers/providers";
 import "./globals.css";
@@ -40,25 +38,12 @@ const plusJakartaSans = PlusJakartaSans({
   display: "swap",
 });
 
-// ── Marketing-only fonts (Fraunces display + Inter body) ─────────────────
-// These power the warm editorial landing pages. The .landing-scope class
-// in globals.css picks them up via --font-display / --font-body which
-// resolve to these family names; we also expose them via CSS variables in
-// case any component wants to reference them directly.
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-fraunces",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-  display: "swap",
-});
+// ── Single font system: Outfit (display) + Plus Jakarta Sans (body) ──────
+// Both the dashboard and the marketing/landing surfaces now share the same
+// type stack. Fraunces (serif w/ italic) was retired — it conflicted with
+// the project-wide "no italic, bold geometric sans only" rule and made the
+// landing visually disjoint from the dashboard. Outfit lands as a more
+// trustworthy + modern voice while keeping the warm cream palette intact.
 
 /* ── Metadata ── */
 
@@ -118,7 +103,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${plusJakartaSans.variable} ${fraunces.variable} ${inter.variable}`}
+      className={`${outfit.variable} ${plusJakartaSans.variable}`}
       suppressHydrationWarning
     >
       <head>

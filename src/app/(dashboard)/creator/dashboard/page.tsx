@@ -21,6 +21,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { VerifyBanner } from "@/components/creator/verify-banner";
 
 /* ───────── Types ───────── */
 
@@ -227,6 +228,9 @@ export default function CreatorDashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+
+      {/* ── Verification nudge (hidden once verified) ── */}
+      <VerifyBanner />
 
       {/* ── HEADER ── */}
       <motion.header

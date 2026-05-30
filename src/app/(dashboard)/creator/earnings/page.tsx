@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -92,57 +93,31 @@ const PAYOUT_STATUS: Record<
 };
 
 export default function CreatorEarningsPage() {
-  const [data, setData] = useState<EarningsData>({
-    available_paise: 0,
-    holding_paise: 0,
-    pending_count: 0,
-    lifetime_earned_paise: 0,
-    min_payout_paise: 50_000,
-    can_withdraw: false,
-  });
-  const [payouts, setPayouts] = useState<PayoutTxn[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Module-scoped cache — tab-back paints instantly from previously fetched
+  // data; fresh data lands in the background.
+  const { data: earningsData, loading: earningsLoading } = useCachedFetch<{
+    available_paise?: number;
+    holding_paise?: number;
+    pending_count?: number;
+    lifetime_earned_paise?: number;
+    min_payout_paise?: number;
+    can_withdraw?: boolean;
+  }>("/api/earnings/dashboard");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [dashRes, payoutsRes] = await Promise.allSettled([
-          fetch("/api/earnings/dashboard", { cache: "no-store" }),
-          fetch("/api/payouts/list?pageSize=10", { cache: "no-store" }),
-        ]);
+  const { data: payoutsData, loading: payoutsLoading } = useCachedFetch<{
+    items?: PayoutTxn[];
+  }>("/api/payouts/list?pageSize=10");
 
-        if (!cancelled && dashRes.status === "fulfilled" && dashRes.value.ok) {
-          const d = await dashRes.value.json();
-          setData({
-            available_paise: d.available_paise ?? 0,
-            holding_paise: d.holding_paise ?? 0,
-            pending_count: d.pending_count ?? 0,
-            lifetime_earned_paise: d.lifetime_earned_paise ?? 0,
-            min_payout_paise: d.min_payout_paise ?? 50_000,
-            can_withdraw: d.can_withdraw ?? false,
-          });
-        }
-
-        if (
-          !cancelled &&
-          payoutsRes.status === "fulfilled" &&
-          payoutsRes.value.ok
-        ) {
-          const p = await payoutsRes.value.json();
-          setPayouts((p.items as PayoutTxn[]) ?? []);
-        }
-      } catch (err) {
-        console.error("[creator/earnings] load failed", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const data: EarningsData = {
+    available_paise: earningsData?.available_paise ?? 0,
+    holding_paise: earningsData?.holding_paise ?? 0,
+    pending_count: earningsData?.pending_count ?? 0,
+    lifetime_earned_paise: earningsData?.lifetime_earned_paise ?? 0,
+    min_payout_paise: earningsData?.min_payout_paise ?? 50_000,
+    can_withdraw: earningsData?.can_withdraw ?? false,
+  };
+  const payouts: PayoutTxn[] = payoutsData?.items ?? [];
+  const loading = earningsLoading && payoutsLoading && !earningsData && !payoutsData;
 
   const minRequired = data.min_payout_paise;
   const remainingToMin = Math.max(0, minRequired - data.available_paise);

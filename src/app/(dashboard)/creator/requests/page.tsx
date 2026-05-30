@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  useCachedFetch,
+  invalidateCache,
+} from "@/lib/hooks/use-cached-fetch";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Inbox,
@@ -91,22 +95,29 @@ function timeLeft(iso: string): string {
 }
 
 export default function CreatorRequestsPage() {
-  const [requests, setRequests] = useState<CollabRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Tab-back paints from the module cache instantly.
+  const { data, loading: rawLoading } = useCachedFetch<{
+    requests?: CollabRequest[];
+  }>("/api/creator/requests");
+
+  const requests: CollabRequest[] = data?.requests ?? [];
+  const loading = rawLoading && !data;
   const [acting, setActing] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/creator/requests", { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : { requests: [] })
-      .then((d) => setRequests(d.requests ?? []))
-      .finally(() => setLoading(false));
-  }, []);
+  // Helper: optimistic local patch via cache invalidation. After every
+  // accept/decline we invalidate the cache so the next render re-fetches
+  // fresh status — and any other page subscribed to this URL (eg the
+  // dashboard nudge counter) also stays in sync.
+  function invalidateRequestsAndCounters() {
+    invalidateCache("/api/creator/requests");
+    invalidateCache("/api/dashboard/stats");
+  }
 
   async function handleAccept(id: string) {
     setActing(id);
     try {
       const res = await fetch(`/api/collab-requests/${id}/accept`, { method: "POST" });
-      if (res.ok) setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "accepted" } : r));
+      if (res.ok) invalidateRequestsAndCounters();
     } finally { setActing(null); }
   }
 
@@ -119,7 +130,7 @@ export default function CreatorRequestsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
       });
-      if (res.ok) setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "declined" } : r));
+      if (res.ok) invalidateRequestsAndCounters();
     } finally { setActing(null); }
   }
 

@@ -12,9 +12,9 @@
 // tiles are stubs marked "Soon" so the admin knows what's coming.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import {
   Activity,
   AlertTriangle,
@@ -177,30 +177,14 @@ function relativeFrom(iso?: string): string {
 }
 
 export default function AdminHomePage() {
-  const [safetyItems, setSafetyItems] = useState<SafetyItem[]>([]);
-  const [stuckItems, setStuckItems] = useState<StuckItem[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const [safetyRes, stuckRes] = await Promise.allSettled([
-        fetch("/api/admin/safety/queue", { cache: "no-store" }),
-        fetch("/api/admin/stuck-gens", { cache: "no-store" }),
-      ]);
-      if (!cancelled && safetyRes.status === "fulfilled" && safetyRes.value.ok) {
-        const j = await safetyRes.value.json();
-        setSafetyItems((j.items as SafetyItem[]) ?? []);
-      }
-      if (!cancelled && stuckRes.status === "fulfilled" && stuckRes.value.ok) {
-        const j = await stuckRes.value.json();
-        setStuckItems((j.items as StuckItem[]) ?? []);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: safetyData } = useCachedFetch<{ items?: SafetyItem[] }>(
+    "/api/admin/safety/queue",
+  );
+  const { data: stuckData } = useCachedFetch<{ items?: StuckItem[] }>(
+    "/api/admin/stuck-gens",
+  );
+  const safetyItems = safetyData?.items ?? [];
+  const stuckItems = stuckData?.items ?? [];
 
   const QUEUES = buildQueues(safetyItems.length, stuckItems.length);
   const totalPending = QUEUES.reduce((s, q) => s + (q.count ?? 0), 0);

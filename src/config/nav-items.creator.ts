@@ -13,6 +13,7 @@ import {
   Tags,
   Share2,
   LifeBuoy,
+  BadgeCheck,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -33,6 +34,7 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
   // Secondary — only visible in command palette + overflow menu
+  { label: "Get Verified", href: "/creator/verify", icon: BadgeCheck, group: "Secondary" },
   { label: "Licenses", href: "/creator/licenses", icon: FileSignature, group: "Secondary" },
   { label: "Analytics", href: "/creator/analytics", icon: TrendingUp, group: "Secondary" },
   { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldOff, group: "Secondary" },

@@ -1,28 +1,47 @@
 "use client";
 
+/**
+ * Onboarding · Content rules.
+ *
+ * Creator picks the categories they'll NEVER appear in. These write to
+ * `creator_blocked_categories` — the table the live 3-layer compliance check
+ * reads — so the choice actually gates generation (keyword + LLM layers).
+ *
+ * Constrained to the 9 enforceable categories the detector understands.
+ */
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ArrowRight, X, Plus, Ban, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  ShieldOff,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Wine,
+  Cigarette,
+  Dices,
+  Landmark,
+  Church,
+  EyeOff,
+  Crosshair,
+  Coins,
+  Pill,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Button } from "@/components/ui/button";
 
-const PRESET_BLOCKED = [
-  "Nudity",
-  "Alcohol",
-  "Tobacco",
-  "Gambling",
-  "Political Content",
-  "Violence",
-  "Drugs",
-  "Religious Sensitivity",
-  "Weapons",
-  "Adult Content",
-  "Hate Speech",
-  "Cryptocurrency",
-  "Competitive Brands",
-  "Fake News",
-  "Body Shaming",
+// value MUST match the enforceable Category enum (category-mapping.ts).
+const CATEGORIES = [
+  { value: "alcohol", label: "Alcohol", desc: "Beer, wine, spirits, bars", icon: Wine },
+  { value: "tobacco", label: "Tobacco & vaping", desc: "Cigarettes, vapes, hookah", icon: Cigarette },
+  { value: "gambling", label: "Gambling & betting", desc: "Casinos, fantasy, betting apps", icon: Dices },
+  { value: "political", label: "Political", desc: "Parties, candidates, campaigns", icon: Landmark },
+  { value: "religious", label: "Religious", desc: "Faith, rituals, religious brands", icon: Church },
+  { value: "adult", label: "Adult / 18+", desc: "Suggestive or explicit themes", icon: EyeOff },
+  { value: "gun", label: "Weapons", desc: "Firearms, ammunition", icon: Crosshair },
+  { value: "crypto", label: "Crypto & trading", desc: "Tokens, exchanges, day-trading", icon: Coins },
+  { value: "drugs", label: "Drugs & pharma", desc: "Recreational drugs, prescription", icon: Pill },
 ] as const;
 
 export default function CompliancePage() {
@@ -30,52 +49,32 @@ export default function CompliancePage() {
   const router = useRouter();
 
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
-  const [customInput, setCustomInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function toggleConcept(concept: string) {
+  function toggle(value: string) {
     setBlocked((prev) => {
       const next = new Set(prev);
-      if (next.has(concept)) {
-        next.delete(concept);
-      } else if (next.size < 50) {
-        next.add(concept);
-      }
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
       return next;
     });
   }
 
-  function addCustom() {
-    const val = customInput.trim();
-    if (!val || blocked.size >= 50) return;
-    setBlocked((prev) => new Set(prev).add(val));
-    setCustomInput("");
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    if (blocked.size === 0) {
-      setError("Select at least one content restriction");
-      return;
-    }
-
     setSaving(true);
     setError(null);
-
     try {
       const res = await fetch("/api/onboarding/save-compliance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blocked_concepts: Array.from(blocked) }),
+        body: JSON.stringify({ categories: Array.from(blocked) }),
       });
-
       if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || "Failed to save compliance preferences");
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to save");
       }
-
       router.push("/dashboard/onboarding/consent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -87,14 +86,10 @@ export default function CompliancePage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+        <Loader2 className="size-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
   }
-
-  const customConcepts = Array.from(blocked).filter(
-    (b) => !PRESET_BLOCKED.includes(b as (typeof PRESET_BLOCKED)[number]),
-  );
 
   return (
     <motion.div
@@ -103,140 +98,103 @@ export default function CompliancePage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
-          <Shield className="size-3.5" />
-          Compliance Preferences
+      <button
+        type="button"
+        onClick={() => router.push("/dashboard/onboarding/categories")}
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+      >
+        <ArrowLeft className="size-3.5" /> Back
+      </button>
+
+      <div className="mb-5">
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-2.5 py-1 text-[11px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
+          <ShieldOff className="size-3" />
+          Content rules
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
-          Set your content boundaries
+        <h2 className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+          What should your face never promote?
         </h2>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Choose topics and content types you <span className="font-600 text-[var(--color-foreground)]">don't</span> want your likeness associated with.
-          Brands will be blocked from generating content involving these concepts.
+        <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
+          Tap any category you want{" "}
+          <span className="font-700 text-[var(--color-foreground)]">blocked</span>. Brands
+          can never generate that content with your likeness — we enforce it on every
+          prompt. Leave all off if you&apos;re open to everything.
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Info banner */}
-        <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-4 mb-6">
-          <AlertTriangle className="size-4 shrink-0 text-[var(--color-primary)] mt-0.5" />
-          <div>
-            <p className="text-sm font-600 text-[var(--color-foreground)] mb-0.5">Why this matters</p>
-            <p className="text-xs text-[var(--color-muted-foreground)]">
-              During generation, every brand prompt is checked against your blocked concepts using AI similarity matching.
-              If a prompt is too close to any blocked concept, the generation is automatically rejected — protecting your image.
-            </p>
-          </div>
-        </div>
-
-        {/* Preset blocked concepts */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Ban className="size-4 text-red-500" />
-            <p className="text-sm font-700 text-[var(--color-foreground)]">I don't want my face used with...</p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {PRESET_BLOCKED.map((concept) => {
-              const isOn = blocked.has(concept);
-              return (
-                <button
-                  key={concept}
-                  type="button"
-                  onClick={() => toggleConcept(concept)}
-                  className={`rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-500 transition-all ${
-                    isOn
-                      ? "border-red-400/50 bg-red-500/10 text-red-500"
-                      : "border-[var(--color-border)] bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:border-red-400/40"
+        <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {CATEGORIES.map(({ value, label, desc, icon: Icon }) => {
+            const on = blocked.has(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggle(value)}
+                className={`group flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all ${
+                  on
+                    ? "border-rose-500/50 bg-rose-500/8"
+                    : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/30"
+                }`}
+              >
+                <span
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    on
+                      ? "bg-rose-500/15 text-rose-500"
+                      : "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]"
                   }`}
                 >
-                  {isOn && <X className="mr-1 inline size-3" />}
-                  {concept}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Custom blocked concepts */}
-          <AnimatePresence>
-            {customConcepts.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-3 pt-3 border-t border-[var(--color-border)]"
-              >
-                <p className="text-xs font-600 text-[var(--color-muted-foreground)] mb-2">Your custom restrictions</p>
-                <div className="flex flex-wrap gap-2">
-                  {customConcepts.map((concept) => (
-                    <button
-                      key={concept}
-                      type="button"
-                      onClick={() => toggleConcept(concept)}
-                      className="rounded-[var(--radius-pill)] border border-red-400/50 bg-red-500/10 px-3 py-1.5 text-xs font-500 text-red-500"
-                    >
-                      <X className="mr-1 inline size-3" />
-                      {concept}
-                    </button>
-                  ))}
+                  <Icon className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[14px] font-700 text-[var(--color-foreground)]">
+                    {label}
+                  </p>
+                  <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                    {desc}
+                  </p>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Add custom */}
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="Add custom restriction..."
-              maxLength={100}
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addCustom();
-                }
-              }}
-              className="h-8 w-full sm:w-56 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-            />
-            <button
-              type="button"
-              onClick={addCustom}
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </div>
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                    on
+                      ? "border-rose-500 bg-rose-500 text-white"
+                      : "border-[var(--color-border)] bg-[var(--color-card)] group-hover:border-[var(--color-primary)]/40"
+                  }`}
+                >
+                  {on && <Check className="size-3" strokeWidth={3} />}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <p className="text-xs text-[var(--color-muted-foreground)] mb-4">
-          {blocked.size}/50 restrictions set — you can update these anytime from your dashboard settings.
+        <p className="mb-4 text-[12px] text-[var(--color-muted-foreground)]">
+          {blocked.size === 0
+            ? "Nothing blocked — you're open to all categories."
+            : `${blocked.size} ${blocked.size === 1 ? "category" : "categories"} blocked.`}{" "}
+          You can change this anytime from your dashboard.
         </p>
 
         {error && (
-          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-500 mb-4">
+          <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/8 px-3 py-2 text-[13px] text-rose-600 dark:text-rose-400">
             {error}
           </p>
         )}
 
-        <div className="pt-2">
-          <Button
-            type="submit"
-            disabled={saving || blocked.size === 0}
-            className="w-full sm:w-auto bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:opacity-90 rounded-[var(--radius-button)] h-11 px-8 font-600"
-          >
-            {saving ? (
-              <div className="size-4 animate-spin rounded-full border-2 border-[var(--color-primary-foreground)]/30 border-t-[var(--color-primary-foreground)]" />
-            ) : (
-              <>
-                Continue
-                <ArrowRight className="size-4" />
-              </>
-            )}
-          </Button>
-        </div>
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-8 font-700 text-[var(--color-primary-foreground)] transition-all hover:-translate-y-0.5 disabled:opacity-40 sm:w-auto"
+        >
+          {saving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <>
+              Continue
+              <ArrowRight className="size-4" />
+            </>
+          )}
+        </button>
       </form>
     </motion.div>
   );

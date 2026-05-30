@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -132,16 +133,11 @@ const CREATOR_PENDING_STATUSES = new Set(["ready_for_approval"]);
 
 export default function BrandCollabWorkspacePage() {
   const { id } = useParams<{ id: string }>();
-  const [data, setData] = useState<CollabData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading } = useCachedFetch<CollabData>(
+    id ? `/api/collabs/${id}` : null,
+  );
+  const loading = rawLoading && !data;
   const [activeTab, setActiveTab] = useState<Tab>("vault");
-
-  useEffect(() => {
-    fetch(`/api/collabs/${id}`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => setData(d))
-      .finally(() => setLoading(false));
-  }, [id]);
 
   if (loading) {
     return (

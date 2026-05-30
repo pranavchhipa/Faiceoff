@@ -12,8 +12,8 @@ import { type ReactNode } from "react";
 const STEPS = [
   { key: "identity", label: "Identity", path: "/dashboard/onboarding/identity" },
   { key: "instagram", label: "Socials", path: "/dashboard/onboarding/instagram" },
-  { key: "categories", label: "Categories", path: "/dashboard/onboarding/categories" },
-  { key: "compliance", label: "Compliance", path: "/dashboard/onboarding/compliance" },
+  { key: "categories", label: "Niche", path: "/dashboard/onboarding/categories" },
+  { key: "compliance", label: "Rules", path: "/dashboard/onboarding/compliance" },
   { key: "consent", label: "Consent", path: "/dashboard/onboarding/consent" },
   { key: "photos", label: "Photos", path: "/dashboard/onboarding/photos" },
 ] as const;

@@ -137,6 +137,31 @@ export async function GET(request: Request) {
       return NextResponse.redirect(redirect);
     }
 
+    // ── Default avatar from Instagram ──────────────────────────────────────
+    // If the creator hasn't set a profile photo yet, use their verified
+    // Instagram profile picture as the default. They can change it later from
+    // Settings → Profile. Best-effort: never blocks the connect flow.
+    if (profile.profile_picture_url) {
+      try {
+        const { data: u } = await admin
+          .from("users")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!u?.avatar_url) {
+          await admin
+            .from("users")
+            .update({ avatar_url: profile.profile_picture_url })
+            .eq("id", user.id);
+          await supabase.auth.updateUser({
+            data: { avatar_url: profile.profile_picture_url },
+          });
+        }
+      } catch (avErr) {
+        console.warn("[ig-callback] default avatar set failed (non-fatal)", avErr);
+      }
+    }
+
     // Success — redirect back with a flag
     const redirect = new URL(returnTo, url.origin);
     redirect.searchParams.set("ig_connected", "1");

@@ -218,7 +218,7 @@ export function BrandDemo() {
             }}
           >
             Pick a product.{" "}
-            <span style={{ fontStyle: "italic", fontWeight: 400 }}>
+            <span style={{ fontWeight: 800, color: 'var(--lp-gold-deep)' }}>
               See it come alive.
             </span>
           </h3>

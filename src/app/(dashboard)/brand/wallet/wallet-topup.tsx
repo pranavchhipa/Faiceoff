@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { invalidateCache } from "@/lib/hooks/use-cached-fetch";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -195,6 +196,10 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
 
   const refreshBalance = useCallback(async () => {
     setRefreshing(true);
+    // Drop any module-level cached entries so other dashboard pages re-fetch
+    // on next visit.
+    invalidateCache("/api/billing/balance");
+    invalidateCache("/api/dashboard/stats");
     try {
       const [balRes, txRes] = await Promise.all([
         fetch("/api/billing/balance", { cache: "no-store" }),

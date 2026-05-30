@@ -20,6 +20,7 @@ import {
   Lock,
   ScrollText,
   LifeBuoy,
+  BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,7 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "users", label: "Users", icon: Users, group: "OPS" },
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "OPS" },
   { segment: "moderation", label: "Moderation", icon: Shield, group: "OPS" },
+  { segment: "verifications", label: "Verifications", icon: BadgeCheck, group: "OPS" },
   { segment: "disputes", label: "Disputes", icon: Scale, group: "OPS" },
   { segment: "tickets", label: "Support tickets", icon: LifeBuoy, group: "OPS" },
 

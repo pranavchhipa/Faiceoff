@@ -10,7 +10,6 @@ import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft,
-  ShieldCheck,
   Users,
   Tag,
   Send,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { VerifiedSeal } from "@/components/ui/verified-seal";
 import { PackageList } from "./package-list";
 
 /* ── Brand SVG icons ── */
@@ -55,6 +55,7 @@ interface CreatorDetail {
   youtube_handle: string | null;
   youtube_subscribers: number | null;
   kyc_status: string | null;
+  is_verified: boolean;
   hero_photo_url: string | null;
   is_live: boolean;
   categories: string[];
@@ -81,7 +82,7 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     .from("creators")
     .select(`
       id, bio, instagram_handle, instagram_followers,
-      youtube_handle, youtube_subscribers, kyc_status,
+      youtube_handle, youtube_subscribers, kyc_status, is_verified,
       user_id, is_live, cover_image_path,
       users!inner ( display_name ),
       creator_categories ( category, is_active )
@@ -134,6 +135,7 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     youtube_handle: cleanHandle(data.youtube_handle ?? null),
     youtube_subscribers: data.youtube_subscribers ?? null,
     kyc_status: data.kyc_status ?? null,
+    is_verified: data.is_verified === true,
     hero_photo_url: heroPhotoUrl,
     is_live: data.is_live ?? false,
     categories,
@@ -189,10 +191,10 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
           )}
           {/* Gradient overlay for badge contrast */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent" />
-          {/* KYC badge */}
-          {creator.kyc_status === "verified" && (
-            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-white backdrop-blur-md">
-              <ShieldCheck className="h-3 w-3" /> KYC verified
+          {/* Gold verified tick */}
+          {creator.is_verified && (
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[10px] font-700 uppercase tracking-wider text-white backdrop-blur-md">
+              <VerifiedSeal size={13} /> Verified
             </span>
           )}
         </div>

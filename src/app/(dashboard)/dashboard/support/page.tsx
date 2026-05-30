@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import { motion } from "framer-motion";
 import {
   LifeBuoy,
@@ -92,26 +93,18 @@ function timeAgo(iso: string): string {
 }
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading, refresh } = useCachedFetch<{
+    tickets?: Ticket[];
+  }>("/api/support/tickets");
+  const tickets = data?.tickets ?? [];
+  const loading = rawLoading && !data;
   const [view, setView] = useState<"list" | "new" | "detail">("list");
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
-    try {
-      const res = await fetch("/api/support/tickets", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setTickets(data.tickets ?? []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTickets();
-  }, [loadTickets]);
+    invalidateCache("/api/support/tickets");
+    await refresh();
+  }, [refresh]);
 
   function openDetail(id: string) {
     setActiveId(id);

@@ -13,7 +13,8 @@ import { generateAndSendOtp } from "@/lib/email/send-otp";
  * Body: { email, displayName, role, password, phone? }
  */
 export async function POST(request: Request) {
-  const { email, displayName, role, password, phone } = await request.json();
+  const { email, displayName, role, password, phone, accepted_terms } =
+    await request.json();
 
   if (!email || !displayName || !role) {
     return NextResponse.json(
@@ -66,6 +67,10 @@ export async function POST(request: Request) {
         display_name: displayName,
         role,
         phone: phone || null,
+        // Record T&C / Privacy acceptance at signup for the audit trail.
+        terms_accepted: accepted_terms === true,
+        terms_accepted_at: accepted_terms === true ? new Date().toISOString() : null,
+        terms_version: "v1.0-2026",
       },
     });
 

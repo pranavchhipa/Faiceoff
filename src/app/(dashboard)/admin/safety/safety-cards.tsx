@@ -10,7 +10,8 @@
 // the live queue is empty so the screen never looks dead.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -130,33 +131,36 @@ function HiveRow({ k, v }: { k: string; v: number }) {
 /* ───────── Main component ───────── */
 
 export function SafetyCards() {
-  const [items, setItems] = useState<SafetyItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading, refresh } = useCachedFetch<{
+    items?: SafetyItem[];
+  }>("/api/admin/safety/queue");
+  // Local override lets action handlers splice rows out optimistically
+  // while the cache is being refreshed.
+  const [localItems, setLocalItems] = useState<SafetyItem[] | null>(null);
+  const items = localItems ?? data?.items ?? [];
+  const loading = rawLoading && !data;
+  const fetchQueue = refresh;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const fetchQueue = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/safety/queue", { cache: "no-store" });
-      if (res.ok) {
-        const data = (await res.json()) as { items: SafetyItem[] };
-        setItems(data.items ?? []);
-      } else {
-        setItems([]);
-      }
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Drop overrides when fresh server data lands.
   useEffect(() => {
-    void fetchQueue();
-  }, [fetchQueue]);
+    if (data?.items) setLocalItems(null);
+  }, [data]);
 
+  const setItems = (
+    updater: SafetyItem[] | ((prev: SafetyItem[]) => SafetyItem[]),
+  ) => {
+    setLocalItems((prev) => {
+      const base = prev ?? data?.items ?? [];
+      const next = typeof updater === "function" ? updater(base) : updater;
+      invalidateCache("/api/admin/safety/queue");
+      return next;
+    });
+  };
+
+  // 30s background refresh — cache-aware so it won't re-render if nothing changed.
   useEffect(() => {
     const interval = setInterval(() => {
       void fetchQueue();

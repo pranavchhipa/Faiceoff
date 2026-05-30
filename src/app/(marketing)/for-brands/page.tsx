@@ -87,8 +87,7 @@ function Hero() {
               <span
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontStyle: "italic",
-                  fontWeight: 400,
+                  fontWeight: 800,
                   color: "var(--lp-gold-deep)",
                 }}
               >
@@ -279,8 +278,7 @@ function Problem() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
                 color: "var(--lp-coral)",
               }}
             >
@@ -351,8 +349,7 @@ function OneCreatorManyCampaigns() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               Many campaigns.
@@ -468,8 +465,7 @@ function LiveDemoExample() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               brief
@@ -513,7 +509,6 @@ function LiveDemoExample() {
                   fontSize: "22px",
                   lineHeight: 1.4,
                   color: "var(--lp-ink)",
-                  fontStyle: "italic",
                   fontWeight: 400,
                   paddingLeft: "36px",
                   paddingTop: "8px",
@@ -680,8 +675,7 @@ function HowItWorks() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               brief
@@ -785,8 +779,7 @@ function Comparison() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               hours.
@@ -982,8 +975,7 @@ function UseCases() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               marketing teams.
@@ -1093,8 +1085,7 @@ function BrandBenefits() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               switch
@@ -1176,8 +1167,7 @@ function FinalCTA() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
                 color: "var(--lp-gold-deep)",
               }}
             >

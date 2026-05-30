@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 
 interface CreatorProfile {
   instagram_handle: string | null;
@@ -49,18 +50,31 @@ const fadeUp = {
 
 export default function CreatorLikenessPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [referencePhotos, setReferencePhotos] = useState<ReferencePhoto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: statsData, loading: statsLoading } = useCachedFetch<{
+    creator?: CreatorProfile;
+  }>(user ? "/api/dashboard/stats" : null);
+  const { data: likenessData, loading: likenessLoading, refresh: refetchLikeness } =
+    useCachedFetch<{ photos?: ReferencePhoto[] }>(
+      user ? "/api/creator/likeness-data" : null,
+    );
+
+  const profile = statsData?.creator ?? null;
+  const [optimisticPhotos, setOptimisticPhotos] = useState<
+    ReferencePhoto[] | null
+  >(null);
+  const referencePhotos = optimisticPhotos ?? likenessData?.photos ?? [];
+  const loading =
+    (statsLoading && !statsData) || (likenessLoading && !likenessData);
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
 
   async function handleSetPrimary(photoId: string) {
     if (settingPrimary) return;
     setSettingPrimary(photoId);
     // Optimistic: update local state immediately
-    setReferencePhotos((prev) =>
-      prev.map((p) => ({ ...p, is_primary: p.id === photoId })),
-    );
+    setOptimisticPhotos((prev) => {
+      const base = prev ?? likenessData?.photos ?? [];
+      return base.map((p) => ({ ...p, is_primary: p.id === photoId }));
+    });
     try {
       const res = await fetch(
         `/api/creator/reference-photos/${photoId}/set-primary`,
@@ -70,11 +84,11 @@ export default function CreatorLikenessPage() {
         const j = await res.json().catch(() => ({}));
         alert(j.message ?? j.error ?? "Couldn't set primary");
         // Reload from server to undo the optimistic state
-        const r = await fetch("/api/creator/likeness-data", { cache: "no-store" });
-        if (r.ok) {
-          const d = (await r.json()) as { photos?: ReferencePhoto[] };
-          setReferencePhotos(d.photos ?? []);
-        }
+        await refetchLikeness();
+        setOptimisticPhotos(null);
+      } else {
+        await refetchLikeness();
+        setOptimisticPhotos(null);
       }
     } catch (err) {
       console.error("[likeness] set-primary failed", err);
@@ -89,43 +103,6 @@ export default function CreatorLikenessPage() {
   const avatarUrl =
     (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url ??
     null;
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [statsRes, likenessRes] = await Promise.allSettled([
-          fetch("/api/dashboard/stats", { cache: "no-store" }),
-          fetch("/api/creator/likeness-data", { cache: "no-store" }),
-        ]);
-
-        if (!cancelled && statsRes.status === "fulfilled" && statsRes.value.ok) {
-          const data = await statsRes.value.json();
-          if (data.creator) setProfile(data.creator);
-        }
-
-        if (
-          !cancelled &&
-          likenessRes.status === "fulfilled" &&
-          likenessRes.value.ok
-        ) {
-          const data = (await likenessRes.value.json()) as {
-            photos?: ReferencePhoto[];
-          };
-          setReferencePhotos(data.photos ?? []);
-        }
-      } catch (err) {
-        console.error("Likeness fetch failed:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    if (user) load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   const photos = referencePhotos.length;
   const targetPhotos = 30;

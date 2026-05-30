@@ -42,6 +42,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const pathname = usePathname();
+  const isOnboarding = pathname?.startsWith("/dashboard/onboarding") ?? false;
 
   const displayName =
     user?.user_metadata?.display_name ??
@@ -108,6 +110,54 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Focused onboarding chrome ──────────────────────────────────────────
+  // During onboarding we strip the nav rail, bottom tabs, drawer, and ⌘K
+  // palette. The middleware (proxy-logic step 6) already funnels incomplete
+  // creators back to /dashboard/onboarding, so they can't lose progress — but
+  // removing the nav is the real fix: there's simply nothing to wander off to.
+  // Only a minimal header (logo + account + log out) remains.
+  if (isOnboarding) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 lg:px-6">
+          <Logo variant="full" adaptive className="h-6 w-auto" />
+          <div className="flex items-center gap-2.5">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--color-border)]" />
+            ) : (
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[11px] font-700 text-[var(--color-foreground)]">
+                {(displayName || "?").charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span className="hidden text-[13px] font-600 text-[var(--color-foreground)] sm:inline">
+              {displayName}
+            </span>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await fetch("/api/auth/sign-out", { method: "POST" });
+                } catch {
+                  /* ignore */
+                }
+                window.location.href = "/login";
+              }}
+              className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+        <main className="flex-1 overflow-x-hidden">
+          <div className="mx-auto w-full max-w-5xl px-4 py-6 lg:py-10 [&>*]:mx-auto">
+            {children}
+          </div>
+        </main>
       </div>
     );
   }

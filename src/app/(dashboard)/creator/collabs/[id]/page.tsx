@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -194,21 +195,13 @@ function timeLeft(iso: string) {
 
 export default function CreatorCollabWorkspacePage() {
   const { id } = useParams<{ id: string }>();
-  const [data, setData] = useState<CollabData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading: rawLoading, refresh } = useCachedFetch<CollabData>(
+    id ? `/api/collabs/${id}` : null,
+  );
+  const loading = rawLoading && !data;
+  const reload = refresh;
   const [activeTab, setActiveTab] = useState<Tab>("images");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-
-  const reload = useCallback(() => {
-    fetch(`/api/collabs/${id}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setData(d))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
 
   // Lightbox close on Escape
   useEffect(() => {

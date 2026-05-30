@@ -8,6 +8,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  useCachedFetch,
+  invalidateCache,
+} from "@/lib/hooks/use-cached-fetch";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -106,50 +110,50 @@ const fadeUp = {
 };
 
 export default function CreatorApprovalsPage() {
-  const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Cached fetcher — tab-back paints the previously-loaded approval list
+  // instantly while we revalidate in the background.
+  const { data: rawData, loading: rawLoading, error: fetchError } =
+    useCachedFetch<{ approvals?: RawApproval[]; error?: string }>(
+      "/api/creator/approvals",
+    );
+
+  const error: string | null =
+    rawData?.error ?? fetchError?.message ?? null;
+
+  // Derive approvals + weekApproved from the cached payload. useMemo so
+  // selectedId stays stable across revalidations.
+  const approvalsList = useMemo(() => {
+    const list = (rawData?.approvals as RawApproval[]) ?? [];
+    return list.filter((a) => a.status === "pending").map(mapApproval);
+  }, [rawData]);
+
+  const weekApproved = useMemo(() => {
+    const list = (rawData?.approvals as RawApproval[]) ?? [];
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return list.filter(
+      (a) =>
+        a.status === "approved" &&
+        new Date(a.created_at).getTime() >= weekAgo,
+    ).length;
+  }, [rawData]);
+
+  // Pull from local state for the interactive bits — the page can splice
+  // approvals out of view as the creator processes them without waiting
+  // for the next revalidate.
+  const [approvals, setApprovals] = useState<Approval[]>(approvalsList);
+  useEffect(() => setApprovals(approvalsList), [approvalsList]);
+
+  const [selectedId, setSelectedId] = useState<string | null>(
+    approvalsList[0]?.id ?? null,
+  );
+  useEffect(() => {
+    if (!selectedId && approvalsList[0]) setSelectedId(approvalsList[0].id);
+  }, [approvalsList, selectedId]);
+
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [feedback, setFeedback] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [weekApproved, setWeekApproved] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/creator/approvals", { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load approvals");
-        if (cancelled) return;
-        const list = (data.approvals as RawApproval[]) ?? [];
-        const pending = list.filter((a) => a.status === "pending").map(mapApproval);
-        setApprovals(pending);
-        setSelectedId(pending[0]?.id ?? null);
-
-        // Approved-this-week count from the same payload
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const wk = list.filter(
-          (a) =>
-            a.status === "approved" &&
-            new Date(a.created_at).getTime() >= weekAgo,
-        ).length;
-        setWeekApproved(wk);
-      } catch (err) {
-        console.error("[creator/approvals] load failed", err);
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const loading = rawLoading && !rawData;
 
   const selected = useMemo(
     () => approvals.find((a) => a.id === selectedId) ?? null,
@@ -179,6 +183,11 @@ export default function CreatorApprovalsPage() {
         setSelectedId(remaining[0]?.id ?? null);
         return remaining;
       });
+      // Invalidate the cached list + the dashboard's counters so the next
+      // navigation sees the latest state (no stale "8 pending" pill).
+      invalidateCache("/api/creator/approvals");
+      invalidateCache("/api/dashboard/stats");
+      invalidateCache("/api/earnings/dashboard");
       setDecision(null);
       setFeedback("");
     } catch (err) {

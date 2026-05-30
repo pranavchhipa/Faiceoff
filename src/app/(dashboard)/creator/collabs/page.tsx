@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -16,6 +15,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 
 interface Collab {
   id: string;
@@ -115,15 +115,11 @@ function paiseToInr(paise: number) {
 }
 
 export default function CreatorCollabsPage() {
-  const [collabs, setCollabs] = useState<Collab[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/collabs", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { collabs: [] }))
-      .then((d) => setCollabs(d.collabs ?? []))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data, loading: rawLoading } = useCachedFetch<{ collabs?: Collab[] }>(
+    "/api/collabs",
+  );
+  const collabs = data?.collabs ?? [];
+  const loading = rawLoading && !data;
 
   if (loading) {
     return (

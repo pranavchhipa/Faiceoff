@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -70,20 +71,15 @@ function timeLeft(iso: string): string {
 }
 
 export default function BrandRequestsPage() {
-  const [requests, setRequests] = useState<BrandRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Cached fetcher — tab-back paints instantly, refreshes in the background.
+  const { data, loading: rawLoading, error: fetchError } = useCachedFetch<{
+    requests?: BrandRequest[];
+    error?: string;
+  }>("/api/brand/requests");
 
-  useEffect(() => {
-    fetch("/api/brand/requests", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
-        setRequests(d.requests ?? []);
-      })
-      .catch(() => setError("Failed to load"))
-      .finally(() => setLoading(false));
-  }, []);
+  const requests: BrandRequest[] = data?.requests ?? [];
+  const error: string | null = data?.error ?? fetchError?.message ?? null;
+  const loading = rawLoading && !data;
 
   if (loading) {
     return (

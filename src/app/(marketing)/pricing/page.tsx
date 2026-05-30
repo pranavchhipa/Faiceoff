@@ -70,8 +70,7 @@ function Hero() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
                 color: "var(--lp-gold-deep)",
               }}
             >
@@ -383,8 +382,7 @@ function CreditPacks() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               credit packs.
@@ -441,8 +439,7 @@ function PricingExplainer() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               how Faiceoff billing works.
@@ -680,8 +677,7 @@ function GenerationFlow() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               generate.
@@ -767,8 +763,7 @@ function WalletBonus() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               Get more value.
@@ -930,8 +925,7 @@ function FAQ() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
               }}
             >
               questions.
@@ -1036,8 +1030,7 @@ function FinalCTA() {
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                fontWeight: 800,
                 color: "var(--lp-gold-deep)",
               }}
             >

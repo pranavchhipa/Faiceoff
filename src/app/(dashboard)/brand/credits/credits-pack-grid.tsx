@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Zap, Sparkles, AlertCircle, Loader2, Check, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { CreditPack } from "@/lib/billing";
+import { invalidateCache } from "@/lib/hooks/use-cached-fetch";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -247,6 +248,10 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(response),
             });
+            // Wallet + dashboard stats are now stale; drop their caches so
+            // any next visit refetches fresh balance.
+            invalidateCache("/api/billing/balance");
+            invalidateCache("/api/dashboard/stats");
             toast.success(
               `${data.credits + data.bonus_credits} credits added to your account!`,
             );
