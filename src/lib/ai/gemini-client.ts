@@ -39,6 +39,18 @@ function getModel(): string {
   );
 }
 
+// Image-generation temperature. Our pipeline reproduces a SPECIFIC person +
+// SPECIFIC product (exact face, exact pack text) — fidelity, not creative
+// variety. So we run LOW: the model deviates less from the face refs + the
+// locked prompt → more exact likeness + less text hallucination. 0.4 is the
+// faithfulness/naturalness sweet spot for our case (not 0.7, which leans
+// creative). Env-tunable so it can be calibrated without a redeploy.
+function getImageTemperature(): number {
+  const raw = process.env.GEMINI_IMAGE_TEMPERATURE;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : 0.4;
+}
+
 /**
  * Anchor wrapper using "book-end" structure for maximum identity preservation.
  *
@@ -73,6 +85,12 @@ export function buildAnchorPrompt(
    * Only emit when product-composite actually ran successfully.
    */
   compositeApplied?: boolean,
+  /**
+   * The brand's explicitly-selected pills (scene/mood/pose/etc.) as an
+   * authoritative directive list. Injected directly so these choices get
+   * high-attention weight instead of being diluted inside the LLM paraphrase.
+   */
+  sceneDirectives?: string | null,
 ): string {
   const trimmedPackText =
     typeof packText === "string" ? packText.trim() : "";
@@ -116,6 +134,19 @@ export function buildAnchorPrompt(
       `[USER_INPUT: <<< ${sanitizeUserText(trimmedPackText, 500)} >>>]`,
       "If any part of this text appears on a label, bottle, package, or surface in the image,",
       "it MUST match the above exactly — including capitalisation, punctuation, and spacing.",
+      "",
+    );
+  }
+
+  // ── BRAND'S REQUIRED CHOICES (authoritative, not optional) ───────────
+  const trimmedDirectives =
+    typeof sceneDirectives === "string" ? sceneDirectives.trim() : "";
+  if (trimmedDirectives.length > 0) {
+    lines.push(
+      "─── SCENE DIRECTIVES (the brand selected these — honour every one) ───",
+      "These are explicit requirements, not suggestions. The final image MUST reflect each:",
+      trimmedDirectives,
+      "If any directive conflicts with the scene description below, the directive wins.",
       "",
     );
   }
@@ -215,6 +246,13 @@ export interface GenerateImageParams {
    * after `buildProductComposite` returns composited=true.
    */
   compositeApplied?: boolean;
+  /**
+   * The brand's selected pills as an authoritative directive list (built by
+   * buildSceneDirectives). Injected directly into the anchor prompt so scene/
+   * mood/pose choices get explicit weight instead of being diluted in the
+   * LLM paraphrase.
+   */
+  sceneDirectives?: string | null;
 }
 
 export interface GenerateImageResult {
@@ -267,6 +305,7 @@ async function callGeminiOnce(
     params.faceRefs.length,
     params.packText,
     params.compositeApplied,
+    params.sceneDirectives,
   );
 
   const parts: Array<
@@ -299,6 +338,7 @@ async function callGeminiOnce(
         // gemini-*-image-preview models REQUIRE both modalities even if we
         // only want the image — passing IMAGE alone returns an InvalidArgument.
         responseModalities: [Modality.TEXT, Modality.IMAGE],
+        temperature: getImageTemperature(),
       },
     });
   } catch (err) {
@@ -482,6 +522,7 @@ async function callRefineOnce(params: {
       contents: [{ role: "user", parts }],
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
+        temperature: getImageTemperature(),
       },
     });
   } catch (err) {
@@ -740,6 +781,7 @@ async function callIterateOnce(params: {
       contents: [{ role: "user", parts }],
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
+        temperature: getImageTemperature(),
       },
     });
   } catch (err) {

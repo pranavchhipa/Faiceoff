@@ -288,8 +288,7 @@ export default function PhotosPage() {
           The photos that become your AI face
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-          Every Studio generation is anchored on these. Better photos in → sharper,
-          more like-you results out. Upload {MIN_PHOTOS}–{MAX_PHOTOS} clear, solo shots.
+          Upload {MIN_PHOTOS}–{MAX_PHOTOS} clear, solo shots.
         </p>
       </div>
 

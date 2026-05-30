@@ -33,7 +33,7 @@ import {
 } from "@/lib/billing";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
-import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
+import { assemblePromptWithLLM, buildSceneDirectives } from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { upscaleImage } from "@/lib/ai/upscaler-client";
 import { buildProductComposite } from "@/lib/ai/product-composite";
@@ -65,7 +65,12 @@ const HIVE_NSFW_CLASSES = new Set([
 
 const REFERENCE_PHOTO_BUCKET = "reference-photos";
 const SIGNED_URL_TTL_SECONDS = 600; // 10 minutes — only need it long enough to fetch
-const MAX_FACE_REFS = 3;
+// 4 face refs (up from 3) — more angles = better 3D identity capture for the
+// multi-reference model. Env-tunable in case we need to dial cost/latency.
+const MAX_FACE_REFS = (() => {
+  const n = Number(process.env.MAX_FACE_REFS);
+  return Number.isInteger(n) && n >= 1 && n <= 6 ? n : 4;
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // R2 public URL — module-scope hard-fail (Phase 1, fix 1.4)
@@ -153,9 +158,37 @@ async function pickFaceRefStoragePaths(
     );
   }
 
-  return photos
-    .slice(0, MAX_FACE_REFS)
-    .map((p: { storage_path: string }) => p.storage_path);
+  const all = (photos as Array<{ storage_path: string }>).map(
+    (p) => p.storage_path,
+  );
+  if (all.length <= MAX_FACE_REFS) return all;
+
+  // photos[0] is the creator-chosen PRIMARY (ordered is_primary desc). For the
+  // rest, instead of just taking the oldest N (which could all be similar
+  // angles / bad shots), pick an EVENLY-SPREAD sample across the pool —
+  // oldest + middle + newest — to maximise angle / look diversity. Deterministic
+  // (no randomness) so the same refs are used every time → identity stays
+  // consistent across a creator's generations.
+  const primary = all[0];
+  const rest = all.slice(1);
+  const need = Math.min(MAX_FACE_REFS - 1, rest.length);
+  const picked: string[] = [];
+  const seen = new Set<number>();
+  for (let i = 0; i < need; i++) {
+    const idx =
+      need <= 1 ? 0 : Math.round((i * (rest.length - 1)) / (need - 1));
+    if (!seen.has(idx)) {
+      seen.add(idx);
+      picked.push(rest[idx]);
+    }
+  }
+  // Backfill in order if the spread collided on a small pool.
+  for (const p of rest) {
+    if (picked.length >= need) break;
+    if (!picked.includes(p)) picked.push(p);
+  }
+
+  return [primary, ...picked];
 }
 
 /**
@@ -476,6 +509,8 @@ export async function runGeneration(generationId: string): Promise<void> {
           typeof brief.pack_text === "string" ? brief.pack_text : null,
         // Phase 6c — anchor prompt mentions the composite when active
         compositeApplied: composite.composited,
+        // Brand's selected pills as authoritative directives (high-attention).
+        sceneDirectives: buildSceneDirectives(brief),
         generationId,
       });
     } catch (geminiErr) {

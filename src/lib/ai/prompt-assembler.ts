@@ -113,6 +113,46 @@ export function briefToAssemblerLines(
 }
 
 /**
+ * Build an explicit, human-readable list of the brand's SELECTED pills to inject
+ * DIRECTLY into the Gemini anchor prompt (not just via the LLM paraphrase).
+ *
+ * Why: pills used to only flow through the LLM assembler, which paraphrases
+ * them into prose buried in the middle of the prompt — where the strong
+ * IDENTITY/PRODUCT anchors at both ends dominate, so scene/mood/pose choices
+ * got diluted and "didn't show up". Surfacing the raw choices as authoritative
+ * directives gives them explicit, high-attention weight.
+ *
+ * Only emits pills the brand actually set. Returns "" if nothing selected.
+ */
+const DIRECTIVE_LABELS: Record<string, string> = {
+  setting: "Scene / setting",
+  time_lighting: "Lighting / time of day",
+  mood_palette: "Mood / colour palette",
+  interaction: "What they're doing with the product",
+  pose_energy: "Pose / body language",
+  expression: "Facial expression",
+  outfit_style: "Outfit",
+  camera_framing: "Framing / crop",
+  camera_type: "Camera look",
+};
+
+export function buildSceneDirectives(brief: Record<string, unknown>): string {
+  const out: string[] = [];
+  for (const field of Object.keys(DIRECTIVE_LABELS)) {
+    const v = brief[field];
+    if (typeof v !== "string" || v.length === 0) continue;
+    const value = v.startsWith("custom:")
+      ? sanitizeUserText(v.slice("custom:".length), 80)
+      : pillValueToLabel(field, v);
+    if (value) out.push(`  • ${DIRECTIVE_LABELS[field]}: ${value}`);
+  }
+  if (typeof brief.custom_notes === "string" && brief.custom_notes.trim()) {
+    out.push(`  • Extra notes: ${sanitizeUserText(brief.custom_notes, 300)}`);
+  }
+  return out.join("\n");
+}
+
+/**
  * LLM used for the prompt-assembly step. Overridable via env var.
  *
  * Default: Gemini 2.5 Flash for quality. Llama 3.1 8B available as fast
@@ -367,11 +407,11 @@ export async function assemblePromptWithLLM(
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
       ],
-      // Low temperature: we want the model to follow the template tightly,
-      // not invent creative variations. Creativity lives in the scene
-      // description the brand writes; the assembler's job is to wrap it in
-      // the anti-AI technical recipe consistently.
-      temperature: 0.4,
+      // Low temperature: we want the model to follow the template tightly +
+      // preserve the brand's selected pills literally (not paraphrase/drop
+      // them). Lowered 0.4 → 0.3 — tighter brief-following, fewer dropped
+      // directives. Creativity lives in the brand's own scene description.
+      temperature: 0.3,
       // Gemini 2.5 Pro is a reasoning model — internal thinking tokens
       // count against max_tokens. A 600-token cap was being almost entirely
       // consumed by reasoning, leaving ~80 chars of actual output. 4000
