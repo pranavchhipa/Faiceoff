@@ -174,27 +174,37 @@ export default function PhotosPage() {
     setError(null);
 
     try {
-      // Order so the chosen PRIMARY is uploaded first — save-photos marks
-      // index 0 as is_primary and computes the face embedding from it.
+      // Order so the chosen PRIMARY is first — save-photos marks index 0 as
+      // is_primary and computes the face embedding from it.
       const ordered = [...photos].sort((a, b) =>
         a.id === primaryId ? -1 : b.id === primaryId ? 1 : 0,
       );
 
-      const uploadedPaths: string[] = [];
-      for (let i = 0; i < ordered.length; i++) {
-        setUploadProgress(i + 1);
-        let uploadFile: File = ordered[i].file;
-        try {
-          uploadFile = await compressImageForUpload(ordered[i].file);
-        } catch {
-          /* upload original on compression failure */
-        }
+      // Compress all in parallel (canvas work is fast + CPU-bound).
+      const files = await Promise.all(
+        ordered.map(async (p) => {
+          try {
+            return await compressImageForUpload(p.file);
+          } catch {
+            return p.file; // upload original on compression failure
+          }
+        }),
+      );
+
+      // Upload all concurrently. The browser caps connections-per-host (~6),
+      // so this self-throttles into a few fast waves instead of one long
+      // serial chain. Promise.all preserves order → primary stays at index 0.
+      let done = 0;
+      const uploadOne = async (file: File, idx: number): Promise<string> => {
         const form = new FormData();
-        form.append("photo", uploadFile);
-        const res = await fetch("/api/onboarding/upload-photo", { method: "POST", body: form });
+        form.append("photo", file);
+        const res = await fetch("/api/onboarding/upload-photo", {
+          method: "POST",
+          body: form,
+        });
         if (!res.ok) {
           if (res.status === 413)
-            throw new Error(`Photo ${i + 1} is too large even after compression (under 10 MB please).`);
+            throw new Error(`Photo ${idx + 1} is too large even after compression (under 10 MB please).`);
           let msg = "Upload failed";
           try {
             msg = (await res.json()).error || msg;
@@ -203,8 +213,13 @@ export default function PhotosPage() {
           }
           throw new Error(msg);
         }
-        uploadedPaths.push(((await res.json()) as { path: string }).path);
-      }
+        setUploadProgress(++done);
+        return ((await res.json()) as { path: string }).path;
+      };
+
+      const uploadedPaths = await Promise.all(
+        files.map((f, i) => uploadOne(f, i)),
+      );
 
       const saveRes = await fetch("/api/onboarding/save-photos", {
         method: "POST",

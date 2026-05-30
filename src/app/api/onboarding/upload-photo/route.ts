@@ -48,15 +48,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Creator not found" }, { status: 404 });
     }
 
-    // Ensure bucket exists
-    const { data: buckets } = await admin.storage.listBuckets();
-    if (!buckets?.some((b) => b.name === BUCKET)) {
-      await admin.storage.createBucket(BUCKET, {
-        public: false,
-        fileSizeLimit: MAX_PHOTO_BYTES,
-        allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-      });
-    }
+    // Bucket `reference-photos` is declared in migrations and always exists in
+    // prod. We skip the per-request listBuckets()/createBucket() round-trip
+    // (pure overhead on every photo) — if the upload below 404s we surface a
+    // clear error instead.
 
     // Parse single file from FormData
     const formData = await request.formData();
