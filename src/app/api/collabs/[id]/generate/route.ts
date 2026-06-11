@@ -11,11 +11,11 @@ import type { Json } from "@/types/supabase";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-// CRITICAL: image generation runs inside after() and takes 20-40s. Without
-// this, Vercel kills the function at the default ~10s — the generation never
-// finishes and the row stays stuck in 'generating'. 60s is the Vercel Hobby
-// tier max (raise to 300 on Pro for high-detail / multi-stage gens).
-export const maxDuration = 60;
+// Image generation runs inside after(): Gemini 20-140s (observed) + upscale +
+// R2 + Hive. 300s is the Fluid Compute max on Hobby — anything lower risks
+// killing the pipeline mid-flight (observed: a 60s cap killed post-processing
+// and left rows stuck in 'generating').
+export const maxDuration = 300;
 
 // POST /api/collabs/[id]/generate
 // Creates one generation for an active collab session, deducting 1 gen credit.

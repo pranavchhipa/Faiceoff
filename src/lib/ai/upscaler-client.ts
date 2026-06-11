@@ -111,7 +111,9 @@ export async function upscaleImage(
     throw new Error("upscaler: Replicate returned no usable output URL");
   }
 
-  const res = await fetch(outputUrl);
+  // Bounded download — an unbounded fetch here can hang the whole generation
+  // pipeline (function killed by the platform → row stuck in 'generating').
+  const res = await fetch(outputUrl, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) {
     throw new Error(
       `upscaler: failed to fetch upscaled image (HTTP ${res.status})`,

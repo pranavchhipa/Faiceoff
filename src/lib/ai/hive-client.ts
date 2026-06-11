@@ -48,6 +48,9 @@ export async function checkImage(
     body: JSON.stringify({
       url: imageUrl,
     }),
+    // Bounded — the pipeline's catch around checkImage is fail-open, but a
+    // hung fetch is never caught and leaves the generation stuck.
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {

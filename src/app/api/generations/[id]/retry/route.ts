@@ -25,10 +25,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { runIteration } from "@/lib/ai/run-generation";
 import type { Json } from "@/types/supabase";
 
-// The retry iteration runs Gemini in after() (20-40s). Without this, Vercel
-// kills the function at the default ~10s and the retry stays stuck. 60s = Hobby
-// tier max.
-export const maxDuration = 60;
+// The retry iteration runs Gemini in after() (20-140s observed) + upload.
+// 300s = Fluid Compute max on Hobby; lower caps killed the pipeline mid-flight.
+export const maxDuration = 300;
 
 const MAX_NOTES_LEN = 500;
 const MIN_NOTES_LEN = 1;
