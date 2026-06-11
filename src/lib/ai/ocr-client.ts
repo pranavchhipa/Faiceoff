@@ -163,24 +163,22 @@ export const OCR_CONSTANTS = {
 } as const;
 
 /**
- * Phase 6e — decide whether to trigger Stage 2 refinement.
+ * Decide whether to trigger Stage 2 refinement.
  *
- * Triggers:
- *   - high_detail_mode = true  → 'manual'
- *   - ocrDrift > 0.3           → 'ocr_fail'
- *   - pack_text > 50 chars     → 'dense_label' (proactive on dense packaging)
- *
- * Returns { trigger: false, reason: 'skipped' } when none fire.
+ * Image-authoritative product (2026-06): the ocr_fail (drift vs brand-typed
+ * pack_text) and dense_label (pack_text > 50 chars) triggers were removed —
+ * both keyed off brand-TYPED text, which is error-prone and could silently
+ * double the Gemini cost. Stage 2 now fires ONLY on the explicit high-detail
+ * checkbox; the refinement pass itself copies from the product reference
+ * image, so it stays image-authoritative.
  */
 export function shouldTriggerStage2(input: {
   highDetailMode: boolean;
-  ocrDrift: number | null;
-  packTextLength: number;
+  /** DEPRECATED — ignored. */
+  ocrDrift?: number | null;
+  /** DEPRECATED — ignored. */
+  packTextLength?: number;
 }): { trigger: boolean; reason: "manual" | "ocr_fail" | "dense_label" | "skipped" } {
   if (input.highDetailMode) return { trigger: true, reason: "manual" };
-  if (input.ocrDrift !== null && input.ocrDrift > STAGE2_DRIFT_THRESHOLD) {
-    return { trigger: true, reason: "ocr_fail" };
-  }
-  if (input.packTextLength > 50) return { trigger: true, reason: "dense_label" };
   return { trigger: false, reason: "skipped" };
 }

@@ -70,15 +70,18 @@ function getImageTemperature(): number {
  * model's tendency to whiten/desaturate. Made faceRefCount dynamic so the prompt
  * doesn't hardcode "3" — survives MAX_FACE_REFS changes.
  *
- * Phase 2.2.b — when packText is provided, emits a PRODUCT TEXT LOCK section
- * after the PRODUCT LOCK with the exact text the brand wants preserved
- * character-for-character. sanitizeUserText prevents injection.
+ * Image-authoritative product (2026-06): the PRODUCT TEXT LOCK (brand-typed
+ * pack_text injected into the prompt) was REMOVED. Typed text could override
+ * the correct reference image — one brand typo and the model renders the
+ * wrong product. The product reference image is now the only authority for
+ * packaging text; `_packText` is kept in the signature for call-site
+ * compatibility but is intentionally ignored.
  */
 export function buildAnchorPrompt(
   assembledPrompt: string,
   aspectRatio: string,
   faceRefCount: number,
-  packText?: string | null,
+  _packText?: string | null,
   /**
    * Phase 6c — when true, prepends a line telling the model the product
    * reference is a 3-panel composite (full / label crop / wordmark detail).
@@ -92,9 +95,6 @@ export function buildAnchorPrompt(
    */
   sceneDirectives?: string | null,
 ): string {
-  const trimmedPackText =
-    typeof packText === "string" ? packText.trim() : "";
-
   const lines: string[] = [
     // ── OPENING ANCHOR — IDENTITY ──────────────────────────────────────
     "IDENTITY LOCK (read carefully):",
@@ -110,33 +110,25 @@ export function buildAnchorPrompt(
     "Allow natural expression — genuine smile, laugh, focused gaze, contemplation — as the scene demands. The face is alive, not frozen. Premium photorealism is encouraged. Body and face stay TRUE to the reference.",
     "",
     // ── OPENING ANCHOR — PRODUCT ───────────────────────────────────────
+    // The product reference IMAGE is the ONLY authority for the product.
+    // We deliberately do NOT inject brand-typed packaging text: a single
+    // typo in typed text would override the correct image and change the
+    // product. Copy-from-image is always safer than render-from-text.
     "PRODUCT LOCK (read carefully):",
     compositeApplied
-      ? "The product reference (the LAST image attached) is a 3-panel composite: left = full product, middle = label crop, right = wordmark detail. Use ALL three panels — the label and wordmark panels are zoomed-in views of the same product, intended to help you reproduce small text accurately."
-      : "The product reference (the LAST image attached, after the face references) is a real, specific SKU. Reproduce its packaging exactly:",
+      ? "The product reference (the LAST image attached) is a 3-panel composite: left = full product, middle = label crop, right = wordmark detail. Use ALL three panels — the label and wordmark panels are zoomed-in views of the same product, intended to help you copy small text accurately."
+      : "The product reference (the LAST image attached, after the face references) is a real, specific SKU. It is the ONLY source of truth for the product. Reproduce its packaging exactly as photographed:",
     "",
-    "  • Brand wordmark / logo — exact spelling, exact font, exact placement, exact colour",
-    "  • All text on the packaging — readable in the final image, character-for-character match",
+    "  • Treat the product reference image as a strict visual copy task — like product compositing, not generation",
+    "  • Brand wordmark / logo — copy the exact spelling, font, placement, and colour AS SHOWN IN THE IMAGE",
+    "  • Every piece of text on the packaging — copy character-for-character FROM THE IMAGE. Even if a spelling looks unusual or foreign, copy it exactly; do NOT autocorrect, translate, or substitute it",
     "  • Pack format (tube, jar, bottle, box, can, tin, sachet) — never swap formats",
-    "  • Pack silhouette, body colour, cap colour, material finish — exact match",
-    "  • Any taglines, ingredient callouts, volume markings — all preserved",
+    "  • Pack silhouette, body colour, cap colour, material finish, proportions — exact match to the image",
+    "  • Taglines, ingredient callouts, volume markings, badges — all preserved as photographed",
     "",
-    "DO NOT invent generic packaging. DO NOT paraphrase the brand name. If you can't read the brand name clearly in your output, the product is wrong.",
+    "DO NOT invent generic packaging. DO NOT add text that is not visible in the reference. DO NOT 'clean up' or redesign the label. If a viewer compared your output to the reference photo side-by-side, the product should look identical.",
     "",
   ];
-
-  // ── PRODUCT TEXT LOCK (Phase 2.2.b — only when brand provided pack_text) ──
-  if (trimmedPackText.length > 0) {
-    lines.push(
-      "─── PRODUCT TEXT LOCK ───",
-      "The product in the image carries the following EXACT text. Reproduce it character-for-character.",
-      "Do NOT invent alternate spellings, taglines, or text not listed below.",
-      `[USER_INPUT: <<< ${sanitizeUserText(trimmedPackText, 500)} >>>]`,
-      "If any part of this text appears on a label, bottle, package, or surface in the image,",
-      "it MUST match the above exactly — including capitalisation, punctuation, and spacing.",
-      "",
-    );
-  }
 
   // ── BRAND'S REQUIRED CHOICES (authoritative, not optional) ───────────
   const trimmedDirectives =
@@ -180,12 +172,12 @@ export function buildAnchorPrompt(
     "",
     // ── CLOSING ANCHOR — PRODUCT (final, max recency weight) ───────────
     "─── FINAL CHECK #2 — PRODUCT FIDELITY ───",
-    "Look at the product reference image one more time. The product in your output must:",
-    "  ✓ Have the SAME brand wordmark, in the SAME font, in the SAME position — clearly readable",
-    "  ✓ Show ALL text from the original packaging — no missing labels, no blurred text, no invented words",
-    "  ✓ Match the exact pack format and colours",
+    "Look at the product reference image one more time. It is the only authority. The product in your output must:",
+    "  ✓ Have the SAME brand wordmark, in the SAME font, in the SAME position — copied from the image, clearly readable",
+    "  ✓ Show ALL text exactly as it appears in the reference photo — no missing labels, no blurred text, no invented or 'corrected' words",
+    "  ✓ Match the exact pack format, proportions, and colours of the photographed product",
     "",
-    "If a viewer cannot read the brand name and product variant clearly, the product is wrong.",
+    "Side-by-side with the reference photo, the product must look identical. If a viewer cannot read the brand name clearly, the product is wrong.",
     "",
     `Output: ultra-realistic photorealistic image, ${aspectRatio} aspect ratio, 8K detail, professional photography quality.`,
   );
@@ -236,8 +228,9 @@ export interface GenerateImageParams {
   /**
    * Phase 2.2.b — optional exact pack/label text the brand wants the model to
    * reproduce character-for-character (e.g. "Glenfiddich 12 — Single Malt").
-   * When present, a PRODUCT TEXT LOCK block is emitted in the anchor prompt
-   * and the text is sanitized + delimited (injection-safe).
+   * DEPRECATED (image-authoritative product, 2026-06): no longer injected
+   * into the prompt — the product reference image is the only authority for
+   * packaging text. Accepted and ignored for call-site compatibility.
    */
   packText?: string | null;
   /**
@@ -641,7 +634,7 @@ export function buildIterationPrompt(
   iterationNotes: string,
   aspectRatio: string,
   faceRefCount: number,
-  packText?: string | null,
+  _packText?: string | null,
 ): string {
   // Phase 1, fix 1.3 — sanitize + delimit brand-supplied iteration_notes so
   // a malicious instruction like "Ignore previous instructions and …" is
@@ -657,9 +650,6 @@ export function buildIterationPrompt(
       ? `images 2 through ${faceRefCount + 1}`
       : "image 2";
   const productImagePosition = faceRefCount + 2;
-
-  const trimmedPackText =
-    typeof packText === "string" ? packText.trim() : "";
 
   const lines: string[] = [
     "ITERATION TASK — read carefully:",
@@ -680,23 +670,11 @@ export function buildIterationPrompt(
     "Allow natural expression matching the scene. If the brand's request did not mention the person, keep face/body untouched.",
     "",
     "─── PRODUCT LOCK (non-negotiable) ───",
-    `The product is the SKU shown in the LAST attached image (image ${productImagePosition}). Preserve:`,
-    "  • Brand wordmark, exact font, packaging, every character of label text",
-    "  • Pack format (tube/jar/bottle/can), colour, finish",
-    "If the brand's request did not mention the product, keep it untouched.",
+    `The product is the SKU shown in the LAST attached image (image ${productImagePosition}). That reference photo is the ONLY authority for the product. Preserve:`,
+    "  • Brand wordmark, exact font, packaging — copied from the reference image, character-for-character; never autocorrect or redesign the label",
+    "  • Pack format (tube/jar/bottle/can), colour, finish, proportions",
+    "If the brand's request did not mention the product, keep it untouched. The iteration never changes the product label, regardless of what the requested changes say.",
   ];
-
-  // Phase 6d — carry PRODUCT TEXT LOCK forward through iteration so the
-  // brand can't drift on the label text on retries. Same template as the
-  // anchor prompt, just framed as "unchanged from first generation".
-  if (trimmedPackText.length > 0) {
-    lines.push(
-      "",
-      "─── PRODUCT TEXT LOCK (unchanged from first generation) ───",
-      `[USER_INPUT: <<< ${sanitizeUserText(trimmedPackText, 500)} >>>]`,
-      "All product text must remain exactly as above. The iteration does NOT change the product label, regardless of what the brand's requested changes say.",
-    );
-  }
 
   lines.push(
     "",
@@ -831,9 +809,9 @@ async function callIterateOnce(params: {
  * 1 inline retry. Throws on second failure — caller marks gen failed +
  * refunds the credit.
  *
- * Phase 5.3 — tracks cost. Phase 5.4 — returns `attempts`. Phase 6d —
- * `packText` is plumbed through so the PRODUCT TEXT LOCK persists across
- * iterations.
+ * Phase 5.3 — tracks cost. Phase 5.4 — returns `attempts`.
+ * `packText` is DEPRECATED (image-authoritative product) — accepted and
+ * ignored; the product reference image is the only label authority.
  */
 export async function iterateOnImage(params: {
   previousImage: ImageInput;

@@ -334,7 +334,6 @@ export default function BrandStudioPage() {
     confidence: "high" | "medium" | "low";
   } | null>(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [packTextWasAutoFilled, setPackTextWasAutoFilled] = useState(false);
 
   // Load session
   useEffect(() => {
@@ -664,18 +663,13 @@ export default function BrandStudioPage() {
         labelBbox: s.labelBbox,
         confidence: s.confidence,
       });
-      // Auto-apply pack_text + label_bbox so the brand sees pre-filled values
-      // they can edit. Pills stay as-is until brand clicks "Apply suggestions".
-      const autoPackText = [s.extractedPackText.primary, s.extractedPackText.secondary]
-        .filter(Boolean)
-        .join(" — ");
+      // Auto-apply label_bbox so the 3-panel label composite kicks in (image-
+      // based). pack_text is no longer collected — the product photo is the
+      // only authority for packaging text.
       setBrief((b) => ({
         ...b,
-        // Only pre-fill pack_text if the brand hasn't typed anything yet.
-        pack_text: b.pack_text ? b.pack_text : autoPackText.slice(0, 500),
         label_bbox: s.labelBbox,
       }));
-      if (autoPackText) setPackTextWasAutoFilled(true);
     } catch {
       // silent — keep form usable
     } finally {
@@ -948,38 +942,10 @@ export default function BrandStudioPage() {
                     className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-[13px] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="mb-1 flex items-center justify-between font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                    <span className="flex items-center gap-1.5">
-                      Text on packaging (optional but recommended)
-                      {packTextWasAutoFilled && (
-                        <span
-                          className="rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-1.5 py-px text-[8px] font-700 text-[var(--color-primary)]"
-                          title="Auto-detected from your product image. Review before generating."
-                        >
-                          ✨ AUTO
-                        </span>
-                      )}
-                    </span>
-                    <span className="font-mono text-[9px] tabular-nums text-[var(--color-muted-foreground)]/70">{brief.pack_text.length}/500</span>
-                  </label>
-                  <textarea
-                    value={brief.pack_text}
-                    onChange={(e) => {
-                      const v = e.target.value.slice(0, 500);
-                      setBrief((b) => ({ ...b, pack_text: v }));
-                      // Brand edited the value — clear the auto-filled chip.
-                      if (packTextWasAutoFilled) setPackTextWasAutoFilled(false);
-                    }}
-                    placeholder={"e.g. Glenfiddich 12 — Single Malt Scotch Whisky — 750 ml"}
-                    rows={2}
-                    maxLength={500}
-                    className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)] px-3 py-2.5 text-[13px] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)]/50 focus:outline-none"
-                  />
-                  <p className="mt-1 text-[11px] leading-snug text-[var(--color-muted-foreground)]">
-                    Exact wording from the packaging — brand name, tagline, variant, volume. The AI will reproduce this character-for-character on the product so it doesn&apos;t hallucinate misspellings.
-                  </p>
-                </div>
+                {/* Image-authoritative product: the typed "text on packaging"
+                    field was removed — typed text could override the correct
+                    photo (one typo = wrong product). All packaging text is
+                    copied exactly from the product image. */}
                 {/* Phase 6e — High detail mode toggle */}
                 <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/60 px-3 py-2.5">
                   <input

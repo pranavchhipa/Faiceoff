@@ -76,72 +76,31 @@ describe("normalizedEditDistance", () => {
 // shouldTriggerStage2
 // ---------------------------------------------------------------------------
 
-describe("shouldTriggerStage2", () => {
-  it("triggers manual when high_detail_mode is true (ignores other inputs)", () => {
-    const r = shouldTriggerStage2({
-      highDetailMode: true,
-      ocrDrift: 0.0,
-      packTextLength: 0,
-    });
+describe("shouldTriggerStage2 — manual high-detail only (image-authoritative)", () => {
+  it("triggers manual when high_detail_mode is true", () => {
+    const r = shouldTriggerStage2({ highDetailMode: true });
     expect(r).toEqual({ trigger: true, reason: "manual" });
   });
 
-  it("triggers ocr_fail when drift > 0.3 and manual is off", () => {
-    const r = shouldTriggerStage2({
-      highDetailMode: false,
-      ocrDrift: 0.35,
-      packTextLength: 10,
-    });
-    expect(r).toEqual({ trigger: true, reason: "ocr_fail" });
+  it("skips when high_detail_mode is false", () => {
+    const r = shouldTriggerStage2({ highDetailMode: false });
+    expect(r).toEqual({ trigger: false, reason: "skipped" });
   });
 
-  it("does NOT trigger when drift is below threshold", () => {
+  it("ignores the deprecated ocrDrift trigger (typed-text ground truth removed)", () => {
     const r = shouldTriggerStage2({
       highDetailMode: false,
-      ocrDrift: 0.2,
+      ocrDrift: 0.9,
       packTextLength: 10,
     });
     expect(r).toEqual({ trigger: false, reason: "skipped" });
   });
 
-  it("triggers dense_label proactively when pack_text > 50 chars", () => {
+  it("ignores the deprecated dense_label trigger (no surprise double-cost)", () => {
     const r = shouldTriggerStage2({
       highDetailMode: false,
       ocrDrift: null,
-      packTextLength: 80,
-    });
-    expect(r).toEqual({ trigger: true, reason: "dense_label" });
-  });
-
-  it("manual outranks ocr_fail outranks dense_label (precedence check)", () => {
-    expect(
-      shouldTriggerStage2({
-        highDetailMode: true,
-        ocrDrift: 0.9,
-        packTextLength: 200,
-      }).reason,
-    ).toBe("manual");
-    expect(
-      shouldTriggerStage2({
-        highDetailMode: false,
-        ocrDrift: 0.9,
-        packTextLength: 200,
-      }).reason,
-    ).toBe("ocr_fail");
-    expect(
-      shouldTriggerStage2({
-        highDetailMode: false,
-        ocrDrift: 0.1,
-        packTextLength: 200,
-      }).reason,
-    ).toBe("dense_label");
-  });
-
-  it("skips when nothing fires (small clean label, ocrDrift unknown)", () => {
-    const r = shouldTriggerStage2({
-      highDetailMode: false,
-      ocrDrift: null,
-      packTextLength: 20,
+      packTextLength: 200,
     });
     expect(r).toEqual({ trigger: false, reason: "skipped" });
   });

@@ -37,11 +37,7 @@ import { assemblePromptWithLLM, buildSceneDirectives } from "@/lib/ai/prompt-ass
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { upscaleImage } from "@/lib/ai/upscaler-client";
 import { buildProductComposite } from "@/lib/ai/product-composite";
-import {
-  extractTextFromImage,
-  normalizedEditDistance,
-  shouldTriggerStage2,
-} from "@/lib/ai/ocr-client";
+import { shouldTriggerStage2 } from "@/lib/ai/ocr-client";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
 import {
@@ -504,9 +500,8 @@ export async function runGeneration(generationId: string): Promise<void> {
         productImage,
         assembledPrompt,
         aspectRatio,
-        // Phase 2.2.b — exact pack/label text → PRODUCT TEXT LOCK block
-        packText:
-          typeof brief.pack_text === "string" ? brief.pack_text : null,
+        // NOTE: brand-typed pack_text is intentionally NOT passed — the
+        // product reference image is the only authority for packaging text.
         // Phase 6c — anchor prompt mentions the composite when active
         compositeApplied: composite.composited,
         // Brand's selected pills as authoritative directives (high-attention).
@@ -551,11 +546,10 @@ export async function runGeneration(generationId: string): Promise<void> {
       return;
     }
 
-    // ── 5b. Stage 2: Product refinement pass (Phase 6e smart trigger) ──────
-    // The original env-gated ENABLE_PRODUCT_REFINEMENT toggle is replaced
-    // with `shouldTriggerStage2()` — fires when high_detail_mode is on OR
-    // pack_text > 50 chars (dense label, likely worth the extra pass).
-    // OCR-driven trigger fires AFTER upscale (section 6).
+    // ── 5b. Stage 2: Product refinement pass (manual high-detail only) ─────
+    // Fires ONLY when the brand explicitly checked high-detail mode. The
+    // refinement is an image-to-image edit that copies the product from the
+    // reference photo — fully image-authoritative, no typed text involved.
     //
     // Diffusion models are far better at "preserve this region from
     // reference" than "generate this from scratch", so when Stage 2 fires
@@ -577,9 +571,6 @@ export async function runGeneration(generationId: string): Promise<void> {
 
     const preUpscaleTrigger = shouldTriggerStage2({
       highDetailMode: brief.high_detail_mode === true,
-      ocrDrift: null,
-      packTextLength:
-        typeof brief.pack_text === "string" ? brief.pack_text.length : 0,
     });
 
     if (preUpscaleTrigger.trigger) {
@@ -659,101 +650,14 @@ export async function runGeneration(generationId: string): Promise<void> {
       }
     }
 
-    // ── 5d. OCR validation + drift-based Stage 2 fallback (Phase 6e) ───────
-    // Only runs when the brand provided pack_text. OCR the (upscaled) image,
-    // compare against pack_text. If drift > 0.3 AND we haven't already
-    // refined → run Stage 2 NOW on the upscaled bytes, then re-OCR to
-    // confirm. The result lands in generations.ocr_validation_result for
-    // admin review.
-    let ocrValidationResult:
-      | { extracted: string; drift: number; confidence: number }
-      | null = null;
-    const packText =
-      typeof brief.pack_text === "string" ? brief.pack_text.trim() : "";
-    if (packText.length > 0) {
-      const ocr = await extractTextFromImage({
-        imageBytes: finalImage.bytes,
-        bbox: labelBboxRaw ?? null,
-      });
-      const drift = normalizedEditDistance(ocr.text, packText);
-      ocrValidationResult = {
-        extracted: ocr.text,
-        drift,
-        confidence: ocr.confidence,
-      };
-
-      if (drift > 0.3 && !refinementApplied) {
-        try {
-          const refined = await refineProductInImage({
-            generatedImage: {
-              bytes: finalImage.bytes,
-              mimeType: finalImage.mimeType,
-            },
-            productImage,
-            aspectRatio,
-            generationId,
-          });
-          finalImage = { bytes: refined.bytes, mimeType: refined.mimeType };
-          refinementApplied = true;
-          stage2TriggeredBy = "ocr_fail";
-          track(
-            "stage2_triggered",
-            { generation_id: generationId, trigger_type: "ocr_fail" },
-            brandId,
-          );
-          // Re-OCR to update the persisted validation result.
-          const reOcr = await extractTextFromImage({
-            imageBytes: finalImage.bytes,
-            bbox: labelBboxRaw ?? null,
-          });
-          ocrValidationResult = {
-            extracted: reOcr.text,
-            drift: normalizedEditDistance(reOcr.text, packText),
-            confidence: reOcr.confidence,
-          };
-          track(
-            "ocr_validation_failed",
-            {
-              generation_id: generationId,
-              drift_score: drift,
-              triggered_stage2: true,
-              post_refinement_drift: ocrValidationResult.drift,
-            },
-            brandId,
-          );
-        } catch (refineErr) {
-          const msg =
-            refineErr instanceof Error
-              ? refineErr.message
-              : String(refineErr);
-          console.warn(
-            `[run-generation] gen=${generationId} OCR-triggered stage 2 failed: ${msg}`,
-          );
-          Sentry.captureException(refineErr, {
-            tags: { route: "run-generation", phase: "refinement_ocr" },
-            extra: { generation_id: generationId, drift },
-          });
-          track(
-            "ocr_validation_failed",
-            {
-              generation_id: generationId,
-              drift_score: drift,
-              triggered_stage2: false,
-            },
-            brandId,
-          );
-        }
-      } else {
-        track(
-          "ocr_validation_passed",
-          {
-            generation_id: generationId,
-            drift_score: drift,
-          },
-          brandId,
-        );
-      }
-    }
+    // ── 5d. OCR-vs-typed-text validation REMOVED (image-authoritative) ─────
+    // The old check OCR'd the output and compared it against brand-TYPED
+    // pack_text. Typed text is unreliable ground truth — one brand typo
+    // flagged CORRECT renders as drift and silently fired a second (paid)
+    // Stage-2 call. Product fidelity is now enforced purely from the product
+    // reference image: PRODUCT LOCK prompt + 3-panel label composite +
+    // optional manual high-detail refinement (which copies from the image).
+    const ocrValidationResult: null = null;
 
     // ── 6. R2 upload + sidecar provenance (Phase 3.2) ──────────────────────
     // Image bytes go to R2 UNTOUCHED — no sharp re-encode, pixel-perfect from
@@ -1115,10 +1019,8 @@ export async function runIteration(generationId: string): Promise<void> {
     try {
       iterationResult = await iterateOnImage({
         generationId,
-        // Phase 6d — carry pack_text forward into the iteration prompt so
-        // PRODUCT TEXT LOCK persists across retries.
-        packText:
-          typeof brief.pack_text === "string" ? brief.pack_text : null,
+        // pack_text intentionally NOT passed — the product reference image
+        // is the only authority for packaging text (image-authoritative).
         previousImage,
         faceRefs,
         productImage,
