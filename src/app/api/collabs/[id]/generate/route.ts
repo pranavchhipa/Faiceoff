@@ -11,6 +11,12 @@ import type { Json } from "@/types/supabase";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
+// CRITICAL: image generation runs inside after() and takes 20-40s. Without
+// this, Vercel kills the function at the default ~10s — the generation never
+// finishes and the row stays stuck in 'generating'. 60s is the Vercel Hobby
+// tier max (raise to 300 on Pro for high-detail / multi-stage gens).
+export const maxDuration = 60;
+
 // POST /api/collabs/[id]/generate
 // Creates one generation for an active collab session, deducting 1 gen credit.
 export async function POST(

@@ -1,0 +1,4 @@
+model: gemini-3-pro-image-preview | key prefix: AQ.Ab8RN
+WITH_temp_0.4: FAIL(302937ms) — fetch failed
+NO_temp: FAIL(309710ms) — fetch failed
+DONE
