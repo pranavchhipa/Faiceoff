@@ -943,26 +943,11 @@ export default function BrandStudioPage() {
                   />
                 </div>
                 {/* Image-authoritative product: the typed "text on packaging"
-                    field was removed — typed text could override the correct
-                    photo (one typo = wrong product). All packaging text is
-                    copied exactly from the product image. */}
-                {/* Phase 6e — High detail mode toggle */}
-                <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-secondary)]/60 px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={brief.high_detail_mode}
-                    onChange={(e) => setBrief((b) => ({ ...b, high_detail_mode: e.target.checked }))}
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--color-primary)]"
-                  />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[12px] font-600 leading-tight text-[var(--color-foreground)]">
-                      High detail mode <span className="font-400 text-[11px] text-[var(--color-muted-foreground)]">(recommended for dense labels / fine print)</span>
-                    </span>
-                    <span className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
-                      Forces an additional refinement pass for sharper product text. Generation may take 5–10s longer.
-                    </span>
-                  </div>
-                </label>
+                    field AND the high-detail toggle were removed — typed text
+                    could override the correct photo (one typo = wrong product),
+                    and the toggle's extra pass was the only path to a 2x Gemini
+                    bill. Every generation is now a single, predictable-cost
+                    call that copies the product straight from the image. */}
                 <p className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
                   Tip: use a clean, well-lit product photo. The AI uses this as the source-of-truth for the product&apos;s shape, color and labeling.
                 </p>
