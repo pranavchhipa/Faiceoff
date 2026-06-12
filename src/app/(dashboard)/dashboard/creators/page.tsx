@@ -181,7 +181,7 @@ export default function CreatorCatalogPage() {
           placeholder="Search by name or category..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-11 rounded-[var(--radius-button)] border-[var(--color-neutral-200)] bg-white pl-10 text-sm shadow-[var(--shadow-soft)] placeholder:text-[var(--color-neutral-400)] focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
+          className="h-11 rounded-[var(--radius-button)] border-[var(--color-neutral-200)] bg-[var(--color-secondary)] pl-10 text-sm shadow-[var(--shadow-soft)] placeholder:text-[var(--color-neutral-400)] focus-visible:border-[var(--color-gold)] focus-visible:ring-[var(--color-gold)]/20"
         />
       </div>
 
@@ -196,7 +196,7 @@ export default function CreatorCatalogPage() {
             className={`shrink-0 rounded-[var(--radius-pill)] px-4 py-2 text-sm font-500 transition-colors ${
               activeCategory === cat
                 ? "bg-[var(--color-gold)] text-white shadow-[var(--shadow-soft)]"
-                : "bg-white text-[var(--color-neutral-600)] shadow-[var(--shadow-soft)] hover:bg-[var(--color-neutral-100)]"
+                : "bg-[var(--color-card)] text-[var(--color-neutral-600)] shadow-[var(--shadow-soft)] hover:bg-[var(--color-neutral-100)]"
             }`}
           >
             {cat}
@@ -210,7 +210,7 @@ export default function CreatorCatalogPage() {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="animate-pulse rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]"
+              className="animate-pulse rounded-[var(--radius-card)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-card)]"
             >
               <div className="flex items-center gap-4">
                 <div className="size-14 rounded-full bg-[var(--color-neutral-200)]" />
@@ -234,7 +234,7 @@ export default function CreatorCatalogPage() {
 
       {/* Empty State */}
       {!isLoading && filteredCreators.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-white py-16 shadow-[var(--shadow-card)]">
+        <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-[var(--color-card)] py-16 shadow-[var(--shadow-card)]">
           <div className="flex size-16 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
             <Users className="size-7 text-[var(--color-neutral-400)]" />
           </div>

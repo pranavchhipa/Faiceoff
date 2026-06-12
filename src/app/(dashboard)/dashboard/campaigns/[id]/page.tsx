@@ -376,7 +376,7 @@ export default function CampaignDetailPage() {
           className="mb-6 flex items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--color-lilac)] bg-[var(--color-lilac)]/50 px-5 py-4 no-underline transition-shadow hover:shadow-[var(--shadow-soft)]"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-card)]">
               <Clock className="size-4 text-[var(--color-ink)]" />
             </div>
             <div className="min-w-0">
@@ -437,7 +437,7 @@ export default function CampaignDetailPage() {
       {/* ── Stats row ── */}
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
         {/* Earnings / Budget */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex size-9 items-center justify-center rounded-[var(--radius-input)] bg-[var(--color-mint)]/40">
               <IndianRupee className="size-4 text-[var(--color-neutral-600)]" />
@@ -472,7 +472,7 @@ export default function CampaignDetailPage() {
         </div>
 
         {/* Generations */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-5">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex size-9 items-center justify-center rounded-[var(--radius-input)] bg-[var(--color-ocean)]/40">
               <ImageIcon className="size-4 text-[var(--color-neutral-600)]" />
@@ -532,7 +532,7 @@ export default function CampaignDetailPage() {
       )}
 
       {generations.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-10 text-center">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-10 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
             <Sparkles className="size-5 text-[var(--color-neutral-400)]" />
           </div>
@@ -565,7 +565,7 @@ export default function CampaignDetailPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: i * 0.04 }}
-                  className={`group rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-4 transition-shadow hover:shadow-[var(--shadow-elevated)] ${
+                  className={`group rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-4 transition-shadow hover:shadow-[var(--shadow-elevated)] ${
                     isInProgress ? "border-[var(--color-ocean)]/40" : ""
                   }`}
                 >

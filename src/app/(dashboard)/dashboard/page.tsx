@@ -268,7 +268,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-80 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
+                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-80 overflow-hidden rounded-2xl bg-[var(--color-card)] shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
                 >
                   <div className="flex items-center justify-between border-b border-[var(--color-neutral-200)] px-5 py-3.5">
                     <p className="text-sm font-700 text-[var(--color-ink)]">Notifications</p>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-64 overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
+                  className="absolute right-0 top-14 z-50 w-[calc(100vw-2.5rem)] max-w-64 overflow-hidden rounded-2xl bg-[var(--color-card)] shadow-[var(--shadow-card)] border border-[var(--color-neutral-200)]"
                 >
                   <div className="border-b border-[var(--color-neutral-200)] px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -335,7 +335,7 @@ export default function DashboardPage() {
       {/* ══════════ Onboarding CTA ══════════ */}
       {(needsOnboarding || needsBrandSetup || noProfile) && (
         <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="mb-5 relative overflow-hidden rounded-[var(--radius-card)] bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-container)] p-[1px]">
-          <div className="flex flex-col gap-4 rounded-[calc(var(--radius-card)-1px)] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex flex-col gap-4 rounded-[calc(var(--radius-card)-1px)] bg-[var(--color-card)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex items-center gap-4 min-w-0">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]">
                 <Zap className="size-5 text-white" />
@@ -366,7 +366,7 @@ export default function DashboardPage() {
       {/* ══════════ Status Banner ══════════ */}
       {onboardingComplete && role === "creator" && (
         <motion.div variants={fadeUp} className="mb-6">
-          <div className="flex items-center gap-2.5 rounded-xl bg-white border border-[var(--color-neutral-200)] shadow-sm px-4 py-2.5">
+          <div className="flex items-center gap-2.5 rounded-xl bg-[var(--color-card)] border border-[var(--color-neutral-200)] shadow-sm px-4 py-2.5">
              <Clock className="size-4 text-[var(--color-ink)] opacity-60" />
              <p className="text-[13px] font-500 text-[var(--color-ink)] opacity-80">
                {creatorProfile?.is_active ? "Profile is live — Brands can discover and book you" : "Profile under review — Activation within 24–48 hours"}
@@ -420,7 +420,7 @@ export default function DashboardPage() {
             <h2 className="text-[11px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)] mb-3">
               Quick Actions
             </h2>
-            <div className="rounded-[var(--radius-card)] bg-white border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
+            <div className="rounded-[var(--radius-card)] bg-[var(--color-card)] border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
               <Link href="/dashboard/creators" className="flex items-center justify-between p-4 hover:bg-[var(--color-neutral-50)] transition-colors group no-underline">
                 <div className="flex items-center gap-3">
                   <Users className="size-5 text-[var(--color-ink)] opacity-80" />
@@ -450,7 +450,7 @@ export default function DashboardPage() {
             <h2 className="text-[11px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)] mb-3">
               Brand Details
             </h2>
-            <div className="rounded-[var(--radius-card)] bg-white border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
+            <div className="rounded-[var(--radius-card)] bg-[var(--color-card)] border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
               <div className="p-4">
                 <p className="text-[10px] font-700 text-[var(--color-neutral-500)] uppercase tracking-wide">Company</p>
                 <p className="text-[15px] font-600 text-[var(--color-ink)] mt-1">{brandProfile?.company_name || displayName}</p>
@@ -589,7 +589,7 @@ export default function DashboardPage() {
               <div className="flex flex-wrap gap-3">
                 {categories.map((cat, i) => {
                   const CatIcon = CATEGORY_ICONS[cat.category.toLowerCase()] ?? Palette;
-                  let bgColors = { bg: "bg-white", badge: "bg-[var(--color-ink)]", text: "text-[var(--color-ink)]", iconBg: "bg-[var(--color-ink)] bg-opacity-[0.08]" };
+                  let bgColors = { bg: "bg-[var(--color-card)]", badge: "bg-[var(--color-ink)]", text: "text-[var(--color-ink)]", iconBg: "bg-[var(--color-ink)] bg-opacity-[0.08]" };
                   
                   if (cat.category.toLowerCase() === "fashion") {
                      bgColors = { bg: "bg-[var(--color-neutral-50)]", iconBg: "bg-black/5", badge: "bg-[#1a6b3c]", text: "text-[var(--color-ink)]" };
@@ -652,7 +652,7 @@ export default function DashboardPage() {
             <h2 className="text-[11px] font-700 uppercase tracking-wider text-[var(--color-neutral-500)] mb-3">
               Quick Actions
             </h2>
-            <div className="rounded-[var(--radius-card)] bg-white border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
+            <div className="rounded-[var(--radius-card)] bg-[var(--color-card)] border border-[var(--color-neutral-200)] shadow-[var(--shadow-soft)] overflow-hidden divide-y divide-[var(--color-neutral-200)]">
               <Link href="/dashboard/approvals" className="flex items-center justify-between p-4 hover:bg-[var(--color-neutral-50)] transition-colors group no-underline">
                 <div className="flex items-center gap-3">
                   <ListTodo className="size-5 text-[var(--color-ink)] opacity-80" />

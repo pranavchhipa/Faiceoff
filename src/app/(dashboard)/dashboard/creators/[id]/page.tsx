@@ -117,7 +117,7 @@ export default function CreatorProfilePage({
     return (
       <div className="max-w-5xl">
         <div className="mb-6 h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
-        <div className="animate-pulse rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]">
+        <div className="animate-pulse rounded-[var(--radius-card)] bg-[var(--color-card)] p-8 shadow-[var(--shadow-card)]">
           <div className="h-[280px] rounded-xl bg-[var(--color-neutral-200)]" />
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function CreatorProfilePage({
           <ArrowLeft className="size-4" />
           Back to creators
         </Link>
-        <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-white py-16 shadow-[var(--shadow-card)]">
+        <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-[var(--color-card)] py-16 shadow-[var(--shadow-card)]">
           <h3 className="text-lg font-600 text-[var(--color-ink)]">Creator not found</h3>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
             {error ?? "This creator may no longer be available."}
@@ -179,7 +179,7 @@ export default function CreatorProfilePage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="overflow-hidden rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)]"
+        className="overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-card)] shadow-[var(--shadow-card)]"
       >
         {/* HERO */}
         <div className="relative h-[240px] sm:h-[280px]">

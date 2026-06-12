@@ -116,7 +116,7 @@ export default function LikenessPage() {
           </p>
         </div>
         <div
-          className="rounded-xl bg-white p-6 text-center"
+          className="rounded-xl bg-[var(--color-card)] p-6 text-center"
           style={ghostBorder}
         >
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-[var(--color-ocean)]">
@@ -164,7 +164,7 @@ export default function LikenessPage() {
         <div className="absolute -right-12 -top-12 size-48 rounded-full bg-[var(--color-mint)] opacity-30 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-card)] shadow-sm">
               {hasEnoughPhotos ? (
                 <CheckCircle2 className="size-5 text-emerald-600" />
               ) : (
@@ -237,7 +237,7 @@ export default function LikenessPage() {
       </div>
 
       {/* ─── Reference Photos ─── */}
-      <div className="rounded-xl bg-white p-4" style={ghostBorder}>
+      <div className="rounded-xl bg-[var(--color-card)] p-4" style={ghostBorder}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-blush)]">
@@ -304,7 +304,7 @@ export default function LikenessPage() {
       </div>
 
       {/* ─── Likeness Protection ─── */}
-      <div className="rounded-xl bg-white p-4" style={ghostBorder}>
+      <div className="rounded-xl bg-[var(--color-card)] p-4" style={ghostBorder}>
         <div className="flex items-center gap-2.5 mb-3.5">
           <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-ocean)]">
             <Shield className="size-4 text-blue-600" />

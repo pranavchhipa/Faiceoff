@@ -479,7 +479,7 @@ export default function NewGenerationPage() {
       </div>
 
       {/* Form */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-white p-6">
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-6">
         <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Guided Prompt Builder
         </h2>

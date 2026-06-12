@@ -358,7 +358,7 @@ export default function GenerationDetailPage({
         <div className="mb-6">
           <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         </div>
-        <div className="animate-pulse rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)]">
+        <div className="animate-pulse rounded-[var(--radius-card)] bg-[var(--color-card)] p-8 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-4">
             <div className="h-6 w-32 rounded bg-[var(--color-neutral-200)]" />
             <div className="h-5 w-24 rounded-full bg-[var(--color-neutral-100)]" />
@@ -435,7 +435,7 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
+        className="rounded-[var(--radius-card)] bg-[var(--color-card)] p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         {/* Status + Campaign */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
@@ -758,7 +758,7 @@ export default function GenerationDetailPage({
                       onChange={(e) => setFeedback(e.target.value)}
                       placeholder="Describe what needs to change..."
                       rows={3}
-                      className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20 transition-all resize-none"
+                      className="w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-secondary)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold)]/20 transition-all resize-none"
                     />
                   </div>
                 </motion.div>
@@ -856,7 +856,7 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-6 rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
+        className="mt-6 rounded-[var(--radius-card)] bg-[var(--color-card)] p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Timeline
@@ -916,7 +916,7 @@ export default function GenerationDetailPage({
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-6 rounded-[var(--radius-card)] bg-white p-5 sm:p-8 shadow-[var(--shadow-card)]"
+        className="mt-6 rounded-[var(--radius-card)] bg-[var(--color-card)] p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
         <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
           Details
