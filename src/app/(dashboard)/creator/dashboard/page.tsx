@@ -22,6 +22,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { VerifyBanner } from "@/components/creator/verify-banner";
+import {
+  MetricCard,
+  MetricHead,
+  MetricValue,
+  MetricLabel,
+  Sparkline,
+  AreaChart,
+  ApprovalRing,
+} from "@/components/dashboard/stat-primitives";
 
 /* ───────── Types ───────── */
 
@@ -123,7 +132,10 @@ export default function CreatorDashboardPage() {
       walletBalance?: number;
       totalCampaigns?: number;
       activeCampaigns?: number;
+      approvalRate?: number | null;
     };
+    earningsSeries?: number[];
+    approvalBreakdown?: { approved: number; pending: number; rejected: number };
   }>("/api/dashboard/stats", { enabled });
 
   const { data: earningsData, loading: earningsLoading } = useCachedFetch<{
@@ -203,6 +215,18 @@ export default function CreatorDashboardPage() {
   const photoPct = Math.min(100, Math.round((photoCount / photoTarget) * 100));
   const pendingCount = stats.pendingApprovals || approvals.length;
   const totalPending = pendingCount + pendingRequestsCount;
+
+  // Real activity data for the chart + ring (from /api/dashboard/stats).
+  const earningsSeries: number[] = statsData?.earningsSeries ?? [];
+  const apprBreakdown = statsData?.approvalBreakdown ?? {
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+  };
+  const approvalRate = statsData?.stats?.approvalRate ?? null;
+  const hasEarningsActivity = earningsSeries.some((n) => n > 0);
+  const hasApprovalActivity =
+    apprBreakdown.approved + apprBreakdown.pending + apprBreakdown.rejected > 0;
 
   if (loading && !statsData) return <DashboardSkeleton />;
 
@@ -406,110 +430,158 @@ export default function CreatorDashboardPage() {
 
       {/* ── METRIC STRIP ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {/* Available to withdraw — gold */}
-        <motion.div
-          variants={fadeUp}
-          initial="initial"
-          animate="animate"
-          transition={{ duration: 0.4, delay: 0.07 }}
-        >
-          <div className="relative overflow-hidden rounded-2xl bg-[var(--color-primary)] p-4 lg:p-5">
-            <div
-              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-20"
-              style={{
-                background: "radial-gradient(circle, white, transparent 60%)",
-              }}
-            />
-            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]/70">
-              Available
-            </p>
-            <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-primary-foreground)] lg:text-[26px]">
-              {formatINR(earnings.available_paise)}
-            </p>
-            <Link
-              href="/creator/withdraw"
-              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary-foreground)] opacity-90 hover:opacity-100"
-            >
-              Withdraw <ArrowUpRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </motion.div>
-
-        {/* Pending approvals */}
-        <motion.div
-          variants={fadeUp}
-          initial="initial"
-          animate="animate"
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          <div
-            className={`rounded-2xl border p-4 lg:p-5 ${
-              totalPending > 0
-                ? "border-amber-400/40 bg-amber-500/8"
-                : "border-[var(--color-border)] bg-[var(--color-card)]"
-            }`}
+        {/* Available to withdraw — gold lead */}
+        <MetricCard delay={0.06} lead>
+          <MetricHead icon={<Wallet className="h-[18px] w-[18px]" />} lead />
+          <MetricValue>{formatINR(earnings.available_paise)}</MetricValue>
+          <MetricLabel>Available to withdraw</MetricLabel>
+          <Link
+            href="/creator/withdraw"
+            className="mt-3 inline-flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
           >
-            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              Pending
-            </p>
-            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {totalPending}
-            </p>
-            <Link
-              href={pendingRequestsCount > 0 ? "/creator/requests" : "/creator/approvals"}
-              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
-            >
-              Review all <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </motion.div>
+            Withdraw <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </MetricCard>
+
+        {/* Pending */}
+        <MetricCard delay={0.09}>
+          <MetricHead
+            icon={<Clock className="h-[18px] w-[18px]" />}
+            trend={totalPending > 0 ? `${totalPending} new` : undefined}
+          />
+          <MetricValue>{totalPending}</MetricValue>
+          <MetricLabel>Pending your action</MetricLabel>
+          <Link
+            href={pendingRequestsCount > 0 ? "/creator/requests" : "/creator/approvals"}
+            className="mt-3 inline-flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
+          >
+            Review all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </MetricCard>
 
         {/* Active collabs */}
-        <motion.div
-          variants={fadeUp}
-          initial="initial"
-          animate="animate"
-          transition={{ duration: 0.4, delay: 0.13 }}
-        >
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
-            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              Active collabs
-            </p>
-            <p className="mt-1.5 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
-              {shownActiveCampaigns}
-            </p>
-            <Link
-              href="/creator/collabs"
-              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </motion.div>
+        <MetricCard delay={0.12}>
+          <MetricHead icon={<Megaphone className="h-[18px] w-[18px]" />} />
+          <MetricValue>{shownActiveCampaigns}</MetricValue>
+          <MetricLabel>Active collabs</MetricLabel>
+          <Link
+            href="/creator/collabs"
+            className="mt-3 inline-flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
+          >
+            View all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </MetricCard>
 
         {/* Lifetime earned */}
-        <motion.div
-          variants={fadeUp}
-          initial="initial"
-          animate="animate"
-          transition={{ duration: 0.4, delay: 0.16 }}
-        >
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 lg:p-5">
-            <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              Lifetime earned
-            </p>
-            <p className="mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight text-[var(--color-foreground)] lg:text-[24px]">
-              {formatINR(earnings.lifetime_earned_paise)}
-            </p>
+        <MetricCard delay={0.15}>
+          <MetricHead icon={<IndianRupee className="h-[18px] w-[18px]" />} />
+          <MetricValue>{formatINR(earnings.lifetime_earned_paise)}</MetricValue>
+          <MetricLabel>Lifetime earned</MetricLabel>
+          {hasEarningsActivity ? (
+            <Sparkline
+              data={earningsSeries}
+              className="mt-3 text-[var(--color-primary)]"
+            />
+          ) : (
             <Link
               href="/creator/earnings"
-              className="mt-3 flex items-center gap-1 text-[11px] font-700 text-[var(--color-primary)]"
+              className="mt-3 inline-flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
             >
-              Full history <ArrowRight className="h-3 w-3" />
+              Full history <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          </div>
-        </motion.div>
+          )}
+        </MetricCard>
       </div>
+
+      {/* ── EARNINGS ACTIVITY + APPROVAL RING ── */}
+      {(hasEarningsActivity || hasApprovalActivity) && (
+        <div className="grid gap-4 lg:grid-cols-[1.9fr_1fr]">
+          <motion.div
+            variants={fadeUp}
+            initial="initial"
+            animate="animate"
+            transition={{ duration: 0.45, delay: 0.18 }}
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 lg:p-6"
+          >
+            <div className="mb-1 flex items-start justify-between">
+              <div>
+                <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+                  Earnings activity
+                </h3>
+                <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
+                  Credited to you · last 8 weeks
+                </p>
+              </div>
+              <Link
+                href="/creator/earnings"
+                className="flex items-center gap-1 text-[13px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-primary)]"
+              >
+                History <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            {hasEarningsActivity ? (
+              <AreaChart data={earningsSeries} />
+            ) : (
+              <div className="flex h-[200px] flex-col items-center justify-center text-center">
+                <p className="text-[14px] font-600 text-[var(--color-foreground)]">
+                  No earnings yet
+                </p>
+                <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
+                  Your weekly earnings will chart here once approvals start
+                  clearing.
+                </p>
+              </div>
+            )}
+          </motion.div>
+
+          <motion.div
+            variants={fadeUp}
+            initial="initial"
+            animate="animate"
+            transition={{ duration: 0.45, delay: 0.22 }}
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 lg:p-6"
+          >
+            <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+              Approval health
+            </h3>
+            <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
+              Your decisions · last 8 weeks
+            </p>
+            {hasApprovalActivity ? (
+              <ApprovalRing
+                rate={approvalRate ?? 0}
+                centerLabel="Approved"
+                legend={[
+                  {
+                    label: "Approved",
+                    value: apprBreakdown.approved,
+                    colorClass: "bg-[var(--color-primary)]",
+                  },
+                  {
+                    label: "Pending",
+                    value: apprBreakdown.pending,
+                    colorClass: "bg-[var(--color-primary)]/35",
+                  },
+                  {
+                    label: "Rejected",
+                    value: apprBreakdown.rejected,
+                    colorClass: "bg-red-400/70",
+                  },
+                ]}
+              />
+            ) : (
+              <div className="flex h-[200px] flex-col items-center justify-center text-center">
+                <p className="text-[14px] font-600 text-[var(--color-foreground)]">
+                  No decisions yet
+                </p>
+                <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
+                  Approve or decline brand images and your stats appear here.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {/* ── MAIN 2-COL ── */}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

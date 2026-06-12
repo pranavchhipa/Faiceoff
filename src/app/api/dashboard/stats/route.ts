@@ -35,6 +35,12 @@ export async function GET() {
 
       const isComplete = creator.onboarding_step === "complete";
 
+      // 8-week window for the earnings sparkline + approval-health ring.
+      const WEEKS = 8;
+      const sinceIso = new Date(
+        Date.now() - WEEKS * 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
       // Run ALL queries in parallel
       const [
         approvalsResult,
@@ -42,6 +48,8 @@ export async function GET() {
         campaignsResult,
         categoriesResult,
         photosResult,
+        earningsTxResult,
+        approvalsAllResult,
       ] = await Promise.all([
         // Pending approvals
         Promise.resolve(
@@ -134,7 +142,64 @@ export async function GET() {
               .then(({ count }) => count ?? 0)
               .catch(() => 0)
           : Promise.resolve(0),
+
+        // Earnings credits over the last 8 weeks (for the activity chart).
+        Promise.resolve(
+          admin
+            .from("wallet_transactions_archive")
+            .select("amount_paise, direction, created_at")
+            .eq("user_id", user.id)
+            .gte("created_at", sinceIso)
+            .order("created_at", { ascending: false })
+            .limit(2000),
+        )
+          .then(
+            ({ data }: { data: Array<{ amount_paise: number; direction: string; created_at: string }> | null }) =>
+              data ?? [],
+          )
+          .catch(
+            () => [] as Array<{ amount_paise: number; direction: string; created_at: string }>,
+          ),
+
+        // Approval decisions over the last 8 weeks (for the approval ring).
+        Promise.resolve(
+          admin
+            .from("approvals")
+            .select("status")
+            .eq("creator_id", creator.id)
+            .gte("created_at", sinceIso)
+            .limit(2000),
+        )
+          .then(
+            ({ data }: { data: Array<{ status: string }> | null }) => data ?? [],
+          )
+          .catch(() => [] as Array<{ status: string }>),
       ]);
+
+      // Bucket credit transactions into WEEKS weekly earnings totals (paise).
+      const cWeekMs = 7 * 24 * 60 * 60 * 1000;
+      const cNow = Date.now();
+      const earningsSeries = new Array(WEEKS).fill(0) as number[];
+      for (const tx of earningsTxResult) {
+        if (tx.direction !== "credit") continue;
+        const weeksAgo = Math.floor(
+          (cNow - new Date(tx.created_at).getTime()) / cWeekMs,
+        );
+        const idx = WEEKS - 1 - weeksAgo;
+        if (idx >= 0 && idx < WEEKS)
+          earningsSeries[idx] += tx.amount_paise ?? 0;
+      }
+      const cBreakdown = { approved: 0, pending: 0, rejected: 0 };
+      for (const a of approvalsAllResult) {
+        if (a.status === "approved") cBreakdown.approved += 1;
+        else if (a.status === "pending") cBreakdown.pending += 1;
+        else if (a.status === "rejected") cBreakdown.rejected += 1;
+      }
+      const cDecided = cBreakdown.approved + cBreakdown.rejected;
+      const creatorApprovalRate =
+        cDecided > 0
+          ? Math.round((cBreakdown.approved / cDecided) * 100)
+          : null;
 
       // Dashboard stats refresh frequency is bounded by the BalanceChip's
       // 60s poll. 15s browser cache + 60s SWR means tab switches within a
@@ -147,9 +212,12 @@ export async function GET() {
           walletBalance: walletResult,
           activeCampaigns: campaignsResult.active,
           totalCampaigns: campaignsResult.total,
+          approvalRate: creatorApprovalRate,
         },
         categories: categoriesResult,
         photoCount: photosResult,
+        earningsSeries,
+        approvalBreakdown: cBreakdown,
       });
     } else {
       // Brand
@@ -170,12 +238,12 @@ export async function GET() {
       ).toISOString();
 
       // Run brand queries in parallel
-      const [campaignsResult, walletResult, generationsResult] =
+      const [campaignsResult, walletResult, generationsResult, genTotalResult] =
         await Promise.all([
         Promise.resolve(
           admin
             .from("collab_sessions")
-            .select("id, status, generation_count")
+            .select("id, status")
             .eq("brand_id", brand.id),
         )
           .then(({ data }) => {
@@ -183,13 +251,9 @@ export async function GET() {
             return {
               active: campaigns.filter((c) => c.status === "active").length,
               total: campaigns.length,
-              generations: campaigns.reduce(
-                (s, c) => s + (c.generation_count ?? 0),
-                0,
-              ),
             };
           })
-          .catch(() => ({ active: 0, total: 0, generations: 0 })),
+          .catch(() => ({ active: 0, total: 0 })),
 
         // Brand wallet balance — reads wallet_transactions_archive
         // (migration 00027). Cast because Supabase types don't yet know
@@ -239,6 +303,17 @@ export async function GET() {
         )
           .then(({ data }) => (data ?? []) as Array<{ status: string; created_at: string }>)
           .catch(() => [] as Array<{ status: string; created_at: string }>),
+
+        // Real all-time generation count (the collab_sessions.generation_count
+        // column is not maintained, so summing it returned a misleading 0).
+        Promise.resolve(
+          admin
+            .from("generations")
+            .select("id", { count: "exact", head: true })
+            .eq("brand_id", brand.id),
+        )
+          .then(({ count }: { count: number | null }) => count ?? 0)
+          .catch(() => 0),
       ]);
 
       // Bucket the recent generations into WEEKS weekly counts (oldest →
@@ -271,7 +346,7 @@ export async function GET() {
         stats: {
           activeCampaigns: campaignsResult.active,
           totalCampaigns: campaignsResult.total,
-          totalGenerations: campaignsResult.generations,
+          totalGenerations: genTotalResult,
           walletBalance: walletResult,
           approvalRate,
         },
