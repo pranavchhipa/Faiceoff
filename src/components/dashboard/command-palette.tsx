@@ -25,8 +25,6 @@ import {
   Hourglass,
   Package,
   Settings,
-  Moon,
-  Sun,
   LogOut,
   IndianRupee,
   ClipboardCheck,
@@ -37,7 +35,6 @@ import {
   Tags,
   type LucideIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import type { Role } from "@/config/routes";
 
 interface PaletteItem {
@@ -82,8 +79,6 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
-  const { setTheme, resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   const runNav = useCallback(
     (href: string) => {
@@ -164,16 +159,10 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
     });
   }
 
-  // Always-available theme + help group
+  // Always-available help group. (Theme toggle removed — Faiceoff is dark-only.)
   groups.push({
     heading: "Preferences",
     items: [
-      {
-        label: isDark ? "Switch to light theme" : "Switch to dark theme",
-        action: () => setTheme(isDark ? "light" : "dark"),
-        icon: isDark ? Sun : Moon,
-        shortcut: "⇧T",
-      },
       {
         label: "Email support",
         action: () => {

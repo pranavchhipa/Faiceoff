@@ -4,21 +4,21 @@ import type { ReactNode } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 
 /**
- * ThemeProvider — Faiceoff dashboard theme switcher.
+ * ThemeProvider — Faiceoff is DARK-ONLY.
  *
- * - Uses `next-themes` with `class` attribute on <html>.
- * - Default: "light" (Hybrid Soft Luxe, paper/cream surface).
- * - Dark: dashboard dark (cool slate — distinct from the landing
- *   page's warm "Studio Black" which is scoped via `.landing-scope`
- *   and overrides tokens regardless of the `.dark` class).
- * - Only the internal (dashboard) pages render a toggle UI. Landing
- *   stays dark always because its CSS scope wins over `.dark`.
+ * Light mode was removed (2026-06): the product is a single warm "Studio
+ * Black" + brass-gold surface everywhere. `forcedTheme="dark"` pins the
+ * `.dark` class on <html> permanently — there is no toggle and stored
+ * preferences are ignored. Marketing/landing pages still render their own
+ * cream editorial palette because `.landing-scope` overrides the tokens
+ * within its own subtree regardless of the `.dark` class.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
       defaultTheme="dark"
+      forcedTheme="dark"
       enableSystem={false}
       storageKey="faiceoff-theme"
       disableTransitionOnChange

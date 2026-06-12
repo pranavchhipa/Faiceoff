@@ -163,8 +163,15 @@ export async function GET() {
         return NextResponse.json({ role, brand: null });
       }
 
+      // Last 8 weeks window for the activity sparkline + approval ring.
+      const WEEKS = 8;
+      const sinceIso = new Date(
+        Date.now() - WEEKS * 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
       // Run brand queries in parallel
-      const [campaignsResult, walletResult] = await Promise.all([
+      const [campaignsResult, walletResult, generationsResult] =
+        await Promise.all([
         Promise.resolve(
           admin
             .from("collab_sessions")
@@ -217,7 +224,46 @@ export async function GET() {
         )
           .then(({ data }) => data?.balance_after_paise ?? 0)
           .catch(() => 0),
+
+        // Recent generations (status + created_at) for the activity
+        // sparkline and approval-health ring. Bounded to the 8-week window
+        // and capped so a high-volume brand can't blow up the payload.
+        Promise.resolve(
+          admin
+            .from("generations")
+            .select("status, created_at")
+            .eq("brand_id", brand.id)
+            .gte("created_at", sinceIso)
+            .order("created_at", { ascending: false })
+            .limit(2000),
+        )
+          .then(({ data }) => (data ?? []) as Array<{ status: string; created_at: string }>)
+          .catch(() => [] as Array<{ status: string; created_at: string }>),
       ]);
+
+      // Bucket the recent generations into WEEKS weekly counts (oldest →
+      // newest) for the activity sparkline.
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const series = new Array(WEEKS).fill(0) as number[];
+      const breakdown = { approved: 0, inReview: 0, needsFix: 0 };
+      for (const g of generationsResult) {
+        const t = new Date(g.created_at).getTime();
+        const weeksAgo = Math.floor((now - t) / weekMs);
+        const idx = WEEKS - 1 - weeksAgo;
+        if (idx >= 0 && idx < WEEKS) series[idx] += 1;
+        if (g.status === "approved") breakdown.approved += 1;
+        else if (
+          g.status === "ready_for_approval" ||
+          g.status === "ready_for_brand_review"
+        )
+          breakdown.inReview += 1;
+        else if (g.status === "rejected" || g.status === "failed")
+          breakdown.needsFix += 1;
+      }
+      const decided = breakdown.approved + breakdown.needsFix;
+      const approvalRate =
+        decided > 0 ? Math.round((breakdown.approved / decided) * 100) : null;
 
       return cachedJson({
         role,
@@ -227,7 +273,10 @@ export async function GET() {
           totalCampaigns: campaignsResult.total,
           totalGenerations: campaignsResult.generations,
           walletBalance: walletResult,
+          approvalRate,
         },
+        generationsSeries: series,
+        approvalBreakdown: breakdown,
       });
     }
   } catch (err) {

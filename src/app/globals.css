@@ -68,12 +68,12 @@
    Landing pages always force their own tokens via `.landing-scope`
    so this `.dark` block never "leaks" into marketing pages.          */
 html.dark {
-  --background:           220 14% 7%;    /* #0F1116 cool slate */
-  --foreground:           36 25% 92%;    /* #EDE8DC warm cream */
-  --card:                 220 12% 10%;   /* #161A21 elevated surface */
-  --card-foreground:      36 25% 92%;
-  --popover:              220 12% 11%;   /* #181C24 popover surface */
-  --popover-foreground:   36 25% 92%;
+  --background:           225 14% 6%;    /* #0E0F13 warm studio black */
+  --foreground:           38 33% 92%;    /* #F3EEE3 warm cream */
+  --card:                 222 12% 10%;   /* #16181F elevated surface */
+  --card-foreground:      38 33% 92%;
+  --popover:              222 12% 11%;   /* #1B1E26 popover surface */
+  --popover-foreground:   38 33% 92%;
   --primary:              37 45% 62%;    /* #C9A96E gold preserved */
   --primary-foreground:   220 14% 7%;
   --secondary:            220 10% 14%;   /* #1E222B hover / chip */
@@ -89,29 +89,29 @@ html.dark {
   --ring:                 37 45% 62%;
 
   /* --color-* duplicates for utilities reading them directly */
-  --color-background:          #0F1116;
-  --color-foreground:          #EDE8DC;
-  --color-card:                #161A21;
-  --color-card-foreground:     #EDE8DC;
-  --color-popover:             #181C24;
-  --color-popover-foreground:  #EDE8DC;
+  --color-background:          #0E0F13;
+  --color-foreground:          #F3EEE3;
+  --color-card:                #16181F;
+  --color-card-foreground:     #F3EEE3;
+  --color-popover:             #1B1E26;
+  --color-popover-foreground:  #F3EEE3;
   --color-primary:             #C9A96E;
-  --color-primary-foreground:  #0F1116;
-  --color-secondary:           #1E222B;
-  --color-secondary-foreground:#EDE8DC;
-  --color-muted:               #1E222B;
-  --color-muted-foreground:    #9AA0A9;
+  --color-primary-foreground:  #0E0F13;
+  --color-secondary:           #1C1F27;
+  --color-secondary-foreground:#F3EEE3;
+  --color-muted:               #1C1F27;
+  --color-muted-foreground:    #9CA0A8;
   --color-accent:              #C9A96E;
-  --color-accent-foreground:   #0F1116;
-  --color-border:              rgba(237, 232, 220, 0.10);
-  --color-input:               rgba(237, 232, 220, 0.12);
+  --color-accent-foreground:   #0E0F13;
+  --color-border:              rgba(240, 234, 221, 0.08);
+  --color-input:               rgba(240, 234, 221, 0.12);
   --color-ring:                #C9A96E;
 
   /* Dashboard-specific surface ramp (used by chrome) */
-  --color-ink:                 #EDE8DC;
-  --color-neutral-50:          #0F1116;
-  --color-neutral-100:         #161A21;
-  --color-neutral-200:         #1E222B;
+  --color-ink:                 #F3EEE3;
+  --color-neutral-50:          #0E0F13;
+  --color-neutral-100:         #16181F;
+  --color-neutral-200:         #1C1F27;
   --color-neutral-300:         #2B2F38;
   --color-neutral-400:         #494E58;
   --color-neutral-500:         #6B7180;
