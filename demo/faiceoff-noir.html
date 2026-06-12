@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faiceoff — Studio (design study)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0C0D0F; --surf:#15171B; --surf2:#1B1E23; --inset:#202329;
+    --line:rgba(244,245,243,.08); --line2:rgba(244,245,243,.14);
+    --tx:#F4F5F3; --mut:#969CA3; --dim:#5E646C;
+    --lime:#C6F25D; --lime-d:#AEDD45; --lime-ink:#15240A; --lime-soft:rgba(198,242,93,.12); --lime-line:rgba(198,242,93,.30);
+    --coral:#FF6F5B; --coral-soft:rgba(255,111,91,.13);
+    --disp:"Space Grotesk",system-ui,sans-serif; --sans:"Hanken Grotesk",system-ui,sans-serif;
+    --tnum:"tnum" 1;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--tx);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:radial-gradient(700px 360px at 100% -6%,rgba(198,242,93,.05),transparent 62%)}
+  ::selection{background:var(--lime-soft);color:var(--lime)}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+  .disp{font-family:var(--disp)} .tab{font-feature-settings:var(--tnum)}
+  .eye{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--dim)}
+  a{color:inherit;text-decoration:none}
+
+  .wrap{display:flex;min-height:100vh}
+
+  /* ── Rail ── */
+  .rail{width:236px;flex-shrink:0;border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;gap:4px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .mk{width:36px;height:36px;border-radius:10px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;
+    font-family:var(--disp);font-weight:700;font-size:20px;flex-shrink:0}
+  .brand b{font-family:var(--disp);font-weight:600;font-size:18px;letter-spacing:-.01em;display:block;line-height:1}
+  .brand span{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-top:3px;display:block}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav .lab{font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);padding:0 10px 8px;margin-top:20px}
+  .nav a{display:flex;align-items:center;gap:12px;padding:9px 11px;font-size:14px;font-weight:500;color:var(--mut);border-radius:9px;transition:.14s}
+  .nav a i{font-size:19px;width:20px;text-align:center;transition:.14s}
+  .nav a:hover{color:var(--tx);background:rgba(244,245,243,.04)}
+  .nav a.on{color:var(--tx);background:var(--surf);font-weight:600}
+  .nav a.on i{color:var(--lime)}
+  .nav a .pill{margin-left:auto;font-size:11px;font-weight:700;font-family:var(--disp);background:var(--lime-soft);color:var(--lime);padding:1px 8px;border-radius:99px}
+  .rail-foot{margin-top:auto;display:flex;flex-direction:column;gap:14px}
+  .cr{border:1px solid var(--line);border-radius:13px;padding:14px;background:var(--surf)}
+  .cr .row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .cr .eye{font-size:10px}
+  .cr b{font-family:var(--disp);font-weight:600;font-size:20px}
+  .cr b small{font-size:12px;color:var(--mut);font-weight:500}
+  .cr .bar{height:5px;background:var(--inset);border-radius:99px;overflow:hidden;margin-bottom:11px}
+  .cr .bar i{display:block;height:100%;width:62%;background:var(--lime);border-radius:99px}
+  .cr button{width:100%;border:0;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--lime-ink);
+    background:var(--lime);padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px;transition:.14s}
+  .cr button:hover{background:var(--lime-d)}
+  .me{display:flex;align-items:center;gap:11px;padding:4px}
+  .me .av{width:34px;height:34px;border-radius:10px;background:var(--inset);display:grid;place-items:center;font-weight:700;font-size:13px;border:1px solid var(--line2)}
+  .me p{font-size:13px;font-weight:600;line-height:1.2}.me span{font-size:11.5px;color:var(--dim)}
+
+  /* ── Main ── */
+  .main{flex:1;min-width:0;padding:22px 32px 56px;max-width:1200px}
+  .top{display:flex;align-items:center;gap:13px;margin-bottom:28px}
+  .search{flex:1;max-width:360px;display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--line);
+    border-radius:11px;padding:10px 14px;color:var(--dim);font-size:13.5px}
+  .search input{border:0;background:0;outline:0;color:var(--tx);font-family:var(--sans);font-size:13.5px;width:100%}
+  .search input::placeholder{color:var(--dim)}
+  .search .k{margin-left:auto;font-size:11px;border:1px solid var(--line2);border-radius:5px;padding:1px 6px;color:var(--dim)}
+  .sp{flex:1}
+  .ib{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--surf);color:var(--mut);cursor:pointer;
+    display:grid;place-items:center;font-size:18px;position:relative;transition:.14s}
+  .ib:hover{color:var(--tx);border-color:var(--line2)}
+  .ib .d{position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;background:var(--coral);border:2px solid var(--surf)}
+  .cta{border:0;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:13.5px;color:var(--lime-ink);background:var(--lime);
+    padding:11px 17px;border-radius:11px;display:flex;align-items:center;gap:7px;transition:.14s}
+  .cta:hover{background:var(--lime-d);transform:translateY(-1px)}
+
+  .hello{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px;flex-wrap:wrap}
+  .hello .eye{margin-bottom:9px}
+  .hello h1{font-family:var(--disp);font-weight:600;font-size:30px;letter-spacing:-.02em;line-height:1}
+  .hello p{color:var(--mut);font-size:14px;margin-top:7px}
+  .dp{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surf);border-radius:99px;padding:8px 15px;font-size:13px;color:var(--mut);font-weight:500}
+  .dp i{color:var(--lime);font-size:16px}
+
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .card{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .mc .t{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+  .mc .ic{width:36px;height:36px;border-radius:10px;background:var(--inset);color:var(--mut);display:grid;place-items:center;font-size:18px}
+  .mc.lead .ic{background:var(--lime-soft);color:var(--lime)}
+  .dl{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;font-family:var(--disp);padding:3px 8px;border-radius:99px}
+  .dl.up{background:var(--lime-soft);color:var(--lime)} .dl.n{background:var(--inset);color:var(--mut)}
+  .mc .v{font-family:var(--disp);font-weight:600;font-size:29px;letter-spacing:-.02em;line-height:1}
+  .mc .v small{font-size:17px;color:var(--mut)}
+  .mc .l{font-size:13px;color:var(--mut);margin-top:8px}
+  .mc .spk{margin-top:15px;height:30px;width:100%;display:block}
+  .avs{display:flex;margin-top:17px}
+  .avs span{width:27px;height:27px;border-radius:8px;border:2px solid var(--surf);margin-left:-7px;font-size:10.5px;font-weight:700;display:grid;place-items:center;color:#10130c}
+  .avs span:first-child{margin-left:0}
+
+  .row{display:grid;gap:16px;margin-top:16px}
+  .r73{grid-template-columns:1.9fr 1fr}
+  .r64{grid-template-columns:1fr 1.5fr}
+  .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px}
+  .ph h3{font-family:var(--disp);font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .ph .sub{font-size:12.5px;color:var(--dim);margin-top:3px}
+  .seg{display:flex;background:var(--inset);border-radius:99px;padding:3px}
+  .seg button{border:0;background:0;cursor:pointer;color:var(--mut);font-family:var(--sans);font-weight:600;font-size:12px;padding:5px 12px;border-radius:99px;transition:.14s}
+  .seg button.on{background:var(--lime);color:var(--lime-ink)}
+  .link{color:var(--mut);font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;transition:.14s}
+  .link:hover{color:var(--lime)}
+
+  /* Ring */
+  .ring-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 0}
+  .ring{position:relative;width:140px;height:140px}
+  .ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .c b{font-family:var(--disp);font-weight:600;font-size:30px;letter-spacing:-.02em}
+  .ring .c small{font-size:11px;color:var(--dim);font-weight:600;letter-spacing:.12em;margin-top:2px}
+  .lg{display:flex;flex-direction:column;gap:11px;width:100%;margin-top:20px}
+  .lg .i{display:flex;align-items:center;gap:10px;font-size:13px}
+  .lg .i i{width:9px;height:9px;border-radius:3px}.lg .i span{color:var(--mut)}.lg .i b{margin-left:auto;font-family:var(--disp);font-weight:600}
+
+  /* Gallery */
+  .sec{display:flex;align-items:center;justify-content:space-between;margin:30px 2px 16px}
+  .sec h2{font-family:var(--disp);font-weight:600;font-size:18px;letter-spacing:-.01em}
+  .gal{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .g{position:relative;border-radius:15px;overflow:hidden;aspect-ratio:3/3.8;border:1px solid var(--line);transition:.22s;cursor:pointer}
+  .g:hover{transform:translateY(-4px);border-color:var(--lime-line)}
+  .g .ph{position:absolute;inset:0}
+  .g .ph::after{content:"";position:absolute;inset:0;background:radial-gradient(120px 140px at 50% 30%,rgba(255,255,255,.14),transparent 60%),linear-gradient(180deg,transparent 42%,rgba(6,7,8,.9) 100%)}
+  .g .st{position:absolute;top:11px;left:11px;z-index:2;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+    font-family:var(--disp);padding:4px 9px;border-radius:99px;backdrop-filter:blur(8px)}
+  .st.ok{background:rgba(198,242,93,.22);color:var(--lime);border:1px solid var(--lime-line)}
+  .st.rv{background:rgba(244,245,243,.16);color:#e8eae6;border:1px solid var(--line2)}
+  .g .meta{position:absolute;left:12px;right:12px;bottom:12px;z-index:2}
+  .g .meta .nm{display:flex;align-items:center;gap:5px;font-family:var(--disp);font-weight:600;font-size:14px}
+  .g .meta .nm i{color:var(--lime);font-size:15px}
+  .g .meta .ct{font-size:11.5px;color:rgba(244,245,243,.62);margin-top:2px}
+  /* live generating card */
+  .g.live{background:var(--surf2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-style:dashed;border-color:var(--line2);cursor:default}
+  .g.live:hover{transform:none}
+  .spin{width:42px;height:42px;border-radius:50%;border:3px solid var(--inset);border-top-color:var(--lime);animation:sp 0.9s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .g.live .lt{font-family:var(--disp);font-weight:600;font-size:13.5px;text-align:center}
+  .g.live .ls{font-size:11.5px;color:var(--dim);margin-top:-8px}
+  .g.live .pr{position:absolute;left:0;bottom:0;height:3px;width:64%;background:var(--lime);box-shadow:0 0 12px rgba(198,242,93,.5);animation:pr 2.4s ease-in-out infinite}
+  @keyframes pr{0%{width:18%}50%{width:74%}100%{width:18%}}
+
+  /* Approvals + discover */
+  .appr{display:flex;flex-direction:column;gap:3px;margin-top:14px}
+  .appr .it{display:flex;align-items:center;gap:12px;padding:11px 9px;border-radius:11px;transition:.13s;cursor:pointer}
+  .appr .it:hover{background:rgba(244,245,243,.035)}
+  .appr .av{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:14px;color:#10130c;flex-shrink:0}
+  .appr .tx{flex:1;min-width:0}.appr .tx p{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:5px}
+  .appr .tx p i{color:var(--lime);font-size:13px}.appr .tx span{font-size:12px;color:var(--dim)}
+  .appr .rev{border:1px solid var(--lime-line);background:var(--lime-soft);color:var(--lime);cursor:pointer;font-family:var(--sans);font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:9px;transition:.13s}
+  .appr .rev:hover{background:var(--lime);color:var(--lime-ink)}
+
+  .disc{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-top:14px}
+  .crt{background:var(--surf2);border:1px solid var(--line);border-radius:13px;padding:15px;transition:.16s}
+  .crt:hover{border-color:var(--line2);transform:translateY(-2px)}
+  .crt .hd{display:flex;align-items:center;gap:11px;margin-bottom:13px}
+  .crt .av{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:15px;color:#10130c}
+  .crt .hd p{font-family:var(--disp);font-weight:600;font-size:14px;display:flex;align-items:center;gap:5px}
+  .crt .hd p i{color:var(--lime);font-size:14px}.crt .hd span{font-size:11.5px;color:var(--dim)}
+  .crt .ft{display:flex;align-items:center;justify-content:space-between}
+  .crt .rate{font-size:12.5px;color:var(--mut)}.crt .rate b{font-family:var(--disp);color:var(--tx);font-weight:600;font-size:14px}
+  .crt .inv{border:1px solid var(--line2);background:0;color:var(--tx);cursor:pointer;font-family:var(--sans);font-weight:600;font-size:12px;padding:6px 13px;border-radius:99px;transition:.13s}
+  .crt .inv:hover{border-color:var(--lime);color:var(--lime)}
+
+  @media(max-width:1060px){.grid4{grid-template-columns:1fr 1fr}.r73,.r64{grid-template-columns:1fr}.gal{grid-template-columns:1fr 1fr}}
+  @media(max-width:720px){.rail{display:none}.main{padding:18px}.grid4,.gal,.disc{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Rail -->
+  <aside class="rail">
+    <div class="brand"><div class="mk disp">F</div><div><b>Faiceoff</b><span>Brand Studio</span></div></div>
+    <nav class="nav">
+      <a class="on" href="#"><i class="ti ti-layout-dashboard"></i> Overview</a>
+      <a href="#"><i class="ti ti-sparkles"></i> Discover</a>
+      <a href="#"><i class="ti ti-users-group"></i> Collabs <span class="pill">7</span></a>
+      <a href="#"><i class="ti ti-wand"></i> Studio</a>
+      <p class="lab">Library</p>
+      <a href="#"><i class="ti ti-photo"></i> Vault</a>
+      <a href="#"><i class="ti ti-checks"></i> Approvals <span class="pill">3</span></a>
+      <a href="#"><i class="ti ti-certificate"></i> Licenses</a>
+      <p class="lab">Account</p>
+      <a href="#"><i class="ti ti-wallet"></i> Wallet</a>
+      <a href="#"><i class="ti ti-settings"></i> Settings</a>
+    </nav>
+    <div class="rail-foot">
+      <div class="cr">
+        <div class="row1"><span class="eye">Credits</span><span style="font-size:11px;color:var(--dim)">312 left</span></div>
+        <b class="disp">312 <small>/ 500</small></b>
+        <div class="bar"><i></i></div>
+        <button><i class="ti ti-bolt"></i> Top up</button>
+      </div>
+      <div class="me"><div class="av">RG</div><div><p>Rectangled</p><span>Verified brand</span></div>
+        <i class="ti ti-selector" style="margin-left:auto;color:var(--dim);font-size:16px"></i></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="top">
+      <div class="search"><i class="ti ti-search" style="font-size:17px"></i>
+        <input placeholder="Search creators, collabs, generations…"/><span class="k">⌘K</span></div>
+      <div class="sp"></div>
+      <button class="ib" aria-label="Notifications"><i class="ti ti-bell"></i><span class="d"></span></button>
+      <button class="ib" aria-label="Messages"><i class="ti ti-message"></i></button>
+      <button class="cta"><i class="ti ti-plus"></i> New collab</button>
+    </div>
+
+    <div class="hello">
+      <div><div class="eye">Thursday · 12 June 2026</div><h1 class="disp">Good evening, Rectangled</h1>
+        <p>3 collabs are waiting on your payment, and 3 images need your review.</p></div>
+      <div class="dp"><i class="ti ti-circle-dot"></i> All systems live</div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="grid4">
+      <div class="card mc lead">
+        <div class="t"><div class="ic"><i class="ti ti-wallet"></i></div><span class="dl up"><i class="ti ti-trending-up"></i> 18%</span></div>
+        <div class="v disp">₹1,84,200</div><div class="l">Wallet balance</div>
+        <svg class="spk" data-spark="42,48,44,52,49,58,55,66" data-c="#C6F25D"></svg>
+      </div>
+      <div class="card mc">
+        <div class="t"><div class="ic"><i class="ti ti-users-group"></i></div><span class="dl n"><i class="ti ti-clock"></i> 3 to pay</span></div>
+        <div class="v disp">7</div><div class="l">Active collabs</div>
+        <div class="avs">
+          <span style="background:#C6F25D">AK</span><span style="background:#8FD3B6">VR</span>
+          <span style="background:#B8A6E0">MS</span><span style="background:#E0B48F">RS</span>
+          <span style="background:var(--inset);color:var(--mut);border-color:var(--surf)">+3</span></div>
+      </div>
+      <div class="card mc">
+        <div class="t"><div class="ic"><i class="ti ti-photo"></i></div><span class="dl up"><i class="ti ti-trending-up"></i> 24%</span></div>
+        <div class="v disp">128</div><div class="l">Generations · June</div>
+        <svg class="spk" data-spark="20,26,22,30,28,36,40,52" data-c="#C6F25D"></svg>
+      </div>
+      <div class="card mc">
+        <div class="t"><div class="ic"><i class="ti ti-rosette-discount-check"></i></div><span class="dl up"><i class="ti ti-trending-up"></i> 2.1%</span></div>
+        <div class="v disp">94<small>%</small></div><div class="l">Creator approval rate</div>
+        <svg class="spk" data-spark="88,90,89,91,92,92,93,94" data-c="#C6F25D"></svg>
+      </div>
+    </div>
+
+    <!-- Chart + ring -->
+    <div class="row r73">
+      <div class="card">
+        <div class="ph"><div><h3 class="disp">Generation activity</h3><div class="sub">Images created per week</div></div>
+          <div class="seg"><button>4W</button><button class="on">10W</button><button>1Y</button></div></div>
+        <div id="area"></div>
+      </div>
+      <div class="card">
+        <div class="ph"><div><h3 class="disp">Approval health</h3><div class="sub">Last 128 generations</div></div></div>
+        <div class="ring-wrap">
+          <div class="ring"><svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(244,245,243,.08)" stroke-width="12"/>
+            <circle id="arc" cx="70" cy="70" r="58" fill="none" stroke="#C6F25D" stroke-width="12" stroke-linecap="round"
+              transform="rotate(-90 70 70)" stroke-dasharray="364.4" stroke-dashoffset="364.4"/></svg>
+            <div class="c"><b class="disp">94%</b><small>APPROVED</small></div></div>
+          <div class="lg">
+            <div class="i"><i style="background:#C6F25D"></i><span>Approved</span><b>120</b></div>
+            <div class="i"><i style="background:rgba(244,245,243,.3)"></i><span>In review</span><b>6</b></div>
+            <div class="i"><i style="background:#FF6F5B"></i><span>Needs fix</span><b>2</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="sec"><h2 class="disp">Recent generations</h2><a class="link" href="#">Open vault <i class="ti ti-arrow-right"></i></a></div>
+    <div class="gal">
+      <div class="g"><div class="ph" style="background:linear-gradient(150deg,#2a3340,#46586e 50%,#1b222c)"></div>
+        <span class="st ok"><i class="ti ti-check"></i> Approved</span>
+        <div class="meta"><div class="nm">Aanya Kapoor <i class="ti ti-rosette-discount-check"></i></div><div class="ct">Beauty · Mango Sorbet SPF 50</div></div></div>
+      <div class="g"><div class="ph" style="background:linear-gradient(150deg,#33283f,#574066 50%,#221a2b)"></div>
+        <span class="st rv"><i class="ti ti-eye"></i> In review</span>
+        <div class="meta"><div class="nm">Vikram Rao <i class="ti ti-rosette-discount-check"></i></div><div class="ct">Menswear · AeroFit Runner</div></div></div>
+      <div class="g"><div class="ph" style="background:linear-gradient(150deg,#26342f,#3f5e4e 50%,#1a2420)"></div>
+        <span class="st ok"><i class="ti ti-check"></i> Approved</span>
+        <div class="meta"><div class="nm">Meher Singh <i class="ti ti-rosette-discount-check"></i></div><div class="ct">Fitness · Glow Serum 2%</div></div></div>
+      <div class="g live">
+        <div class="spin"></div><div class="lt">Generating…<div class="ls">Image 2 of 3 · Riya Sharma</div></div>
+        <div class="pr"></div></div>
+    </div>
+
+    <!-- Approvals + discover -->
+    <div class="row r64" style="margin-top:18px">
+      <div class="card">
+        <div class="ph"><div><h3 class="disp">Pending your review</h3><div class="sub">Send to creator or retry</div></div></div>
+        <div class="appr">
+          <div class="it"><div class="av" style="background:#C6F25D">AK</div><div class="tx"><p>Aanya Kapoor <i class="ti ti-rosette-discount-check"></i></p><span>2 images · 4m ago</span></div><button class="rev">Review</button></div>
+          <div class="it"><div class="av" style="background:#8FD3B6">RS</div><div class="tx"><p>Riya Sharma <i class="ti ti-rosette-discount-check"></i></p><span>1 image · 22m ago</span></div><button class="rev">Review</button></div>
+          <div class="it"><div class="av" style="background:#B8A6E0">KN</div><div class="tx"><p>Kabir Nair <i class="ti ti-rosette-discount-check"></i></p><span>3 images · 1h ago</span></div><button class="rev">Review</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ph"><div><h3 class="disp">Discover creators for you</h3><div class="sub">Matched to your last campaign</div></div>
+          <a class="link" href="#">Browse all <i class="ti ti-arrow-right"></i></a></div>
+        <div class="disc">
+          <div class="crt"><div class="hd"><div class="av" style="background:#C6F25D">AK</div><div><p>Aanya Kapoor <i class="ti ti-rosette-discount-check"></i></p><span>Beauty & skincare</span></div></div>
+            <div class="ft"><span class="rate"><b>₹2,400</b>/image</span><button class="inv">Invite</button></div></div>
+          <div class="crt"><div class="hd"><div class="av" style="background:#8FD3B6">VR</div><div><p>Vikram Rao <i class="ti ti-rosette-discount-check"></i></p><span>Menswear · fashion</span></div></div>
+            <div class="ft"><span class="rate"><b>₹3,100</b>/image</span><button class="inv">Invite</button></div></div>
+          <div class="crt"><div class="hd"><div class="av" style="background:#B8A6E0">MS</div><div><p>Meher Singh <i class="ti ti-rosette-discount-check"></i></p><span>Fitness · wellness</span></div></div>
+            <div class="ft"><span class="rate"><b>₹1,900</b>/image</span><button class="inv">Invite</button></div></div>
+          <div class="crt"><div class="hd"><div class="av" style="background:#E0B48F">KN</div><div><p>Kabir Nair <i class="ti ti-rosette-discount-check"></i></p><span>Tech · gadgets</span></div></div>
+            <div class="ft"><span class="rate"><b>₹2,750</b>/image</span><button class="inv">Invite</button></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.spk').forEach(svg=>{
+    const p=svg.dataset.spark.split(',').map(Number),c=svg.dataset.c,W=190,H=30,pad=3;
+    const mn=Math.min(...p),mx=Math.max(...p),x=i=>i/(p.length-1)*W,y=v=>pad+(1-(v-mn)/(mx-mn||1))*(H-pad*2);
+    let d='M'+x(0)+' '+y(p[0]);for(let i=1;i<p.length;i++){const xc=(x(i-1)+x(i))/2;d+=` C${xc} ${y(p[i-1])} ${xc} ${y(p[i])} ${x(i)} ${y(p[i])}`}
+    const id='s'+Math.random().toString(36).slice(2);
+    svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('preserveAspectRatio','none');
+    svg.innerHTML=`<defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".22"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${d} L${W} ${H} L0 ${H} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="${x(p.length-1)}" cy="${y(p[p.length-1])}" r="2.6" fill="${c}"/>`;
+  });
+
+  setTimeout(()=>{const a=document.getElementById('arc');a.style.transition='stroke-dashoffset 1.2s cubic-bezier(.3,.9,.3,1)';a.style.strokeDashoffset=364.4*(1-0.94)},250);
+
+  (function(){
+    const data=[['W1',6],['W2',9],['W3',7],['W4',12],['W5',10],['W6',14],['W7',11],['W8',16],['W9',15],['W10',19]];
+    const W=720,H=250,L=34,R=12,T=16,B=28,max=20;
+    const x=i=>L+i/(data.length-1)*(W-L-R),y=v=>T+(1-v/max)*(H-T-B);
+    let line='M'+x(0)+' '+y(data[0][1]);
+    for(let i=1;i<data.length;i++){const xc=(x(i-1)+x(i))/2;line+=` C${xc} ${y(data[i-1][1])} ${xc} ${y(data[i][1])} ${x(i)} ${y(data[i][1])}`}
+    const area=line+` L${x(data.length-1)} ${H-B} L${x(0)} ${H-B} Z`;
+    let grid='',yl='';[0,10,20].forEach(g=>{const yy=y(g);grid+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="rgba(244,245,243,.06)"/>`;
+      yl+=`<text x="${L-8}" y="${yy+4}" fill="#5E646C" font-size="11" text-anchor="end" font-family="Hanken Grotesk">${g}</text>`});
+    let xl='',dots='';data.forEach(([m],i)=>{xl+=`<text x="${x(i)}" y="${H-9}" fill="#969CA3" font-size="11" text-anchor="middle" font-family="Hanken Grotesk">${m}</text>`;
+      dots+=`<circle cx="${x(i)}" cy="${y(data[i][1])}" r="3" fill="#0C0D0F" stroke="#C6F25D" stroke-width="2"/>`});
+    const pk=data.length-1;
+    document.getElementById('area').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="overflow:visible;margin-top:14px">
+      <defs><linearGradient id="ar" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#C6F25D" stop-opacity=".26"/><stop offset="1" stop-color="#C6F25D" stop-opacity="0"/></linearGradient></defs>
+      ${grid}${yl}<path d="${area}" fill="url(#ar)"/><path d="${line}" fill="none" stroke="#C6F25D" stroke-width="2.6" stroke-linecap="round"/>
+      ${dots}<g><circle cx="${x(pk)}" cy="${y(data[pk][1])}" r="5" fill="#C6F25D"/>
+      <rect x="${x(pk)-26}" y="${y(data[pk][1])-36}" width="52" height="24" rx="7" fill="#1B1E23" stroke="var(--lime-line)"/>
+      <text x="${x(pk)}" y="${y(data[pk][1])-20}" fill="#C6F25D" font-size="13" font-weight="600" text-anchor="middle" font-family="Space Grotesk">19</text></g>${xl}</svg>`;
+  })();
+</script>
+</body>
+</html>
