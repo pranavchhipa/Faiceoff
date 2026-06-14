@@ -11,8 +11,8 @@
 //      a. UPDATE approvals SET status='approved', decided_at=now()
 //      b. UPDATE generations SET status='approved'
 //      c. spendWallet({ brandId, amountPaise: gen.cost_paise, generationId })
-//      d. INSERT escrow_ledger: creator 80% share, holding 7 days
-//      e. INSERT platform_revenue_ledger: 20% commission + 18% GST
+//      d. INSERT escrow_ledger: creator 75% share (1 - PLATFORM_COMMISSION_RATE), holding 7 days
+//      e. INSERT platform_revenue_ledger: 25% commission + 18% GST
 //      f. issueLicense (handles PDF gen + R2 upload internally)
 //   5. Return { status: 'approved', license_id, cert_url }
 //
@@ -234,7 +234,7 @@ export async function POST(
   }
 
   // ── 4d. INSERT escrow_ledger ───────────────────────────────────────────────
-  // Creator earns 80% (1 - PLATFORM_COMMISSION_RATE)
+  // Creator earns 75% (1 - PLATFORM_COMMISSION_RATE)
   const creatorShare = Math.round(costPaise * (1 - PLATFORM_COMMISSION_RATE));
   const holdingUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 

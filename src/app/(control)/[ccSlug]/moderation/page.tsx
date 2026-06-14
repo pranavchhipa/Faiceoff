@@ -9,13 +9,18 @@
  *     structured_brief.
  *   • Recent failures (pipeline blew up — error in compliance_result).
  *
- * Actions (force-discard, refund, retry) ship in a follow-up.
+ * Operator actions on the stuck queue (see ./actions.ts):
+ *   • Force discard — non-terminal → 'discarded' + single-pool credit refund
+ *     for paid collab gens (mirrors /api/generations/[id]/discard exactly).
+ *   • Retry — re-dispatch a wedged gen by flipping it back to 'draft' and
+ *     firing runGenerationsBatch([id]) via after() (idempotent pipeline claim).
  */
 
 import { ensureCCAuth, PageHeader } from "../_components/page-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
+import { forceDiscardGeneration, retryStuckGeneration } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -182,12 +187,13 @@ export default async function ModerationPage({ params }: Props) {
                   <th style={{ width: 130 }}>Status</th>
                   <th style={{ width: 100 }}>Age</th>
                   <th style={{ width: 80 }}>Retries</th>
+                  <th style={{ width: 200 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {stuck.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="cc-table-empty">No stuck generations.</td>
+                    <td colSpan={7} className="cc-table-empty">No stuck generations.</td>
                   </tr>
                 ) : (
                   stuck.map((g) => (
@@ -198,6 +204,40 @@ export default async function ModerationPage({ params }: Props) {
                       <td><span className={`cc-pill ${statusPill(g.status)}`}>{g.status}</span></td>
                       <td className="cc-mono-cell" style={{ fontSize: 11.5, color: "var(--cc-fg-muted)" }}>{relativeFrom(g.created_at)}</td>
                       <td className="cc-mono-cell" style={{ fontSize: 11.5 }}>{g.retry_count ?? 0}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <form action={retryStuckGeneration}>
+                            <input type="hidden" name="generation_id" value={g.id} />
+                            <input type="hidden" name="cc_slug" value={ccSlug} />
+                            <button
+                              type="submit"
+                              className="cc-btn"
+                              style={{ padding: "4px 10px", fontSize: 11.5 }}
+                              title="Re-dispatch the pipeline (flip to draft → re-run)"
+                            >
+                              Retry
+                            </button>
+                          </form>
+                          <form action={forceDiscardGeneration}>
+                            <input type="hidden" name="generation_id" value={g.id} />
+                            <input type="hidden" name="cc_slug" value={ccSlug} />
+                            <button
+                              type="submit"
+                              className="cc-btn"
+                              style={{
+                                padding: "4px 10px",
+                                fontSize: 11.5,
+                                borderColor: "var(--cc-bad)",
+                                color: "var(--cc-bad)",
+                                fontWeight: 700,
+                              }}
+                              title="Discard this gen (refunds 1 credit for paid collab gens)"
+                            >
+                              Force discard
+                            </button>
+                          </form>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}

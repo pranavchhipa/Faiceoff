@@ -74,7 +74,7 @@ export async function approveBrandVerification(formData: FormData): Promise<void
       type: "system",
       title: "Your brand is verified ✓",
       body: "Your brand is verified ✓ — you can now collaborate with creators.",
-      href: "/brand/settings",
+      href: "/brand/verify",
     });
   }
 
@@ -131,7 +131,7 @@ export async function rejectBrandVerification(formData: FormData): Promise<void>
       type: "system",
       title: "Brand verification needs another look",
       body: reason || "Please re-check your GST/PAN and company details and resubmit.",
-      href: "/brand/settings",
+      href: "/brand/verify",
     });
   }
 

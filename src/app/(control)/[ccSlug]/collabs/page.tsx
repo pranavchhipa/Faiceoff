@@ -1,13 +1,17 @@
 /**
  * Collabs module — every collab session in the platform with quick filters.
- * Per-row force-complete / cancel actions ship in the next iteration; the
- * /api/collabs/[id]/force-complete endpoint already exists.
+ * Active collabs expose per-row operator actions (force-complete / cancel)
+ * via the forceCompleteCollab / cancelCollab server actions. These only flip
+ * collab_sessions.status and notify both parties — no money moves (see
+ * actions.ts header). Mirrors the brand-facing /api/collabs/[id]/force-complete
+ * endpoint.
  */
 
 import { ensureCCAuth, PageHeader } from "../_components/page-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
+import { forceCompleteCollab, cancelCollab } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -91,11 +95,12 @@ export default async function CollabsPage({ params, searchParams }: Props) {
               <th style={{ width: 110 }}>Approved</th>
               <th style={{ width: 130 }}>Created</th>
               <th style={{ width: 100 }}>Id</th>
+              <th style={{ width: 280 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 ? (
-              <tr><td colSpan={7} className="cc-table-empty">No collabs match.</td></tr>
+              <tr><td colSpan={8} className="cc-table-empty">No collabs match.</td></tr>
             ) : (
               list.map((c) => (
                 <tr key={c.id}>
@@ -115,6 +120,51 @@ export default async function CollabsPage({ params, searchParams }: Props) {
                   </td>
                   <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)", fontSize: 11 }}>
                     {c.id.slice(0, 8)}…
+                  </td>
+                  <td>
+                    {c.status === "active" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <form action={forceCompleteCollab} style={{ margin: 0 }}>
+                          <input type="hidden" name="collab_session_id" value={c.id} />
+                          <input type="hidden" name="cc_slug" value={ccSlug} />
+                          <button
+                            type="submit"
+                            className="cc-btn"
+                            style={{ fontSize: 11, width: "100%" }}
+                          >
+                            Force-complete
+                          </button>
+                        </form>
+                        <form
+                          action={cancelCollab}
+                          style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}
+                        >
+                          <input type="hidden" name="collab_session_id" value={c.id} />
+                          <input type="hidden" name="cc_slug" value={ccSlug} />
+                          <input
+                            type="text"
+                            name="reason"
+                            placeholder="Cancel reason…"
+                            className="cc-input"
+                            style={{ flex: 1, fontSize: 11, minWidth: 0 }}
+                          />
+                          <button
+                            type="submit"
+                            className="cc-btn"
+                            style={{
+                              fontSize: 11,
+                              flexShrink: 0,
+                              color: "var(--cc-bad)",
+                              borderColor: "var(--cc-bad)",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <span style={{ color: "var(--cc-fg-dim)", fontSize: 11.5 }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))

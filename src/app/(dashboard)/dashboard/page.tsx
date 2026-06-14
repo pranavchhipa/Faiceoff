@@ -376,9 +376,9 @@ export default function DashboardPage() {
       )}
       {brandProfile && brandProfile.is_verified && role === "brand" && (
         <motion.div variants={fadeUp} className="mb-6">
-          <div className="flex items-center gap-2.5 rounded-xl bg-[#daece0] px-4 py-2.5">
-             <CheckCircle2 className="size-4 text-[#1a6b3c]" />
-             <p className="text-[13px] font-500 text-[#1a6b3c]">
+          <div className="flex items-center gap-2.5 rounded-xl bg-emerald-500/12 border border-emerald-500/30 px-4 py-2.5">
+             <CheckCircle2 className="size-4 text-emerald-400" />
+             <p className="text-[13px] font-500 text-emerald-400">
                Brand verified — You can now discover creators and run campaigns
              </p>
           </div>
@@ -466,7 +466,7 @@ export default function DashboardPage() {
               <div className="p-4">
                 <p className="text-[10px] font-700 text-[var(--color-neutral-500)] uppercase tracking-wide">Status</p>
                 <p className="mt-1">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-600 ${brandProfile?.is_verified ? "bg-[var(--color-mint)] text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-600 ${brandProfile?.is_verified ? "bg-emerald-500/12 text-emerald-400 border border-emerald-500/30" : "bg-amber-500/12 text-amber-400 border border-amber-500/30"}`}>
                     <CheckCircle2 className="size-3" />
                     {brandProfile?.is_verified ? "Verified" : "Pending Verification"}
                   </span>

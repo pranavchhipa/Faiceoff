@@ -75,13 +75,12 @@ const MAX_FACE_REFS = (() => {
 // The legacy fallback (`https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{bucket}`)
 // is the S3 endpoint, which serves XML, not images — when the env var was
 // missing on a deploy, every generation succeeded server-side but every
-// brand saw a broken image. Validate at module load so the process refuses
-// to boot if R2_PUBLIC_URL is missing. Throwing here is intentional — Next
-// will fail the import and the route never registers, which is loud and
-// catches the misconfiguration before any user-facing surface goes live.
-//
-// Module-scope: throws on first import. In dev, this surfaces on first request to a route that imports this module.
-const R2_PUBLIC_URL: string = (() => {
+// brand saw a broken image. Validated lazily (on first USE, not at module
+// load) so importing this module — e.g. during `next build` page-data
+// collection where the env isn't present — doesn't crash the build. It still
+// throws loudly the moment a generation actually tries to build a public URL
+// without R2_PUBLIC_URL set, which only happens at real runtime.
+function r2PublicUrl(): string {
   const url = process.env.R2_PUBLIC_URL;
   if (!url) {
     throw new Error(
@@ -89,7 +88,7 @@ const R2_PUBLIC_URL: string = (() => {
     );
   }
   return url.replace(/\/$/, "");
-})();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -685,7 +684,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       creator_id: creatorId,
       model: modelName,
       generated_at: new Date().toISOString(),
-      public_url: `${R2_PUBLIC_URL}/${r2Key}`,
+      public_url: `${r2PublicUrl()}/${r2Key}`,
       ai_generated: true,
       upscaled: upscaleApplied,
       refinement_applied: refinementApplied,
@@ -712,7 +711,7 @@ export async function runGeneration(generationId: string): Promise<void> {
           }),
         ),
       ]);
-      r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
+      r2Url = `${r2PublicUrl()}/${r2Key}`;
       console.log(
         `[run-generation] gen=${generationId} uploaded to R2 (refinement_applied=${refinementApplied}, upscale_applied=${upscaleApplied})`,
       );
@@ -1106,7 +1105,7 @@ export async function runIteration(generationId: string): Promise<void> {
       creator_id: creatorId,
       model: modelName,
       generated_at: new Date().toISOString(),
-      public_url: `${R2_PUBLIC_URL}/${r2Key}`,
+      public_url: `${r2PublicUrl()}/${r2Key}`,
       ai_generated: true,
       upscaled: upscaleApplied,
       iteration: true,
@@ -1132,7 +1131,7 @@ export async function runIteration(generationId: string): Promise<void> {
           }),
         ),
       ]);
-      r2Url = `${R2_PUBLIC_URL}/${r2Key}`;
+      r2Url = `${r2PublicUrl()}/${r2Key}`;
     } catch (r2Err) {
       console.error(
         `[run-iteration] R2 upload failed for gen=${generationId}`,

@@ -45,6 +45,20 @@ export async function GET(req: Request) {
   const admin = createAdminClient() as any;
   const now = new Date().toISOString();
 
+  // ── Expire stale collab requests (72h TTL, no creator response) ──
+  // The brand is never charged for an un-accepted request (payment happens only
+  // after acceptance), so this is pure status hygiene — it clears the brand's
+  // "pending" list and stops the creator from accepting a long-dead request.
+  try {
+    await admin
+      .from("collab_requests")
+      .update({ status: "expired" })
+      .eq("status", "pending")
+      .lt("expires_at", now);
+  } catch (e) {
+    console.warn("[cron/auto-approve] collab_requests expiry sweep failed", e);
+  }
+
   // ── Find expired pending approvals ──
   const { data: expired, error: queryErr } = await admin
     .from("approvals")

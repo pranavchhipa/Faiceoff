@@ -133,7 +133,7 @@ export default function BrandSetupPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-neutral-300)] border-t-[var(--color-gold)]" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
   }
@@ -147,7 +147,7 @@ export default function BrandSetupPage() {
     >
       {/* Ocean accent badge */}
       <div className="mb-6 flex justify-center">
-        <span className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-ocean)] px-4 py-1.5 text-xs font-600 text-[var(--color-ink)]">
+        <span className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-primary)]/12 px-4 py-1.5 text-xs font-600 text-[var(--color-primary)]">
           <Building2 className="size-3.5" />
           Brand Profile Setup
         </span>
@@ -173,7 +173,7 @@ export default function BrandSetupPage() {
                 htmlFor="company-name"
                 className="text-[var(--color-ink)]"
               >
-                Company Name <span className="text-[var(--color-gold)]">*</span>
+                Company Name <span className="text-[var(--color-primary)]">*</span>
               </Label>
               <Input
                 id="company-name"
@@ -189,7 +189,7 @@ export default function BrandSetupPage() {
             {/* GST Number */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="gst-number" className="text-[var(--color-ink)]">
-                GST Number <span className="text-[var(--color-gold)]">*</span>
+                GST Number <span className="text-[var(--color-primary)]">*</span>
               </Label>
               <Input
                 id="gst-number"
@@ -212,7 +212,7 @@ export default function BrandSetupPage() {
             {/* PAN Number */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="pan-number" className="text-[var(--color-ink)]">
-                PAN Number <span className="text-[var(--color-gold)]">*</span>
+                PAN Number <span className="text-[var(--color-primary)]">*</span>
               </Label>
               <Input
                 id="pan-number"
@@ -282,7 +282,7 @@ export default function BrandSetupPage() {
                 !gstNumber.trim() ||
                 !panNumber.trim()
               }
-              className="mt-2 h-11 w-full rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)] disabled:opacity-50"
+              className="mt-2 h-11 w-full rounded-[var(--radius-button)] bg-[var(--color-primary)] font-600 text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>

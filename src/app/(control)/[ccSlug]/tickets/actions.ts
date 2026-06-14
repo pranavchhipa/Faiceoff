@@ -61,7 +61,7 @@ export async function replyToTicket(formData: FormData): Promise<void> {
     type: "ticket_reply",
     title: "Support replied to your ticket",
     body: ticket.subject,
-    href: "/support",
+    href: "/dashboard/support",
   });
 
   void logAudit({
@@ -147,7 +147,7 @@ export async function resolveTicket(formData: FormData): Promise<void> {
     type: "ticket_resolved",
     title: "Your support ticket was resolved",
     body: ticket.subject,
-    href: "/support",
+    href: "/dashboard/support",
   });
 
   void logAudit({
