@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Inbox,
   IndianRupee,
-  ArrowDownToLine,
   FileSignature,
   ShieldOff,
   User as UserIcon,
@@ -31,7 +30,6 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "My Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
   { label: "Public Profile", href: "/creator/profile/setup", icon: Share2, group: "Primary" },
   { label: "Earnings", href: "/creator/earnings", icon: IndianRupee, group: "Primary" },
-  { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine, group: "Primary" },
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
   // Secondary — only visible in command palette + overflow menu
   { label: "Get Verified", href: "/creator/verify", icon: BadgeCheck, group: "Secondary" },

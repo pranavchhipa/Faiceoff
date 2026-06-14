@@ -6,6 +6,7 @@
 import {
   Activity,
   Wallet,
+  Banknote,
   Users,
   Megaphone,
   Shield,
@@ -36,6 +37,7 @@ export const CC_NAV: CCNavItem[] = [
   // OPS — what you look at every day
   { segment: "ops", label: "Operations", icon: Activity, group: "OPS" },
   { segment: "money", label: "Money", icon: Wallet, group: "OPS" },
+  { segment: "payouts", label: "Payouts", icon: Banknote, group: "OPS" },
   { segment: "users", label: "Users", icon: Users, group: "OPS" },
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "OPS" },
   { segment: "moderation", label: "Moderation", icon: Shield, group: "OPS" },
