@@ -59,7 +59,28 @@ confirmed (adversarially verified). Status below.
    types (`npx supabase gen types …`) and drop `ignoreBuildErrors` on the money-path
    routes so future schema drift fails the build instead of hiding.
 
-## Lower priority (not blocking)
-- Legacy-redirects test suite stale (P3).
-- Other `/admin/*` duplicates of CC (safety, stuck-gens, packs) still exist — functional.
-- Stale 70/75/80 share-% comments vs the live 25% commission / 75% creator constant.
+## ✅ Wave 2 (also fixed — commits 8f29c40 + later)
+- **Control Centre now fully actionable:** moderation (force-discard + retry-stuck),
+  collabs (force-complete + cancel), disputes (resolve + 1-credit refund) — all
+  operator-guarded, audited, notify both parties; conservative on money (no
+  fabricated escrow clawback — left as TODO where risky).
+- Dark-only: brand-setup/onboarding page + dashboard status pills de-lighted.
+- Hygiene: ticket notifications no longer 404; deprecated self-withdraw routes →
+  410 Gone; brand-verify hrefs unified; dead LaunchSection deleted; stale share-%
+  comments corrected to 75/25.
+- Resilience: R2 public-URL validation made lazy — `next build` no longer crashes
+  when the env is absent. 72h stale collab_requests now expired by the daily cron.
+- Legacy-redirects test suite green (15/15) — stale expectations updated to match
+  the current routes.
+
+## Still open (need you, or a dedicated follow-up)
+1. **Supabase type regen + drop `ignoreBuildErrors`** — needs your Supabase access
+   token (`npx supabase gen types typescript --project-id jgmhronskdnzqkkimffp >
+   src/types/supabase.ts`), then a pass to remove `as any` on money routes. Until
+   then, schema drift is hidden from the build (that's how the ₹0-escrow bug hid).
+2. **CC money refund tooling** (release an escrow row / refund a failed top-up /
+   mark a payout failed) and the **escrow-aware refund** on dispute/collab-cancel —
+   deliberately NOT auto-wired (clawing back already-released creator money is risky
+   to automate); marked with TODOs.
+3. Live keys / env (Razorpay live, RazorpayX, Upstash rotate, Vercel R2 env,
+   Instagram OAuth) + verify the test brand in CC after the 00067 reset.

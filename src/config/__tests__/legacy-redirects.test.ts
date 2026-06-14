@@ -7,21 +7,21 @@ describe("resolveLegacyRedirect", () => {
     expect(resolveLegacyRedirect("/dashboard", "creator")).toBe("/creator/dashboard");
   });
 
-  it("maps /dashboard/campaigns to role-specific sessions", () => {
-    expect(resolveLegacyRedirect("/dashboard/campaigns", "brand")).toBe("/brand/sessions");
-    expect(resolveLegacyRedirect("/dashboard/campaigns", "creator")).toBe("/creator/sessions");
+  it("maps /dashboard/campaigns to role collabs", () => {
+    expect(resolveLegacyRedirect("/dashboard/campaigns", "brand")).toBe("/brand/collabs");
+    expect(resolveLegacyRedirect("/dashboard/campaigns", "creator")).toBe("/creator/collabs");
   });
 
-  it("maps /dashboard/campaigns/<id> preserving id to role sessions", () => {
+  it("maps /dashboard/campaigns/<id> to brand collabs (id preserved for brand)", () => {
     expect(resolveLegacyRedirect("/dashboard/campaigns/abc-123", "brand"))
-      .toBe("/brand/sessions/abc-123");
+      .toBe("/brand/collabs/abc-123");
     expect(resolveLegacyRedirect("/dashboard/campaigns/abc-123", "creator"))
-      .toBe("/creator/sessions/abc-123");
+      .toBe("/creator/collabs");
   });
 
-  it("maps /dashboard/creators for brand only", () => {
-    expect(resolveLegacyRedirect("/dashboard/creators", "brand")).toBe("/brand/creators");
-    expect(resolveLegacyRedirect("/dashboard/creators/xyz", "brand")).toBe("/brand/creators/xyz");
+  it("maps /dashboard/creators to /brand/discover (brand only)", () => {
+    expect(resolveLegacyRedirect("/dashboard/creators", "brand")).toBe("/brand/discover");
+    expect(resolveLegacyRedirect("/dashboard/creators/xyz", "brand")).toBe("/brand/discover/xyz");
   });
 
   it("creator visiting /dashboard/creators gets sent to their dashboard", () => {
@@ -31,7 +31,7 @@ describe("resolveLegacyRedirect", () => {
   it("maps /dashboard/approvals to /creator/approvals", () => {
     expect(resolveLegacyRedirect("/dashboard/approvals", "creator")).toBe("/creator/approvals");
     expect(resolveLegacyRedirect("/dashboard/approvals/xyz", "creator"))
-      .toBe("/creator/approvals/xyz");
+      .toBe("/creator/approvals");
   });
 
   it("brand visiting /dashboard/approvals gets sent to their dashboard", () => {
@@ -39,19 +39,19 @@ describe("resolveLegacyRedirect", () => {
   });
 
   it("maps /dashboard/wallet per role", () => {
-    expect(resolveLegacyRedirect("/dashboard/wallet", "brand")).toBe("/brand/credits");
+    expect(resolveLegacyRedirect("/dashboard/wallet", "brand")).toBe("/brand/wallet");
     expect(resolveLegacyRedirect("/dashboard/wallet", "creator")).toBe("/creator/earnings");
   });
 
-  it("maps /dashboard/onboarding and /dashboard/brand-setup", () => {
-    expect(resolveLegacyRedirect("/dashboard/onboarding", "brand")).toBe("/brand/onboarding");
-    expect(resolveLegacyRedirect("/dashboard/onboarding", "creator")).toBe("/creator/onboarding");
-    expect(resolveLegacyRedirect("/dashboard/brand-setup", "brand")).toBe("/brand/onboarding");
+  it("passes through /dashboard/onboarding and /dashboard/brand-setup (still live there)", () => {
+    expect(resolveLegacyRedirect("/dashboard/onboarding", "brand")).toBeNull();
+    expect(resolveLegacyRedirect("/dashboard/onboarding", "creator")).toBeNull();
+    expect(resolveLegacyRedirect("/dashboard/brand-setup", "brand")).toBeNull();
   });
 
-  it("maps /dashboard/likeness to /creator/reference-photos", () => {
+  it("maps /dashboard/likeness to /creator/likeness", () => {
     expect(resolveLegacyRedirect("/dashboard/likeness", "creator"))
-      .toBe("/creator/reference-photos");
+      .toBe("/creator/likeness");
   });
 
   it("maps /dashboard/settings to role settings", () => {
@@ -59,9 +59,9 @@ describe("resolveLegacyRedirect", () => {
     expect(resolveLegacyRedirect("/dashboard/settings", "creator")).toBe("/creator/settings");
   });
 
-  it("maps /dashboard/analytics to role dashboard", () => {
+  it("maps /dashboard/analytics — creator gets analytics, brand bounces to dashboard", () => {
     expect(resolveLegacyRedirect("/dashboard/analytics", "brand")).toBe("/brand/dashboard");
-    expect(resolveLegacyRedirect("/dashboard/analytics", "creator")).toBe("/creator/dashboard");
+    expect(resolveLegacyRedirect("/dashboard/analytics", "creator")).toBe("/creator/analytics");
   });
 
   it("unknown /dashboard/* path falls back to role home", () => {
