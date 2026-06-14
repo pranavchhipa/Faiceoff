@@ -3,19 +3,21 @@
 // Flow:
 //   1. Auth (brand only)
 //   2. Validate body: { amount_paise: number }  min ₹500, max ₹5,00,000
-//   3. Compute bonus tier
-//   4. Resolve brand
-//   5. Insert wallet_top_ups row status='initiated'
-//   6. Create Razorpay order
-//   7. Update row: cf_order_id = rzp_order_id, status='processing'
-//   8. Return { orderId, keyId, amount_paise, bonus_paise }
+//   3. Resolve brand
+//   4. Insert wallet_top_ups row status='initiated'
+//   5. Create Razorpay order
+//   6. Update row: cf_order_id = rzp_order_id, status='processing'
+//   7. Return { orderId, keyId, amount_paise }
+//
+// NOTE: top-up bonuses were removed (2026-06) — credited amount == amount paid.
+// bonus_paise is persisted as 0 so the authoritative SQL (add_wallet_for_topup)
+// credits exactly what the brand paid.
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/payments/razorpay/orders";
-import { computeWalletBonus } from "@/lib/billing/wallet-bonus";
 
 const WalletTopUpRequestSchema = z.object({
   amount_paise: z
@@ -42,7 +44,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_input", details: parsed.error.issues }, { status: 400 });
   }
   const { amount_paise } = parsed.data;
-  const bonus_paise = computeWalletBonus(amount_paise).bonusPaise;
+  // Bonuses removed — credited amount equals amount paid.
+  const bonus_paise = 0;
 
   const admin = createAdminClient() as Admin;
 
@@ -83,7 +86,6 @@ export async function POST(req: NextRequest) {
       orderId: order.id,
       keyId: getRazorpayKeyId(),
       amount_paise,
-      bonus_paise,
     });
   } catch (err) {
     const reason = err instanceof Error ? err.message : "razorpay_error";

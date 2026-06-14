@@ -5,13 +5,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-async function getCreatorId(admin: Admin, userId: string): Promise<string | null> {
+async function getCreator(
+  admin: Admin,
+  userId: string,
+): Promise<{ id: string; is_verified: boolean } | null> {
   const { data } = await admin
     .from("creators")
-    .select("id")
+    .select("id, is_verified")
     .eq("user_id", userId)
     .maybeSingle();
-  return data?.id ?? null;
+  if (!data) return null;
+  return { id: data.id as string, is_verified: data.is_verified === true };
 }
 
 // GET /api/creator/packages/[id] — public read of a single package (for request form)
@@ -43,8 +47,8 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient() as Admin;
-  const creatorId = await getCreatorId(admin, user.id);
-  if (!creatorId) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
+  const creator = await getCreator(admin, user.id);
+  if (!creator) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
 
   let body: { price_paise?: unknown; final_images?: unknown; is_active?: unknown };
   try { body = await request.json(); } catch {
@@ -76,11 +80,23 @@ export async function PATCH(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  // Verification gate: an unverified creator can edit/deactivate a package but
+  // cannot ACTIVATE one (expose it to brands) until they earn the gold tick.
+  if (update.is_active === true && creator.is_verified !== true) {
+    return NextResponse.json(
+      {
+        error: "verification_required",
+        message: "Get verified (gold tick) before activating packages. Submit your Aadhaar + PAN from the dashboard.",
+      },
+      { status: 403 },
+    );
+  }
+
   const { data, error } = await admin
     .from("creator_packages")
     .update(update)
     .eq("id", id)
-    .eq("creator_id", creatorId)
+    .eq("creator_id", creator.id)
     .select("id, tier, price_paise, final_images, is_active")
     .single();
 
@@ -103,14 +119,14 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient() as Admin;
-  const creatorId = await getCreatorId(admin, user.id);
-  if (!creatorId) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
+  const creator = await getCreator(admin, user.id);
+  if (!creator) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
 
   const { error } = await admin
     .from("creator_packages")
     .delete()
     .eq("id", id)
-    .eq("creator_id", creatorId);
+    .eq("creator_id", creator.id);
 
   if (error) {
     console.error("[creator/packages DELETE]", error);

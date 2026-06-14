@@ -7,7 +7,6 @@ import {
   Loader2,
   Lock,
   ShieldCheck,
-  Sparkles,
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCcw,
@@ -51,7 +50,6 @@ interface WalletTopUpResponse {
   orderId: string;
   keyId: string;
   amount_paise: number;
-  bonus_paise: number;
 }
 
 declare global {
@@ -95,21 +93,6 @@ function formatRelative(iso: string): string {
   });
 }
 
-/**
- * Bonus tiers (matching the server-side logic):
- *   ₹500-999: 0%  |  ₹1000-4999: 5%  |  ₹5000-9999: 10%
- *   ₹10000-49999: 15%  |  ₹50000+: 20%
- */
-function computeBonus(amountRupees: number): { rate: number; bonusRupees: number } {
-  let rate: number;
-  if (amountRupees >= 50_000) rate = 0.2;
-  else if (amountRupees >= 10_000) rate = 0.15;
-  else if (amountRupees >= 5_000) rate = 0.1;
-  else if (amountRupees >= 1_000) rate = 0.05;
-  else rate = 0;
-  return { rate, bonusRupees: Math.floor(amountRupees * rate) };
-}
-
 function loadRazorpaySDK(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) { resolve(); return; }
@@ -133,10 +116,10 @@ function loadRazorpaySDK(): Promise<void> {
 
 // Quick-pick top-up amounts (rupees)
 const QUICK_AMOUNTS = [
-  { label: "₹1,000", value: 1000, bonus: "+5%" },
-  { label: "₹5,000", value: 5000, bonus: "+10%" },
-  { label: "₹10,000", value: 10000, bonus: "+15%" },
-  { label: "₹50,000", value: 50000, bonus: "+20%" },
+  { label: "₹1,000", value: 1000 },
+  { label: "₹5,000", value: 5000 },
+  { label: "₹10,000", value: 10000 },
+  { label: "₹50,000", value: 50000 },
 ];
 
 // Transaction type metadata — used in ledger row + filter chips.
@@ -185,8 +168,6 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
   const effectiveAmount = useCustom
     ? Math.max(0, parseInt(customAmount || "0", 10))
     : amountRupees;
-  const { rate, bonusRupees } = computeBonus(effectiveAmount);
-  const totalRupees = effectiveAmount + bonusRupees;
 
   useEffect(() => {
     loadRazorpaySDK().catch(() => {
@@ -296,7 +277,7 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
               body: JSON.stringify(response),
             });
             toast.success(
-              `Wallet topped up with ${formatINR(data.amount_paise + data.bonus_paise)}!`,
+              `Wallet topped up with ${formatINR(data.amount_paise)}!`,
             );
             setTimeout(refreshBalance, 1000);
           } catch {
@@ -417,12 +398,6 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
                 Pay via UPI, NetBanking, or card — credited instantly.
               </p>
             </div>
-            {rate > 0 && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] font-700 uppercase tracking-wider text-emerald-400">
-                <Sparkles className="h-3 w-3" />
-                +{(rate * 100).toFixed(0)}% bonus
-              </span>
-            )}
           </div>
 
           {/* Quick-pick chips */}
@@ -443,23 +418,8 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
                       : "border-[var(--color-border)] bg-[var(--color-secondary)]/40 hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-secondary)]/70"
                   }`}
                 >
-                  <span
-                    className={`font-display text-[16px] font-800 tracking-tight ${
-                      active
-                        ? "text-[var(--color-foreground)]"
-                        : "text-[var(--color-foreground)]"
-                    }`}
-                  >
+                  <span className="font-display text-[16px] font-800 tracking-tight text-[var(--color-foreground)]">
                     {q.label}
-                  </span>
-                  <span
-                    className={`font-mono text-[10px] font-700 uppercase tracking-wider ${
-                      active
-                        ? "text-[var(--color-primary)]"
-                        : "text-[var(--color-muted-foreground)]"
-                    }`}
-                  >
-                    {q.bonus} bonus
                   </span>
                 </button>
               );
@@ -515,23 +475,12 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
                 {formatINR(effectiveAmount * 100)}
               </span>
             </div>
-            {bonusRupees > 0 && (
-              <div className="mb-2 flex items-center justify-between text-[13px]">
-                <span className="inline-flex items-center gap-1 text-[var(--color-muted-foreground)]">
-                  <Sparkles className="h-3 w-3 text-emerald-400" />
-                  Bonus ({(rate * 100).toFixed(0)}%)
-                </span>
-                <span className="font-display font-700 text-emerald-400">
-                  +{formatINR(bonusRupees * 100)}
-                </span>
-              </div>
-            )}
             <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2.5 text-[14px]">
               <span className="font-600 text-[var(--color-foreground)]">
                 Wallet credit
               </span>
               <span className="font-display text-[18px] font-800 tracking-tight text-[var(--color-primary)]">
-                {formatINR(totalRupees * 100)}
+                {formatINR(effectiveAmount * 100)}
               </span>
             </div>
           </motion.div>
@@ -552,11 +501,6 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
               <>
                 <Zap className="h-4 w-4" />
                 Top up {formatINR(effectiveAmount * 100)}
-                {bonusRupees > 0 && (
-                  <span className="ml-1 rounded-full bg-[var(--color-primary-foreground)]/15 px-2 py-0.5 font-mono text-[10px] font-700">
-                    +{formatINR(bonusRupees * 100)} bonus
-                  </span>
-                )}
               </>
             )}
           </button>

@@ -1275,7 +1275,7 @@ function FinalCTA() {
               {[
                 "Verified creators, signed face licenses, GST invoices",
                 "Pay only after the creator accepts your brief",
-                "Wallet bonuses up to 20% on top-ups",
+                "Funds held in escrow — released on approval, refunded on rejection",
               ].map((b) => (
                 <li key={b} className="flex items-start gap-2">
                   <Check

@@ -22,7 +22,6 @@ import {
   Clock,
 } from "lucide-react";
 
-import { WALLET_BONUS_TIERS } from "@/lib/billing/wallet-bonus";
 
 // ─────────────────────────────────────────────────────────────────────────────
 export const metadata = {
@@ -37,11 +36,6 @@ export const metadata = {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <div className="lp-eyebrow">{children}</div>;
-}
-
-function formatBpsAsPercent(bps: number): string {
-  if (bps === 0) return "No bonus";
-  return `${bps / 100}% bonus`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -740,132 +734,6 @@ function GenerationFlow() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section 5 — Wallet bonus tiers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function WalletBonus() {
-  return (
-    <section
-      className="lp-section-pad"
-      style={{ background: "var(--lp-paper-2)" }}
-    >
-      <div className="lp-container">
-        <div className="max-w-3xl mb-12">
-          <Eyebrow>Wallet Bonus</Eyebrow>
-          <h2
-            className="lp-display mt-5"
-            style={{
-              color: "var(--lp-ink)",
-              fontSize: "clamp(32px, 4.2vw, 52px)",
-            }}
-          >
-            Add more wallet balance.{" "}
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 800,
-              }}
-            >
-              Get more value.
-            </span>
-          </h2>
-          <p
-            className="mt-4"
-            style={{
-              color: "var(--lp-ink-soft)",
-              fontSize: "16px",
-              lineHeight: 1.7,
-            }}
-          >
-            Wallet top-ups can include bonus balance based on the amount
-            added. Use wallet balance to pay creator licensing fees.
-          </p>
-        </div>
-
-        <div className="lp-card overflow-hidden max-w-3xl">
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: "1.4fr 1fr",
-              background: "var(--lp-paper-2)",
-              padding: "16px 24px",
-              borderBottom: "1px solid var(--lp-border)",
-            }}
-          >
-            <div
-              className="lp-mono"
-              style={{
-                fontSize: "11px",
-                color: "var(--lp-muted)",
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-              }}
-            >
-              Wallet Top-up
-            </div>
-            <div
-              className="lp-mono"
-              style={{
-                fontSize: "11px",
-                color: "var(--lp-muted)",
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-                textAlign: "right",
-              }}
-            >
-              Bonus
-            </div>
-          </div>
-          {WALLET_BONUS_TIERS.map((tier, i) => {
-            const isLast = i === WALLET_BONUS_TIERS.length - 1;
-            const isHighlight = tier.bonusBps >= 1500;
-            return (
-              <div
-                key={tier.label}
-                className="grid items-center"
-                style={{
-                  gridTemplateColumns: "1.4fr 1fr",
-                  padding: "18px 24px",
-                  borderBottom: isLast ? "none" : "1px solid var(--lp-border)",
-                  background: isHighlight
-                    ? "var(--lp-gold-tint)"
-                    : "transparent",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "15.5px",
-                    color: "var(--lp-ink)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {tier.label}
-                </div>
-                <div
-                  style={{
-                    textAlign: "right",
-                    fontSize: "15.5px",
-                    fontWeight: 600,
-                    color:
-                      tier.bonusBps === 0
-                        ? "var(--lp-muted)"
-                        : "var(--lp-gold-deep)",
-                  }}
-                >
-                  {formatBpsAsPercent(tier.bonusBps)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Section 6 — FAQ (native <details> for zero JS)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1079,7 +947,6 @@ export default function PricingPage() {
       <CreditPacks />
       <PricingExplainer />
       <GenerationFlow />
-      <WalletBonus />
       <FAQ />
       <FinalCTA />
     </>

@@ -11,13 +11,17 @@ const TIER_SCOPE = {
   cover: { usage_scope: "digital_full", license_duration_days: 365 },
 } as const;
 
-async function getCreatorId(admin: Admin, userId: string): Promise<string | null> {
+async function getCreator(
+  admin: Admin,
+  userId: string,
+): Promise<{ id: string; is_verified: boolean } | null> {
   const { data } = await admin
     .from("creators")
-    .select("id")
+    .select("id, is_verified")
     .eq("user_id", userId)
     .maybeSingle();
-  return data?.id ?? null;
+  if (!data) return null;
+  return { id: data.id as string, is_verified: data.is_verified === true };
 }
 
 // GET /api/creator/packages — list own packages
@@ -27,13 +31,13 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient() as Admin;
-  const creatorId = await getCreatorId(admin, user.id);
-  if (!creatorId) return NextResponse.json({ packages: [] });
+  const creator = await getCreator(admin, user.id);
+  if (!creator) return NextResponse.json({ packages: [] });
 
   const { data, error } = await admin
     .from("creator_packages")
     .select("id, tier, price_paise, final_images, is_active, created_at, updated_at")
-    .eq("creator_id", creatorId)
+    .eq("creator_id", creator.id)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -57,8 +61,20 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient() as Admin;
-  const creatorId = await getCreatorId(admin, user.id);
-  if (!creatorId) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
+  const creator = await getCreator(admin, user.id);
+  if (!creator) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
+
+  // Verification gate: a creator must earn the gold tick (Aadhaar + PAN review)
+  // before they can publish licensing packages.
+  if (creator.is_verified !== true) {
+    return NextResponse.json(
+      {
+        error: "verification_required",
+        message: "Get verified (gold tick) before publishing packages. Submit your Aadhaar + PAN from the dashboard.",
+      },
+      { status: 403 },
+    );
+  }
 
   let body: { tier?: unknown; price_paise?: unknown; final_images?: unknown };
   try { body = await request.json(); } catch {
@@ -80,7 +96,7 @@ export async function POST(request: Request) {
   const { data, error } = await admin
     .from("creator_packages")
     .upsert(
-      { creator_id: creatorId, tier, price_paise, final_images, is_active: true },
+      { creator_id: creator.id, tier, price_paise, final_images, is_active: true },
       { onConflict: "creator_id,tier" }
     )
     .select("id, tier, price_paise, final_images, is_active")

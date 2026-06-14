@@ -56,12 +56,6 @@ const RULES: Rule[] = [
     resolve: (_m, r) => (r === "brand" ? "/brand/collabs" : `/${r}/dashboard`),
   },
 
-  // Old /brand/credits → /brand/wallet
-  {
-    match: /^\/brand\/credits\/?$/,
-    resolve: (_m, r) => (r === "brand" ? "/brand/wallet" : `/${r}/dashboard`),
-  },
-
   // Old /creator/approvals → /creator/collabs
   {
     match: /^\/creator\/approvals\/?$/,
