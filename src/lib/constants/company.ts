@@ -66,7 +66,7 @@ export const COMPANY = {
    * Fill these in when the handles are live.
    */
   socials: {
-    instagram: "", // e.g. "https://instagram.com/faiceoff"
+    instagram: "https://instagram.com/faiceoff.official",
     twitter: "",   // e.g. "https://x.com/faiceoff"
     linkedin: "",  // e.g. "https://linkedin.com/company/faiceoff"
   },

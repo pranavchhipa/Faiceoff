@@ -4,7 +4,7 @@
  * /creator/verify — Get the golden tick.
  *
  * Post-onboarding manual verification. Creator uploads Aadhaar + PAN, confirms
- * they follow @faiceoff on Instagram, and submits for a Control Centre operator
+ * they follow @faiceoff.official on Instagram, and submits for a Control Centre operator
  * to review. States: not_started (form) → pending (review) → verified / rejected.
  *
  * Mobile-first, canonical dashboard tokens. Gold is reserved for the seal.
@@ -30,7 +30,7 @@ import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import { VerifiedSeal } from "@/components/ui/verified-seal";
 import { compressImageForUpload } from "@/lib/utils/image-compression";
 
-const IG_URL = "https://instagram.com/faiceoff";
+const IG_URL = "https://instagram.com/faiceoff.official";
 
 interface VerificationState {
   is_verified: boolean;
@@ -253,7 +253,7 @@ function VerifyForm({
       <StepCard
         n={1}
         icon={AtSign}
-        title="Follow @faiceoff on Instagram"
+        title="Follow @faiceoff.official on Instagram"
         desc="A quick follow helps us confirm you're an active creator."
       >
         <a
@@ -264,7 +264,7 @@ function VerifyForm({
           className="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-secondary)] px-3.5 py-2 text-[12.5px] font-700 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]/40"
         >
           <AtSign className="h-3.5 w-3.5" />
-          Open @faiceoff
+          Open @faiceoff.official
         </a>
         <label className="mt-3 flex cursor-pointer items-center gap-2.5 select-none">
           <input
@@ -283,7 +283,7 @@ function VerifyForm({
             {followed && <Check className="h-3 w-3" strokeWidth={3} />}
           </span>
           <span className="text-[12.5px] text-[var(--color-foreground)]">
-            I&apos;m now following @faiceoff
+            I&apos;m now following @faiceoff.official
             {!igClicked && (
               <span className="ml-1 text-[var(--color-muted-foreground)]">(open the link first)</span>
             )}

@@ -1,7 +1,7 @@
 // POST /api/creator/verification/submit
 //
 // Creator submits for manual verification: uploads Aadhaar + PAN (images/PDF)
-// and confirms they follow @faiceoff on Instagram. Files land in the private
+// and confirms they follow @faiceoff.official on Instagram. Files land in the private
 // `kyc-documents` bucket; a creator_verifications row is upserted to 'pending'
 // for a Control Centre operator to review.
 //
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "instagram_required",
-          message: "Please confirm you follow @faiceoff on Instagram.",
+          message: "Please confirm you follow @faiceoff.official on Instagram.",
         },
         { status: 400 },
       );
