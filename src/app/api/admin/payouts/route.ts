@@ -1,3 +1,12 @@
+/**
+ * @deprecated ORPHANED — no longer referenced by any UI.
+ *
+ * This route queries the DEAD `withdrawal_requests` table. Creator payouts
+ * now flow through `creator_payouts`, surfaced + actioned in the Control
+ * Centre (/<ccSlug>/payouts). The old /admin/payouts page is now a redirect
+ * stub. Left in place to avoid breaking anything still pinging the URL, but
+ * do not build on it — delete once you've confirmed nothing calls it.
+ */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";

@@ -142,6 +142,15 @@ export async function POST() {
     .single();
 
   if (insErr || !payout) {
+    // 23505 = the uniq_open_payout_per_creator partial index fired — a
+    // concurrent request already created the open payout (TOCTOU race). Treat
+    // it as "already pending" rather than a 500.
+    if ((insErr as { code?: string } | null)?.code === "23505") {
+      return NextResponse.json(
+        { error: "request_pending", message: "You already have a payout being processed." },
+        { status: 409 },
+      );
+    }
     console.error("[payout-request] insert failed", insErr);
     return NextResponse.json({ error: "Failed to create payout request" }, { status: 500 });
   }

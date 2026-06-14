@@ -2,7 +2,7 @@ import { Ratelimit } from '@upstash/ratelimit';
 
 import type { Duration } from '@upstash/ratelimit';
 
-import { redis } from './client';
+import { getRedis } from './client';
 
 const DEFAULT_LIMIT = 10;
 const DEFAULT_WINDOW: Duration = '60 s';
@@ -33,6 +33,20 @@ export async function rateLimit(
   failedOpen?: boolean;
 }> {
   try {
+    const redis = getRedis();
+
+    // Null client → Upstash env vars absent/empty. Fail open (allow request)
+    // rather than throwing, matching the documented intent above.
+    if (!redis) {
+      return {
+        success: true,
+        limit,
+        remaining: limit,
+        reset: Date.now() + 60_000,
+        failedOpen: true,
+      };
+    }
+
     const limiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(limit, window),

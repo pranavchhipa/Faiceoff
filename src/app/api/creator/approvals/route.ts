@@ -77,13 +77,14 @@ export async function GET() {
     image_url: string | null;
     structured_brief: Record<string, unknown> | null;
     collab_session_id: string | null;
+    cost_paise: number | null;
   };
   const gensById: Record<string, Gen> = {};
   if (generationIds.length > 0) {
     const { data: gens } = await admin
       .from("generations")
       .select(
-        "id, assembled_prompt, image_url, structured_brief, collab_session_id",
+        "id, assembled_prompt, image_url, structured_brief, collab_session_id, cost_paise",
       )
       .in("id", generationIds);
 
@@ -95,6 +96,7 @@ export async function GET() {
         structured_brief:
           (g.structured_brief as Record<string, unknown> | null) ?? null,
         collab_session_id: g.collab_session_id ?? null,
+        cost_paise: g.cost_paise ?? null,
       };
     });
   }
@@ -139,6 +141,8 @@ export async function GET() {
             assembled_prompt: gen.assembled_prompt,
             image_url: gen.image_url,
             structured_brief: gen.structured_brief,
+            // Page computes creator payout = cost_paise × 0.75 (CREATOR_SHARE_RATE).
+            cost_paise: gen.cost_paise,
           }
         : null,
       campaign: campaign ?? null,

@@ -1,163 +1,39 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/cron/process-rejections
+// GET /api/cron/process-rejections  —  DISABLED (no-op)
 //
-// Every-15-min cron. Processes side effects of auto-rejected approvals.
+// ⚠️ POLICY: This auto-REJECT path is intentionally disabled.
 //
-// The pg_cron function `auto_reject_expired_approvals` flips approval.status
-// to 'auto_rejected'. This cron does the financial side effects:
-//   1. Find auto_rejected approvals that haven't been refunded yet
-//   2. Release brand's wallet reserve
-//   3. Mark approval as processed (decided_at)
+// Two systems used to act on the SAME 48h-expired pending approvals with
+// OPPOSITE outcomes:
+//   • /api/cron/auto-approve            → silence = CONSENT → approve + credit creator
+//   • this route + auto_reject_expired_approvals() pg fn → silence = REJECT + refund
 //
-// Idempotency: only processes approvals where the corresponding generation
-// hasn't already been refunded (checked via wallet_transactions).
+// The CANONICAL policy (per CLAUDE.md and the creator-facing UI: "Missing the
+// window is fine — the brand can resend" / 48h auto-approve) is AUTO-APPROVE.
+// Auto-reject contradicts it and double-acts on the same rows, so it is
+// neutralised here.
 //
-// Protected by CRON_SECRET bearer token.
+// This route is kept as a 200-returning no-op (rather than deleted) so it stays
+// reversible and any still-registered Vercel cron hitting it does nothing
+// harmful. The companion pg function `auto_reject_expired_approvals()` and its
+// pg_cron job are dropped in migration 00069_disable_auto_reject_approvals.sql.
+//
+// To re-enable (NOT recommended without resolving the policy conflict): restore
+// from git history and re-add the function + pg_cron job. The auth + refund
+// logic lived in the pre-disable revision.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve, BillingError } from "@/lib/billing";
 
-function verifyCronSecret(req: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("[cron/process-rejections] CRON_SECRET env var not set");
-    return false;
-  }
-  return req.headers.get("Authorization") === `Bearer ${cronSecret}`;
-}
+export const runtime = "nodejs";
 
-interface ApprovalRow {
-  id: string;
-  generation_id: string;
-  status: string;
-  decided_at: string | null;
-}
-
-interface GenerationRow {
-  id: string;
-  brand_id: string;
-  cost_paise: number;
-}
-
-export async function GET(req: NextRequest) {
-  if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const admin = createAdminClient() as any;
-
-  // Fetch auto_rejected approvals that have not been decided (decided_at IS NULL)
-  // as a proxy for "not yet processed by this cron"
-  const { data: approvals, error: appErr } = await admin
-    .from("approvals")
-    .select("id, generation_id, status, decided_at")
-    .eq("status", "auto_rejected")
-    .is("decided_at", null)
-    .order("updated_at", { ascending: true })
-    .limit(100);
-
-  if (appErr) {
-    console.error("[cron/process-rejections] approvals query error:", appErr);
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  const rows = (approvals ?? []) as ApprovalRow[];
-
-  let processed = 0;
-  let refundedTotalPaise = 0;
-
-  for (const approval of rows) {
-    // Fetch generation to get brand_id and cost
-    const { data: gen } = await admin
-      .from("generations")
-      .select("id, brand_id, cost_paise")
-      .eq("id", approval.generation_id)
-      .maybeSingle() as { data: GenerationRow | null };
-
-    if (!gen) {
-      console.warn(
-        `[cron/process-rejections] no generation for approval ${approval.id} (gen_id=${approval.generation_id})`,
-      );
-      // Still mark decided so we don't retry
-      await admin
-        .from("approvals")
-        .update({ decided_at: new Date().toISOString() })
-        .eq("id", approval.id);
-      processed++;
-      continue;
-    }
-
-    // Idempotency: check if wallet already has an escrow_release for this generation
-    const { data: existingRefund } = await admin
-      .from("wallet_transactions")
-      .select("id")
-      .eq("reference_id", gen.id)
-      .eq("type", "escrow_release")
-      .maybeSingle();
-
-    if (existingRefund) {
-      // Already refunded — just mark decided
-      await admin
-        .from("approvals")
-        .update({
-          decided_at: new Date().toISOString(),
-          feedback: "Auto-rejected after 48h",
-        })
-        .eq("id", approval.id);
-      processed++;
-      continue;
-    }
-
-    // Release wallet reserve
-    if (gen.brand_id && gen.cost_paise) {
-      try {
-        await releaseReserve({
-          brandId: gen.brand_id,
-          amountPaise: gen.cost_paise,
-          generationId: gen.id,
-        });
-        refundedTotalPaise += gen.cost_paise;
-      } catch (err) {
-        if (err instanceof BillingError) {
-          // Might already be released — log and continue
-          console.warn(
-            `[cron/process-rejections] releaseReserve billing warn for approval ${approval.id}:`,
-            err.message,
-          );
-        } else {
-          console.error(
-            `[cron/process-rejections] releaseReserve error for approval ${approval.id}:`,
-            err,
-          );
-          // Skip marking as processed — will retry next tick
-          continue;
-        }
-      }
-    }
-
-    // Mark approval as processed
-    await admin
-      .from("approvals")
-      .update({
-        decided_at: new Date().toISOString(),
-        feedback: "Auto-rejected after 48h",
-      })
-      .eq("id", approval.id)
-      .catch((err: unknown) => {
-        console.error(
-          `[cron/process-rejections] approval update error for ${approval.id}:`,
-          err,
-        );
-      });
-
-    processed++;
-  }
-
-  console.log(
-    `[cron/process-rejections] processed=${processed} refunded_total_paise=${refundedTotalPaise}`,
-  );
-
-  return NextResponse.json({ processed, refunded_total_paise: refundedTotalPaise });
+export async function GET(_req: NextRequest) {
+  // Intentional no-op. Auto-reject is disabled in favour of auto-approve.
+  return NextResponse.json({
+    ok: true,
+    disabled: true,
+    reason:
+      "Auto-reject is disabled; 48h-expired approvals are handled by /api/cron/auto-approve (silence = consent).",
+    processed: 0,
+  });
 }

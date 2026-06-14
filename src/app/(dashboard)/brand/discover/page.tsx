@@ -36,6 +36,7 @@ async function loadCreators(): Promise<CreatorCard[]> {
     `,
     )
     .eq("is_active", true)
+    .eq("is_live", true)
     .limit(100);
 
   if (error || !data) {

@@ -3,7 +3,6 @@ import {
   Package,
   ShieldAlert,
   Hourglass,
-  Banknote,
 } from "lucide-react";
 import type { NavItem } from "./nav-items.brand";
 
@@ -21,5 +20,7 @@ export const ADMIN_SIDE_NAV: NavItem[] = [
   { label: "Stuck generations", href: "/admin/stuck-gens", icon: Hourglass, group: "Triage" },
   // Manage
   { label: "Credit packs", href: "/admin/packs", icon: Package, group: "Manage" },
-  { label: "Payouts", href: "/admin/payouts", icon: Banknote, group: "Manage" },
+  // Payouts retired — creator payouts now live in the Control Centre
+  // (/<ccSlug>/payouts, queries creator_payouts). The old /admin/payouts
+  // surface queried the dead withdrawal_requests table and is now a redirect stub.
 ];

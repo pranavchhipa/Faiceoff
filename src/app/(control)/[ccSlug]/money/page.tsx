@@ -40,6 +40,8 @@ interface TopupRow {
   pack: string | null;
   status: string;
   created_at: string;
+  /** Which funding rail the row came from. */
+  source: "credits" | "wallet";
 }
 
 function fmt(paise: number | null | undefined): string {
@@ -233,12 +235,38 @@ export default async function MoneyPage({ params }: Props) {
     ),
     safeQuery(
       async () => {
-        const { data } = await admin
-          .from("credit_top_ups")
-          .select("id, brand_id, amount_paise, pack, status, created_at")
-          .order("created_at", { ascending: false })
-          .limit(30);
-        return (data ?? []) as TopupRow[];
+        // INR funding arrives via two separate tables: credit-pack purchases
+        // (credit_top_ups, has a `pack`) and wallet INR top-ups
+        // (wallet_top_ups, written by /api/wallet/top-up, no `pack`). Query
+        // both, tag each with a source, merge, sort by created_at desc, keep
+        // the latest 30 across both rails.
+        const [creditRes, walletRes] = await Promise.all([
+          admin
+            .from("credit_top_ups")
+            .select("id, brand_id, amount_paise, pack, status, created_at")
+            .order("created_at", { ascending: false })
+            .limit(30),
+          admin
+            .from("wallet_top_ups")
+            .select("id, brand_id, amount_paise, status, created_at")
+            .order("created_at", { ascending: false })
+            .limit(30),
+        ]);
+
+        const credits: TopupRow[] = (
+          (creditRes.data ?? []) as Array<Omit<TopupRow, "source">>
+        ).map((r) => ({ ...r, source: "credits" as const }));
+
+        const wallet: TopupRow[] = (
+          (walletRes.data ?? []) as Array<Omit<TopupRow, "source" | "pack">>
+        ).map((r) => ({ ...r, pack: null, source: "wallet" as const }));
+
+        return [...credits, ...wallet]
+          .sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )
+          .slice(0, 30);
       },
       [] as TopupRow[],
     ),
@@ -389,16 +417,17 @@ export default async function MoneyPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Recent top-ups */}
+        {/* Recent top-ups — credit packs + wallet INR funding, merged */}
         <div>
           <p className="cc-card-title" style={{ marginBottom: 8 }}>
-            Recent brand top-ups · last 30
+            Recent brand top-ups · last 30 (credits + wallet)
           </p>
           <div className="cc-card" style={{ padding: 0, overflow: "auto" }}>
             <table className="cc-table">
               <thead>
                 <tr>
                   <th>Brand id</th>
+                  <th style={{ width: 90 }}>Source</th>
                   <th style={{ width: 110 }}>Pack</th>
                   <th style={{ width: 130 }}>Amount</th>
                   <th style={{ width: 100 }}>Status</th>
@@ -409,15 +438,24 @@ export default async function MoneyPage({ params }: Props) {
               <tbody>
                 {recentTopups.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="cc-table-empty">
+                    <td colSpan={7} className="cc-table-empty">
                       No top-ups yet.
                     </td>
                   </tr>
                 ) : (
                   recentTopups.map((t) => (
-                    <tr key={t.id}>
+                    <tr key={`${t.source}-${t.id}`}>
                       <td className="cc-mono-cell" style={{ fontSize: 11.5 }}>
                         {t.brand_id ? `${t.brand_id.slice(0, 8)}…` : "—"}
+                      </td>
+                      <td>
+                        <span
+                          className={`cc-pill ${
+                            t.source === "wallet" ? "cc-pill-info" : "cc-pill-neutral"
+                          }`}
+                        >
+                          {t.source}
+                        </span>
                       </td>
                       <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)" }}>
                         {t.pack ?? "—"}

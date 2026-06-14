@@ -70,8 +70,9 @@ function defaultMocks(): AdminMocks {
       data: {
         id: "brand-1",
         user_id: "user-1",
-        credits_balance_paise: 200000,
-        credits_reserved_paise: 50000,
+        // Migration 00032 renamed credits_*_paise → wallet_*_paise on brands.
+        wallet_balance_paise: 200000,
+        wallet_reserved_paise: 50000,
         lifetime_topup_paise: 300000,
       },
       error: null,
@@ -161,8 +162,8 @@ describe("GET /api/credits/balance", () => {
       data: {
         id: "brand-1",
         user_id: "user-1",
-        credits_balance_paise: 10000,
-        credits_reserved_paise: 20000,
+        wallet_balance_paise: 10000,
+        wallet_reserved_paise: 20000,
         lifetime_topup_paise: 30000,
       },
       error: null,

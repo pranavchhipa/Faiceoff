@@ -106,6 +106,20 @@ export async function GET(
     );
   }
 
+  // ── 4b. Licensing gate (legal): only a CREATOR-APPROVED, licensed asset may
+  // be downloaded. `license_id` is issued on creator approval (issueLicense);
+  // without it the brand would receive the full-res licensed-likeness asset
+  // before the creator ever consented. Block everything else.
+  if (!image.license_id || image.status !== "approved") {
+    return NextResponse.json(
+      {
+        error: "not_licensed",
+        message: "This image hasn't been approved and licensed by the creator yet.",
+      },
+      { status: 403 },
+    );
+  }
+
   // ── 5. Record the download (non-fatal if it fails) ───────────────────────────
   try {
     await recordDownload({ brandId, imageId: id, format });

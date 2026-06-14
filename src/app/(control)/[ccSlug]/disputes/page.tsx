@@ -9,10 +9,11 @@
  * We hydrate raised-by role + the referenced generation's image / brand /
  * creator so the row tells the operator the whole story without a click.
  *
- * Resolution actions (refund-full / refund-partial / side-with-X) ship in
- * the next iteration.
+ * Each row links to the detail page where the operator resolves it
+ * (refund the brand / no action) via the resolveDispute server action.
  */
 
+import Link from "next/link";
 import { ensureCCAuth, PageHeader } from "../_components/page-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
@@ -143,7 +144,7 @@ export default async function DisputesPage({ params, searchParams }: Props) {
     <>
       <PageHeader
         title="Disputes"
-        subtitle={`${list.length} loaded · read-only queue`}
+        subtitle={`${list.length} loaded · open a row to resolve`}
       />
 
       <div className="cc-stack">
@@ -184,12 +185,13 @@ export default async function DisputesPage({ params, searchParams }: Props) {
                 <th style={{ width: 130 }}>Status</th>
                 <th>Reason / resolution</th>
                 <th style={{ width: 100 }}>Age</th>
+                <th style={{ width: 90 }}>Review</th>
               </tr>
             </thead>
             <tbody>
               {list.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="cc-table-empty">No disputes match this filter.</td>
+                  <td colSpan={8} className="cc-table-empty">No disputes match this filter.</td>
                 </tr>
               ) : (
                 list.map((d) => {
@@ -198,7 +200,11 @@ export default async function DisputesPage({ params, searchParams }: Props) {
                   const role = rolePill(raiser?.role ?? null);
                   return (
                     <tr key={d.id}>
-                      <td className="cc-mono-cell" style={{ fontSize: 11 }}>{d.id.slice(0, 8)}…</td>
+                      <td className="cc-mono-cell" style={{ fontSize: 11 }}>
+                        <Link href={`/${ccSlug}/disputes/${d.id}`} style={{ color: "var(--cc-accent)" }}>
+                          {d.id.slice(0, 8)}…
+                        </Link>
+                      </td>
                       <td>
                         {gen?.image_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -242,6 +248,11 @@ export default async function DisputesPage({ params, searchParams }: Props) {
                       <td className="cc-mono-cell" style={{ fontSize: 11.5, color: "var(--cc-fg-muted)" }}>
                         {relativeFrom(d.created_at)}
                       </td>
+                      <td>
+                        <Link href={`/${ccSlug}/disputes/${d.id}`} className="cc-btn" style={{ fontSize: 11 }}>
+                          Open
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })
@@ -249,10 +260,6 @@ export default async function DisputesPage({ params, searchParams }: Props) {
             </tbody>
           </table>
         </div>
-
-        <p className="cc-muted" style={{ fontSize: 11.5, fontFamily: "var(--cc-mono)", letterSpacing: "0.06em" }}>
-          READ-ONLY · RESOLUTION ACTIONS (REFUND / SIDE-WITH) SHIP NEXT ITERATION
-        </p>
       </div>
     </>
   );

@@ -18,10 +18,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/process-rejections",
-      "schedule": "30 3 * * *"
-    },
-    {
       "path": "/api/cron/daily-reminders",
       "schedule": "0 4 * * *"
     },

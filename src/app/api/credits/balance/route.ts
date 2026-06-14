@@ -26,8 +26,10 @@ const RECENT_TX_LIMIT = 20;
 interface BrandBalanceRow {
   id: string;
   user_id: string;
-  credits_balance_paise: number;
-  credits_reserved_paise: number;
+  // Migration 00032 renamed credits_balance_paise → wallet_balance_paise and
+  // credits_reserved_paise → wallet_reserved_paise on the brands table.
+  wallet_balance_paise: number;
+  wallet_reserved_paise: number;
   lifetime_topup_paise: number;
 }
 
@@ -82,7 +84,7 @@ export async function GET(_req: NextRequest) {
   const { data: brandData, error: brandError } = await adminUntyped
     .from("brands")
     .select(
-      "id, user_id, credits_balance_paise, credits_reserved_paise, lifetime_topup_paise",
+      "id, user_id, wallet_balance_paise, wallet_reserved_paise, lifetime_topup_paise",
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -115,7 +117,7 @@ export async function GET(_req: NextRequest) {
 
   const available_paise = Math.max(
     0,
-    brand.credits_balance_paise - brand.credits_reserved_paise,
+    brand.wallet_balance_paise - brand.wallet_reserved_paise,
   );
 
   const recent_transactions = ((txs ?? []) as unknown as RecentTxRow[]).map(
@@ -129,9 +131,12 @@ export async function GET(_req: NextRequest) {
     }),
   );
 
+  // Response keys preserve the legacy `credits_*` names so existing consumers
+  // (brand wallet page, polling clients) keep working; values now come from the
+  // renamed wallet_* columns.
   return NextResponse.json({
-    credits_balance_paise: brand.credits_balance_paise,
-    credits_reserved_paise: brand.credits_reserved_paise,
+    credits_balance_paise: brand.wallet_balance_paise,
+    credits_reserved_paise: brand.wallet_reserved_paise,
     available_paise,
     lifetime_topup_paise: brand.lifetime_topup_paise,
     recent_transactions,

@@ -282,13 +282,19 @@ export async function runGeneration(generationId: string): Promise<void> {
   try {
     const { data: meta } = await admin
       .from("generations")
-      .select("is_free_retry, retry_count")
+      .select("is_free_retry, retry_count, collab_session_id")
       .eq("id", generationId)
       .maybeSingle();
     const isFreeRetry =
       Boolean(meta?.is_free_retry) && (meta?.retry_count as number) > 0;
 
-    if (!isFreeRetry) {
+    // Collab generations are billed at the /api/collabs/[id]/generate route
+    // (the single-pool source of truth) BEFORE this pipeline runs — charging
+    // again here double-charges the brand. Only the legacy /api/campaigns/create
+    // path (no collab_session_id) relies on this billing block.
+    const isCollabGen = !!meta?.collab_session_id;
+
+    if (!isFreeRetry && !isCollabGen) {
       try {
         const result = await deductCredit({ brandId, generationId });
 
@@ -333,7 +339,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       }
     }
 
-    if (costPaise > 0) {
+    if (costPaise > 0 && !isCollabGen) {
       try {
         await reserveWallet({
           brandId,

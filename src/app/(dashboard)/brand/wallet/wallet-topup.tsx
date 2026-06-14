@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet,
   Loader2,
-  Lock,
   ShieldCheck,
   ArrowDownLeft,
   ArrowUpRight,
@@ -324,8 +323,8 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
             <span className="text-[var(--color-primary)]">.</span>
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--color-muted-foreground)]">
-            One INR balance funds every collab. Held in escrow when you start a
-            collab — released to creators on approval, refunded on rejection.
+            One INR balance funds your generations. Top up once — spend on every
+            image you create in the Studio.
           </p>
         </div>
 
@@ -361,15 +360,11 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
           tone="primary"
         />
         <Stat
-          icon={Lock}
-          label="In escrow"
-          value={formatINR(balance.wallet_reserved_paise)}
-          sub={
-            balance.wallet_reserved_paise > 0
-              ? "held against active collabs"
-              : "nothing reserved"
-          }
-          tone={balance.wallet_reserved_paise > 0 ? "warn" : "default"}
+          icon={Wallet}
+          label="Total balance"
+          value={formatINR(balance.wallet_balance_paise)}
+          sub="current wallet balance"
+          tone="default"
         />
         <Stat
           icon={TrendingUp}
@@ -543,10 +538,10 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
               </div>
               <div>
                 <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
-                  In escrow
+                  Lifetime topped up
                 </p>
                 <p className="mt-0.5 font-display text-[14px] font-700 text-[var(--color-foreground)]/70">
-                  {formatINRDecimal(balance.wallet_reserved_paise)}
+                  {formatINRDecimal(balance.lifetime_topup_paise)}
                 </p>
               </div>
             </div>
@@ -570,23 +565,22 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
                 <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/15 font-mono text-[9px] font-700 text-[var(--color-primary)]">
                   2
                 </span>
-                Start a collab — package fee moves into escrow + unlocks
-                generation credits (3× final images).
+                Generate in the Studio — each image draws its cost straight from
+                your wallet balance.
               </li>
               <li className="flex gap-2">
                 <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/15 font-mono text-[9px] font-700 text-[var(--color-primary)]">
                   3
                 </span>
-                Creator approves — funds release to creator. Rejected? Funds
-                return to your wallet.
+                Run low? Top up again anytime — your balance never expires.
               </li>
             </ul>
             <p className="mt-3 border-t border-[var(--color-border)] pt-3 font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
               <span className="font-700 text-[var(--color-foreground)]">
-                1 credit = 1 generation
+                pay per generation
               </span>
               {" · "}
-              <span>credits never expire</span>
+              <span>balance never expires</span>
             </p>
           </div>
 
@@ -618,7 +612,7 @@ export function WalletTopup({ initialBalance, initialTransactions }: Props) {
               Transactions
             </p>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
-              Last {transactions.length} movement{transactions.length !== 1 ? "s" : ""} · top-ups, escrow, refunds
+              Last {transactions.length} movement{transactions.length !== 1 ? "s" : ""} · top-ups, generations, refunds
             </p>
           </div>
 

@@ -61,7 +61,10 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify Razorpay payment signature if provided
+    // Razorpay signature is MANDATORY on the brand (non-webhook) path. An empty
+    // body must NEVER create a funded session / grant generation credits — that
+    // was a payment bypass (authenticated brand could POST {} to unlock a paid
+    // collab for free). Webhooks are HMAC-verified upstream + CRON_SECRET-gated.
     let bodyData: Record<string, unknown> = {};
     try { bodyData = await request.json().catch(() => ({})); } catch { /* ok */ }
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = bodyData as {
@@ -69,10 +72,14 @@ export async function POST(
       razorpay_order_id?: string;
       razorpay_signature?: string;
     };
-    if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
-      const valid = verifyRazorpayPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-      if (!valid) return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return NextResponse.json(
+        { error: "Missing payment confirmation — Razorpay signature required" },
+        { status: 400 },
+      );
     }
+    const valid = verifyRazorpayPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!valid) return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
   }
 
   // Create collab_session

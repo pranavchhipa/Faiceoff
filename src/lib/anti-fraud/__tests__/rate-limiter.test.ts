@@ -10,6 +10,7 @@ vi.mock('@upstash/redis', () => ({
 
 vi.mock('@/lib/redis/client', () => ({
   redis: {},
+  getRedis: () => ({}),
 }));
 
 // We track constructor calls and slidingWindow calls manually.
