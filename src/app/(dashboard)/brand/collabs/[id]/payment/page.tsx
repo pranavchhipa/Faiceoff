@@ -82,6 +82,11 @@ export default function CollabPaymentPage() {
     try {
       const res = await fetch(`/api/collabs/${requestId}/start-payment`, { method: "POST" });
       const d = await res.json();
+      if (res.status === 403 && d.error === "verification_required") {
+        setError("Verify your brand to pay for this collab. Redirecting…");
+        setTimeout(() => router.push("/brand/verify"), 1400);
+        return;
+      }
       if (!res.ok) throw new Error(d.error ?? "Payment failed");
 
       if (!window.Razorpay) {

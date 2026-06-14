@@ -21,6 +21,7 @@ import {
   ScrollText,
   LifeBuoy,
   BadgeCheck,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,7 +39,8 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "users", label: "Users", icon: Users, group: "OPS" },
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "OPS" },
   { segment: "moderation", label: "Moderation", icon: Shield, group: "OPS" },
-  { segment: "verifications", label: "Verifications", icon: BadgeCheck, group: "OPS" },
+  { segment: "verifications", label: "Creator verifications", icon: BadgeCheck, group: "OPS" },
+  { segment: "brand-verifications", label: "Brand verifications", icon: Building2, group: "OPS" },
   { segment: "disputes", label: "Disputes", icon: Scale, group: "OPS" },
   { segment: "tickets", label: "Support tickets", icon: LifeBuoy, group: "OPS" },
 

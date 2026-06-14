@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   let body: {
     company_name?: string;
     gst_number?: string | null;
+    pan_number?: string | null;
+    legal_name?: string | null;
+    registered_address?: string | null;
     website_url?: string | null;
     industry?: string | null;
   };
@@ -31,6 +34,9 @@ export async function POST(request: Request) {
 
   const companyName = (body.company_name ?? "").trim();
   const gstNumber = body.gst_number?.trim() || null;
+  const panNumber = body.pan_number?.trim() || null;
+  const legalName = body.legal_name?.trim() || null;
+  const registeredAddress = body.registered_address?.trim() || null;
   const websiteUrl = body.website_url?.trim() || null;
   const industry = body.industry?.trim() || null;
 
@@ -48,7 +54,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // --- Verify brand row exists for this user ---
   const { data: existingBrand, error: findError } = await admin
@@ -72,14 +79,16 @@ export async function POST(request: Request) {
   }
 
   // --- Update brand row ---
+  // is_verified stays UNCHANGED (false). An operator manually verifies the
+  // brand through the Control Centre via the brand_verifications request below.
   const { error: updateError } = await admin
     .from("brands")
     .update({
       company_name: companyName,
       gst_number: gstNumber,
+      pan_number: panNumber,
       website_url: websiteUrl,
       industry: industry,
-      is_verified: true,
     })
     .eq("user_id", user.id);
 
@@ -88,6 +97,36 @@ export async function POST(request: Request) {
       { error: updateError.message },
       { status: 500 },
     );
+  }
+
+  // --- Land the brand in the manual-review queue ---
+  // If GST + PAN are present, submit as 'pending'. Otherwise create a
+  // 'not_started' row so the brand still surfaces in the Control Centre and the
+  // dashboard banner can nudge them to finish verifying. Never crash on this.
+  const hasDetails = !!gstNumber && !!panNumber;
+  const nowIso = new Date().toISOString();
+  const { error: verErr } = await admin.from("brand_verifications").upsert(
+    {
+      brand_id: existingBrand.id,
+      status: hasDetails ? "pending" : "not_started",
+      gst_number: gstNumber,
+      pan_number: panNumber,
+      company_name: companyName,
+      legal_name: legalName,
+      registered_address: registeredAddress,
+      submitted_at: hasDetails ? nowIso : null,
+      reviewed_by: null,
+      reviewed_at: null,
+      rejection_reason: null,
+      updated_at: nowIso,
+    },
+    { onConflict: "brand_id" },
+  );
+
+  if (verErr) {
+    // Non-fatal: the brand profile saved fine; verification row can be retried
+    // from /brand/verify. Log and move on.
+    console.warn("[brand-setup] verification upsert failed", verErr.message);
   }
 
   return NextResponse.json({ success: true }, { status: 200 });

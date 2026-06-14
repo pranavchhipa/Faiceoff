@@ -33,10 +33,16 @@ export async function POST(request: Request) {
   // Resolve brand
   const { data: brand } = await admin
     .from("brands")
-    .select("id")
+    .select("id, is_verified")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!brand) return NextResponse.json({ error: "Brand profile not found" }, { status: 403 });
+  if (brand.is_verified !== true) {
+    return NextResponse.json(
+      { error: "verification_required", message: "Get your brand verified before starting a collaboration." },
+      { status: 403 },
+    );
+  }
 
   let body: {
     package_id?: unknown;

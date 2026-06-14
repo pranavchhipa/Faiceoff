@@ -113,6 +113,11 @@ export default function SendRequestPage() {
         }),
       });
       const d = await res.json();
+      if (res.status === 403 && d.error === "verification_required") {
+        setError("Verify your brand first to start a collaboration. Redirecting…");
+        setTimeout(() => router.push("/brand/verify"), 1400);
+        return;
+      }
       if (!res.ok) throw new Error(d.detail ? `${d.error}: ${d.detail}` : (d.error ?? "Failed to send request"));
       // Brand requests cache is now stale.
       invalidateCache("/api/brand/requests");

@@ -30,6 +30,7 @@ const INDUSTRIES = [
 ] as const;
 
 const GST_REGEX = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
+const PAN_REGEX = /^[A-Z]{5}\d{4}[A-Z]{1}$/;
 
 export default function BrandSetupPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -37,10 +38,12 @@ export default function BrandSetupPage() {
 
   const [companyName, setCompanyName] = useState("");
   const [gstNumber, setGstNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [industry, setIndustry] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gstError, setGstError] = useState("");
+  const [panError, setPanError] = useState("");
 
   // Pre-fill company name from user metadata
   useEffect(() => {
@@ -50,12 +53,28 @@ export default function BrandSetupPage() {
   }, [user]);
 
   function validateGst(value: string): boolean {
-    if (!value) return true; // optional field
+    if (!value) {
+      setGstError("GST number is required.");
+      return false;
+    }
     if (!GST_REGEX.test(value)) {
       setGstError("Invalid GST format. Expected: 22AAAAA0000A1Z5");
       return false;
     }
     setGstError("");
+    return true;
+  }
+
+  function validatePan(value: string): boolean {
+    if (!value) {
+      setPanError("PAN number is required.");
+      return false;
+    }
+    if (!PAN_REGEX.test(value)) {
+      setPanError("Invalid PAN format. Expected: ABCDE1234F");
+      return false;
+    }
+    setPanError("");
     return true;
   }
 
@@ -67,7 +86,9 @@ export default function BrandSetupPage() {
       return;
     }
 
-    if (gstNumber && !validateGst(gstNumber)) {
+    const gstOk = validateGst(gstNumber);
+    const panOk = validatePan(panNumber);
+    if (!gstOk || !panOk) {
       return;
     }
 
@@ -80,6 +101,7 @@ export default function BrandSetupPage() {
         body: JSON.stringify({
           company_name: companyName.trim(),
           gst_number: gstNumber || null,
+          pan_number: panNumber || null,
           website_url: websiteUrl || null,
           industry: industry || null,
         }),
@@ -138,7 +160,8 @@ export default function BrandSetupPage() {
           </CardTitle>
           <CardDescription className="text-[var(--color-neutral-500)]">
             Tell us about your company so creators know who they are working
-            with. This helps build trust and match you with the right talent.
+            with. We manually verify your GST and PAN — your brand goes live for
+            collaborations once our team approves it.
           </CardDescription>
         </CardHeader>
 
@@ -166,10 +189,7 @@ export default function BrandSetupPage() {
             {/* GST Number */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="gst-number" className="text-[var(--color-ink)]">
-                GST Number{" "}
-                <span className="text-[var(--color-neutral-400)] font-400">
-                  (optional)
-                </span>
+                GST Number <span className="text-[var(--color-gold)]">*</span>
               </Label>
               <Input
                 id="gst-number"
@@ -180,11 +200,35 @@ export default function BrandSetupPage() {
                   setGstNumber(e.target.value.toUpperCase());
                   if (gstError) setGstError("");
                 }}
-                onBlur={() => validateGst(gstNumber)}
+                onBlur={() => gstNumber && validateGst(gstNumber)}
+                required
                 className="rounded-[var(--radius-input)]"
               />
               {gstError && (
                 <p className="text-xs text-red-600">{gstError}</p>
+              )}
+            </div>
+
+            {/* PAN Number */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="pan-number" className="text-[var(--color-ink)]">
+                PAN Number <span className="text-[var(--color-gold)]">*</span>
+              </Label>
+              <Input
+                id="pan-number"
+                type="text"
+                placeholder="ABCDE1234F"
+                value={panNumber}
+                onChange={(e) => {
+                  setPanNumber(e.target.value.toUpperCase());
+                  if (panError) setPanError("");
+                }}
+                onBlur={() => panNumber && validatePan(panNumber)}
+                required
+                className="rounded-[var(--radius-input)]"
+              />
+              {panError && (
+                <p className="text-xs text-red-600">{panError}</p>
               )}
             </div>
 
@@ -232,7 +276,12 @@ export default function BrandSetupPage() {
             {/* Submit */}
             <Button
               type="submit"
-              disabled={isSubmitting || !companyName.trim()}
+              disabled={
+                isSubmitting ||
+                !companyName.trim() ||
+                !gstNumber.trim() ||
+                !panNumber.trim()
+              }
               className="mt-2 h-11 w-full rounded-[var(--radius-button)] bg-[var(--color-gold)] font-600 text-white hover:bg-[var(--color-gold-hover)] disabled:opacity-50"
             >
               {isSubmitting ? (
@@ -242,11 +291,16 @@ export default function BrandSetupPage() {
                 </>
               ) : (
                 <>
-                  Save and continue
+                  Submit for verification
                   <ArrowRight className="size-4" />
                 </>
               )}
             </Button>
+
+            <p className="text-center text-xs text-[var(--color-neutral-500)]">
+              Your brand will be manually verified by our team — usually within
+              1–2 business days.
+            </p>
           </form>
         </CardContent>
       </Card>

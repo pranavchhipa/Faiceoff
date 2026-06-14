@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { BrandVerifyBanner } from "@/components/brand/verify-banner";
 
 /* ───────── Types ───────── */
 
@@ -224,6 +225,9 @@ export default function BrandDashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-5 pb-12 lg:px-8">
+      {/* ── Verification nudge (hidden once verified) ── */}
+      <BrandVerifyBanner />
+
       {/* ── HEADER ── */}
       <motion.header
         variants={fadeUp}
