@@ -1,27 +1,31 @@
 /**
- * Logo — the Faiceoff brand mark + wordmark.
+ * Logo — the official Faiceoff brand lockup.
  *
- *   <Logo variant="mark" className="h-7 w-7" />            // gold mark only
- *   <Logo variant="full" tone="dark" className="h-7" />    // light background
- *   <Logo variant="full" tone="light" className="h-7" />   // dark background
- *   <Logo variant="full" adaptive className="h-6" />        // inherits text color
+ *   <Logo variant="mark" className="h-7 w-7" />            // self-contained mark tile
+ *   <Logo variant="full" tone="dark"  className="h-7 w-auto" />  // black lockup — light bg
+ *   <Logo variant="full" tone="light" className="h-7 w-auto" />  // white lockup — dark bg
+ *   <Logo variant="full" adaptive     className="h-6 w-auto" />  // dark chrome → white lockup
  *
- * "full" = the gold mark (logo-mark.png) + "Faiceoff." wordmark, matching the
- * original treatment. `className` sets the height of the lockup; the mark
- * matches that height and the wordmark scales alongside it.
+ * "full" renders the real Faiceoff lockup IMAGE (burst mark + "Faiceoff"
+ * wordmark) — white on dark surfaces, black on light. `className` sets the
+ * height; keep `w-auto` so the ~3:1 lockup scales without distortion.
+ * "mark" stays the square self-contained tile (works on any background) —
+ * used for the favicon/app-icon, sidebars, emails + the licence PDF.
  */
 
 interface LogoProps {
   variant?: "mark" | "full";
-  /** full only: dark = dark ink (light bg), light = cream (dark bg) */
+  /** full only: dark = black lockup (light bg), light = white lockup (dark bg) */
   tone?: "dark" | "light";
-  /** full only: inherit the surrounding text color (theme-aware chrome) */
+  /** full only: app chrome is dark-only → render the white lockup */
   adaptive?: boolean;
   className?: string;
   alt?: string;
 }
 
 const MARK_SRC = "/logo-mark.png";
+const LOCKUP_WHITE = "/images/logo-light.png"; // light-coloured lockup → dark backgrounds
+const LOCKUP_BLACK = "/images/logo-dark.png"; // dark-coloured lockup → light backgrounds
 
 export function Logo({
   variant = "mark",
@@ -31,29 +35,18 @@ export function Logo({
   alt = "Faiceoff",
 }: LogoProps) {
   if (variant === "mark") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={MARK_SRC} alt={alt} className={`object-contain ${className}`} />
-    );
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={MARK_SRC} alt={alt} className={`object-contain ${className}`} />;
   }
 
-  // full lockup — mark + "Faiceoff." wordmark
-  const wordColor = adaptive
-    ? "currentColor"
-    : tone === "light"
-      ? "#f5ebd6"
-      : "var(--color-foreground)";
-
+  // full lockup image — white on dark surfaces, black on light surfaces.
+  const onDark = adaptive || tone === "light";
+  // eslint-disable-next-line @next/next/no-img-element
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`} style={{ color: wordColor }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={MARK_SRC} alt="" aria-hidden className="h-full w-auto object-contain" />
-      <span
-        className="font-display font-800 leading-none tracking-tight"
-        style={{ fontSize: "1.1rem" }}
-      >
-        Faiceoff<span style={{ color: "var(--color-primary)" }}>.</span>
-      </span>
-    </span>
+    <img
+      src={onDark ? LOCKUP_WHITE : LOCKUP_BLACK}
+      alt={alt}
+      className={`object-contain ${className}`}
+    />
   );
 }
