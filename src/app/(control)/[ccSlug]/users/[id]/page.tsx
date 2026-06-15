@@ -39,11 +39,18 @@ interface CreatorRow {
   id: string;
   user_id: string;
   is_active: boolean;
+  is_verified: boolean | null;
   kyc_status: string | null;
   instagram_handle: string | null;
   bio: string | null;
   onboarding_step: number | null;
   dpdp_consent_at: string | null;
+  lifetime_earned_gross_paise: number | null;
+  pending_balance_paise: number | null;
+  lifetime_withdrawn_net_paise: number | null;
+  bank_account_holder_name: string | null;
+  bank_ifsc: string | null;
+  bank_added_at: string | null;
   created_at: string;
 }
 
@@ -206,7 +213,7 @@ export default async function UserDrillDownPage({ params }: Props) {
       .maybeSingle(),
     admin
       .from("creators")
-      .select("id, user_id, is_active, kyc_status, instagram_handle, bio, onboarding_step, dpdp_consent_at, created_at")
+      .select("id, user_id, is_active, is_verified, kyc_status, instagram_handle, bio, onboarding_step, dpdp_consent_at, lifetime_earned_gross_paise, pending_balance_paise, lifetime_withdrawn_net_paise, bank_account_holder_name, bank_ifsc, bank_added_at, created_at")
       .eq("user_id", userId)
       .maybeSingle(),
     admin
@@ -380,7 +387,14 @@ export default async function UserDrillDownPage({ params }: Props) {
     : [];
 
   // 4. Aggregate KPIs
-  const lifetimeEarnedPaise = licenses.reduce((s, l) => s + (l.creator_share_paise ?? 0), 0);
+  // Prefer the authoritative balance columns on the creators row; fall back to
+  // the licence-derived sum if the rollup column is null (older rows).
+  const licenseDerivedEarnedPaise = licenses.reduce((s, l) => s + (l.creator_share_paise ?? 0), 0);
+  const lifetimeEarnedPaise = creator?.lifetime_earned_gross_paise ?? licenseDerivedEarnedPaise;
+  const availableBalancePaise = creator
+    ? (creator.lifetime_earned_gross_paise ?? 0) - (creator.lifetime_withdrawn_net_paise ?? 0)
+    : 0;
+  const pendingBalancePaise = creator?.pending_balance_paise ?? 0;
   const lifetimeSpentPaise = brand ? licenses.reduce((s, l) => s + (l.amount_paid_paise ?? 0), 0) : 0;
   const totalPayoutsPaise = payouts.filter((p) => p.status === "success").reduce((s, p) => s + p.amount_paise, 0);
   const totalTopupsPaise = topups.filter((t) => t.status === "success").reduce((s, t) => s + t.amount_paise, 0);
@@ -391,6 +405,72 @@ export default async function UserDrillDownPage({ params }: Props) {
 
   const isCreator = !!creator;
   const isBrand = !!brand;
+
+  // 5. Unified recent-activity feed — merge the latest events across every
+  //    activity type into a single chronological "what has this user been
+  //    doing" list. Built entirely from data already fetched (no new queries).
+  type Activity = { at: string; kind: string; label: string; detail: string; pill: string };
+  const activity: Activity[] = [
+    ...generations.map((g) => ({
+      at: g.created_at,
+      kind: "Generation",
+      label: `Generation ${g.id.slice(0, 8)}…`,
+      detail: g.status,
+      pill: statusPill(g.status),
+    })),
+    ...collabs.map((c) => ({
+      at: c.created_at,
+      kind: "Collab",
+      label: c.name,
+      detail: `${c.status}${c.package_tier ? ` · ${c.package_tier}` : ""}${c.package_price_paise ? ` · ${fmt(c.package_price_paise)}` : ""}`,
+      pill: statusPill(c.status),
+    })),
+    ...licenses.map((l) => ({
+      at: l.issued_at,
+      kind: "Licence",
+      label: `Licence ${l.id.slice(0, 8)}…`,
+      detail: `${l.scope} · ${isCreator ? `${fmt(l.creator_share_paise)} earned` : `${fmt(l.amount_paid_paise)} paid`}`,
+      pill: statusPill(l.status),
+    })),
+    ...payouts.map((p) => ({
+      at: p.created_at,
+      kind: "Payout",
+      label: `Payout ${fmt(p.amount_paise)}`,
+      detail: p.status,
+      pill: statusPill(p.status),
+    })),
+    ...topups.map((t) => ({
+      at: t.created_at,
+      kind: "Top-up",
+      label: `Top-up ${fmt(t.amount_paise)}`,
+      detail: t.status,
+      pill: statusPill(t.status),
+    })),
+    ...requestsForCreator.map((r) => ({
+      at: r.created_at,
+      kind: "Request in",
+      label: r.product_name ?? "Collab request",
+      detail: `${r.status}${r.package_price_paise ? ` · ${fmt(r.package_price_paise)}` : ""}`,
+      pill: statusPill(r.status),
+    })),
+    ...requestsForBrand.map((r) => ({
+      at: r.created_at,
+      kind: "Request out",
+      label: r.product_name ?? "Collab request",
+      detail: `${r.status}${r.package_price_paise ? ` · ${fmt(r.package_price_paise)}` : ""}`,
+      pill: statusPill(r.status),
+    })),
+    ...approvalsForCreator.map((a) => ({
+      at: a.created_at,
+      kind: "Approval",
+      label: `Approval ${a.id.slice(0, 8)}…`,
+      detail: a.status,
+      pill: statusPill(a.status),
+    })),
+  ]
+    .filter((a) => !!a.at)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 30);
 
   return (
     <>
@@ -404,8 +484,12 @@ export default async function UserDrillDownPage({ params }: Props) {
       </div>
 
       <PageHeader
-        title={user.display_name ?? user.email ?? userId.slice(0, 8)}
-        subtitle={`${user.role} · joined ${relativeFrom(user.created_at)} · ${user.email ?? "no email"}${user.phone ? ` · ${user.phone}` : ""}`}
+        title={brand?.company_name ?? user.display_name ?? user.email ?? userId.slice(0, 8)}
+        subtitle={`${isCreator ? "Creator" : isBrand ? "Brand" : user.role}${
+          (isCreator ? creator!.is_verified : isBrand ? brand!.is_verified : false) ? " ✓" : ""
+        } · joined ${relativeFrom(user.created_at)} · ${user.email ?? "no email"}${
+          user.phone ? ` · ${user.phone}` : ""
+        }${creator?.instagram_handle ? ` · @${creator.instagram_handle.replace(/^@/, "")}` : ""}`}
       />
 
       <div className="cc-stack">
@@ -425,10 +509,16 @@ export default async function UserDrillDownPage({ params }: Props) {
             <div className="cc-card">
               <p className="cc-card-title">Creator profile</p>
               <KV label="Creator ID" value={creator!.id} mono />
+              <KV label="Verified tick" value={creator!.is_verified ? "Verified ✓" : "Unverified"} pill={creator!.is_verified ? "ok" : "neutral"} />
               <KV label="Active" value={creator!.is_active ? "yes" : "no"} pill={creator!.is_active ? "ok" : "neutral"} />
-              <KV label="KYC" value={creator!.kyc_status ?? "—"} pill={creator!.kyc_status === "approved" ? "ok" : creator!.kyc_status === "rejected" ? "bad" : "warn"} />
-              <KV label="Instagram" value={creator!.instagram_handle ?? "—"} mono />
-              <KV label="Onboarding" value={creator!.onboarding_step != null ? `step ${creator!.onboarding_step}` : "—"} mono />
+              <KV
+                label="KYC"
+                value={creator!.kyc_status ?? "—"}
+                pill={creator!.kyc_status === "verified" || creator!.kyc_status === "approved" ? "ok" : creator!.kyc_status === "rejected" ? "bad" : "warn"}
+              />
+              <KV label="Instagram" value={creator!.instagram_handle ? `@${creator!.instagram_handle.replace(/^@/, "")}` : "—"} mono />
+              <KV label="Bank added" value={creator!.bank_added_at ? `yes · ${relativeFrom(creator!.bank_added_at)}` : "no"} pill={creator!.bank_added_at ? "ok" : "warn"} />
+              <KV label="Onboarding" value={creator!.onboarding_step != null ? String(creator!.onboarding_step) : "—"} mono />
               <KV label="DPDP consent" value={creator!.dpdp_consent_at ? relativeFrom(creator!.dpdp_consent_at) : "—"} mono />
             </div>
           )}
@@ -438,10 +528,11 @@ export default async function UserDrillDownPage({ params }: Props) {
               <p className="cc-card-title">Brand profile</p>
               <KV label="Brand ID" value={brand!.id} mono />
               <KV label="Company" value={brand!.company_name ?? "—"} />
-              <KV label="Website" value={brand!.website_url ?? "—"} mono />
+              <KV label="Verified" value={brand!.is_verified ? "Verified ✓" : "Unverified"} pill={brand!.is_verified ? "ok" : "warn"} />
+              <KV label="GST status" value={brand!.gst_number ? "GSTIN on file" : "no GSTIN"} pill={brand!.gst_number ? "ok" : "neutral"} />
               <KV label="GSTIN" value={brand!.gst_number ?? "—"} mono />
+              <KV label="Website" value={brand!.website_url ?? "—"} mono />
               <KV label="Industry" value={brand!.industry ?? "—"} />
-              <KV label="Verified" value={brand!.is_verified ? "yes" : "no"} pill={brand!.is_verified ? "ok" : "warn"} />
             </div>
           )}
 
@@ -463,10 +554,10 @@ export default async function UserDrillDownPage({ params }: Props) {
           <div className="cc-grid cc-grid-4">
             {isCreator && (
               <>
-                <Kpi label="Lifetime earned" value={fmt(lifetimeEarnedPaise)} sub="creator share of all licences" />
+                <Kpi label="Lifetime earned" value={fmt(lifetimeEarnedPaise)} sub="gross creator earnings" />
+                <Kpi label="Available balance" value={fmt(availableBalancePaise)} sub="earned − withdrawn" />
+                <Kpi label="Pending (in escrow)" value={fmt(pendingBalancePaise)} sub="awaiting 7-day release" />
                 <Kpi label="Paid out" value={fmt(totalPayoutsPaise)} sub={`${payouts.filter((p) => p.status === "success").length} successful payouts`} />
-                <Kpi label="In escrow" value={fmt(lifetimeEarnedPaise - totalPayoutsPaise)} sub="not yet withdrawn" />
-                <Kpi label="Lifetime gens" value={String(generations.length)} sub="approved + pending + failed" />
               </>
             )}
             {isBrand && (
@@ -482,6 +573,39 @@ export default async function UserDrillDownPage({ params }: Props) {
                 <span className="cc-kpi-sub">Admin user — no creator or brand profile.</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* RECENT ACTIVITY — unified chronological feed */}
+        <div>
+          <p className="cc-card-title" style={{ marginBottom: 8 }}>
+            Recent activity ({activity.length}) — newest across gens, collabs, money, requests
+          </p>
+          <div className="cc-card" style={{ padding: 0, overflow: "auto" }}>
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 110 }}>When</th>
+                  <th style={{ width: 110 }}>Type</th>
+                  <th>What</th>
+                  <th style={{ width: 220 }}>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activity.length === 0 ? (
+                  <tr><td colSpan={4} className="cc-table-empty">No recent activity.</td></tr>
+                ) : activity.map((a, i) => (
+                  <tr key={`${a.kind}-${i}`}>
+                    <td className="cc-mono-cell" style={{ fontSize: 11, color: "var(--cc-fg-muted)" }}>{relativeFrom(a.at)}</td>
+                    <td className="cc-mono-cell" style={{ fontSize: 11 }}>{a.kind}</td>
+                    <td style={{ fontSize: 12 }}>{a.label}</td>
+                    <td>
+                      <span className={`cc-pill ${a.pill}`}>{a.detail}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 

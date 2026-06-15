@@ -23,7 +23,8 @@ import { LogOut } from "lucide-react";
 import { verifySlug } from "@/lib/cc/guard";
 import { getCurrentSession } from "@/lib/cc/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CC_NAV, GROUP_ORDER } from "@/config/cc-nav";
+import { CC_NAV } from "@/config/cc-nav";
+import { getPendingCounts } from "@/lib/cc/overview";
 import "./cc.css";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +131,24 @@ export default async function CCLayout({ children, params }: Props) {
   }
 
   // 4. Authenticated — render full chrome with sidebar.
+  const pending = await getPendingCounts();
+  const everyday = CC_NAV.filter((i) => i.group === "EVERYDAY");
+  const advanced = CC_NAV.filter((i) => i.group === "ADVANCED");
+
+  const renderLink = (item: (typeof CC_NAV)[number]) => {
+    const Icon = item.icon;
+    const badge = item.segment === "inbox" && pending.total > 0 ? pending.total : null;
+    return (
+      <li key={item.segment}>
+        <Link href={`/${ccSlug}/${item.segment}`} className="cc-nav-link" prefetch={false}>
+          <Icon size={15} />
+          <span>{item.label}</span>
+          {badge !== null && <span className="cc-nav-badge">{badge}</span>}
+        </Link>
+      </li>
+    );
+  };
+
   return (
     <div className="cc-root">
       <header className="cc-topbar">
@@ -153,32 +172,17 @@ export default async function CCLayout({ children, params }: Props) {
 
       <div className="cc-shell">
         <aside className="cc-sidebar">
-          {GROUP_ORDER.map((group) => {
-            const items = CC_NAV.filter((i) => i.group === group);
-            if (items.length === 0) return null;
-            return (
-              <div key={group} className="cc-nav-group">
-                <p className="cc-nav-group-label">{group}</p>
-                <ul className="cc-nav-list">
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={item.segment}>
-                        <Link
-                          href={`/${ccSlug}/${item.segment}`}
-                          className="cc-nav-link"
-                          prefetch={false}
-                        >
-                          <Icon size={14} />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
+          {/* Everyday — flat, always visible */}
+          <ul className="cc-nav-list">{everyday.map(renderLink)}</ul>
+
+          {/* Advanced — collapsed by default (native <details>, no JS) */}
+          <details className="cc-nav-advanced">
+            <summary className="cc-nav-advanced-summary">
+              <span>Advanced</span>
+              <span className="cc-nav-advanced-chev">▾</span>
+            </summary>
+            <ul className="cc-nav-list">{advanced.map(renderLink)}</ul>
+          </details>
         </aside>
 
         <main className="cc-main">{children}</main>

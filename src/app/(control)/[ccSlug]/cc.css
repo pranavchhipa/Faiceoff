@@ -164,12 +164,12 @@
 .cc-nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  gap: 10px;
+  padding: 8px 9px;
+  border-radius: 6px;
   color: var(--cc-fg-muted);
   text-decoration: none;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 500;
   transition: background 0.1s ease, color 0.1s ease;
 }
@@ -183,6 +183,46 @@
   background: var(--cc-bg-3);
   color: var(--cc-accent);
 }
+
+/* Pending-action badge on "Needs you" */
+.cc-nav-badge {
+  margin-left: auto;
+  font-family: var(--cc-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  background: rgba(220, 131, 102, 0.16);
+  color: #dc8366;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+
+/* Collapsible Advanced group (native <details>, no JS) */
+.cc-nav-advanced {
+  margin-top: 14px;
+  border-top: 1px solid var(--cc-border);
+  padding-top: 10px;
+}
+.cc-nav-advanced-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 9px;
+  font-family: var(--cc-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cc-fg-dim);
+  user-select: none;
+}
+.cc-nav-advanced-summary::-webkit-details-marker { display: none; }
+.cc-nav-advanced-summary:hover { color: var(--cc-fg-muted); }
+.cc-nav-advanced-chev { transition: transform 0.15s ease; font-size: 11px; }
+.cc-nav-advanced[open] .cc-nav-advanced-chev { transform: rotate(180deg); }
+.cc-nav-advanced > .cc-nav-list { margin-top: 4px; }
 
 /* ── Main area ───────────────────────────────────────────────────────── */
 
@@ -580,4 +620,37 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--cc-fg);
+}
+
+/* ── Ops Home — action cards + activity feed hover ───────────────────── */
+
+.cc-action-card {
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.cc-action-card:hover {
+  background: var(--cc-bg-hover);
+  border-color: var(--cc-border-strong);
+}
+
+.cc-activity-row {
+  transition: background 0.1s ease;
+}
+
+.cc-activity-row:hover {
+  background: var(--cc-bg-hover);
+}
+
+/* ── "Needs you" inbox preview rows ──────────────────────────────────── */
+
+.cc-inbox-row {
+  transition: background 0.1s ease;
+}
+
+.cc-inbox-row:hover {
+  background: var(--cc-bg-hover);
+}
+
+.cc-inbox-row:last-child {
+  border-bottom: none !important;
 }

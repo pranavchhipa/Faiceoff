@@ -1,24 +1,32 @@
 /**
- * Operations Overview — the Control Centre home.
+ * Control Centre Home — the friendly "what's happening + what needs you" view.
  *
- * Real-time-ish snapshot of platform activity. Re-renders on every page
- * load (force-dynamic) so a refresh shows live numbers. Auto-refresh
- * via the small client poller below.
+ * This is the daily-driver overview for a non-technical owner. It answers two
+ * questions at a glance:
  *
- * KPIs are scoped to:
- *   • Today (since 00:00 IST)
- *   • Right now (active states)
- *   • Lifetime totals
+ *   1. What happened today?      → big, readable stat cards
+ *   2. What needs me right now?  → an action-queue grid + a live activity feed
  *
- * Plus a system-health strip that surfaces the things most likely to
- * break (Razorpay / Gemini / OpenRouter / Resend / Upstash via Redis
- * latency).
+ * The dense KPI grid + raw health dots that used to live here are gone from the
+ * top of the page; the system-health strip is kept but demoted to the bottom as
+ * a secondary, technical check.
+ *
+ * Data:
+ *   • loadSnapshot()    — today's numbers + active states + lifetime + health
+ *                         (unchanged, reused as-is)
+ *   • getPendingCounts() — how many items sit in each operator action-queue
+ *   • getActivityFeed()  — merged, human-readable recent events
+ *
+ * Re-renders on every load (force-dynamic) + the OpsAutoRefresh client poller
+ * (every 30s) so numbers stay live.
  */
 
+import Link from "next/link";
 import { ensureCCAuth, PageHeader } from "../_components/page-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
+import { getPendingCounts, getActivityFeed, type ActivityKind } from "@/lib/cc/overview";
 import OpsAutoRefresh from "./ops-auto-refresh";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +70,6 @@ interface Snapshot {
 async function loadSnapshot(): Promise<Snapshot> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
-  const istToday = new Date();
   // IST start of day = UTC of (today 00:00 IST = today -5:30 UTC)
   // For simplicity: use UTC midnight; close enough for a dashboard.
   const startOfDay = new Date();
@@ -89,7 +96,6 @@ async function loadSnapshot(): Promise<Snapshot> {
     totalBrands,
     totalLicences,
 
-    revenueToday,
     revenueLifetime,
 
     lastWebhook,
@@ -112,7 +118,6 @@ async function loadSnapshot(): Promise<Snapshot> {
     admin.from("brands").select("id", { count: "exact", head: true }),
     admin.from("licenses").select("id", { count: "exact", head: true }),
 
-    admin.from("approvals").select("creator_share_paise, platform_share_paise").gte("created_at", startIso).eq("status", "approved"),
     admin.from("approvals").select("creator_share_paise, platform_share_paise").eq("status", "approved"),
 
     admin.from("webhook_events").select("received_at").eq("source", "razorpay").order("received_at", { ascending: false }).limit(1).maybeSingle(),
@@ -179,33 +184,16 @@ function relativeFrom(iso: string | null): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-function HealthDot({ ok, label, sub }: { ok: boolean; label: string; sub: string }) {
-  return (
-    <div className="cc-card" style={{ padding: 12 }}>
-      <div className="cc-row" style={{ gap: 8, marginBottom: 4 }}>
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            background: ok ? "var(--cc-ok)" : "var(--cc-bad)",
-            display: "inline-block",
-          }}
-        />
-        <span className="cc-label" style={{ marginBottom: 0 }}>{label}</span>
-      </div>
-      <p className="cc-mono-cell" style={{ margin: 0, fontSize: 11.5, color: "var(--cc-fg-muted)" }}>
-        {sub}
-      </p>
-    </div>
-  );
-}
-
 export default async function OpsPage({ params }: Props) {
   const { ccSlug } = await params;
   await ensureCCAuth(ccSlug);
 
-  const snap = await loadSnapshot();
+  // Load the snapshot + the two new friendly helpers in parallel.
+  const [snap, pending, feed] = await Promise.all([
+    loadSnapshot(),
+    getPendingCounts(),
+    getActivityFeed(20),
+  ]);
 
   // Audit the view (fire-and-forget, never block).
   const session = await getCurrentSession();
@@ -214,102 +202,256 @@ export default async function OpsPage({ params }: Props) {
     sessionId: session?.id ?? null,
   });
 
-  const { today, active, lifetime, health } = snap;
+  const { today, lifetime, health } = snap;
   const generatedAt = new Date(snap.generated_at);
+
+  const newSignups = today.signups_creator + today.signups_brand;
+  const cc = `/${ccSlug}`;
+
+  // Action queues — one card per non-zero queue, in priority order.
+  const allQueues: ActionQueue[] = [
+    {
+      key: "payouts",
+      count: pending.payouts,
+      label: "Payouts to send",
+      hint: "Creators waiting to get paid",
+      cta: "Pay",
+      href: `${cc}/payouts`,
+      tone: "warn",
+    },
+    {
+      key: "disputes",
+      count: pending.disputes,
+      label: "Disputes to resolve",
+      hint: "Brand or creator raised an issue",
+      cta: "Resolve",
+      href: `${cc}/disputes`,
+      tone: "bad",
+    },
+    {
+      key: "brandVerify",
+      count: pending.brandVerify,
+      label: "Brand verifications",
+      hint: "GST / company checks awaiting review",
+      cta: "Review",
+      href: `${cc}/brand-verifications`,
+      tone: "accent",
+    },
+    {
+      key: "creatorVerify",
+      count: pending.creatorVerify,
+      label: "Creator verifications",
+      hint: "Identity checks awaiting review",
+      cta: "Review",
+      href: `${cc}/verifications`,
+      tone: "accent",
+    },
+    {
+      key: "tickets",
+      count: pending.tickets,
+      label: "Support tickets",
+      hint: "People waiting on a reply",
+      cta: "Reply",
+      href: `${cc}/tickets`,
+      tone: "accent",
+    },
+    {
+      key: "stuckGens",
+      count: pending.stuckGens,
+      label: "Stuck generations",
+      hint: "Images stuck for over 24 hours",
+      cta: "Resolve",
+      href: `${cc}/moderation`,
+      tone: "bad",
+    },
+  ];
+  const queues = allQueues.filter((q) => q.count > 0);
 
   return (
     <>
       <PageHeader
-        title="Operations"
-        subtitle={`Snapshot · ${generatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} IST · auto-refresh every 30s`}
+        title="Faiceoff — aaj ek nazar me"
+        subtitle="What's happening, and what needs you."
       />
       <OpsAutoRefresh />
 
-      <div className="cc-stack">
-        {/* TODAY */}
-        <div>
-          <p className="cc-card-title" style={{ marginBottom: 8 }}>Today (since 00:00 UTC)</p>
+      <div className="cc-stack" style={{ gap: 28 }}>
+        {/* ── TODAY'S NUMBERS ──────────────────────────────────────────── */}
+        <section>
+          <p className="cc-card-title" style={{ marginBottom: 12 }}>Today so far</p>
           <div className="cc-grid cc-grid-4">
-            <Kpi label="Signups · creator" value={String(today.signups_creator)} />
-            <Kpi label="Signups · brand" value={String(today.signups_brand)} />
-            <Kpi
-              label="Top-ups"
-              value={String(today.topups_count)}
-              sub={fmt(today.topups_inr_paise)}
+            <BigStat
+              label="Money in today"
+              value={fmt(today.topups_inr_paise)}
+              sub={today.topups_count === 1 ? "1 top-up" : `${today.topups_count} top-ups`}
             />
-            <Kpi label="Generations" value={String(today.generations)} />
-            <Kpi label="Approvals" value={String(today.approvals)} />
-            <Kpi label="Licences issued" value={String(today.licences_issued)} />
-          </div>
-        </div>
-
-        {/* RIGHT NOW */}
-        <div>
-          <p className="cc-card-title" style={{ marginBottom: 8 }}>Right now</p>
-          <div className="cc-grid cc-grid-4">
-            <Kpi label="Active collabs" value={String(active.collabs_active)} />
-            <Kpi label="Pending requests" value={String(active.requests_pending)} />
-            <Kpi
-              label="Pending approvals"
-              value={String(active.approvals_pending)}
-              tone={active.approvals_pending > 5 ? "warn" : undefined}
+            <BigStat
+              label="New sign-ups"
+              value={String(newSignups)}
+              sub={`${today.signups_creator} creators · ${today.signups_brand} brands`}
             />
-            <Kpi
-              label="Stuck gens (>24h)"
-              value={String(active.stuck_generations)}
-              tone={active.stuck_generations > 0 ? "bad" : "ok"}
+            <BigStat
+              label="Images created"
+              value={String(today.generations)}
+              sub={`${today.approvals} approved today`}
             />
-            <Kpi
-              label="Open disputes"
-              value={String(active.open_disputes)}
-              tone={active.open_disputes > 0 ? "warn" : "ok"}
+            <BigStat
+              label="Needs your action"
+              value={String(pending.total)}
+              sub={pending.total === 0 ? "Nothing pending" : "Across all queues"}
+              tone={pending.total > 0 ? "warn" : "ok"}
             />
           </div>
-        </div>
+        </section>
 
-        {/* LIFETIME */}
-        <div>
-          <p className="cc-card-title" style={{ marginBottom: 8 }}>Lifetime</p>
-          <div className="cc-grid cc-grid-4">
-            <Kpi label="Creators" value={lifetime.total_creators.toLocaleString("en-IN")} />
-            <Kpi label="Brands" value={lifetime.total_brands.toLocaleString("en-IN")} />
-            <Kpi label="Licences" value={lifetime.total_licences.toLocaleString("en-IN")} />
-            <Kpi label="GMV" value={fmt(lifetime.gmv_paise)} />
+        {/* ── NEEDS YOUR ATTENTION ─────────────────────────────────────── */}
+        <section>
+          <p className="cc-card-title" style={{ marginBottom: 12 }}>Needs your attention</p>
+          {queues.length === 0 ? (
+            <div
+              className="cc-card"
+              style={{
+                padding: "28px 20px",
+                textAlign: "center",
+                borderColor: "var(--cc-ok)",
+                background: "rgba(31, 170, 106, 0.06)",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--cc-ok)" }}>
+                All caught up ✓
+              </p>
+              <p style={{ margin: "6px 0 0 0", fontSize: 13, color: "var(--cc-fg-muted)" }}>
+                Nothing is waiting on you right now. Enjoy the calm.
+              </p>
+            </div>
+          ) : (
+            <div className="cc-grid cc-grid-3">
+              {queues.map((q) => (
+                <ActionCard key={q.key} queue={q} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── LIVE ACTIVITY ────────────────────────────────────────────── */}
+        <section>
+          <p className="cc-card-title" style={{ marginBottom: 12 }}>Live activity</p>
+          <div className="cc-card" style={{ padding: 0, overflow: "hidden" }}>
+            {feed.length === 0 ? (
+              <p style={{ margin: 0, padding: "28px 20px", textAlign: "center", color: "var(--cc-fg-muted)", fontSize: 13 }}>
+                No recent activity yet.
+              </p>
+            ) : (
+              feed.map((item, i) => (
+                <Link
+                  key={`${item.kind}-${item.ts}-${i}`}
+                  href={item.href ?? "#"}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    textDecoration: "none",
+                    color: "inherit",
+                    borderTop: i === 0 ? "none" : "1px solid var(--cc-border)",
+                  }}
+                  className="cc-activity-row"
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      flexShrink: 0,
+                      background: activityColor(item.kind),
+                      boxShadow: `0 0 0 4px ${activityColor(item.kind)}1f`,
+                    }}
+                  />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "var(--cc-fg)" }}>
+                    {item.text}
+                  </span>
+                  <span style={{ flexShrink: 0, fontSize: 11.5, color: "var(--cc-fg-dim)" }}>
+                    {relativeFrom(item.ts)}
+                  </span>
+                </Link>
+              ))
+            )}
           </div>
-        </div>
+        </section>
 
-        {/* HEALTH */}
-        <div>
-          <p className="cc-card-title" style={{ marginBottom: 8 }}>System health</p>
-          <div className="cc-grid cc-grid-4">
-            <HealthDot
+        {/* ── SYSTEM HEALTH (secondary, technical) ─────────────────────── */}
+        <section style={{ marginTop: 4 }}>
+          <p className="cc-card-title" style={{ marginBottom: 10 }}>System health · technical check</p>
+          <div className="cc-row" style={{ gap: 12, flexWrap: "wrap" }}>
+            <HealthChip
               ok={health.db_ok}
               label="Database"
-              sub={`${health.db_ms ?? "—"}ms · Supabase`}
+              sub={`${health.db_ms ?? "—"}ms`}
             />
-            <HealthDot
+            <HealthChip
               ok={health.last_razorpay_webhook_at != null && Date.now() - new Date(health.last_razorpay_webhook_at).getTime() < 24 * 60 * 60 * 1000}
-              label="Razorpay webhooks"
-              sub={`Last ${relativeFrom(health.last_razorpay_webhook_at)}`}
+              label="Razorpay"
+              sub={relativeFrom(health.last_razorpay_webhook_at)}
             />
-            <HealthDot
+            <HealthChip
               ok={health.last_gemini_gen_at != null && Date.now() - new Date(health.last_gemini_gen_at).getTime() < 24 * 60 * 60 * 1000}
-              label="Gemini pipeline"
-              sub={`Last gen ${relativeFrom(health.last_gemini_gen_at)}`}
+              label="Image pipeline"
+              sub={`last gen ${relativeFrom(health.last_gemini_gen_at)}`}
             />
-            <HealthDot
-              ok={true}
-              label="Auth · Resend"
-              sub="Probe via login attempts"
-            />
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--cc-fg-dim)" }}>
+              Lifetime GMV {fmt(lifetime.gmv_paise)} · {lifetime.total_creators.toLocaleString("en-IN")} creators · {lifetime.total_brands.toLocaleString("en-IN")} brands · updated {generatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST · auto-refresh 30s
+            </span>
           </div>
-        </div>
+        </section>
       </div>
     </>
   );
 }
 
-function Kpi({
+/* ── Pieces ──────────────────────────────────────────────────────────── */
+
+interface ActionQueue {
+  key: string;
+  count: number;
+  label: string;
+  hint: string;
+  cta: string;
+  href: string;
+  tone: "accent" | "warn" | "bad";
+}
+
+function toneColor(tone: "accent" | "warn" | "bad" | "ok"): string {
+  switch (tone) {
+    case "warn":
+      return "var(--cc-warn)";
+    case "bad":
+      return "var(--cc-bad)";
+    case "ok":
+      return "var(--cc-ok)";
+    default:
+      return "var(--cc-accent)";
+  }
+}
+
+function activityColor(kind: ActivityKind): string {
+  switch (kind) {
+    case "topup":
+    case "payout":
+      return "#1faa6a"; // ok / money
+    case "dispute":
+      return "#d24343"; // bad
+    case "brand_verify":
+    case "creator_verify":
+      return "#c9a96e"; // accent
+    case "collab":
+      return "#4d8ad6"; // info
+    default:
+      return "#9aa0a6"; // signups / neutral
+  }
+}
+
+function BigStat({
   label,
   value,
   sub,
@@ -318,23 +460,95 @@ function Kpi({
   label: string;
   value: string;
   sub?: string;
-  tone?: "ok" | "warn" | "bad";
+  tone?: "warn" | "ok";
 }) {
-  const color =
-    tone === "ok"
-      ? "var(--cc-ok)"
-      : tone === "warn"
-        ? "var(--cc-warn)"
-        : tone === "bad"
-          ? "var(--cc-bad)"
-          : "var(--cc-fg)";
+  const color = tone ? toneColor(tone) : "var(--cc-fg)";
   return (
-    <div className="cc-kpi">
-      <span className="cc-kpi-label">{label}</span>
-      <span className="cc-kpi-value" style={{ color }}>
+    <div className="cc-card" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--cc-fg-muted)" }}>{label}</span>
+      <span
+        style={{
+          fontSize: 34,
+          fontWeight: 800,
+          lineHeight: 1.05,
+          letterSpacing: "-0.02em",
+          fontVariantNumeric: "tabular-nums",
+          color,
+        }}
+      >
         {value}
       </span>
-      {sub && <span className="cc-kpi-sub">{sub}</span>}
+      {sub && <span style={{ fontSize: 12, color: "var(--cc-fg-dim)" }}>{sub}</span>}
     </div>
+  );
+}
+
+function ActionCard({ queue }: { queue: ActionQueue }) {
+  const color = toneColor(queue.tone);
+  return (
+    <Link
+      href={queue.href}
+      className="cc-action-card"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: "16px 18px",
+        background: "var(--cc-bg-2)",
+        border: "1px solid var(--cc-border)",
+        borderLeft: `3px solid ${color}`,
+        borderRadius: 4,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontSize: 30,
+            fontWeight: 800,
+            lineHeight: 1,
+            letterSpacing: "-0.02em",
+            fontVariantNumeric: "tabular-nums",
+            color,
+          }}
+        >
+          {queue.count}
+        </span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--cc-fg)" }}>{queue.label}</span>
+      </div>
+      <span style={{ fontSize: 12.5, color: "var(--cc-fg-muted)" }}>{queue.hint}</span>
+      <span style={{ marginTop: 4, fontSize: 12.5, fontWeight: 700, color }}>
+        {queue.cta} →
+      </span>
+    </Link>
+  );
+}
+
+function HealthChip({ ok, label, sub }: { ok: boolean; label: string; sub: string }) {
+  return (
+    <span
+      className="cc-row"
+      style={{
+        gap: 8,
+        padding: "6px 12px",
+        border: "1px solid var(--cc-border)",
+        borderRadius: 999,
+        background: "var(--cc-bg-2)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          display: "inline-block",
+          background: ok ? "var(--cc-ok)" : "var(--cc-bad)",
+        }}
+      />
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--cc-fg)" }}>{label}</span>
+      <span style={{ fontSize: 11, color: "var(--cc-fg-dim)" }}>{sub}</span>
+    </span>
   );
 }

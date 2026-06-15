@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faiceoff Control — simplified (design study)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0E0F13; --surf:#16181F; --surf2:#1B1E26; --inset:#202329;
+    --line:rgba(240,234,221,.08); --line2:rgba(240,234,221,.14);
+    --tx:#F3EEE3; --mut:#9CA0A8; --dim:#6A6E77;
+    --gold:#C9A96E; --gold-soft:rgba(201,169,110,.13); --gold-line:rgba(201,169,110,.3);
+    --green:#74C495; --green-soft:rgba(116,196,149,.13);
+    --amber:#E0B45E; --amber-soft:rgba(224,180,94,.13);
+    --coral:#DC8366; --coral-soft:rgba(220,131,102,.13);
+    --blue:#7FA8D8; --blue-soft:rgba(127,168,216,.13);
+    --d:"Outfit",system-ui,sans-serif; --b:"Plus Jakarta Sans",system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--b);color:var(--tx);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:radial-gradient(800px 400px at 90% -8%,rgba(201,169,110,.06),transparent 60%)}
+  .num{font-family:var(--d);font-feature-settings:"tnum" 1;letter-spacing:-.02em}
+  .eye{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .wrap{display:flex;min-height:100vh}
+
+  /* Sidebar — simplified, plain English */
+  .side{width:248px;flex-shrink:0;border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 20px}
+  .mk{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#E5C88C,#C9A96E 50%,#9E7E45);display:grid;place-items:center;color:#1a140a;font-family:var(--d);font-weight:800;font-size:19px}
+  .brand b{font-family:var(--d);font-weight:700;font-size:16px;display:block;line-height:1.1}
+  .brand span{font-size:9.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-line);color:var(--dim)}
+  .nav a{display:flex;align-items:center;gap:12px;padding:10px 11px;border-radius:9px;color:var(--mut);font-size:14.5px;font-weight:500;text-decoration:none;transition:.14s}
+  .nav a i{font-size:20px;width:21px;text-align:center}
+  .nav a .ct{margin-left:auto;font-size:11.5px;font-weight:700;font-family:var(--d);background:var(--coral-soft);color:var(--coral);padding:1px 8px;border-radius:99px}
+  .nav a:hover{color:var(--tx);background:rgba(240,234,221,.04)}
+  .nav a.on{color:var(--gold);background:var(--gold-soft);font-weight:600}
+  .nav .sep{height:1px;background:var(--line);margin:12px 8px}
+  .nav .adv{color:var(--dim);font-size:13.5px}
+  .side-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px}
+  .side-foot .av{width:32px;height:32px;border-radius:9px;background:var(--inset);display:grid;place-items:center;font-weight:700;font-size:12px;border:1px solid var(--line2)}
+  .side-foot p{font-size:13px;font-weight:600;line-height:1.2}.side-foot span{font-size:11px;color:var(--dim)}
+
+  /* Main */
+  .main{flex:1;min-width:0;padding:24px 32px 60px;max-width:1180px}
+  .head{margin-bottom:24px}
+  .head h1{font-family:var(--d);font-weight:700;font-size:27px;letter-spacing:-.02em}
+  .head p{color:var(--mut);font-size:14px;margin-top:5px}
+
+  /* Number cards */
+  .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:14px}
+  .nc{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+  .nc .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .nc .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:18px}
+  .nc .dl{font-size:12px;font-weight:700;font-family:var(--d);display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;background:var(--green-soft);color:var(--green)}
+  .nc .v{font-family:var(--d);font-weight:800;font-size:28px;line-height:1}
+  .nc .l{font-size:13px;color:var(--mut);margin-top:6px}
+
+  .row{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-top:18px}
+  .card{background:var(--surf);border:1px solid var(--line);border-radius:18px;padding:20px 22px}
+  .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .ch h3{font-family:var(--d);font-weight:700;font-size:17px}
+  .ch .sub{font-size:12.5px;color:var(--dim);margin-top:2px}
+
+  /* Needs-you action cards */
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .act{display:flex;align-items:center;gap:13px;background:var(--surf2);border:1px solid var(--line);border-radius:13px;padding:14px;transition:.16s;cursor:pointer}
+  .act:hover{border-color:var(--gold-line);transform:translateY(-2px)}
+  .act .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+  .act .tx{flex:1;min-width:0}
+  .act .tx b{font-family:var(--d);font-weight:700;font-size:19px;display:block;line-height:1}
+  .act .tx span{font-size:12.5px;color:var(--mut)}
+  .act .go{font-size:13px;font-weight:600;color:var(--gold);display:flex;align-items:center;gap:4px;white-space:nowrap}
+
+  /* Activity feed */
+  .feed{display:flex;flex-direction:column}
+  .fi{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .fi:last-child{border-bottom:0}
+  .fi .dot{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex-shrink:0;margin-top:1px}
+  .fi .tx{flex:1;font-size:13px;line-height:1.45}
+  .fi .tx b{font-weight:700}
+  .fi .tm{font-size:11px;color:var(--dim);white-space:nowrap}
+
+  .i-gold{background:var(--gold-soft);color:var(--gold)} .i-green{background:var(--green-soft);color:var(--green)}
+  .i-amber{background:var(--amber-soft);color:var(--amber)} .i-coral{background:var(--coral-soft);color:var(--coral)}
+  .i-blue{background:var(--blue-soft);color:var(--blue)}
+
+  @media(max-width:1000px){.nums{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr}.acts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Simplified sidebar -->
+  <aside class="side">
+    <div class="brand"><div class="mk">F</div><div><b>Faiceoff</b><span>Control</span></div></div>
+    <nav class="nav">
+      <a class="on" href="#"><i class="ti ti-home"></i> Home</a>
+      <a href="#"><i class="ti ti-checkbox"></i> Needs you <span class="ct">8</span></a>
+      <a href="#"><i class="ti ti-users"></i> People</a>
+      <a href="#"><i class="ti ti-coins"></i> Money</a>
+      <a href="#"><i class="ti ti-arrows-join"></i> Collabs</a>
+      <div class="sep"></div>
+      <a class="adv" href="#"><i class="ti ti-adjustments"></i> Advanced</a>
+    </nav>
+    <div class="side-foot"><div class="av">P</div><div><p>Pranav</p><span>Owner</span></div></div>
+  </aside>
+
+  <!-- Home view -->
+  <main class="main">
+    <div class="head">
+      <h1>Good evening, Pranav 👋</h1>
+      <p>Yeh Faiceoff me aaj ka haal — aur jo cheezein aapka action maang rahi hain.</p>
+    </div>
+
+    <!-- Today's numbers -->
+    <div class="nums">
+      <div class="nc">
+        <div class="top"><div class="ic i-gold"><i class="ti ti-currency-rupee"></i></div><span class="dl"><i class="ti ti-trending-up"></i>+18%</span></div>
+        <div class="v num">₹1.24L</div><div class="l">Aaj ka GMV (paisa flow)</div>
+      </div>
+      <div class="nc">
+        <div class="top"><div class="ic i-green"><i class="ti ti-user-plus"></i></div><span class="dl"><i class="ti ti-trending-up"></i>+6</span></div>
+        <div class="v num">23</div><div class="l">Naye signups (aaj)</div>
+      </div>
+      <div class="nc">
+        <div class="top"><div class="ic i-blue"><i class="ti ti-photo"></i></div><span class="dl"><i class="ti ti-trending-up"></i>+24%</span></div>
+        <div class="v num">312</div><div class="l">Generations (aaj)</div>
+      </div>
+      <div class="nc">
+        <div class="top"><div class="ic i-coral"><i class="ti ti-bell"></i></div></div>
+        <div class="v num" style="color:var(--coral)">8</div><div class="l">Aapke action ke liye pending</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Needs your attention -->
+      <div class="card">
+        <div class="ch"><div><h3>Aapka action chahiye</h3><div class="sub">Click karke seedha nipta do</div></div></div>
+        <div class="acts">
+          <div class="act"><div class="ic i-gold"><i class="ti ti-building-store"></i></div><div class="tx"><b>3</b><span>Brand verifications</span></div><span class="go">Review <i class="ti ti-arrow-right"></i></span></div>
+          <div class="act"><div class="ic i-gold"><i class="ti ti-rosette-discount-check"></i></div><div class="tx"><b>2</b><span>Creator verifications</span></div><span class="go">Review <i class="ti ti-arrow-right"></i></span></div>
+          <div class="act"><div class="ic i-green"><i class="ti ti-cash-banknote"></i></div><div class="tx"><b>2</b><span>Payouts bhejne hain</span></div><span class="go">Pay <i class="ti ti-arrow-right"></i></span></div>
+          <div class="act"><div class="ic i-coral"><i class="ti ti-scale"></i></div><div class="tx"><b>1</b><span>Dispute open</span></div><span class="go">Resolve <i class="ti ti-arrow-right"></i></span></div>
+          <div class="act"><div class="ic i-blue"><i class="ti ti-lifebuoy"></i></div><div class="tx"><b>4</b><span>Support tickets</span></div><span class="go">Reply <i class="ti ti-arrow-right"></i></span></div>
+          <div class="act"><div class="ic i-amber"><i class="ti ti-alert-triangle"></i></div><div class="tx"><b>1</b><span>Stuck generation</span></div><span class="go">Fix <i class="ti ti-arrow-right"></i></span></div>
+        </div>
+      </div>
+
+      <!-- Live activity -->
+      <div class="card">
+        <div class="ch"><div><h3>Live activity</h3><div class="sub">Abhi-abhi kya hua</div></div></div>
+        <div class="feed">
+          <div class="fi"><div class="dot i-green"><i class="ti ti-cash-banknote"></i></div><div class="tx"><b>Rectangled</b> ne ₹50,000 wallet top-up kiya</div><span class="tm">2m</span></div>
+          <div class="fi"><div class="dot i-gold"><i class="ti ti-rosette-discount-check"></i></div><div class="tx"><b>Aanya Kapoor</b> verified ho gayi (gold tick)</div><span class="tm">14m</span></div>
+          <div class="fi"><div class="dot i-blue"><i class="ti ti-photo"></i></div><div class="tx"><b>Vikram Rao</b> ne ek generation approve ki</div><span class="tm">31m</span></div>
+          <div class="fi"><div class="dot i-gold"><i class="ti ti-building-store"></i></div><div class="tx"><b>Brightfold</b> ne GST verification submit kiya</div><span class="tm">48m</span></div>
+          <div class="fi"><div class="dot i-green"><i class="ti ti-arrows-join"></i></div><div class="tx"><b>Glow Serum</b> collab complete hua</div><span class="tm">1h</span></div>
+          <div class="fi"><div class="dot i-coral"><i class="ti ti-scale"></i></div><div class="tx"><b>Lumen Studio</b> ne dispute raise kiya</div><span class="tm">2h</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
