@@ -1,11 +1,11 @@
 // POST /api/brand/verification/submit
 //
-// Brand submits for manual verification by TYPING business details (no document
-// upload — unlike creators who upload Aadhaar/PAN files). A brand_verifications
-// row is upserted to 'pending' for a Control Centre operator to review.
-// brands.is_verified stays false until the operator approves.
+// Flow B final step: the brand has already (1) pulled official GST details via
+// /verify-gst and (2) uploaded its GST certificate via /document. This route
+// flips the existing brand_verifications row to 'pending' for a Control Centre
+// operator to review. No body needed — everything is already persisted.
 //
-// JSON body: { gst_number, pan_number, company_name, legal_name?, registered_address? }
+// brands.is_verified stays false until the operator approves.
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +15,7 @@ import { emitNotification } from "@/lib/notifications/emit";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const supabase = await createClient();
     const {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
     if (!brand)
-      return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+      return NextResponse.json({ error: "Brand not found" }, { status: 403 });
 
     if (brand.is_verified) {
       return NextResponse.json(
@@ -41,73 +41,55 @@ export async function POST(request: Request) {
       );
     }
 
-    let body: {
-      gst_number?: string;
-      pan_number?: string;
-      company_name?: string;
-      legal_name?: string | null;
-      registered_address?: string | null;
-    };
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
+    const { data: ver } = await admin
+      .from("brand_verifications")
+      .select("gst_status, gst_certificate_path")
+      .eq("brand_id", brand.id)
+      .maybeSingle();
 
-    const gstNumber = (body.gst_number ?? "").trim();
-    const panNumber = (body.pan_number ?? "").trim();
-    const companyName = (body.company_name ?? "").trim();
-    const legalName = body.legal_name?.trim() || null;
-    const registeredAddress = body.registered_address?.trim() || null;
-
-    if (!gstNumber || !panNumber || !companyName) {
+    // Require both prior steps: GST pull + certificate upload.
+    if (!ver?.gst_status) {
       return NextResponse.json(
         {
-          error: "missing_fields",
-          message: "GST number, PAN number, and company name are required.",
+          error: "gst_not_verified",
+          message: "Verify your GSTIN first — enter your GST number and solve the captcha.",
+        },
+        { status: 400 },
+      );
+    }
+    if (!ver?.gst_certificate_path) {
+      return NextResponse.json(
+        {
+          error: "certificate_missing",
+          message: "Upload your GST registration certificate before submitting.",
         },
         { status: 400 },
       );
     }
 
     const nowIso = new Date().toISOString();
-    const { error: upsertErr } = await admin
+    const { error: updateErr } = await admin
       .from("brand_verifications")
-      .upsert(
-        {
-          brand_id: brand.id,
-          status: "pending",
-          gst_number: gstNumber,
-          pan_number: panNumber,
-          company_name: companyName,
-          legal_name: legalName,
-          registered_address: registeredAddress,
-          submitted_at: nowIso,
-          reviewed_by: null,
-          reviewed_at: null,
-          rejection_reason: null,
-          updated_at: nowIso,
-        },
-        { onConflict: "brand_id" },
-      );
+      .update({
+        status: "pending",
+        submitted_at: nowIso,
+        reviewed_by: null,
+        reviewed_at: null,
+        rejection_reason: null,
+        updated_at: nowIso,
+      })
+      .eq("brand_id", brand.id);
 
-    if (upsertErr) {
-      return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
-
-    // Mirror GST + PAN onto the brand row. is_verified stays UNCHANGED (false)
-    // until an operator approves.
-    await admin
-      .from("brands")
-      .update({ gst_number: gstNumber, pan_number: panNumber })
-      .eq("id", brand.id);
 
     after(async () => {
       await emitNotification(admin, {
         userId: user.id,
         type: "system",
-        title: "Verification submitted",
-        body: "We'll review your brand shortly — usually within 1–2 business days.",
+        title: "Submitted for verification",
+        body: "Submitted for verification — we'll review your GST + certificate shortly.",
         href: "/brand/verify",
       });
     });

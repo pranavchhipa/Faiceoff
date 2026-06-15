@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const GST_REGEX = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
-
 export async function POST(request: Request) {
   // --- Auth ---
   const supabase = await createClient();
@@ -17,12 +15,11 @@ export async function POST(request: Request) {
   }
 
   // --- Validate body ---
+  // GST + PAN are NO LONGER collected here — they are pulled + verified through
+  // the GSTVerify API on the dedicated /brand/verify page. Onboarding is just a
+  // quick profile: company name (required), website + industry (optional).
   let body: {
     company_name?: string;
-    gst_number?: string | null;
-    pan_number?: string | null;
-    legal_name?: string | null;
-    registered_address?: string | null;
     website_url?: string | null;
     industry?: string | null;
   };
@@ -33,23 +30,12 @@ export async function POST(request: Request) {
   }
 
   const companyName = (body.company_name ?? "").trim();
-  const gstNumber = body.gst_number?.trim() || null;
-  const panNumber = body.pan_number?.trim() || null;
-  const legalName = body.legal_name?.trim() || null;
-  const registeredAddress = body.registered_address?.trim() || null;
   const websiteUrl = body.website_url?.trim() || null;
   const industry = body.industry?.trim() || null;
 
   if (!companyName) {
     return NextResponse.json(
       { error: "Company name is required" },
-      { status: 400 },
-    );
-  }
-
-  if (gstNumber && !GST_REGEX.test(gstNumber)) {
-    return NextResponse.json(
-      { error: "Invalid GST format" },
       { status: 400 },
     );
   }
@@ -78,15 +64,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Update brand row ---
-  // is_verified stays UNCHANGED (false). An operator manually verifies the
-  // brand through the Control Centre via the brand_verifications request below.
+  // --- Update brand row (profile only) ---
+  // is_verified stays UNCHANGED (false). GST verification happens on
+  // /brand/verify via the GSTVerify API + operator review.
   const { error: updateError } = await admin
     .from("brands")
     .update({
       company_name: companyName,
-      gst_number: gstNumber,
-      pan_number: panNumber,
       website_url: websiteUrl,
       industry: industry,
     })
@@ -99,34 +83,36 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Land the brand in the manual-review queue ---
-  // If GST + PAN are present, submit as 'pending'. Otherwise create a
-  // 'not_started' row so the brand still surfaces in the Control Centre and the
-  // dashboard banner can nudge them to finish verifying. Never crash on this.
-  const hasDetails = !!gstNumber && !!panNumber;
+  // --- Ensure a brand_verifications row exists so /brand/verify can fill it ---
+  // No GST/PAN is collected here, so we never move the row to 'pending'. If a row
+  // already exists (e.g. brand re-edits their profile), only refresh the company
+  // name + keep its current verification status untouched. If none exists, seed a
+  // 'not_started' row. Never crash on this — the profile already saved fine.
   const nowIso = new Date().toISOString();
-  const { error: verErr } = await admin.from("brand_verifications").upsert(
-    {
-      brand_id: existingBrand.id,
-      status: hasDetails ? "pending" : "not_started",
-      gst_number: gstNumber,
-      pan_number: panNumber,
-      company_name: companyName,
-      legal_name: legalName,
-      registered_address: registeredAddress,
-      submitted_at: hasDetails ? nowIso : null,
-      reviewed_by: null,
-      reviewed_at: null,
-      rejection_reason: null,
-      updated_at: nowIso,
-    },
-    { onConflict: "brand_id" },
-  );
+  const { data: existingVer } = await admin
+    .from("brand_verifications")
+    .select("id")
+    .eq("brand_id", existingBrand.id)
+    .maybeSingle();
 
-  if (verErr) {
-    // Non-fatal: the brand profile saved fine; verification row can be retried
-    // from /brand/verify. Log and move on.
-    console.warn("[brand-setup] verification upsert failed", verErr.message);
+  if (existingVer) {
+    const { error: verErr } = await admin
+      .from("brand_verifications")
+      .update({ company_name: companyName, updated_at: nowIso })
+      .eq("id", existingVer.id);
+    if (verErr) {
+      console.warn("[brand-setup] verification update failed", verErr.message);
+    }
+  } else {
+    const { error: verErr } = await admin.from("brand_verifications").insert({
+      brand_id: existingBrand.id,
+      status: "not_started",
+      company_name: companyName,
+      updated_at: nowIso,
+    });
+    if (verErr) {
+      console.warn("[brand-setup] verification insert failed", verErr.message);
+    }
   }
 
   return NextResponse.json({ success: true }, { status: 200 });

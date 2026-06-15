@@ -1,5 +1,9 @@
 // GET /api/brand/verification — current verification state for the logged-in
 // brand. Drives the brand "Get Verified" banner + the /brand/verify page.
+//
+// Flow B: returns the official GST fields pulled from the GSTVerify API (locked
+// display values), whether a certificate has been uploaded, the review status,
+// and any rejection reason.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,13 +27,13 @@ export async function GET() {
     .maybeSingle();
 
   if (!brand) {
-    return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+    return NextResponse.json({ error: "Brand not found" }, { status: 403 });
   }
 
   const { data: ver } = await admin
     .from("brand_verifications")
     .select(
-      "status, gst_number, pan_number, company_name, legal_name, registered_address, submitted_at, reviewed_at, rejection_reason",
+      "status, gst_number, pan_number, gst_legal_name, gst_trade_name, gst_status, gst_address, gst_constitution, gst_certificate_path, submitted_at, reviewed_at, rejection_reason",
     )
     .eq("brand_id", brand.id)
     .maybeSingle();
@@ -39,9 +43,12 @@ export async function GET() {
     status: ver?.status ?? "not_started",
     gst_number: ver?.gst_number ?? null,
     pan_number: ver?.pan_number ?? null,
-    company_name: ver?.company_name ?? null,
-    legal_name: ver?.legal_name ?? null,
-    registered_address: ver?.registered_address ?? null,
+    gst_legal_name: ver?.gst_legal_name ?? null,
+    gst_trade_name: ver?.gst_trade_name ?? null,
+    gst_status: ver?.gst_status ?? null,
+    gst_address: ver?.gst_address ?? null,
+    gst_constitution: ver?.gst_constitution ?? null,
+    has_certificate: !!ver?.gst_certificate_path,
     submitted_at: ver?.submitted_at ?? null,
     reviewed_at: ver?.reviewed_at ?? null,
     rejection_reason: ver?.rejection_reason ?? null,

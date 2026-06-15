@@ -1,9 +1,11 @@
 /**
- * Brand verification detail — operator reviews one brand's typed GST + PAN +
- * company details and approves / rejects.
+ * Brand verification detail — operator reviews one brand's GST details (pulled
+ * from the GSTVerify API), the uploaded GST certificate, and approves / rejects.
  *
- * Unlike creators, brands submit TYPED business values (no document uploads),
- * so we render the text values cleanly — no signed-URL doc rendering.
+ * GST fields are locked, API-pulled values (legal name, trade name, status,
+ * address, constitution, etc.). The certificate lives in the private
+ * 'brand-documents' bucket and is rendered via a short-lived signed URL, mirroring
+ * how the creator verification detail page renders kyc-documents.
  */
 
 import Link from "next/link";
@@ -15,6 +17,8 @@ import { getCurrentSession } from "@/lib/cc/session";
 import { approveBrandVerification, rejectBrandVerification } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+const BRAND_DOCS_BUCKET = "brand-documents";
 
 interface Props {
   params: Promise<{ ccSlug: string; id: string }>;
@@ -45,6 +49,23 @@ export default async function BrandVerificationDetailPage({ params }: Props) {
   const { data: user } = brand
     ? await admin.from("users").select("display_name, email").eq("id", brand.user_id).maybeSingle()
     : { data: null };
+
+  // Short-lived signed URL for the uploaded GST certificate (private bucket).
+  let certUrl: string | null = null;
+  if (ver.gst_certificate_path) {
+    const { data: signed } = await admin.storage
+      .from(BRAND_DOCS_BUCKET)
+      .createSignedUrl(ver.gst_certificate_path, 600);
+    certUrl = signed?.signedUrl ?? null;
+  }
+
+  const gstStatusRaw = (ver.gst_status ?? "").toString();
+  const gstStatusLc = gstStatusRaw.toLowerCase();
+  const gstStatusClass = gstStatusLc === "active"
+    ? "cc-pill-ok"
+    : gstStatusLc === "cancelled" || gstStatusLc === "suspended" || gstStatusLc === "inactive"
+      ? "cc-pill-bad"
+      : "cc-pill-warn";
 
   const isPending = ver.status === "pending";
   const brandName = ver.company_name ?? brand?.company_name ?? user?.display_name ?? "Brand";
@@ -84,22 +105,96 @@ export default async function BrandVerificationDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Submitted business details (typed values, no documents) */}
+        {/* GST — pulled from GSTVerify (locked, API-pulled fields) */}
         <div className="cc-card">
-          <h3 style={{ margin: 0, fontSize: 13 }}>Submitted business details</h3>
+          <h3 style={{ margin: 0, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+            GST (pulled from GSTVerify)
+            <span className="cc-pill cc-pill-neutral" style={{ fontSize: 10, fontWeight: 600 }}>locked</span>
+          </h3>
           <div className="cc-kv" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", fontSize: 12.5 }}>
             <span style={{ color: "var(--cc-fg-dim)" }}>GST number</span>
             <span>{ver.gst_number ?? "—"}</span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Status</span>
+            <span>
+              {gstStatusRaw ? (
+                <span className={`cc-pill ${gstStatusClass}`}>{gstStatusRaw}</span>
+              ) : (
+                "—"
+              )}
+            </span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Legal name</span>
+            <span>{ver.gst_legal_name ?? "—"}</span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Trade name</span>
+            <span>{ver.gst_trade_name ?? "—"}</span>
             <span style={{ color: "var(--cc-fg-dim)" }}>PAN number</span>
             <span>{ver.pan_number ?? "—"}</span>
-            <span style={{ color: "var(--cc-fg-dim)" }}>Company name</span>
-            <span>{ver.company_name ?? "—"}</span>
-            <span style={{ color: "var(--cc-fg-dim)" }}>Legal name</span>
-            <span>{ver.legal_name ?? "—"}</span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Constitution</span>
+            <span>{ver.gst_constitution ?? "—"}</span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Taxpayer type</span>
+            <span>{ver.gst_taxpayer_type ?? "—"}</span>
+            <span style={{ color: "var(--cc-fg-dim)" }}>Registration date</span>
+            <span>{ver.gst_registration_date ?? "—"}</span>
             <span style={{ color: "var(--cc-fg-dim)" }}>Registered address</span>
-            <span style={{ whiteSpace: "pre-wrap" }}>{ver.registered_address ?? "—"}</span>
+            <span style={{ whiteSpace: "pre-wrap" }}>{ver.gst_address ?? "—"}</span>
           </div>
         </div>
+
+        {/* GST certificate (uploaded → private bucket → signed URL) */}
+        <div className="cc-card">
+          <h3 style={{ margin: 0, fontSize: 13 }}>GST certificate</h3>
+          {!ver.gst_certificate_path ? (
+            <p style={{ margin: "8px 0 0 0", fontSize: 12.5, color: "var(--cc-fg-dim)" }}>Not uploaded.</p>
+          ) : ver.gst_certificate_path.toLowerCase().endsWith(".pdf") ? (
+            <a
+              href={certUrl ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cc-btn"
+              style={{ marginTop: 10, display: "inline-block", fontSize: 12 }}
+            >
+              Open certificate
+            </a>
+          ) : certUrl ? (
+            <a href={certUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={certUrl}
+                alt="GST certificate"
+                style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 8, border: "1px solid var(--cc-border)", background: "var(--cc-bg-2)" }}
+              />
+            </a>
+          ) : (
+            <p style={{ margin: "8px 0 0 0", fontSize: 12.5, color: "var(--cc-fg-dim)" }}>Could not load certificate.</p>
+          )}
+        </div>
+
+        {/* Raw GSTVerify API response (audit) */}
+        {ver.gst_api_response != null && (
+          <div className="cc-card">
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: 12.5, color: "var(--cc-fg-dim)", userSelect: "none" }}>
+                Raw GSTVerify API response (audit)
+              </summary>
+              <pre
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  fontSize: 11.5,
+                  lineHeight: 1.5,
+                  overflowX: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  background: "var(--cc-bg-2)",
+                  border: "1px solid var(--cc-border)",
+                  borderRadius: 8,
+                  color: "var(--cc-fg)",
+                }}
+              >
+                {JSON.stringify(ver.gst_api_response, null, 2)}
+              </pre>
+            </details>
+          </div>
+        )}
 
         {/* Decision */}
         {isPending ? (
