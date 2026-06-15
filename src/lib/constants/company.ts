@@ -29,16 +29,6 @@ export const COMPANY = {
   /** Business hours, IST */
   hours: "10:00 — 20:00 IST · Mon to Sat",
 
-  /** Phone — single business number */
-  phone: {
-    /** Display form */
-    display: "+91 99857 57091",
-    /** E.164 form for tel: links and SMS */
-    e164: "+919985757091",
-    /** tel: href */
-    tel: "tel:+919985757091",
-  },
-
   /** Email addresses — purpose-specific */
   emails: {
     /** Primary front-door for general inquiries */

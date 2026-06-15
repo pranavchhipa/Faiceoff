@@ -1,4 +1,4 @@
-import { Phone, Mail, MapPin, Clock, HeadphonesIcon } from "lucide-react";
+import { Mail, MapPin, Clock, HeadphonesIcon } from "lucide-react";
 import { COMPANY } from "@/lib/constants/company";
 
 export const metadata = {
@@ -47,15 +47,6 @@ export default function ContactPage() {
           primary={COMPANY.emails.support}
           href={`mailto:${COMPANY.emails.support}`}
           subtitle="Account help, payment issues, license problems. Reply within 24h."
-        />
-
-        {/* Phone */}
-        <ChannelCard
-          icon={<Phone className="h-5 w-5" />}
-          label="Phone"
-          primary={COMPANY.phone.display}
-          href={COMPANY.phone.tel}
-          subtitle={COMPANY.hours}
         />
 
         {/* Legal */}
@@ -120,15 +111,6 @@ export default function ContactPage() {
             </address>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--color-border)] pt-4 text-[13px] text-[var(--color-muted-foreground)]">
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" />
-              <a
-                href={COMPANY.phone.tel}
-                className="hover:text-[var(--color-foreground)] hover:underline"
-              >
-                {COMPANY.phone.display}
-              </a>
-            </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               {COMPANY.hours}

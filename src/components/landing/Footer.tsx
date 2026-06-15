@@ -140,14 +140,6 @@ export function Footer() {
               <div>{COMPANY.address.inline}</div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <a
-                  href={COMPANY.phone.tel}
-                  className="hover:underline"
-                  style={{ color: "var(--lp-ink-soft)", textUnderlineOffset: 3 }}
-                >
-                  {COMPANY.phone.display}
-                </a>
-                <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-                <a
                   href={`mailto:${COMPANY.emails.hello}`}
                   className="hover:underline"
                   style={{ color: "var(--lp-ink-soft)", textUnderlineOffset: 3 }}

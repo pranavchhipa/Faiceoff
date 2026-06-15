@@ -61,10 +61,6 @@ export function LegalDoc({
         <p className="font-700 text-[var(--color-foreground)]">{COMPANY.legalName}</p>
         <p className="mt-1">{COMPANY.address.inline}</p>
         <p className="mt-1">
-          <a className="hover:text-[var(--color-foreground)]" href={COMPANY.phone.tel}>
-            {COMPANY.phone.display}
-          </a>{" "}
-          ·{" "}
           <a className="hover:text-[var(--color-foreground)]" href={`mailto:${COMPANY.emails.legal}`}>
             {COMPANY.emails.legal}
           </a>
