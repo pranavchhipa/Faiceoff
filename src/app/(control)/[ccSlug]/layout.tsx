@@ -133,17 +133,29 @@ export default async function CCLayout({ children, params }: Props) {
   // 4. Authenticated — render full chrome with sidebar.
   const pending = await getPendingCounts();
   const everyday = CC_NAV.filter((i) => i.group === "EVERYDAY");
+  const queues = CC_NAV.filter((i) => i.group === "QUEUES");
   const advanced = CC_NAV.filter((i) => i.group === "ADVANCED");
+
+  // Per-queue badge counts so the operator sees what's pending without clicking.
+  const queueBadge: Record<string, number> = {
+    inbox: pending.total,
+    verifications: pending.creatorVerify,
+    "brand-verifications": pending.brandVerify,
+    payouts: pending.payouts,
+    disputes: pending.disputes,
+    tickets: pending.tickets,
+    moderation: pending.stuckGens,
+  };
 
   const renderLink = (item: (typeof CC_NAV)[number]) => {
     const Icon = item.icon;
-    const badge = item.segment === "inbox" && pending.total > 0 ? pending.total : null;
+    const n = queueBadge[item.segment] ?? 0;
     return (
       <li key={item.segment}>
         <Link href={`/${ccSlug}/${item.segment}`} className="cc-nav-link" prefetch={false}>
           <Icon size={15} />
           <span>{item.label}</span>
-          {badge !== null && <span className="cc-nav-badge">{badge}</span>}
+          {n > 0 && <span className="cc-nav-badge">{n}</span>}
         </Link>
       </li>
     );
@@ -175,7 +187,13 @@ export default async function CCLayout({ children, params }: Props) {
           {/* Everyday — flat, always visible */}
           <ul className="cc-nav-list">{everyday.map(renderLink)}</ul>
 
-          {/* Advanced — collapsed by default (native <details>, no JS) */}
+          {/* Queues — the daily action work, always visible with pending badges */}
+          <div className="cc-nav-group">
+            <p className="cc-nav-group-label">Queues</p>
+            <ul className="cc-nav-list">{queues.map(renderLink)}</ul>
+          </div>
+
+          {/* Advanced — technical config/insights only, collapsed by default */}
           <details className="cc-nav-advanced">
             <summary className="cc-nav-advanced-summary">
               <span>Advanced</span>

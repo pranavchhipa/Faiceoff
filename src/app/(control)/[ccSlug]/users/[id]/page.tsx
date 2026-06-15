@@ -129,7 +129,6 @@ interface MessageRow {
   sender_user_id: string;
   sender_role: string;
   body: string | null;
-  attachment_url: string | null;
   created_at: string;
 }
 
@@ -287,11 +286,13 @@ export default async function UserDrillDownPage({ params }: Props) {
     // Creator payouts
     safe(async () => {
       if (!creator) return [];
+      // creator_payouts stores net_amount_paise + requested_at (NOT amount_paise/
+      // created_at). Alias them so PayoutRow + KPIs + render stay unchanged.
       const { data } = await admin
         .from("creator_payouts")
-        .select("id, amount_paise, status, created_at")
+        .select("id, amount_paise:net_amount_paise, status, created_at:requested_at")
         .eq("creator_id", creator.id)
-        .order("created_at", { ascending: false })
+        .order("requested_at", { ascending: false })
         .limit(50);
       return (data ?? []) as PayoutRow[];
     }, [] as PayoutRow[]),
@@ -378,7 +379,7 @@ export default async function UserDrillDownPage({ params }: Props) {
     ? await safe(async () => {
         const { data } = await admin
           .from("conversation_messages")
-          .select("id, conversation_id, sender_user_id, sender_role, body, attachment_url, created_at")
+          .select("id, conversation_id, sender_user_id, sender_role, body, created_at")
           .in("conversation_id", conversationIds)
           .order("created_at", { ascending: false })
           .limit(50);
@@ -676,12 +677,11 @@ export default async function UserDrillDownPage({ params }: Props) {
                   <th style={{ width: 80 }}>From</th>
                   <th style={{ width: 110 }}>Conversation</th>
                   <th>Body</th>
-                  <th style={{ width: 70 }}>Image?</th>
                 </tr>
               </thead>
               <tbody>
                 {recentMessages.length === 0 ? (
-                  <tr><td colSpan={5} className="cc-table-empty">No chat messages.</td></tr>
+                  <tr><td colSpan={4} className="cc-table-empty">No chat messages.</td></tr>
                 ) : recentMessages.map((m) => (
                   <tr key={m.id}>
                     <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)", fontSize: 11 }}>
@@ -695,11 +695,6 @@ export default async function UserDrillDownPage({ params }: Props) {
                       {m.body
                         ? m.body.length > 140 ? `${m.body.slice(0, 140)}…` : m.body
                         : <span className="cc-dim">[no text]</span>}
-                    </td>
-                    <td>
-                      {m.attachment_url ? (
-                        <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="cc-pill cc-pill-info">view</a>
-                      ) : <span className="cc-dim">—</span>}
                     </td>
                   </tr>
                 ))}

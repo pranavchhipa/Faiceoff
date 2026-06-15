@@ -37,7 +37,7 @@ export interface CCNavItem {
   segment: string; // url after the slug, e.g. "ops"
   label: string;
   icon: LucideIcon;
-  group: "EVERYDAY" | "ADVANCED";
+  group: "EVERYDAY" | "QUEUES" | "ADVANCED";
 }
 
 export const CC_NAV: CCNavItem[] = [
@@ -48,13 +48,15 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "money", label: "Money", icon: Wallet, group: "EVERYDAY" },
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "EVERYDAY" },
 
-  // ADVANCED — action queues + technical config / insights (collapsed by default)
-  { segment: "verifications", label: "Creator verifications", icon: BadgeCheck, group: "ADVANCED" },
-  { segment: "brand-verifications", label: "Brand verifications", icon: Building2, group: "ADVANCED" },
-  { segment: "payouts", label: "Payouts", icon: Banknote, group: "ADVANCED" },
-  { segment: "disputes", label: "Disputes", icon: Scale, group: "ADVANCED" },
-  { segment: "tickets", label: "Support tickets", icon: LifeBuoy, group: "ADVANCED" },
-  { segment: "moderation", label: "Moderation", icon: Shield, group: "ADVANCED" },
+  // QUEUES — the daily action queues (visible — this IS the core operator work)
+  { segment: "verifications", label: "Creator verifications", icon: BadgeCheck, group: "QUEUES" },
+  { segment: "brand-verifications", label: "Brand verifications", icon: Building2, group: "QUEUES" },
+  { segment: "payouts", label: "Payouts", icon: Banknote, group: "QUEUES" },
+  { segment: "disputes", label: "Disputes", icon: Scale, group: "QUEUES" },
+  { segment: "tickets", label: "Support tickets", icon: LifeBuoy, group: "QUEUES" },
+  { segment: "moderation", label: "Moderation", icon: Shield, group: "QUEUES" },
+
+  // ADVANCED — technical config + insights only (collapsed by default)
   { segment: "ai", label: "AI pipeline", icon: Cpu, group: "ADVANCED" },
   { segment: "pricing", label: "Pricing", icon: Tag, group: "ADVANCED" },
   { segment: "comms", label: "Comms", icon: Mail, group: "ADVANCED" },
@@ -66,4 +68,4 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "audit", label: "Audit log", icon: ScrollText, group: "ADVANCED" },
 ];
 
-export const GROUP_ORDER: CCNavItem["group"][] = ["EVERYDAY", "ADVANCED"];
+export const GROUP_ORDER: CCNavItem["group"][] = ["EVERYDAY", "QUEUES", "ADVANCED"];
