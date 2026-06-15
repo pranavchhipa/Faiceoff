@@ -109,6 +109,24 @@ export async function GET(request: Request) {
 
     const tokenExpiresAt = new Date(Date.now() + long.expires_in * 1000);
 
+    // ── Release the IG from any OTHER creator row first ───────────────────
+    // instagram_user_id is uniquely indexed (one IG ↔ one creator). If this IG
+    // is currently linked to a different creator row (e.g. an old/other test
+    // account), claiming it here would violate the unique index and the save
+    // would fail with "couldn't save the data". So move it: clear the link on
+    // any other row before we write it onto this one.
+    await admin
+      .from("creators")
+      .update({
+        instagram_user_id: null,
+        instagram_access_token: null,
+        instagram_token_expires_at: null,
+        instagram_connected_at: null,
+        instagram_verified: false,
+      })
+      .eq("instagram_user_id", profile.id)
+      .neq("id", creator.id);
+
     // ── Persist ───────────────────────────────────────────────────────────
     const { error: upErr } = await admin
       .from("creators")
