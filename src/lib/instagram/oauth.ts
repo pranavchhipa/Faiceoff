@@ -34,15 +34,23 @@ export function getOAuthConfig(): InstagramOAuthConfig {
 }
 
 /**
- * Scopes we request. `instagram_business_basic` covers profile + media.
- * `instagram_business_manage_insights` gives us reach/impressions/engagement.
+ * Scopes we request. We take ONLY `instagram_business_basic` through App Review
+ * for go-live — it covers the verified username, follower count, profile pic +
+ * media that the whole onboarding/verification flow depends on. That single
+ * permission is enough for normal (non-tester) creators to connect once the app
+ * is published.
  *
- * Note: instagram_business_manage_insights requires Meta app review with a
- * demo video before going live. `instagram_business_basic` is auto-approved.
+ * `instagram_business_manage_insights` (reach/impressions/engagement) is
+ * DEFERRED: it needs its own Advanced Access review + demo video, and the
+ * connect flow already treats insights as best-effort (the callback fetch is
+ * wrapped non-fatal → insights just stays null without the scope). Requesting it
+ * here before it's approved would only muddy the OAuth grant on Live mode.
+ *
+ * To re-enable insights later: add "instagram_business_manage_insights" back to
+ * this array and submit it for Advanced Access as a separate App Review.
  */
 const SCOPES = [
   "instagram_business_basic",
-  "instagram_business_manage_insights",
 ].join(",");
 
 /** Build the OAuth authorize URL. State is a CSRF token we verify on callback. */
