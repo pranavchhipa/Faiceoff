@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 interface Props {
   ccSlug: string;
 }
 
 export default function LoginForm({ ccSlug }: Props) {
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [useBackup, setUseBackup] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +42,11 @@ export default function LoginForm({ ccSlug }: Props) {
         setSubmitting(false);
         return;
       }
-      router.replace(`/${ccSlug}/ops`);
+      // HARD navigation (not router.replace) — a client-side nav would NOT
+      // re-render the shared [ccSlug] layout, which rendered in the logged-out
+      // state (no sidebar) on /login; a full load re-renders it authenticated
+      // so the sidebar appears immediately instead of only after a refresh.
+      window.location.replace(`/${ccSlug}/ops`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
       setSubmitting(false);
