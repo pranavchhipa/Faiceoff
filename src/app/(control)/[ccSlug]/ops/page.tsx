@@ -270,8 +270,8 @@ export default async function OpsPage({ params }: Props) {
   return (
     <>
       <PageHeader
-        title="Faiceoff — aaj ek nazar me"
-        subtitle="What's happening, and what needs you."
+        title="Overview"
+        subtitle="What's happening across Faiceoff, and what needs your attention."
       />
       <OpsAutoRefresh />
 
