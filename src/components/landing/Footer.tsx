@@ -118,7 +118,7 @@ export function Footer() {
               aria-label="Faiceoff home"
               className="inline-flex items-center"
             >
-              <Logo variant="full" tone="dark" className="h-24 w-auto" />
+              <Logo variant="full" tone="dark" className="h-16 w-auto" />
             </Link>
 
             <p

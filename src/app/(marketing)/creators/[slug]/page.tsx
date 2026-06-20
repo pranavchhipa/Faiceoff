@@ -1096,7 +1096,7 @@ export default async function CreatorProfilePage(
           {/* ── Top nav ───────────────────────────────────────────────── */}
           <nav className="top">
             <Link href="/" aria-label="Faiceoff home" className="brand-link">
-              <Logo variant="full" tone="light" className="h-16 w-auto" />
+              <Logo variant="full" tone="light" className="h-12 w-auto" />
             </Link>
             <Link href={ctaHref} className="nav-pill">
               For Brands <span className="arr">↗</span>

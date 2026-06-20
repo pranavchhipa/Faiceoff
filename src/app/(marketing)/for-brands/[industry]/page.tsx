@@ -140,7 +140,7 @@ export default async function IndustryPage(
     >
       <header className="mx-auto flex max-w-[1100px] items-center justify-between px-4 pt-6 sm:px-6">
         <Link href="/" aria-label="Faiceoff home">
-          <Logo variant="full" tone="light" className="h-20 w-auto sm:h-24" />
+          <Logo variant="full" tone="light" className="h-14 w-auto sm:h-16" />
         </Link>
         <Link
           href="/signup?role=brand"
@@ -234,7 +234,7 @@ export default async function IndustryPage(
       <footer className="border-t border-[#2a2520] px-4 py-7 sm:px-6">
         <div className="mx-auto flex max-w-[1100px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
           <Link href="/" className="inline-flex items-center gap-2 opacity-80 hover:opacity-100">
-            <Logo variant="mark" className="h-16 w-16" />
+            <Logo variant="mark" className="h-12 w-12" />
             <span className="font-mono text-[9px] font-700 uppercase tracking-[0.2em] text-[#a89570]">Powered by Faiceoff</span>
           </Link>
           <div className="flex flex-wrap items-center justify-center gap-4 font-mono text-[9.5px] font-700 uppercase tracking-[0.2em] text-[#6e6457]">

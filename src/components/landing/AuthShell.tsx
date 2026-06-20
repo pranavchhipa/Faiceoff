@@ -38,9 +38,9 @@ export function AuthShell({
       <div className="absolute inset-0 bg-gradient-hero opacity-70 pointer-events-none" />
       <div className="absolute inset-0 grain opacity-30 pointer-events-none" />
 
-      <header className="relative z-10 px-4 md:px-8 py-4 flex items-center justify-between max-w-6xl mx-auto">
+      <header className="relative z-10 px-4 md:px-8 py-4 flex items-center justify-between max-w-5xl mx-auto">
         <Link href="/" aria-label="Faiceoff home" className="inline-flex items-center">
-          <Logo variant="full" tone="dark" className="h-20 w-auto" />
+          <Logo variant="full" tone="dark" className="h-16 w-auto" />
         </Link>
         <Link
           href="/"
