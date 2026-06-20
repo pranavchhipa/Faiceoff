@@ -953,3 +953,61 @@ export async function sendDisputeResolved(opts: {
     }),
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Collaboration Agreement — signed & active (sent to BOTH sides on payment)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendCreatorAgreementSigned(opts: {
+  to: string;
+  creatorName: string;
+  brandName: string;
+  productName: string;
+  collabSessionId: string;
+  agreementId: string;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `Your Collaboration Agreement with ${opts.brandName} is signed`,
+    html: wrap("Collaboration Agreement signed", {
+      preheader: "Both sides have signed — the collab is now live.",
+      eyebrow: "Collaboration Agreement",
+      headline: `You're officially collaborating with ${escapeHtml(opts.brandName)}`,
+      body: `You and ${escapeHtml(opts.brandName)} have both electronically signed the Collaboration Agreement for "${escapeHtml(opts.productName)}". The collab is live — the brand's images will come to you for approval, and your share stays safe in escrow until the collab completes.`,
+      info: [
+        { label: "Brand", value: opts.brandName },
+        { label: "Campaign", value: opts.productName },
+      ],
+      cta: { label: "Open the collab", href: `${APP_URL}/creator/collabs/${opts.collabSessionId}` },
+      secondaryCta: { label: "Verify the agreement →", href: `${APP_URL}/verify/agreement/${opts.agreementId}` },
+      footnote: "Download the signed PDF anytime from the collab page.",
+    }),
+  });
+}
+
+export async function sendBrandAgreementSigned(opts: {
+  to: string;
+  brandName: string;
+  creatorName: string;
+  productName: string;
+  collabSessionId: string;
+  agreementId: string;
+}): Promise<void> {
+  await send({
+    to: opts.to,
+    subject: `Collaboration Agreement with ${opts.creatorName} — signed & active`,
+    html: wrap("Collaboration Agreement active", {
+      preheader: "Signed by both sides — Studio is unlocked.",
+      eyebrow: "Collaboration Agreement",
+      headline: `Your collab with ${escapeHtml(opts.creatorName)} is live`,
+      body: `The Collaboration Agreement for "${escapeHtml(opts.productName)}" is signed by both parties and now active. Studio and chat are unlocked — start generating, then send your picks to ${escapeHtml(opts.creatorName)} for approval. Funds stay in escrow and release on completion.`,
+      info: [
+        { label: "Creator", value: opts.creatorName },
+        { label: "Campaign", value: opts.productName },
+      ],
+      cta: { label: "Open Studio", href: `${APP_URL}/brand/collabs/${opts.collabSessionId}/studio` },
+      secondaryCta: { label: "Download the signed agreement →", href: `${APP_URL}/brand/collabs/${opts.collabSessionId}` },
+      footnote: "The signed PDF + a public verification link live on your collab page.",
+    }),
+  });
+}

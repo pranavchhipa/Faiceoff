@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { CREATOR_SHARE_RATE as CREATOR_SHARE } from "@/lib/billing/pricing-engine";
 import { ChatThread } from "@/components/chat/chat-thread";
+import { AgreementCard } from "@/components/agreements/agreement-card";
+import type { CollabAgreement } from "@/lib/agreements/types";
 
 interface Session {
   id: string;
@@ -90,6 +92,7 @@ interface CollabData {
   brand: BrandSummary;
   request: RequestSnapshot | null;
   licenses: LicenseRow[];
+  agreement: CollabAgreement | null;
 }
 
 type Tab = "images" | "chat" | "details";
@@ -237,7 +240,7 @@ export default function CreatorCollabWorkspacePage() {
     );
   }
 
-  const { session, conversation_id, generations, brand, request, licenses } = data;
+  const { session, conversation_id, generations, brand, request, licenses, agreement } = data;
   const tier = session.package_tier
     ? TIER_META[session.package_tier] ?? TIER_META.frame
     : TIER_META.frame;
@@ -502,6 +505,7 @@ export default function CreatorCollabWorkspacePage() {
             licenses={licenses}
             generations={generations}
             role="creator"
+            agreement={agreement}
           />
         )}
       </motion.div>
@@ -874,11 +878,13 @@ function DetailsTab({
   licenses,
   generations,
   role,
+  agreement,
 }: {
   session: Session;
   licenses: LicenseRow[];
   generations: Generation[];
   role: "brand" | "creator";
+  agreement: CollabAgreement | null;
 }) {
   const tierLabel = session.package_tier
     ? TIER_META[session.package_tier]?.label ?? session.package_tier
@@ -960,6 +966,9 @@ function DetailsTab({
 
   return (
     <div className="space-y-4">
+      {/* Collaboration Agreement (master, dual-signed) */}
+      <AgreementCard agreement={agreement} />
+
       {/* Licenses & documents */}
       <LicenseSection
         licenses={licenses}

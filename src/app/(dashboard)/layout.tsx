@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 lg:px-6">
-          <Logo variant="full" adaptive className="h-6 w-auto" />
+          <Logo variant="full" adaptive className="h-12 w-auto" />
           <div className="flex items-center gap-2.5">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <span className="hidden font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)] lg:inline">
           <PageTitle />
         </span>
-        <Logo variant="full" adaptive className="h-6 w-auto lg:hidden" />
+        <Logo variant="full" adaptive className="h-12 w-auto lg:hidden" />
       </>
     );
   } else if (role === "brand") {
@@ -306,7 +306,6 @@ function PageTitle() {
     "/creator/withdraw": "Withdraw",
     "/creator/likeness": "Likeness",
     "/creator/approvals": "Approvals",
-    "/creator/licenses": "Licenses",
     "/creator/analytics": "Analytics",
     "/creator/blocked-categories": "Blocked categories",
     "/creator/settings": "Settings",

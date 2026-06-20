@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { AgreementReviewModal } from "@/components/agreements/agreement-review-modal";
 
 interface CollabRequest {
   id: string;
@@ -104,6 +105,12 @@ export default function CreatorRequestsPage() {
   const loading = rawLoading && !data;
   const [acting, setActing] = useState<string | null>(null);
 
+  // Accept now opens the Collaboration Agreement review + e-signature modal;
+  // the creator signs before the request is accepted.
+  const [signTarget, setSignTarget] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
+
   // Helper: optimistic local patch via cache invalidation. After every
   // accept/decline we invalidate the cache so the next render re-fetches
   // fresh status — and any other page subscribed to this URL (eg the
@@ -113,12 +120,33 @@ export default function CreatorRequestsPage() {
     invalidateCache("/api/dashboard/stats");
   }
 
-  async function handleAccept(id: string) {
-    setActing(id);
+  function handleAccept(id: string) {
+    setSignError(null);
+    setSignTarget(id);
+  }
+
+  async function submitSignedAccept(signedName: string) {
+    if (!signTarget) return;
+    setSubmitting(true);
+    setSignError(null);
     try {
-      const res = await fetch(`/api/collab-requests/${id}/accept`, { method: "POST" });
-      if (res.ok) invalidateRequestsAndCounters();
-    } finally { setActing(null); }
+      const res = await fetch(`/api/collab-requests/${signTarget}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signed_name: signedName }),
+      });
+      if (res.ok) {
+        invalidateRequestsAndCounters();
+        setSignTarget(null);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setSignError(j.message ?? j.error ?? "Couldn't accept the request. Try again.");
+      }
+    } catch {
+      setSignError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleDecline(id: string) {
@@ -227,6 +255,19 @@ export default function CreatorRequestsPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Accept = sign the Collaboration Agreement */}
+      {signTarget && (
+        <AgreementReviewModal
+          requestId={signTarget}
+          role="creator"
+          open={Boolean(signTarget)}
+          onClose={() => { if (!submitting) setSignTarget(null); }}
+          onSigned={submitSignedAccept}
+          submitting={submitting}
+          submitError={signError}
+        />
       )}
     </div>
   );

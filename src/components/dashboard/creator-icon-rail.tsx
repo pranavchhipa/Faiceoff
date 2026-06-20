@@ -77,9 +77,9 @@ export function CreatorIconRail() {
           }`}
         >
           {expanded ? (
-            <Logo variant="full" adaptive className="h-6 w-auto" />
+            <Logo variant="full" adaptive className="h-12 w-auto" />
           ) : (
-            <Logo variant="mark" className="h-7 w-7 shrink-0" />
+            <Logo variant="mark" className="h-11 w-11 shrink-0" />
           )}
         </Link>
 

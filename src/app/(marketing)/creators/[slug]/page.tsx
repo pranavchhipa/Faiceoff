@@ -1096,7 +1096,7 @@ export default async function CreatorProfilePage(
           {/* ── Top nav ───────────────────────────────────────────────── */}
           <nav className="top">
             <Link href="/" aria-label="Faiceoff home" className="brand-link">
-              <Logo variant="full" tone="light" className="h-6 w-auto" />
+              <Logo variant="full" tone="light" className="h-16 w-auto" />
             </Link>
             <Link href={ctaHref} className="nav-pill">
               For Brands <span className="arr">↗</span>
@@ -1352,7 +1352,7 @@ export default async function CreatorProfilePage(
           {/* ── Footer ────────────────────────────────────────────────── */}
           <footer className="footer">
             <Link href="/" className="powered" aria-label="Faiceoff home">
-              <Logo variant="mark" className="h-3.5 w-3.5" />
+              <Logo variant="mark" className="h-7 w-7" />
               <span>
                 Powered by <span style={{ color: "var(--text)", fontWeight: 700 }}>Faiceoff</span>
               </span>

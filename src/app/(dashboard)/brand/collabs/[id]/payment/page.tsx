@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
+import { AgreementReviewModal } from "@/components/agreements/agreement-review-modal";
 import {
   ArrowLeft,
   ArrowRight,
@@ -74,9 +75,17 @@ export default function CollabPaymentPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paidLocal, setPaidLocal] = useState(false);
+  const [showSign, setShowSign] = useState(false);
   const paid = paidLocal || req?.status === "paid";
 
-  async function handlePay() {
+  // Brand signs the Collaboration Agreement, then we open Razorpay. The signed
+  // name is recorded with the payment confirmation as the brand's signature.
+  function handleSigned(signedName: string) {
+    setShowSign(false);
+    void handlePay(signedName);
+  }
+
+  async function handlePay(agreementSignedName: string) {
     setError(null);
     setPaying(true);
     try {
@@ -118,7 +127,7 @@ export default function CollabPaymentPage() {
             const confirmRes = await fetch(`/api/collabs/${requestId}/confirm-payment`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
+              body: JSON.stringify({ ...response, agreement_signed_name: agreementSignedName }),
             });
             const confirmData = await confirmRes.json();
             if (confirmData.ok) {
@@ -451,14 +460,14 @@ export default function CollabPaymentPage() {
               )}
 
               <button
-                onClick={handlePay}
+                onClick={() => { setError(null); setShowSign(true); }}
                 disabled={paying || req.status !== "accepted"}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] py-3.5 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {paying ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <>Pay {fmt(subtotal)} securely <ArrowRight className="h-4 w-4" /></>
+                  <>Review, sign &amp; pay {fmt(subtotal)} <ArrowRight className="h-4 w-4" /></>
                 )}
               </button>
 
@@ -482,6 +491,18 @@ export default function CollabPaymentPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Review + sign the Collaboration Agreement before paying */}
+      {showSign && (
+        <AgreementReviewModal
+          requestId={requestId}
+          role="brand"
+          open={showSign}
+          onClose={() => setShowSign(false)}
+          onSigned={handleSigned}
+          submitting={paying}
+        />
+      )}
     </div>
   );
 }

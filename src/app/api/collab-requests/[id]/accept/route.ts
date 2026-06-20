@@ -5,20 +5,39 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandRequestAccepted } from "@/lib/email/transactional";
 import { emitNotification } from "@/lib/notifications/emit";
+import {
+  createDraftAgreementOnAccept,
+  clientIpFromHeaders,
+  sanitizeSignatureName,
+} from "@/lib/agreements";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
 // POST /api/collab-requests/[id]/accept — creator accepts request
-// Effect: status → accepted, chat conversation created, brand notified
+// Effect: status → accepted, Collaboration Agreement drafted + creator-signed,
+//         chat conversation created, brand notified.
+// Body: { signed_name } — the creator's typed electronic signature (required;
+//        accepting = signing the master Collaboration Agreement).
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Electronic signature — required. Accepting a request signs the agreement.
+  let body: Record<string, unknown> = {};
+  try { body = await request.json().catch(() => ({})); } catch { /* ok */ }
+  const signedName = sanitizeSignatureName(body.signed_name);
+  if (!signedName) {
+    return NextResponse.json(
+      { error: "signature_required", message: "Type your full name to sign the agreement." },
+      { status: 400 },
+    );
+  }
 
   const admin = createAdminClient() as Admin;
 
@@ -30,10 +49,10 @@ export async function POST(
     .maybeSingle();
   if (!creator) return NextResponse.json({ error: "Creator profile not found" }, { status: 403 });
 
-  // Load request
+  // Load request (incl. full package snapshot for the agreement)
   const { data: req, error: reqErr } = await admin
     .from("collab_requests")
-    .select("id, status, brand_id, creator_id, expires_at, package_tier, package_price_paise, product_name")
+    .select("id, status, brand_id, creator_id, expires_at, package_tier, package_price_paise, final_images, gen_credits, usage_scope, license_duration_days, product_name")
     .eq("id", id)
     .maybeSingle();
 
@@ -51,6 +70,26 @@ export async function POST(
     .from("collab_requests")
     .update({ status: "accepted", decided_at: new Date().toISOString() })
     .eq("id", id);
+
+  // Draft the Collaboration Agreement + capture the creator's signature.
+  // Synchronous (must exist before the brand can pay). Non-throwing.
+  await createDraftAgreementOnAccept({
+    admin,
+    request: {
+      id: req.id,
+      brand_id: req.brand_id,
+      creator_id: req.creator_id,
+      package_tier: req.package_tier,
+      package_price_paise: req.package_price_paise,
+      final_images: req.final_images,
+      gen_credits: req.gen_credits,
+      usage_scope: req.usage_scope,
+      license_duration_days: req.license_duration_days,
+      product_name: req.product_name,
+    },
+    creatorSignedName: signedName,
+    creatorSignedIp: clientIpFromHeaders(request.headers),
+  });
 
   // Auto-create chat conversation (idempotent — unique constraint on brand_id+creator_id)
   await admin

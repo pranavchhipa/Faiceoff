@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Inbox,
   IndianRupee,
-  FileSignature,
   ShieldOff,
   User as UserIcon,
   Settings as SettingsIcon,
@@ -33,7 +32,6 @@ export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Likeness", href: "/creator/likeness", icon: Camera, group: "Primary" },
   // Secondary — only visible in command palette + overflow menu
   { label: "Get Verified", href: "/creator/verify", icon: BadgeCheck, group: "Secondary" },
-  { label: "Licenses", href: "/creator/licenses", icon: FileSignature, group: "Secondary" },
   { label: "Analytics", href: "/creator/analytics", icon: TrendingUp, group: "Secondary" },
   { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldOff, group: "Secondary" },
   { label: "Support", href: "/creator/support", icon: LifeBuoy, group: "Secondary" },

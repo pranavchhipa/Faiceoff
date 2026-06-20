@@ -111,7 +111,6 @@ export function CommandPalette({ role, open, onOpenChange }: CommandPaletteProps
         { label: "Packages", href: "/creator/packages", icon: Tags },
         { label: "Withdraw", href: "/creator/withdraw", icon: ArrowDownToLine },
         { label: "Analytics", href: "/creator/analytics", icon: TrendingUp },
-        { label: "Licenses", href: "/creator/licenses", icon: FileSignature },
         { label: "Blocked categories", href: "/creator/blocked-categories", icon: ShieldAlert },
         { label: "Settings", href: "/creator/settings", icon: Settings },
       ],

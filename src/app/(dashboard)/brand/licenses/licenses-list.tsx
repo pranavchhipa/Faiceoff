@@ -123,67 +123,6 @@ function expiryLabel(days: number, expiresAt: string): string {
   return formatDate(expiresAt);
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Auto-renew toggle                                                          */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function AutoRenewToggle({
-  licenseId,
-  initial,
-  disabled,
-}: {
-  licenseId: string;
-  initial: boolean;
-  disabled?: boolean;
-}) {
-  const [enabled, setEnabled] = useState(initial);
-  const [loading, setLoading] = useState(false);
-
-  async function toggle(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (disabled || loading) return;
-    setLoading(true);
-    const optimistic = !enabled;
-    setEnabled(optimistic);
-    try {
-      const res = await fetch(`/api/licenses/${licenseId}/auto-renew`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: optimistic }),
-      });
-      if (!res.ok) {
-        setEnabled(!optimistic); // revert
-      } else {
-        const d = (await res.json()) as { auto_renew?: boolean };
-        if (typeof d.auto_renew === "boolean") setEnabled(d.auto_renew);
-      }
-    } catch {
-      setEnabled(!optimistic);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={disabled || loading}
-      title={enabled ? "Auto-renew on" : "Auto-renew off"}
-      aria-pressed={enabled}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-secondary)] ring-1 ring-[var(--color-border)]"
-      }`}
-    >
-      <span
-        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-          enabled ? "translate-x-4" : "translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
-}
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Card                                                                      */
@@ -304,18 +243,6 @@ function LicenseCard({ license, delay }: { license: LicenseItem; delay: number }
               </div>
 
               <div className="ml-auto flex items-center gap-3">
-                {/* Auto-renew */}
-                {!isRevoked && license.status === "active" && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                      Auto-renew
-                    </span>
-                    <AutoRenewToggle
-                      licenseId={license.id}
-                      initial={license.auto_renew}
-                    />
-                  </div>
-                )}
 
                 {/* Cert PDF */}
                 {license.cert_url && (
@@ -427,7 +354,7 @@ export default function LicensesList() {
               ? "Approved generations land here as 12-month licenses you can use commercially."
               : `${total.toLocaleString("en-IN")} ${
                   total === 1 ? "license" : "licenses"
-                } · 12-month terms · auto-renew per row.`}
+                } · 12-month terms.`}
         </p>
       </motion.header>
 

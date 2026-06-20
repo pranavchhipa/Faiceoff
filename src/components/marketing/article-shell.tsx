@@ -31,7 +31,7 @@ export function ArticleShell({
       {/* Nav */}
       <header className="mx-auto flex max-w-[900px] items-center justify-between px-4 pt-6 sm:px-6">
         <Link href="/" aria-label="Faiceoff home">
-          <Logo variant="full" tone="light" className="h-7 w-auto sm:h-8" />
+          <Logo variant="full" tone="light" className="h-20 w-auto sm:h-24" />
         </Link>
         <nav className="flex items-center gap-4 font-mono text-[11px] font-700 uppercase tracking-wider text-[#a89570]">
           <Link href="/creators" className="hidden hover:text-[#f5ebd6] sm:inline">Creators</Link>
@@ -95,7 +95,7 @@ export function ArticleShell({
       <footer className="border-t border-[#2a2520] px-4 py-7 sm:px-6">
         <div className="mx-auto flex max-w-[760px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
           <Link href="/" className="inline-flex items-center gap-2 opacity-80 hover:opacity-100">
-            <Logo variant="mark" className="h-6 w-6" />
+            <Logo variant="mark" className="h-16 w-16" />
             <span className="font-mono text-[9px] font-700 uppercase tracking-[0.2em] text-[#a89570]">
               Powered by Faiceoff
             </span>

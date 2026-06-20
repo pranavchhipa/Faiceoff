@@ -57,7 +57,7 @@ export function Nav() {
       <div className="lp-container flex h-16 items-center justify-between md:h-[72px]">
         {/* Brand */}
         <Link href="/" aria-label="Faiceoff home" className="flex items-center shrink-0">
-          <Logo variant="full" tone="dark" className="h-8 w-auto" />
+          <Logo variant="full" tone="dark" className="h-16 w-auto" />
         </Link>
 
         {/* Center links — desktop */}

@@ -53,7 +53,7 @@ export function TopBar({
               aria-label="Faiceoff home"
               className="flex shrink-0 items-center transition-opacity hover:opacity-90"
             >
-              <Logo variant="mark" className="h-7 w-7" />
+              <Logo variant="mark" className="h-11 w-11" />
             </Link>
             {/* Divider + current page title */}
             <span className="hidden h-4 w-px bg-[var(--color-border)] md:block" />

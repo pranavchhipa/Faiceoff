@@ -27,6 +27,8 @@ import {
   Receipt,
 } from "lucide-react";
 import { ChatThread } from "@/components/chat/chat-thread";
+import { AgreementCard } from "@/components/agreements/agreement-card";
+import type { CollabAgreement } from "@/lib/agreements/types";
 
 interface Session {
   id: string;
@@ -92,6 +94,7 @@ interface CollabData {
   brand: BrandSummary;
   request: RequestSnapshot | null;
   licenses: LicenseRow[];
+  agreement: CollabAgreement | null;
 }
 
 // Studio is rendered as a direct Link (not a content tab) — clicking it
@@ -156,7 +159,7 @@ export default function BrandCollabWorkspacePage() {
     );
   }
 
-  const { session, conversation_id, generations, creator, request, licenses } = data;
+  const { session, conversation_id, generations, creator, request, licenses, agreement } = data;
   const tier = session.package_tier ? TIER_META[session.package_tier] ?? TIER_META.frame : TIER_META.frame;
   const TierIcon = tier.icon;
   const statusMeta = STATUS_META[session.status] ?? STATUS_META.active;
@@ -412,6 +415,7 @@ export default function BrandCollabWorkspacePage() {
             session={session}
             licenses={licenses}
             generations={generations}
+            agreement={agreement}
           />
         )}
       </motion.div>
@@ -650,10 +654,12 @@ function DetailsTab({
   session,
   licenses,
   generations,
+  agreement,
 }: {
   session: Session;
   licenses: LicenseRow[];
   generations: Generation[];
+  agreement: CollabAgreement | null;
 }) {
   const tierLabel = session.package_tier ? TIER_META[session.package_tier]?.label ?? session.package_tier : null;
   const usageLabel = session.usage_scope ? USAGE_LABELS[session.usage_scope] ?? session.usage_scope : null;
@@ -683,6 +689,9 @@ function DetailsTab({
 
   return (
     <div className="space-y-4">
+      {/* Collaboration Agreement (master, dual-signed) */}
+      <AgreementCard agreement={agreement} />
+
       {/* Licenses & documents */}
       <BrandLicenseSection
         licenses={licenses}

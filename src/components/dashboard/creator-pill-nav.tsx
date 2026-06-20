@@ -33,7 +33,7 @@ export function CreatorPillNav() {
         aria-label="Faiceoff home"
         className="flex shrink-0 items-center transition-opacity hover:opacity-90"
       >
-        <Logo variant="full" adaptive className="h-6 w-auto" />
+        <Logo variant="full" adaptive className="h-12 w-auto" />
       </Link>
 
       <span className="hidden h-5 w-px bg-[var(--color-border)] md:block" />

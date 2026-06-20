@@ -49,7 +49,7 @@ export default async function CreatorsDirectoryPage() {
       {/* Nav */}
       <header className="mx-auto flex max-w-[1400px] items-center justify-between px-4 pt-6 sm:px-6 lg:px-10">
         <Link href="/" aria-label="Faiceoff home">
-          <Logo variant="full" tone="light" className="h-7 w-auto sm:h-8" />
+          <Logo variant="full" tone="light" className="h-20 w-auto sm:h-24" />
         </Link>
         <Link
           href="/signup?role=brand"

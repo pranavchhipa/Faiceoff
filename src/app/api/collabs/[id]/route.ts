@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCertUrl } from "@/lib/licenses/cert-storage";
+import { getAgreementForSession } from "@/lib/agreements";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -105,9 +106,13 @@ export async function GET(
     brand_avatar_url = bu?.avatar_url ?? null;
   }
 
+  // Collaboration Agreement (dual-signed master agreement for this collab)
+  const agreement = await getAgreementForSession(admin, id);
+
   return NextResponse.json({
     session,
     role: isBrand ? "brand" : "creator",
+    agreement,
     conversation_id: conv?.id ?? null,
     generations: generations ?? [],
     creator: {

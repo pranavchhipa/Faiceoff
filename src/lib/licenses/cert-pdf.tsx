@@ -35,6 +35,7 @@ import {
 } from "@react-pdf/renderer";
 import QRCode from "qrcode";
 
+import { COMPANY } from "@/lib/constants/company";
 import type {
   GenerateLicenseCertPDFInput,
   LicenseCertPDFResult,
@@ -936,7 +937,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
               <Text style={styles.sectionLabel}>9. Governing Law & Compliance</Text>
               <Text style={styles.permittedText}>
                 This licence is governed by the laws of India. Exclusive
-                jurisdiction lies with the courts of Mumbai, Maharashtra.
+                jurisdiction lies with {COMPANY.governingJurisdiction}.
                 Issuance is conducted in compliance with the{" "}
                 <Text style={styles.grantBold}>
                   Digital Personal Data Protection Act, 2023
@@ -996,7 +997,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
             <View style={styles.signBlock}>
               <Text style={styles.signLabel}>Issued by</Text>
               <Text style={styles.signValue}>Isometrica Experiences Pvt. Ltd.</Text>
-              <Text style={styles.signMeta}>Mumbai, India</Text>
+              <Text style={styles.signMeta}>{COMPANY.registeredCityLine}</Text>
               <Text style={styles.signMeta}>
                 Issued: {formatDate(license.issued_at)}
               </Text>
@@ -1016,7 +1017,7 @@ function CertDocument({ input, qrDataUrl, imageDataUrl }: CertDocumentProps) {
           <View style={styles.footerLeft}>
             <Text style={styles.footerText}>
               <Text style={styles.footerBold}>Isometrica Experiences Pvt. Ltd.</Text>
-              {" · faiceoff.com · Mumbai, Maharashtra, India"}
+              {` · faiceoff.com · ${COMPANY.registeredCityLine}`}
             </Text>
             <Text style={styles.footerText}>
               This Certificate is electronically issued and is valid without a

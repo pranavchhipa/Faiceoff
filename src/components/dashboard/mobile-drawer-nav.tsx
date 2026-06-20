@@ -60,7 +60,7 @@ export function MobileDrawerNav({ role, open, onClose }: MobileDrawerNavProps) {
       >
         <SheetHeader className="border-b border-[var(--color-border)] p-4">
           <SheetTitle className="flex items-center gap-2">
-            <Logo variant="full" adaptive className="h-6 w-auto" />
+            <Logo variant="full" adaptive className="h-12 w-auto" />
             <span className="ml-auto rounded-full border border-[var(--color-border)] bg-[var(--color-secondary)] px-2 py-0.5 text-[10px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
               {role}
             </span>

@@ -1,7 +1,7 @@
 /**
  * Logo — the official Faiceoff brand lockup.
  *
- *   <Logo variant="mark" className="h-7 w-7" />            // self-contained mark tile
+ *   <Logo variant="mark" className="h-11 w-11" />            // self-contained mark tile
  *   <Logo variant="full" tone="dark"  className="h-7 w-auto" />  // black lockup — light bg
  *   <Logo variant="full" tone="light" className="h-7 w-auto" />  // white lockup — dark bg
  *   <Logo variant="full" adaptive     className="h-6 w-auto" />  // dark chrome → white lockup

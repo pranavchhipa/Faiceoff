@@ -29,6 +29,17 @@ export const COMPANY = {
   /** Business hours, IST */
   hours: "10:00 — 20:00 IST · Mon to Sat",
 
+  /**
+   * Legal seat — single source of truth for governing-law / jurisdiction
+   * clauses across the Collaboration Agreement and the per-image Licence
+   * Certificate, so the two documents never drift. Tied to the registered
+   * office (Noida, Gautam Buddh Nagar district, Uttar Pradesh).
+   */
+  governingJurisdiction:
+    "the courts at Gautam Buddh Nagar (Noida), Uttar Pradesh, India",
+  /** Short "city, state" line for PDF signatures / footers. */
+  registeredCityLine: "Noida, Uttar Pradesh, India",
+
   /** Email addresses — purpose-specific */
   emails: {
     /** Primary front-door for general inquiries */

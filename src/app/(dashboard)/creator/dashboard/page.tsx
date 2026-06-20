@@ -855,10 +855,10 @@ export default function CreatorDashboardPage() {
           {/* Quick links strip */}
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/creator/licenses"
+              href="/creator/collabs"
               className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[12px] font-600 text-[var(--color-foreground)] transition-colors hover:border-[var(--color-primary)]"
             >
-              Licenses
+              Collabs
             </Link>
             <Link
               href="/creator/analytics"

@@ -40,7 +40,7 @@ export function AuthShell({
 
       <header className="relative z-10 px-4 md:px-8 py-4 flex items-center justify-between max-w-6xl mx-auto">
         <Link href="/" aria-label="Faiceoff home" className="inline-flex items-center">
-          <Logo variant="full" tone="dark" className="h-7 w-auto" />
+          <Logo variant="full" tone="dark" className="h-20 w-auto" />
         </Link>
         <Link
           href="/"
@@ -95,16 +95,17 @@ export function AuthShell({
                 transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
               />
 
-              {/* Top text */}
+              {/* Top text — the aside panel is a dark editorial surface, so all
+                  copy directly on it must be light (not the dark --foreground). */}
               <div className="relative">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-foreground/15 bg-background/50 backdrop-blur text-xs font-medium">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/10 backdrop-blur text-xs font-medium text-white/90">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                   Faiceoff · Made in India
                 </div>
-                <h2 className="mt-5 font-display text-xl xl:text-2xl font-bold leading-tight text-foreground max-w-[220px]">
+                <h2 className="mt-5 font-display text-xl xl:text-2xl font-bold leading-tight text-white max-w-[220px]">
                   {side.heading}
                 </h2>
-                <p className="mt-2 text-sm text-foreground/70 max-w-[220px] leading-relaxed">{side.body}</p>
+                <p className="mt-2 text-sm text-white/70 max-w-[220px] leading-relaxed">{side.body}</p>
               </div>
 
               {/* Creator photo */}

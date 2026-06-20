@@ -320,6 +320,27 @@ body {
   line-height: 1.6;
 }
 
+/* ── Browser autofill ──
+   Chrome/Safari paint autofilled inputs with their own blue/grey fill that
+   ignores our theme — looks broken on both the cream auth pages and the dark
+   dashboard. Override it: force the design's surface (via an inset box-shadow,
+   the only way to beat the UA fill) + foreground text colour. `var(--color-*)`
+   resolves per-scope, so it stays cream inside `.landing-scope` and dark in the
+   app. The long transition delay defers the UA repaint indefinitely. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-foreground);
+  -webkit-box-shadow: 0 0 0 100px var(--color-background) inset;
+  box-shadow: 0 0 0 100px var(--color-background) inset;
+  caret-color: var(--color-foreground);
+  border-radius: inherit;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
 /* ── Headings ── */
 
 h1,

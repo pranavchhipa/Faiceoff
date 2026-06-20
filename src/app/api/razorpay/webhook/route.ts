@@ -21,6 +21,7 @@ import {
 } from "@/app/api/wallet/handlers";
 import { addCredits } from "@/lib/billing/credits-service";
 import { sendBrandTopupReceipt } from "@/lib/email/transactional";
+import { signBrandAndActivate, renderAndStorePDF, notifyAgreementActivated } from "@/lib/agreements";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -187,6 +188,35 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
                 .from("collab_requests")
                 .update({ status: "paid", paid_at: new Date().toISOString(), collab_session_id: session.id })
                 .eq("id", collabRequestId);
+
+              // Finalize the Collaboration Agreement on the webhook path too
+              // (the brand UI handler may never fire if the tab closed). Record
+              // the brand's signature as the company auto-signatory, then render
+              // the dual-signed PDF in after().
+              try {
+                const { data: brandRow } = await admin
+                  .from("brands").select("company_name").eq("id", fullReq.brand_id).maybeSingle();
+                const agreementRow = await signBrandAndActivate({
+                  admin,
+                  requestId: fullReq.id,
+                  sessionId: session.id,
+                  brandSignedName: brandRow?.company_name ?? "Authorized signatory",
+                  brandSignedIp: null,
+                });
+                if (agreementRow && !(agreementRow.status === "active" && agreementRow.pdf_url)) {
+                  after(async () => {
+                    try {
+                      await renderAndStorePDF(admin, agreementRow);
+                    } catch (err) {
+                      console.error("[razorpay/webhook] agreement PDF render failed", err);
+                    }
+                    // Email + in-app notify BOTH sides the agreement is active.
+                    await notifyAgreementActivated(admin, agreementRow);
+                  });
+                }
+              } catch (err) {
+                console.error("[razorpay/webhook] agreement finalize failed (non-fatal)", err);
+              }
             }
           });
       } else if (notes.type === "credit_top_up") {
