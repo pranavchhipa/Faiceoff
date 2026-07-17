@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/stuck-gens
 //
-// Lists generations stuck in 'processing' status for more than 5 minutes.
+// Lists generations stuck in an in-flight pipeline status for more than 5
+// minutes (generating / compliance_check / output_check / draft).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";

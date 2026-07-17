@@ -3,11 +3,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /admin/stuck-gens — Stuck generation triage list
 //
-// Shows generations still marked "processing" more than 5 minutes past kickoff.
-// Operators choose between "Retry" (re-submit to Replicate with the same
-// assembled prompt) and "Refund" (refund the brand's reserved credits, mark
-// the generation refunded). Seeded with mock rows when the live queue is
-// empty so the page always looks alive.
+// Shows generations stuck in generating/compliance_check/output_check/draft.
+// Operators choose between "Retry" (replay through the live Gemini pipeline
+// via runGeneration) and "Refund" (refund the brand's credit, mark the
+// generation refunded). Seeded with mock rows when the live queue is empty
+// so the page always looks alive.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState, useTransition } from "react";
@@ -117,10 +117,7 @@ export function StuckList() {
         method: "POST",
       });
       if (res.ok) {
-        const data = (await res.json()) as { replicate_prediction_id?: string };
-        toast.success(
-          `Resubmitted to Replicate${data.replicate_prediction_id ? ` — ${data.replicate_prediction_id.slice(0, 10)}…` : ""}`,
-        );
+        toast.success("Requeued — replaying through the generation pipeline");
         setItems((prev) => prev.filter((i) => i.id !== item.id));
       } else {
         const data = (await res.json().catch(() => ({}))) as {
@@ -141,7 +138,7 @@ export function StuckList() {
         { method: "POST" },
       );
       if (res.ok) {
-        toast.success("Refund issued — credits returned to brand wallet");
+        toast.success("Refund issued — credit returned to brand");
         setRefundTarget(null);
         setItems((prev) => prev.filter((i) => i.id !== refundTarget.id));
       } else {
@@ -178,7 +175,7 @@ export function StuckList() {
               {items.length}
             </span>{" "}
             generation{items.length !== 1 ? "s" : ""} past the 5-minute threshold
-            · retry re-queues Replicate · refund returns escrowed credits.
+            · retry replays the pipeline · refund returns the credit.
           </p>
         </div>
 
@@ -335,8 +332,8 @@ export function StuckList() {
               Confirm refund
             </DialogTitle>
             <DialogDescription className="text-sm text-[var(--color-muted-foreground)]">
-              Reserved credits return to the brand&apos;s wallet and this
-              generation is marked refunded. This cannot be undone.
+              1 credit is returned to the brand and this generation is marked
+              refunded. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {refundTarget && (
