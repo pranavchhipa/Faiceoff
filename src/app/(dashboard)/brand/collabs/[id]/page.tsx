@@ -580,7 +580,7 @@ function VaultCell({ gen }: { gen: Generation }) {
         </div>
       )}
       {gen.image_url && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-stretch justify-end gap-1.5 bg-gradient-to-t from-black/65 via-black/15 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-stretch justify-end gap-1.5 bg-gradient-to-t from-black/65 via-black/15 to-transparent p-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
           <button
             type="button"
             onClick={downloadImageOnly}

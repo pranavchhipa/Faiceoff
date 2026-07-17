@@ -392,7 +392,7 @@ export default function CreatorApprovalsPage() {
                   </p>
 
                   {/* Meta */}
-                  <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <MetaBlock
                       label="Payout"
                       value={`₹${(selected.payoutPaise / 100).toLocaleString("en-IN")}`}

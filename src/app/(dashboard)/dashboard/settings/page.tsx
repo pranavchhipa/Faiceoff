@@ -474,7 +474,7 @@ export default function SettingsPage() {
           <motion.div
             initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed bottom-4 left-1/2 z-40 w-[min(680px,calc(100%-1.5rem))] -translate-x-1/2"
+            className="fixed bottom-20 left-1/2 z-40 w-[min(680px,calc(100%-1.5rem))] -translate-x-1/2 lg:bottom-4"
           >
             <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-[0_12px_36px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md">
               <div className="flex min-w-0 items-center gap-2">

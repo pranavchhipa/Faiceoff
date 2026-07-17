@@ -215,7 +215,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
           )}
 
           {/* Stats strip */}
-          <div className="mt-5 grid grid-cols-3 gap-3 sm:max-w-md">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-md sm:grid-cols-3">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
               <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
                 {totalReachStr ?? "—"}

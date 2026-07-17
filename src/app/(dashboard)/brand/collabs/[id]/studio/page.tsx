@@ -1086,8 +1086,10 @@ export default function BrandStudioPage() {
             </div>
           )}
 
-          {/* Generate CTA — sticky bottom on mobile */}
-          <div className="sticky bottom-4 z-10 lg:static lg:z-auto">
+          {/* Generate CTA — sticky bottom on mobile. bottom-20 clears the fixed
+              64px MobileBottomNav (+ safe-area) so the primary paid action is
+              never covered by / fighting taps with the tab bar. */}
+          <div className="sticky bottom-20 z-10 lg:static lg:bottom-auto lg:z-auto">
             <button
               type="button"
               onClick={handleGenerate}
@@ -1327,7 +1329,7 @@ export default function BrandStudioPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
+            className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 lg:bottom-6"
           >
             <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-primary)]/40 bg-[var(--color-card)] px-4 py-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.55)] backdrop-blur-md">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary)]/15">
@@ -1425,7 +1427,7 @@ export default function BrandStudioPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
+            className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 lg:bottom-6"
           >
             <div
               className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-md ${
@@ -1714,7 +1716,7 @@ function GenCell({
           className={`absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border transition-all ${
             selected
               ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)] opacity-100"
-              : "border-white/60 bg-black/55 text-white opacity-0 backdrop-blur-md group-hover:opacity-100"
+              : "border-white/60 bg-black/55 text-white opacity-100 backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
           }`}
         >
           {selected ? (
@@ -1733,7 +1735,7 @@ function GenCell({
         <Link
           href={`/brand/collabs/${collabId}?review=${gen.id}`}
           aria-label="Open review"
-          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-white/30 bg-black/55 text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100"
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-white/30 bg-black/55 text-white opacity-100 backdrop-blur-md transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
           onClick={(e) => e.stopPropagation()}
         >
           <Maximize2 className="h-3 w-3" />

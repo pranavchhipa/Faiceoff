@@ -462,8 +462,8 @@ export default function PhotosPage() {
                       </span>
                     )}
 
-                    {/* Hover actions */}
-                    <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/70 via-transparent to-black/40 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {/* Actions — always visible on touch (mobile), hover-reveal on pointer devices */}
+                    <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/70 via-transparent to-black/40 p-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                       <div className="flex justify-end">
                         <button
                           type="button"
