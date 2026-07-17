@@ -132,35 +132,61 @@ export async function forceDiscardGeneration(formData: FormData): Promise<void> 
   // ── Refund the single-pool iteration (collab gens only) ──
   // Mirrors /api/generations/[id]/discard exactly. Best-effort: the gen is
   // already discarded, so a refund failure is logged for manual reconcile.
-  // Uses the atomic add_credits_manual RPC (00038_admin_credit_rpcs.sql) —
-  // a plain select-then-update here would lose an increment if two
-  // generations for the same brand are force-discarded concurrently, and
-  // writes the credit_transactions ledger row with the correct column
-  // names (amount_paise/balance_after_paise) plus built-in idempotency.
+  // Atomic optimistic-concurrency UPDATE (same pattern as
+  // /api/collabs/[id]/generate's deduction) — a plain select-then-update
+  // would lose an increment if two generations for the same brand are
+  // force-discarded concurrently. credit_transactions uses credits/
+  // balance_after, matching every other live ledger write in the codebase
+  // (collabs/generate, collabs/confirm-payment, generations/retry,
+  // razorpay/webhook) rather than the paise-named columns a different
+  // legacy RPC uses for the same table.
   if (collabSessionId && brandId) {
     try {
-      // 1. Atomic credit refund + ledger row.
-      await admin.rpc("add_credits_manual", {
-        p_brand_id: brandId,
-        p_credits: 1,
-        p_bonus: 0,
-        p_source: "moderation_force_discard",
-        p_reference_id: generationId,
-      });
-
-      // 2. Decrement the per-collab counter (gen_credits_used -= 1), floored at 0.
-      const { data: sessionRow } = await admin
-        .from("collab_sessions")
-        .select("gen_credits_used")
-        .eq("id", collabSessionId)
+      const { data: brandRow } = await admin
+        .from("brands")
+        .select("credits_remaining")
+        .eq("id", brandId)
         .maybeSingle();
-      const currentUsed = (sessionRow?.gen_credits_used ?? 0) as number;
-      await admin
-        .from("collab_sessions")
-        .update({ gen_credits_used: Math.max(0, currentUsed - 1) })
-        .eq("id", collabSessionId);
+      const currentCredits = (brandRow?.credits_remaining ?? 0) as number;
+      const newBalance = currentCredits + 1;
 
-      creditRefunded = true;
+      const { data: creditUpd } = await admin
+        .from("brands")
+        .update({ credits_remaining: newBalance })
+        .eq("id", brandId)
+        .eq("credits_remaining", currentCredits) // optimistic concurrency
+        .select("id")
+        .maybeSingle();
+
+      if (creditUpd) {
+        await admin.from("credit_transactions").insert({
+          brand_id: brandId,
+          type: "refund",
+          credits: 1,
+          balance_after: newBalance,
+          reference_type: "generation",
+          reference_id: generationId,
+          description: "Force-discarded by operator — iteration refunded",
+        });
+
+        // Decrement the per-collab counter (gen_credits_used -= 1), floored at 0.
+        const { data: sessionRow } = await admin
+          .from("collab_sessions")
+          .select("gen_credits_used")
+          .eq("id", collabSessionId)
+          .maybeSingle();
+        const currentUsed = (sessionRow?.gen_credits_used ?? 0) as number;
+        await admin
+          .from("collab_sessions")
+          .update({ gen_credits_used: Math.max(0, currentUsed - 1) })
+          .eq("id", collabSessionId);
+
+        creditRefunded = true;
+      } else {
+        console.error(
+          `[moderation/force-discard] credit refund conflict for gen=${generationId}, manual reconcile needed`,
+        );
+      }
     } catch (err) {
       // Soft fail — gen is discarded but refund needs manual reconcile.
       console.error(

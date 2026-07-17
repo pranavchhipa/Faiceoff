@@ -142,29 +142,44 @@ export async function resolveDispute(formData: FormData): Promise<void> {
       .eq("id", brandId)
       .maybeSingle();
     if (brand) {
-      const newBalance = (brand.credits_remaining ?? 0) + DISPUTE_REFUND_CREDITS;
-      await admin
+      const currentCredits = (brand.credits_remaining ?? 0) as number;
+      const newBalance = currentCredits + DISPUTE_REFUND_CREDITS;
+      // Atomic optimistic-concurrency UPDATE (same pattern used everywhere
+      // else this table is mutated) — a plain read-then-write here would
+      // lose an increment if this dispute's refund races another credit
+      // mutation on the same brand (a concurrent generation spend/refund).
+      const { data: creditUpd } = await admin
         .from("brands")
         .update({ credits_remaining: newBalance })
-        .eq("id", brand.id);
-      refundedCredits = DISPUTE_REFUND_CREDITS;
+        .eq("id", brand.id)
+        .eq("credits_remaining", currentCredits)
+        .select("id")
+        .maybeSingle();
 
-      // Ledger row — best-effort (balance is already updated above either way).
-      // Real columns are `credits`/`description`/`type` (not delta/reason);
-      // `type` is NOT NULL with a check constraint — 'refund' is the allowed
-      // value for this case (mirrors moderation/actions.ts forceDiscardGeneration).
-      try {
-        await admin.from("credit_transactions").insert({
-          brand_id: brand.id,
-          type: "refund",
-          credits: DISPUTE_REFUND_CREDITS,
-          balance_after: newBalance,
-          description: "Dispute refund",
-          reference_type: "dispute",
-          reference_id: disputeId,
-        });
-      } catch {
-        // ledger schema mismatch — balance already updated, non-fatal
+      if (creditUpd) {
+        refundedCredits = DISPUTE_REFUND_CREDITS;
+
+        // Ledger row — best-effort (balance is already updated above either way).
+        // Real columns are `credits`/`description`/`type` (not delta/reason);
+        // `type` is NOT NULL with a check constraint — 'refund' is the allowed
+        // value for this case (mirrors moderation/actions.ts forceDiscardGeneration).
+        try {
+          await admin.from("credit_transactions").insert({
+            brand_id: brand.id,
+            type: "refund",
+            credits: DISPUTE_REFUND_CREDITS,
+            balance_after: newBalance,
+            description: "Dispute refund",
+            reference_type: "dispute",
+            reference_id: disputeId,
+          });
+        } catch {
+          // ledger schema mismatch — balance already updated, non-fatal
+        }
+      } else {
+        console.error(
+          `[disputes/resolve] credit refund conflict for dispute=${disputeId}, manual reconcile needed`,
+        );
       }
     }
   }
