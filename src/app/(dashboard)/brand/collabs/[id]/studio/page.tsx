@@ -342,7 +342,7 @@ export default function BrandStudioPage() {
       .then((d) => {
         if (d) {
           setSession(d.session);
-          setRecentGens((d.generations ?? []).slice(0, 12));
+          setRecentGens(d.generations ?? []);
           if (d.creator) setCreator(d.creator);
         }
       })
@@ -1307,7 +1307,6 @@ export default function BrandStudioPage() {
                   <GenCell
                     key={g.id}
                     gen={g}
-                    collabId={collabId}
                     selected={selectedIds.has(g.id)}
                     onToggleSelect={toggleSelect}
                     onPreview={(url) => setLightboxUrl(url)}
@@ -1432,7 +1431,7 @@ export default function BrandStudioPage() {
             <div
               className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-md ${
                 toast.kind === "success"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                   : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-foreground)]"
               }`}
             >
@@ -1625,13 +1624,11 @@ function StatusChip({ status }: { status: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function GenCell({
   gen,
-  collabId,
   selected,
   onToggleSelect,
   onPreview,
 }: {
   gen: Generation;
-  collabId: string;
   /** Whether this cell is in the brand's current multi-select. */
   selected?: boolean;
   /** Toggles selection. Only wired for ready_for_brand_review cells. */
@@ -1725,21 +1722,6 @@ function GenCell({
             <span className="h-3 w-3 rounded-sm border border-white/80" />
           )}
         </button>
-      )}
-
-      {/* Open-in-review deep link — appears as a tiny overflow tap target so
-          brands who prefer the per-image review page can still get there.
-          (Selection / preview is the primary path; this is the legacy escape
-          hatch.) */}
-      {gen.status === "ready_for_brand_review" && (
-        <Link
-          href={`/brand/collabs/${collabId}?review=${gen.id}`}
-          aria-label="Open review"
-          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-white/30 bg-black/55 text-white opacity-100 backdrop-blur-md transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Maximize2 className="h-3 w-3" />
-        </Link>
       )}
     </div>
   );

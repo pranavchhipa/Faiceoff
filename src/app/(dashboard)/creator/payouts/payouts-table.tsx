@@ -66,37 +66,32 @@ function net(p: PayoutItem): number {
 
 const STATUS_CONFIG: Record<
   PayoutStatus,
-  { label: string; bg: string; text: string; icon: React.ReactNode }
+  { label: string; badgeClass: string; icon: React.ReactNode }
 > = {
   requested: {
     label: "Requested",
-    bg: "var(--color-neutral-100)",
-    text: "var(--color-neutral-600)",
+    badgeClass: "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]",
     icon: <Clock className="size-3.5" />,
   },
   processing: {
     label: "Processing",
-    bg: "var(--color-lilac)",
-    text: "var(--color-neutral-700)",
+    badgeClass: "bg-amber-500/10 text-amber-500",
     icon: <Loader2 className="size-3.5 animate-spin" />,
   },
   success: {
     label: "Success",
-    bg: "var(--color-mint)",
-    text: "var(--color-neutral-700)",
-    icon: <CheckCircle2 className="size-3.5 text-green-600" />,
+    badgeClass: "bg-emerald-500/10 text-emerald-500",
+    icon: <CheckCircle2 className="size-3.5" />,
   },
   failed: {
     label: "Failed",
-    bg: "var(--color-blush)",
-    text: "var(--color-neutral-700)",
-    icon: <XCircle className="size-3.5 text-red-500" />,
+    badgeClass: "bg-rose-500/10 text-rose-500",
+    icon: <XCircle className="size-3.5" />,
   },
   reversed: {
     label: "Reversed",
-    bg: "var(--color-blush)",
-    text: "var(--color-neutral-700)",
-    icon: <XCircle className="size-3.5 text-red-500" />,
+    badgeClass: "bg-rose-500/10 text-rose-500",
+    icon: <XCircle className="size-3.5" />,
   },
 };
 
@@ -147,10 +142,10 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
     >
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-on-surface)]">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
           Payout history
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-outline)]">
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
           All your withdrawal requests and their current status.
         </p>
       </div>
@@ -161,10 +156,10 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
           <button
             key={f.value}
             onClick={() => handleFilter(f.value)}
-            className={`px-3 py-1.5 rounded-[var(--radius-pill)] text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
               filter === f.value
-                ? "bg-[var(--color-ink)] text-white"
-                : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-200)]"
+                ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                : "bg-[var(--color-secondary)] text-[var(--color-muted-foreground)] hover:bg-[var(--color-border)]"
             }`}
           >
             {f.label}
@@ -175,16 +170,16 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
       {/* Loading overlay */}
       {isPending && (
         <div className="flex justify-center py-8">
-          <Loader2 className="size-6 animate-spin text-[var(--color-neutral-400)]" />
+          <Loader2 className="size-6 animate-spin text-[var(--color-muted-foreground)]" />
         </div>
       )}
 
       {/* Empty state */}
       {!isPending && items.length === 0 && (
-        <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)] p-12 text-center">
-          <Receipt className="size-10 mx-auto mb-3 text-[var(--color-neutral-300)]" />
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-12 text-center">
+          <Receipt className="size-10 mx-auto mb-3 text-[var(--color-muted-foreground)]" />
           <p className="font-semibold text-[var(--color-foreground)]">No payouts yet</p>
-          <p className="text-sm text-[var(--color-neutral-500)] mt-1">
+          <p className="text-sm text-[var(--color-muted-foreground)] mt-1">
             Your withdrawal history will appear here.
           </p>
         </div>
@@ -210,17 +205,16 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-4 sm:p-5 shadow-[var(--shadow-soft)]"
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 sm:p-5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   {/* Left: date + status */}
                   <div className="space-y-1.5">
-                    <p className="text-xs text-[var(--color-neutral-500)]">
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
                       {fmtDate(p.requested_at)}
                     </p>
                     <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-pill)] text-xs font-semibold"
-                      style={{ background: cfg.bg, color: cfg.text }}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.badgeClass}`}
                     >
                       {cfg.icon}
                       {cfg.label}
@@ -232,7 +226,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
                     <p className="text-base font-bold text-[var(--color-foreground)]">
                       {fmt(netAmt)}
                     </p>
-                    <p className="text-xs text-[var(--color-neutral-500)]">
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
                       Gross {fmt(grossAmt)} · TDS -{fmt(tdsAmt)} · Fee -{fmt(feeAmt)}
                     </p>
                   </div>
@@ -240,15 +234,15 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
 
                 {/* UTR */}
                 {statusKey === "success" && utr && (
-                  <div className="mt-3 pt-3 border-t border-[var(--color-neutral-100)]">
-                    <p className="text-xs text-[var(--color-neutral-500)]">
+                  <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
                       UTR:{" "}
-                      <span className="font-mono text-[var(--color-neutral-700)]">
+                      <span className="font-mono text-[var(--color-foreground)]">
                         {utr}
                       </span>
                     </p>
                     {p.completed_at && (
-                      <p className="text-xs text-[var(--color-neutral-400)] mt-0.5">
+                      <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
                         Completed {fmtDate(p.completed_at)}
                       </p>
                     )}
@@ -258,8 +252,8 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
                 {/* Failure reason */}
                 {(statusKey === "failed" || statusKey === "reversed") &&
                   p.failure_reason && (
-                    <div className="mt-3 pt-3 border-t border-[var(--color-neutral-100)]">
-                      <p className="text-xs text-red-500">{p.failure_reason}</p>
+                    <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                      <p className="text-xs text-rose-500">{p.failure_reason}</p>
                     </div>
                   )}
               </motion.div>
@@ -274,17 +268,17 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
           <button
             onClick={() => fetchPage(page - 1, filter)}
             disabled={page <= 1}
-            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--color-neutral-200)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-100)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-xl border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Previous
           </button>
-          <span className="text-[var(--color-neutral-500)]">
+          <span className="text-[var(--color-muted-foreground)]">
             Page {page} of {totalPages}
           </span>
           <button
             onClick={() => fetchPage(page + 1, filter)}
             disabled={page >= totalPages}
-            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--color-neutral-200)] text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-100)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-xl border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next
           </button>

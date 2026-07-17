@@ -43,7 +43,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
-  const isOnboarding = pathname?.startsWith("/dashboard/onboarding") ?? false;
+  const isOnboarding =
+    (pathname?.startsWith("/dashboard/onboarding") ||
+      pathname?.startsWith("/brand/onboarding") ||
+      pathname?.startsWith("/dashboard/brand-setup")) ??
+    false;
 
   const displayName =
     user?.user_metadata?.display_name ??

@@ -344,7 +344,7 @@ export async function sendBrandWelcome(opts: {
           <li><strong>Generate in Studio</strong> — Gemini 3 Pro renders your brief on the creator's face. Every image gets a signed license PDF.</li>
         </ol>`,
       cta: { label: "Discover creators", href: `${APP_URL}/brand/discover` },
-      secondaryCta: { label: "Or top up wallet first →", href: `${APP_URL}/brand/wallet` },
+      secondaryCta: { label: "Or buy credits first →", href: `${APP_URL}/brand/credits` },
       footnote: "GST-invoiced. India-payable in INR via Razorpay. Full DPDP & IT Act compliance baked in.",
     }),
   });
@@ -580,11 +580,11 @@ export async function sendBrandTopupReceipt(opts: {
   await send({
     to: opts.to,
     subject: `Receipt — ${fmtINR(opts.amountPaise)} top-up`,
-    html: wrap("Wallet top-up receipt", {
+    html: wrap("Credits top-up receipt", {
       preheader: `${opts.creditsAdded} credits added. Tax invoice attached.`,
       eyebrow: "Payment success",
       headline: `Top-up confirmed.`,
-      body: `<p style="margin:0;">We've received your wallet top-up of <strong>${fmtINR(opts.amountPaise)}</strong>. Credits have been added and you're ready to keep generating.</p>`,
+      body: `<p style="margin:0;">We've received your payment of <strong>${fmtINR(opts.amountPaise)}</strong>. Credits have been added and you're ready to keep generating.</p>`,
       info: [
         { label: "Amount paid", value: fmtINR(opts.amountPaise) },
         { label: "Base", value: fmtINR(basePaise) },
@@ -592,7 +592,7 @@ export async function sendBrandTopupReceipt(opts: {
         { label: "Credits added", value: String(opts.creditsAdded) },
         ...(opts.paymentRef ? [{ label: "Payment ref", value: opts.paymentRef }] : []),
       ],
-      cta: { label: "Open wallet", href: `${APP_URL}/brand/wallet` },
+      cta: { label: "Open credits", href: `${APP_URL}/brand/credits` },
       footnote: "A full GST tax invoice (Form 6) will arrive in a separate email shortly. Keep both for accounting.",
     }),
   });
@@ -790,7 +790,7 @@ export async function sendBrandLowCredits(opts: {
       eyebrow: "Heads-up",
       headline: `You have ${opts.creditsRemaining} credits left.`,
       body: `<p style="margin:0;">Each generation costs 1 credit. Top up now so you don't get blocked mid-campaign — popular packs unlock instantly via Razorpay (UPI / cards / netbanking).</p>`,
-      cta: { label: "Top up wallet", href: `${APP_URL}/brand/wallet` },
+      cta: { label: "Buy credits", href: `${APP_URL}/brand/credits` },
     }),
   });
 }

@@ -18,10 +18,10 @@ interface Rule {
 //            earnings, licenses, likeness, packages, payouts, requests, settings, withdraw
 //   admin:   dashboard (alias), packs, safety, stuck-gens, plus / (overview)
 //
-// Several creator/brand pages (approvals, likeness, settings, analytics,
-// collaborations) are thin re-export wrappers around role-aware pages that
-// still live under /dashboard/*. The redirects below send legacy URLs to
-// those wrappers so old bookmarks keep working.
+// Several creator/brand pages (approvals, likeness, settings, analytics)
+// are thin re-export wrappers around role-aware pages that still live under
+// /dashboard/*. The redirects below send legacy URLs to those wrappers so
+// old bookmarks keep working.
 
 const RULES: Rule[] = [
   // /dashboard root → role home (admin gets /admin, others get /${r}/dashboard)
@@ -50,27 +50,9 @@ const RULES: Rule[] = [
     resolve: (m, r) => (r === "brand" ? (m[1] ? `/brand/collabs/${m[1]}` : "/brand/collabs") : `/${r}/dashboard`),
   },
 
-  // Old /brand/inbox → /brand/collabs
-  {
-    match: /^\/brand\/inbox\/?$/,
-    resolve: (_m, r) => (r === "brand" ? "/brand/collabs" : `/${r}/dashboard`),
-  },
-
   // Old /creator/approvals → /creator/collabs
   {
     match: /^\/creator\/approvals\/?$/,
-    resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
-  },
-
-  // Old /creator/inbox → /creator/collabs
-  {
-    match: /^\/creator\/inbox\/?$/,
-    resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
-  },
-
-  // Old /creator/collaborations → /creator/collabs
-  {
-    match: /^\/creator\/collaborations\/?$/,
     resolve: (_m, r) => (r === "creator" ? "/creator/collabs" : `/${r}/dashboard`),
   },
 

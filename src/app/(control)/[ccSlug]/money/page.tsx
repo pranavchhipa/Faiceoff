@@ -126,8 +126,6 @@ export default async function MoneyPage({ params }: Props) {
     payoutQueue,
     payoutAggregate,
     recentTopups,
-    gstMtd,
-    tdsMtd,
   ] = await Promise.all([
     safeQuery(
       async () => {
@@ -267,32 +265,6 @@ export default async function MoneyPage({ params }: Props) {
       },
       [] as TopupRow[],
     ),
-    safeQuery(
-      async () => {
-        const { data } = await admin
-          .from("gst_output_ledger")
-          .select("tax_paise")
-          .gte("created_at", monthIso);
-        return ((data ?? []) as Array<{ tax_paise: number | null }>).reduce(
-          (s, r) => s + (r.tax_paise ?? 0),
-          0,
-        );
-      },
-      0,
-    ),
-    safeQuery(
-      async () => {
-        const { data } = await admin
-          .from("tds_ledger")
-          .select("tax_paise")
-          .gte("created_at", monthIso);
-        return ((data ?? []) as Array<{ tax_paise: number | null }>).reduce(
-          (s, r) => s + (r.tax_paise ?? 0),
-          0,
-        );
-      },
-      0,
-    ),
   ]);
 
   const totalCreditsOutstanding = walletAgg.reduce(
@@ -338,13 +310,13 @@ export default async function MoneyPage({ params }: Props) {
             <Kpi label="Revenue · YTD" value={fmt(revYtd)} sub="calendar year" />
             <Kpi
               label="GST collected · MTD"
-              value={fmt(gstMtd)}
-              sub="output_on_commission + output_on_creator_service"
+              value="—"
+              sub="Not tracked — live payout flow doesn't write gst_output_ledger. Compute manually per payout."
             />
             <Kpi
               label="TDS withheld · MTD"
-              value={fmt(tdsMtd)}
-              sub="Sec 194-O 1%"
+              value="—"
+              sub="Not tracked — live payout flow doesn't write tds_ledger. Compute manually per payout."
             />
             <Kpi
               label="Pending payouts"

@@ -184,33 +184,28 @@ export async function grantCreditsForTicket(formData: FormData): Promise<void> {
   // Resolve brand by the raiser's user id
   const { data: brand } = await admin
     .from("brands")
-    .select("id, credits_remaining")
+    .select("id")
     .eq("user_id", ticket.user_id)
     .maybeSingle();
   if (!brand) return;
 
-  const newBalance = (brand.credits_remaining ?? 0) + amount;
-  await admin
-    .from("brands")
-    .update({ credits_remaining: newBalance })
-    .eq("id", brand.id);
-
-  // Ledger row — best-effort (balance is already updated above either way).
-  // Real columns are `credits`/`description`/`type` (not delta/reason); `type`
-  // is NOT NULL with a check constraint — 'bonus' is the allowed value for a
-  // goodwill grant (mirrors moderation/actions.ts forceDiscardGeneration).
-  try {
-    await admin.from("credit_transactions").insert({
-      brand_id: brand.id,
-      type: "bonus",
-      credits: amount,
-      balance_after: newBalance,
-      description: "Support grant",
-      reference_type: "support_ticket",
-      reference_id: ticketId,
-    });
-  } catch {
-    // ledger schema mismatch — balance already updated, non-fatal
+  // Atomic increment + ledger row via the admin restitution RPC
+  // (00038_admin_credit_rpcs.sql) — avoids the lost-update race a plain
+  // select-then-update would have if two grants land on the same brand
+  // concurrently, and is idempotent on (reference_type, reference_id).
+  const { error: grantErr } = await admin.rpc("add_credits_manual", {
+    p_brand_id: brand.id,
+    p_credits: amount,
+    p_bonus: 0,
+    p_source: "support_ticket_grant",
+    p_reference_id: ticketId,
+  });
+  if (grantErr) {
+    console.error(
+      `[tickets/grant-credits] add_credits_manual failed for ticket=${ticketId}`,
+      grantErr,
+    );
+    return;
   }
 
   await admin.from("ticket_messages").insert({

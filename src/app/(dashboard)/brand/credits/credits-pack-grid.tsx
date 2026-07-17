@@ -281,7 +281,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
     displayPacks.length > 0 ? perCreditCost(displayPacks[0]) : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 px-4 pt-5 pb-12 lg:px-8">
       {/* ═══ Hero header ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}

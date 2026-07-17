@@ -204,7 +204,7 @@ const PACKS: PackData[] = [
       "12-month validity",
     ],
     cta: "Talk to Sales",
-    href: "/auth/signup/brand",
+    href: "/contact",
     icon: Building2,
   },
 ];

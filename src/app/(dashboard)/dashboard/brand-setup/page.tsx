@@ -112,12 +112,12 @@ export default function BrandSetupPage() {
         </span>
       </div>
 
-      <Card className="border-[var(--color-neutral-200)] shadow-[var(--shadow-card)]">
+      <Card className="border-[var(--color-border)] shadow-[var(--shadow-card)]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-700 tracking-tight text-[var(--color-ink)]">
+          <CardTitle className="text-2xl font-700 tracking-tight text-[var(--color-foreground)]">
             Set up your brand
           </CardTitle>
-          <CardDescription className="text-[var(--color-neutral-500)]">
+          <CardDescription className="text-[var(--color-muted-foreground)]">
             Tell us about your company so creators know who they are working
             with. You can verify your GST from the dashboard next — your brand
             goes live for collaborations once verification is approved.
@@ -130,7 +130,7 @@ export default function BrandSetupPage() {
             <div className="flex flex-col gap-2">
               <Label
                 htmlFor="company-name"
-                className="text-[var(--color-ink)]"
+                className="text-[var(--color-foreground)]"
               >
                 Company Name <span className="text-[var(--color-primary)]">*</span>
               </Label>
@@ -147,9 +147,9 @@ export default function BrandSetupPage() {
 
             {/* Website URL */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="website-url" className="text-[var(--color-ink)]">
+              <Label htmlFor="website-url" className="text-[var(--color-foreground)]">
                 Website URL{" "}
-                <span className="text-[var(--color-neutral-400)] font-400">
+                <span className="text-[var(--color-muted-foreground)] font-400">
                   (optional)
                 </span>
               </Label>
@@ -165,9 +165,9 @@ export default function BrandSetupPage() {
 
             {/* Industry */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="industry" className="text-[var(--color-ink)]">
+              <Label htmlFor="industry" className="text-[var(--color-foreground)]">
                 Industry{" "}
-                <span className="text-[var(--color-neutral-400)] font-400">
+                <span className="text-[var(--color-muted-foreground)] font-400">
                   (optional)
                 </span>
               </Label>
@@ -175,7 +175,7 @@ export default function BrandSetupPage() {
                 id="industry"
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
-                className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-1 text-sm text-[var(--color-ink)] shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-transparent px-3 py-1 text-sm text-[var(--color-foreground)] shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <option value="">Select your industry</option>
                 {INDUSTRIES.map((ind) => (
@@ -205,7 +205,7 @@ export default function BrandSetupPage() {
               )}
             </Button>
 
-            <p className="text-center text-xs text-[var(--color-neutral-500)]">
+            <p className="text-center text-xs text-[var(--color-muted-foreground)]">
               Next, verify your GST from the dashboard to unlock collaborations.
             </p>
           </form>

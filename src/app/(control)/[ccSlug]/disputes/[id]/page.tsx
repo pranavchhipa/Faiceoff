@@ -72,7 +72,7 @@ export default async function DisputeDetailPage({ params }: Props) {
     : { data: null };
 
   const { data: creator } = gen?.creator_id
-    ? await admin.from("creators").select("id, user_id, display_name").eq("id", gen.creator_id).maybeSingle()
+    ? await admin.from("creators").select("id, user_id").eq("id", gen.creator_id).maybeSingle()
     : { data: null };
   const { data: creatorUser } = creator?.user_id
     ? await admin.from("users").select("display_name, email").eq("id", creator.user_id).maybeSingle()
@@ -81,7 +81,7 @@ export default async function DisputeDetailPage({ params }: Props) {
   const isOpen = !["resolved_refund", "resolved_no_action", "closed"].includes(dispute.status);
   const raiserRole = raiser?.role ?? "—";
   const brandLabel = brand?.company_name ?? brandUser?.display_name ?? brandUser?.email ?? "—";
-  const creatorLabel = creator?.display_name ?? creatorUser?.display_name ?? creatorUser?.email ?? "—";
+  const creatorLabel = creatorUser?.display_name ?? creatorUser?.email ?? "—";
 
   return (
     <>

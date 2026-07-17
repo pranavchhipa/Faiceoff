@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentSession } from "@/lib/cc/session";
 import { logAudit } from "@/lib/cc/audit";
 import { emitNotification } from "@/lib/notifications/emit";
+import { sendCreatorPayoutSent } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -31,6 +32,18 @@ async function loadCreatorUserId(admin: Admin, creatorId: string): Promise<strin
     .eq("id", creatorId)
     .maybeSingle();
   return data?.user_id ?? null;
+}
+
+async function loadUserContact(
+  admin: Admin,
+  userId: string,
+): Promise<{ email: string | null; displayName: string | null }> {
+  const { data } = await admin
+    .from("users")
+    .select("email, display_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return { email: data?.email ?? null, displayName: data?.display_name ?? null };
 }
 
 /** Mark a payout as paid (operator already transferred via RazorpayX). */
@@ -76,6 +89,20 @@ export async function markPayoutPaid(formData: FormData): Promise<void> {
       body: `₹${(payout.net_amount_paise / 100).toLocaleString("en-IN")} has been transferred to your bank${utr ? ` (UTR ${utr})` : ""}.`,
       href: "/creator/earnings",
     });
+
+    try {
+      const { email, displayName } = await loadUserContact(admin, userId);
+      if (email) {
+        await sendCreatorPayoutSent({
+          to: email,
+          creatorName: displayName ?? "Creator",
+          amountPaise: payout.net_amount_paise,
+          utr: utr || null,
+        });
+      }
+    } catch (err) {
+      console.warn("[payouts/mark-paid] payout-sent email failed", err);
+    }
   }
 
   void logAudit({

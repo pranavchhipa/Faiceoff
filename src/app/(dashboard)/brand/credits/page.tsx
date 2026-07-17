@@ -13,19 +13,19 @@ import { CreditsPackGrid } from "./credits-pack-grid";
 
 function PackGridSkeleton() {
   return (
-    <div>
+    <div className="px-4 pt-5 pb-12 lg:px-8">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
-          <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-neutral-200)]" />
-          <div className="mt-2 h-4 w-64 animate-pulse rounded-xl bg-[var(--color-neutral-100)]" />
+          <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
+          <div className="mt-2 h-4 w-64 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
         </div>
-        <div className="h-9 w-32 animate-pulse rounded-full bg-[var(--color-neutral-100)]" />
+        <div className="h-9 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="h-72 animate-pulse rounded-[var(--radius-card)] bg-[var(--color-neutral-100)]"
+            className="h-72 animate-pulse rounded-[var(--radius-card)] bg-[var(--color-secondary)]"
           />
         ))}
       </div>

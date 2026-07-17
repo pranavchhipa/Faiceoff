@@ -10,7 +10,7 @@
  * Mobile-first, canonical dashboard tokens. Gold is reserved for the seal.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -187,7 +187,7 @@ function VerifyForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = !!aadhaar && !!pan && followed && !submitting;
+  const canSubmit = !!aadhaar && !!pan && followed && !submitting && onboardingComplete;
 
   async function handleSubmit() {
     if (!canSubmit || !aadhaar || !pan) return;
@@ -394,7 +394,17 @@ function DocUpload({
   label: string;
 }) {
   const isPdf = file?.type === "application/pdf";
-  const previewUrl = file && !isPdf ? URL.createObjectURL(file) : null;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file || isPdf) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, isPdf]);
 
   if (file) {
     return (

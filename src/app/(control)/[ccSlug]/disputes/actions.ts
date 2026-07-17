@@ -195,7 +195,7 @@ export async function resolveDispute(formData: FormData): Promise<void> {
         outcome === "refund"
           ? `A dispute involving one of your generations was resolved in the brand's favour (credit refund).${notes ? ` Note: ${notes}` : ""}`
           : `A dispute involving one of your generations was reviewed — no action taken.${notes ? ` Note: ${notes}` : ""}`,
-      href: "/creator/collaborations",
+      href: "/creator/collabs",
     });
   }
 

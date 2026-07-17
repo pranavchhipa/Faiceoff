@@ -17,6 +17,7 @@ import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
 import { decryptAccountNumber } from "@/lib/kyc/bank-crypto";
 import { markPayoutPaid, rejectPayout } from "./actions";
+import { MarkPaidSubmit } from "./mark-paid-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -191,6 +192,16 @@ export default async function PayoutsPage({ params }: Props) {
                 const fullAccount = decryptAccountNumber(
                   creator?.bank_account_number_encrypted,
                 );
+                // The operator always pays against the creator's CURRENT bank
+                // details, not a snapshot from request time — if the creator
+                // (or an attacker) changed banks after requesting this payout,
+                // flag it loudly before the operator wires money.
+                const bankChangedAfterRequest = Boolean(
+                  creator?.bank_added_at &&
+                    p.requested_at &&
+                    new Date(creator.bank_added_at).getTime() >
+                      new Date(p.requested_at).getTime(),
+                );
 
                 return (
                   <div key={p.id} className="cc-card">
@@ -229,6 +240,24 @@ export default async function PayoutsPage({ params }: Props) {
                         </span>
                       </div>
                     </div>
+
+                    {bankChangedAfterRequest && (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          padding: 12,
+                          borderRadius: 8,
+                          background: "var(--cc-bad-bg, rgba(239,68,68,0.1))",
+                          border: "1px solid var(--cc-bad)",
+                          color: "var(--cc-bad)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        ⚠ Bank details changed since this payout was requested — verify
+                        with the creator before paying.
+                      </div>
+                    )}
 
                     {/* Bank details — sensitive, full account number decrypted server-side */}
                     <div
@@ -298,19 +327,7 @@ export default async function PayoutsPage({ params }: Props) {
                           className="cc-input"
                           style={{ width: "100%", fontSize: 12.5 }}
                         />
-                        <button
-                          type="submit"
-                          className="cc-btn"
-                          style={{
-                            background: "var(--cc-ok)",
-                            color: "#06210f",
-                            borderColor: "var(--cc-ok)",
-                            fontWeight: 700,
-                            width: "100%",
-                          }}
-                        >
-                          ✓ Mark paid
-                        </button>
+                        <MarkPaidSubmit requireConfirm={bankChangedAfterRequest} />
                       </form>
                       <form action={rejectPayout} className="cc-stack" style={{ gap: 8 }}>
                         <input type="hidden" name="payout_id" value={p.id} />

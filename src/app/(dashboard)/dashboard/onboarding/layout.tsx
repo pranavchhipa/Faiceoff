@@ -26,12 +26,19 @@ function getActiveIndex(pathname: string): number {
 export default function OnboardingLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const activeIndex = getActiveIndex(pathname);
-  const isComplete = pathname.startsWith("/dashboard/onboarding/complete");
+  // Legacy post-photos routes (`pricing`, and the `lora-review` shim that
+  // redirects into it) aren't in STEPS, so getActiveIndex() would fall back
+  // to index 0 and wrongly highlight Identity. Hide the stepper there too,
+  // same as on the complete page.
+  const hideStepper =
+    pathname.startsWith("/dashboard/onboarding/complete") ||
+    pathname.startsWith("/dashboard/onboarding/pricing") ||
+    pathname.startsWith("/dashboard/onboarding/lora-review");
 
   return (
     <div className="max-w-5xl">
-      {/* ── Progress Stepper — hidden on complete page ── */}
-      {!isComplete && <nav className="mb-8" aria-label="Onboarding progress">
+      {/* ── Progress Stepper — hidden on complete/legacy pages ── */}
+      {!hideStepper && <nav className="mb-8" aria-label="Onboarding progress">
         {/* Desktop stepper */}
         <ol className="hidden md:flex items-center gap-0">
           {STEPS.map((step, i) => {

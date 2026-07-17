@@ -26,7 +26,7 @@ interface TopBarProps {
  *
  * Variants handled via `leftSlot`:
  *  - Brand: breadcrumb + page title (rail handles nav)
- *  - Creator: CreatorPillNav (sits in the left slot since there's no sidebar)
+ *  - Creator: hamburger + page title (no sidebar; full nav lives in the mobile drawer)
  *  - Admin: page title (left sidebar handles section nav)
  */
 export function TopBar({

@@ -66,6 +66,28 @@ export default function CreatorLikenessPage() {
   const loading =
     (statsLoading && !statsData) || (likenessLoading && !likenessData);
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
+  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
+
+  async function handleDelete(photoId: string) {
+    if (settingPrimary || deletingPhoto) return;
+    if (!window.confirm("Delete this reference photo?")) return;
+    setDeletingPhoto(photoId);
+    try {
+      const res = await fetch(`/api/creator/reference-photos/${photoId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.message ?? j.error ?? "Couldn't delete photo");
+      }
+      await refetchLikeness();
+      setOptimisticPhotos(null);
+    } catch (err) {
+      console.error("[likeness] delete failed", err);
+    } finally {
+      setDeletingPhoto(null);
+    }
+  }
 
   async function handleSetPrimary(photoId: string) {
     if (settingPrimary) return;
@@ -105,7 +127,7 @@ export default function CreatorLikenessPage() {
     null;
 
   const photos = referencePhotos.length;
-  const targetPhotos = 30;
+  const targetPhotos = 15;
   const progress = Math.min(100, Math.round((photos / targetPhotos) * 100));
   // Face model is "ready" when the creator has enough reference photos
   // queued — those feed Flux Kontext directly (LoRA training retired in 00026).
@@ -296,6 +318,7 @@ export default function CreatorLikenessPage() {
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
             {referencePhotos.map((photo, i) => {
               const isLoading = settingPrimary === photo.id;
+              const isDeleting = deletingPhoto === photo.id;
               return (
                 <motion.div
                   key={photo.id}
@@ -329,13 +352,14 @@ export default function CreatorLikenessPage() {
                     </span>
                   )}
 
-                  {/* Hover overlay: Set primary + Delete actions */}
-                  <div className="absolute inset-0 flex flex-col items-stretch justify-end gap-1 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  {/* Overlay: Set primary + Delete actions. Visible by default
+                      on touch devices; hover-reveal on pointer devices. */}
+                  <div className="absolute inset-0 flex flex-col items-stretch justify-end gap-1 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                     {!photo.is_primary && (
                       <button
                         type="button"
                         onClick={() => handleSetPrimary(photo.id)}
-                        disabled={isLoading}
+                        disabled={isLoading || isDeleting}
                         className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 px-1.5 py-1 font-mono text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md transition hover:bg-[var(--color-primary)] disabled:opacity-60"
                       >
                         {isLoading ? (
@@ -348,9 +372,15 @@ export default function CreatorLikenessPage() {
                     )}
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center gap-1 rounded-md bg-black/55 px-1.5 py-1 font-mono text-[9px] font-700 uppercase tracking-wider text-white backdrop-blur-md transition hover:bg-black/75"
+                      onClick={() => handleDelete(photo.id)}
+                      disabled={isLoading || isDeleting}
+                      className="inline-flex items-center justify-center gap-1 rounded-md bg-black/55 px-1.5 py-1 font-mono text-[9px] font-700 uppercase tracking-wider text-white backdrop-blur-md transition hover:bg-black/75 disabled:opacity-60"
                     >
-                      <Trash2 className="h-2.5 w-2.5" />
+                      {isDeleting ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-2.5 w-2.5" />
+                      )}
                       Delete
                     </button>
                   </div>

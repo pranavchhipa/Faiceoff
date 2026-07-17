@@ -437,7 +437,8 @@ export default function SettingsPage() {
                   className="overflow-hidden"
                 >
                   <p className="text-[12px] text-[var(--color-muted-foreground)]">
-                    Type <span className="font-mono font-700 text-red-500">DELETE</span> to confirm — your wallet balance, generations, licences, and earnings history will be wiped.
+                    Type <span className="font-mono font-700 text-red-500">DELETE</span> to confirm — your credits balance, generations, licences, and{" "}
+                    {role === "brand" ? "payment history" : "earnings history"} will be wiped.
                   </p>
                   <input
                     type="text" value={deleteConfirmText} placeholder="DELETE" autoFocus

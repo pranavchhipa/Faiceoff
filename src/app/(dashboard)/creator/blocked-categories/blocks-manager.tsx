@@ -19,8 +19,8 @@ const CATEGORIES: { id: string; label: string; emoji: string }[] = [
   { id: "religious", label: "Religious", emoji: "⛪" },
   { id: "adult",     label: "Adult",     emoji: "🔞" },
   { id: "crypto",    label: "Crypto",    emoji: "₿" },
-  { id: "weapons",   label: "Weapons",   emoji: "🔫" },
-  { id: "pharma",    label: "Pharma",    emoji: "💊" },
+  { id: "gun",       label: "Weapons",   emoji: "🔫" },
+  { id: "drugs",     label: "Pharma",    emoji: "💊" },
 ];
 
 export default function BlocksManager({
@@ -120,16 +120,16 @@ export default function BlocksManager({
     >
       {/* Header */}
       <div className="mb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-on-surface)]">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
           Blocked categories
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-outline)] max-w-xl">
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)] max-w-xl">
           Brands cannot generate content matching your blocked categories. You will be
           auto-rejected from requests in these categories.
         </p>
       </div>
 
-      <div className="mb-6 flex items-center gap-2 text-xs text-[var(--color-neutral-500)]">
+      <div className="mb-6 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
         <ShieldOff className="size-3.5" />
         <span>
           {Object.values(blockedMap).filter(Boolean).length} of {CATEGORIES.length} categories
@@ -151,8 +151,8 @@ export default function BlocksManager({
               transition={{ delay: i * 0.04, duration: 0.3 }}
               className={`rounded-[var(--radius-card)] border p-4 transition-all ${
                 isBlocked
-                  ? "border-[var(--color-blush-deep)] bg-rose-500/10"
-                  : "border-[var(--color-neutral-200)] bg-[var(--color-card)] hover:border-[var(--color-neutral-300)]"
+                  ? "border-rose-500/50 bg-rose-500/10"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/30"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -166,7 +166,7 @@ export default function BlocksManager({
                 </div>
 
                 {/* Toggle switch */}
-                <label className="relative inline-flex cursor-pointer items-center">
+                <label className="relative inline-flex cursor-pointer items-center p-2 -m-2">
                   <input
                     type="checkbox"
                     className="sr-only peer"
@@ -175,10 +175,10 @@ export default function BlocksManager({
                     onChange={(e) => handleToggle(cat.id, e.target.checked)}
                   />
                   <div
-                    className={`h-5 w-9 rounded-full transition-colors peer-checked:bg-[var(--color-blush-deep)] bg-[var(--color-neutral-200)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-accent-gold)] relative ${isLoading ? "opacity-50" : ""}`}
+                    className={`h-5 w-9 rounded-full transition-colors peer-checked:bg-rose-500 bg-[var(--color-border)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-primary)] relative ${isLoading ? "opacity-50" : ""}`}
                   >
                     <div
-                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-[var(--color-card)] shadow-sm transition-transform ${
                         isBlocked ? "translate-x-4" : "translate-x-0"
                       }`}
                     />
@@ -204,7 +204,7 @@ export default function BlocksManager({
                     placeholder="Reason (optional, max 200 chars)"
                     maxLength={200}
                     rows={2}
-                    className="mt-2 w-full rounded-[var(--radius-input)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] px-3 py-1.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-accent-gold)] focus:ring-1 focus:ring-[var(--color-accent-gold)]/30 resize-none"
+                    className="mt-2 w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]/30 resize-none"
                   />
                 </motion.div>
               )}

@@ -11,12 +11,18 @@
  *     the one we compute the face embedding from)
  *   - clear do / don't guidance so creators self-select good shots
  *
- * Upload contract is unchanged: POST /api/onboarding/upload-photo per file →
- * POST /api/onboarding/save-photos { storage_paths } (primary first) →
+ * This is also the ONLY entry point creators use post-onboarding to add
+ * more reference photos (linked from /creator/likeness). So on load we
+ * hydrate any photos the creator already has saved — submitting must
+ * APPEND to that library, never delete-then-replace it (that only happens
+ * for true first-time onboarding, enforced server-side in save-photos).
+ *
+ * Upload contract: POST /api/onboarding/upload-photo per new file →
+ * POST /api/onboarding/save-photos { storage_paths, set_primary } →
  * POST /api/onboarding/update-step { step: "complete" }.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -50,6 +56,17 @@ interface PhotoPreview {
   height: number;
   lowRes: boolean; // passed min but below "good"
 }
+
+/** A reference photo the creator already has saved from a previous session. */
+interface ExistingPhoto {
+  id: string;
+  storage_path: string;
+  is_primary: boolean;
+  uploaded_at: string;
+  url: string | null;
+}
+
+type PrimaryRef = { type: "existing" | "new"; id: string } | null;
 
 /** Read intrinsic dimensions of an image File. */
 function readDims(file: File): Promise<{ w: number; h: number } | null> {
@@ -86,13 +103,64 @@ export default function PhotosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const [photos, setPhotos] = useState<PhotoPreview[]>([]);
-  const [primaryId, setPrimaryId] = useState<string | null>(null);
+  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [newPhotos, setNewPhotos] = useState<PhotoPreview[]>([]);
+  const [primary, setPrimary] = useState<PrimaryRef>(null);
+  const [removingExistingId, setRemovingExistingId] = useState<string | null>(null);
+  const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [rejects, setRejects] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Hydrate any reference photos the creator already saved — without this,
+  // the "add more photos" flow starts from an empty grid and submitting
+  // would look like a delete-then-replace of everything the creator can't
+  // currently see.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/creator/likeness-data", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          isCreator?: boolean;
+          photos?: ExistingPhoto[];
+        };
+        if (cancelled) return;
+        if (data.isCreator && Array.isArray(data.photos)) {
+          setExistingPhotos(data.photos);
+        }
+      } catch {
+        // Best-effort — a fetch failure just means this behaves like a
+        // fresh upload session (still safe: save-photos re-checks on the
+        // server before deciding whether to delete or append).
+      } finally {
+        if (!cancelled) setLoadingExisting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user]);
+
+  // Once we know what already exists, default the primary selection to the
+  // creator's current main photo (or the first new upload if they have no
+  // existing photos at all).
+  useEffect(() => {
+    if (loadingExisting || primary) return;
+    const existingMain = existingPhotos.find((p) => p.is_primary) ?? existingPhotos[0];
+    if (existingMain) {
+      setPrimary({ type: "existing", id: existingMain.id });
+    } else if (newPhotos[0]) {
+      setPrimary({ type: "new", id: newPhotos[0].id });
+    }
+  }, [loadingExisting, existingPhotos, newPhotos, primary]);
+
+  const totalCount = existingPhotos.length + newPhotos.length;
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -102,7 +170,7 @@ export default function PhotosPage() {
       const newRejects: string[] = [];
 
       for (const file of incoming) {
-        if (photos.length + accepted.length >= MAX_PHOTOS) {
+        if (existingPhotos.length + newPhotos.length + accepted.length >= MAX_PHOTOS) {
           newRejects.push(`Max ${MAX_PHOTOS} photos — skipped extras.`);
           break;
         }
@@ -111,7 +179,7 @@ export default function PhotosPage() {
           continue;
         }
         // De-dupe by name + size.
-        const dup = photos.some((p) => p.file.name === file.name && p.file.size === file.size);
+        const dup = newPhotos.some((p) => p.file.name === file.name && p.file.size === file.size);
         if (dup) {
           newRejects.push(`${file.name}: already added.`);
           continue;
@@ -137,26 +205,54 @@ export default function PhotosPage() {
       }
 
       if (accepted.length) {
-        setPhotos((prev) => {
-          const next = [...prev, ...accepted];
-          // Auto-pick first ever photo as primary.
-          if (!primaryId && next.length) setPrimaryId(next[0].id);
-          return next;
-        });
+        setNewPhotos((prev) => [...prev, ...accepted]);
       }
       setRejects(newRejects);
     },
-    [photos, primaryId],
+    [existingPhotos.length, newPhotos],
   );
 
-  function removePhoto(id: string) {
-    setPhotos((prev) => {
+  function removeNewPhoto(id: string) {
+    setNewPhotos((prev) => {
       const photo = prev.find((p) => p.id === id);
       if (photo) URL.revokeObjectURL(photo.url);
-      const next = prev.filter((p) => p.id !== id);
-      if (primaryId === id) setPrimaryId(next[0]?.id ?? null);
-      return next;
+      return prev.filter((p) => p.id !== id);
     });
+    setPrimary((prev) => (prev?.type === "new" && prev.id === id ? null : prev));
+  }
+
+  function setNewPrimaryPhoto(id: string) {
+    setPrimary({ type: "new", id });
+  }
+
+  async function removeExistingPhoto(id: string) {
+    setError(null);
+    setRemovingExistingId(id);
+    try {
+      const res = await fetch(`/api/creator/reference-photos/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove photo");
+      setExistingPhotos((prev) => prev.filter((p) => p.id !== id));
+      setPrimary((prev) => (prev?.type === "existing" && prev.id === id ? null : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove photo");
+    } finally {
+      setRemovingExistingId(null);
+    }
+  }
+
+  async function setExistingPrimaryPhoto(id: string) {
+    setError(null);
+    setSettingPrimaryId(id);
+    try {
+      const res = await fetch(`/api/creator/reference-photos/${id}/set-primary`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to set main photo");
+      setExistingPhotos((prev) => prev.map((p) => ({ ...p, is_primary: p.id === id })));
+      setPrimary({ type: "existing", id });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to set main photo");
+    } finally {
+      setSettingPrimaryId(null);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -167,73 +263,81 @@ export default function PhotosPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || photos.length < MIN_PHOTOS) return;
+    if (!user || totalCount < MIN_PHOTOS) return;
 
     setUploading(true);
     setUploadProgress(0);
     setError(null);
 
     try {
-      // Order so the chosen PRIMARY is first — save-photos marks index 0 as
-      // is_primary and computes the face embedding from it.
-      const ordered = [...photos].sort((a, b) =>
-        a.id === primaryId ? -1 : b.id === primaryId ? 1 : 0,
-      );
+      if (newPhotos.length > 0) {
+        const setPrimaryFromNew = primary?.type === "new";
 
-      // Compress all in parallel (canvas work is fast + CPU-bound).
-      const files = await Promise.all(
-        ordered.map(async (p) => {
-          try {
-            return await compressImageForUpload(p.file);
-          } catch {
-            return p.file; // upload original on compression failure
+        // Order so the chosen PRIMARY (if it's one of the new uploads) is
+        // first — save-photos marks index 0 as is_primary when set_primary
+        // is true.
+        const ordered = setPrimaryFromNew
+          ? [...newPhotos].sort((a, b) =>
+              a.id === primary!.id ? -1 : b.id === primary!.id ? 1 : 0,
+            )
+          : newPhotos;
+
+        // Compress all in parallel (canvas work is fast + CPU-bound).
+        const files = await Promise.all(
+          ordered.map(async (p) => {
+            try {
+              return await compressImageForUpload(p.file);
+            } catch {
+              return p.file; // upload original on compression failure
+            }
+          }),
+        );
+
+        // Upload all concurrently. The browser caps connections-per-host
+        // (~6), so this self-throttles into a few fast waves instead of one
+        // long serial chain. Promise.all preserves order → chosen primary
+        // stays at index 0.
+        let done = 0;
+        const uploadOne = async (file: File, idx: number): Promise<string> => {
+          const form = new FormData();
+          form.append("photo", file);
+          const res = await fetch("/api/onboarding/upload-photo", {
+            method: "POST",
+            body: form,
+          });
+          if (!res.ok) {
+            if (res.status === 413)
+              throw new Error(`Photo ${idx + 1} is too large even after compression (under 10 MB please).`);
+            let msg = "Upload failed";
+            try {
+              msg = (await res.json()).error || msg;
+            } catch {
+              msg = `Server error (${res.status})`;
+            }
+            throw new Error(msg);
           }
-        }),
-      );
+          setUploadProgress(++done);
+          return ((await res.json()) as { path: string }).path;
+        };
 
-      // Upload all concurrently. The browser caps connections-per-host (~6),
-      // so this self-throttles into a few fast waves instead of one long
-      // serial chain. Promise.all preserves order → primary stays at index 0.
-      let done = 0;
-      const uploadOne = async (file: File, idx: number): Promise<string> => {
-        const form = new FormData();
-        form.append("photo", file);
-        const res = await fetch("/api/onboarding/upload-photo", {
+        const uploadedPaths = await Promise.all(
+          files.map((f, i) => uploadOne(f, i)),
+        );
+
+        const saveRes = await fetch("/api/onboarding/save-photos", {
           method: "POST",
-          body: form,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storage_paths: uploadedPaths, set_primary: setPrimaryFromNew }),
         });
-        if (!res.ok) {
-          if (res.status === 413)
-            throw new Error(`Photo ${idx + 1} is too large even after compression (under 10 MB please).`);
-          let msg = "Upload failed";
+        if (!saveRes.ok) {
+          let msg = "Failed to save photos";
           try {
-            msg = (await res.json()).error || msg;
+            msg = (await saveRes.json()).error || msg;
           } catch {
-            msg = `Server error (${res.status})`;
+            msg = `Server error (${saveRes.status})`;
           }
           throw new Error(msg);
         }
-        setUploadProgress(++done);
-        return ((await res.json()) as { path: string }).path;
-      };
-
-      const uploadedPaths = await Promise.all(
-        files.map((f, i) => uploadOne(f, i)),
-      );
-
-      const saveRes = await fetch("/api/onboarding/save-photos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storage_paths: uploadedPaths }),
-      });
-      if (!saveRes.ok) {
-        let msg = "Failed to save photos";
-        try {
-          msg = (await saveRes.json()).error || msg;
-        } catch {
-          msg = `Server error (${saveRes.status})`;
-        }
-        throw new Error(msg);
       }
 
       const stepRes = await fetch("/api/onboarding/update-step", {
@@ -260,8 +364,8 @@ export default function PhotosPage() {
     );
   }
 
-  const enough = photos.length >= MIN_PHOTOS;
-  const pct = Math.min(100, Math.round((photos.length / MIN_PHOTOS) * 100));
+  const enough = totalCount >= MIN_PHOTOS;
+  const pct = Math.min(100, Math.round((totalCount / MIN_PHOTOS) * 100));
 
   return (
     <motion.div
@@ -290,6 +394,11 @@ export default function PhotosPage() {
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
           Upload {MIN_PHOTOS}–{MAX_PHOTOS} clear, solo shots.
         </p>
+        {loadingExisting && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
+            <Loader2 className="size-3 animate-spin" /> Checking your existing photos…
+          </p>
+        )}
       </div>
 
       {/* Do / Don't guide */}
@@ -343,7 +452,7 @@ export default function PhotosPage() {
             isDragOver
               ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
               : "border-[var(--color-border)] bg-[var(--color-card)]"
-          } ${photos.length >= MAX_PHOTOS ? "pointer-events-none opacity-40" : ""}`}
+          } ${totalCount >= MAX_PHOTOS ? "pointer-events-none opacity-40" : ""}`}
         >
           <Upload
             className={`mb-3 size-7 ${isDragOver ? "text-[var(--color-primary)]" : "text-[var(--color-muted-foreground)]"}`}
@@ -422,17 +531,73 @@ export default function PhotosPage() {
             />
           </div>
           <span className={`shrink-0 text-[12px] font-700 ${enough ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--color-muted-foreground)]"}`}>
-            {photos.length}/{MAX_PHOTOS}
-            {!enough && <span className="font-500"> · {MIN_PHOTOS - photos.length} more</span>}
+            {totalCount}/{MAX_PHOTOS}
+            {!enough && <span className="font-500"> · {MIN_PHOTOS - totalCount} more</span>}
           </span>
         </div>
 
         {/* Photo grid */}
-        {photos.length > 0 && (
+        {(existingPhotos.length > 0 || newPhotos.length > 0) && (
           <div className="mb-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
             <AnimatePresence>
-              {photos.map((photo) => {
-                const isPrimary = photo.id === primaryId;
+              {existingPhotos.map((photo) => {
+                const isPrimary = primary?.type === "existing" && primary.id === photo.id;
+                const isBusy = removingExistingId === photo.id || settingPrimaryId === photo.id;
+                return (
+                  <motion.div
+                    key={photo.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    className={`group relative aspect-square overflow-hidden rounded-xl border ${
+                      isPrimary
+                        ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/40"
+                        : "border-[var(--color-border)]"
+                    }`}
+                  >
+                    {photo.url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photo.url} alt="" className="size-full object-cover" loading="lazy" />
+                    )}
+
+                    {/* Primary badge */}
+                    {isPrimary && (
+                      <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                        <Star className="size-2.5 fill-current" /> Main
+                      </span>
+                    )}
+
+                    {/* Actions — always visible on touch (mobile), hover-reveal on pointer devices */}
+                    <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/70 via-transparent to-black/40 p-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeExistingPhoto(photo.id)}
+                          disabled={isBusy}
+                          className="flex size-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-rose-500 disabled:opacity-50"
+                          aria-label="Remove"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                      {!isPrimary && (
+                        <button
+                          type="button"
+                          onClick={() => setExistingPrimaryPhoto(photo.id)}
+                          disabled={isBusy}
+                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md disabled:opacity-50"
+                        >
+                          <Star className="size-2.5" /> Set main
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {newPhotos.map((photo) => {
+                const isPrimary = primary?.type === "new" && primary.id === photo.id;
                 return (
                   <motion.div
                     key={photo.id}
@@ -467,7 +632,7 @@ export default function PhotosPage() {
                       <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => removePhoto(photo.id)}
+                          onClick={() => removeNewPhoto(photo.id)}
                           className="flex size-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-rose-500"
                           aria-label="Remove"
                         >
@@ -477,7 +642,7 @@ export default function PhotosPage() {
                       {!isPrimary && (
                         <button
                           type="button"
-                          onClick={() => setPrimaryId(photo.id)}
+                          onClick={() => setNewPrimaryPhoto(photo.id)}
                           className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md"
                         >
                           <Star className="size-2.5" /> Set main
@@ -489,7 +654,7 @@ export default function PhotosPage() {
               })}
             </AnimatePresence>
 
-            {photos.length < MAX_PHOTOS && (
+            {totalCount < MAX_PHOTOS && (
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -503,7 +668,7 @@ export default function PhotosPage() {
         )}
 
         {/* Primary hint */}
-        {photos.length > 0 && (
+        {(existingPhotos.length > 0 || newPhotos.length > 0) && (
           <p className="mb-4 flex items-center gap-1.5 text-[11.5px] text-[var(--color-muted-foreground)]">
             <Star className="size-3 text-[var(--color-primary)]" />
             Your <span className="font-700 text-[var(--color-foreground)]">Main</span> photo is the
@@ -518,18 +683,18 @@ export default function PhotosPage() {
         )}
 
         {/* Upload progress */}
-        {uploading && (
+        {uploading && newPhotos.length > 0 && (
           <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-4">
             <div className="mb-2 flex items-center gap-3">
               <Loader2 className="size-5 animate-spin text-[var(--color-primary)]" />
               <span className="text-sm text-[var(--color-muted-foreground)]">
-                Uploading {uploadProgress} of {photos.length}…
+                Uploading {uploadProgress} of {newPhotos.length}…
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
               <div
                 className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
-                style={{ width: `${(uploadProgress / photos.length) * 100}%` }}
+                style={{ width: `${(uploadProgress / newPhotos.length) * 100}%` }}
               />
             </div>
           </div>
@@ -545,7 +710,7 @@ export default function PhotosPage() {
           ) : (
             <>
               <Sparkles className="size-4" />
-              {enough ? "Finish & build my face" : `Add ${MIN_PHOTOS - photos.length} more to continue`}
+              {enough ? "Finish & build my face" : `Add ${MIN_PHOTOS - totalCount} more to continue`}
               {enough && <ArrowRight className="size-4" />}
             </>
           )}

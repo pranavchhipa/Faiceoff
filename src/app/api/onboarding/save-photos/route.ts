@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { storage_paths } = await request.json();
+  const { storage_paths, set_primary } = await request.json();
 
   if (!Array.isArray(storage_paths) || storage_paths.length === 0) {
     return NextResponse.json(
@@ -44,17 +44,56 @@ export async function POST(request: Request) {
     );
   }
 
-  // Delete old photo records
-  await admin
+  // Is this true first-time onboarding, or is an already-onboarded creator
+  // adding more photos (e.g. via /creator/likeness "Add photos")? Only the
+  // former may delete-then-replace — doing that for an already-onboarded
+  // creator would wipe their whole library (including their chosen primary
+  // and its face embedding) out from under them. See save-photos data-loss
+  // finding.
+  const { count: existingCount, error: countErr } = await admin
     .from("creator_reference_photos")
-    .delete()
+    .select("id", { count: "exact", head: true })
     .eq("creator_id", creator.id);
 
-  // Insert photo records
+  if (countErr) {
+    return NextResponse.json({ error: countErr.message }, { status: 500 });
+  }
+
+  const isFirstTimeOnboarding = (existingCount ?? 0) === 0;
+
+  if (isFirstTimeOnboarding) {
+    // Defensive cleanup for true first-timers (e.g. a retried/partial
+    // submission) — harmless since nothing meaningful exists yet.
+    await admin
+      .from("creator_reference_photos")
+      .delete()
+      .eq("creator_id", creator.id);
+  }
+
+  // First-time onboarding always needs a primary chosen from this batch.
+  // A post-onboarding "add more photos" batch only shifts the primary if
+  // the creator explicitly picked one of the new uploads as their main
+  // photo — otherwise their existing primary (and its embedding) stays put.
+  const shouldSetPrimary = isFirstTimeOnboarding || Boolean(set_primary);
+
+  if (shouldSetPrimary && !isFirstTimeOnboarding) {
+    // is_primary isn't DB-enforced as exclusive — demote the creator's
+    // current primary before promoting the new one.
+    const { error: demoteErr } = await admin
+      .from("creator_reference_photos")
+      .update({ is_primary: false })
+      .eq("creator_id", creator.id)
+      .eq("is_primary", true);
+    if (demoteErr) {
+      return NextResponse.json({ error: demoteErr.message }, { status: 500 });
+    }
+  }
+
+  // Insert photo records — appended alongside any existing rows.
   const inserts = storage_paths.map((path: string, i: number) => ({
     creator_id: creator.id,
     storage_path: path,
-    is_primary: i === 0,
+    is_primary: shouldSetPrimary && i === 0,
   }));
 
   const { error: insertErr } = await admin
@@ -77,72 +116,76 @@ export async function POST(request: Request) {
     .eq("user_id", user.id);
 
   // ── Generate face embeddings in the background ──
-  // Fires after the response so the creator isn't blocked. We embed the
-  // primary photo only — that's the anchor used by the similarity gate
-  // at generation time. Best-effort: if Replicate is down, the row stays
-  // empty and the gate falls open until the next photo upload.
-  after(async () => {
-    try {
-      const primaryPath = storage_paths[0];
-      if (!primaryPath) return;
+  // Only when this submission actually changed who the primary is — if the
+  // creator's existing primary was left untouched, its embedding already on
+  // file is still correct and shouldn't be overwritten with a random
+  // appended photo. Fires after the response so the creator isn't blocked.
+  // Best-effort: if Replicate is down, the row stays empty and the gate
+  // falls open until the next photo upload.
+  if (shouldSetPrimary) {
+    after(async () => {
+      try {
+        const primaryPath = storage_paths[0];
+        if (!primaryPath) return;
 
-      // Sign a 10-min URL so Replicate can fetch the photo from Supabase
-      // Storage (private bucket).
-      const { data: signed } = await admin.storage
-        .from("reference-photos")
-        .createSignedUrl(primaryPath, 600);
-      const photoUrl = signed?.signedUrl;
-      if (!photoUrl) return;
+        // Sign a 10-min URL so Replicate can fetch the photo from Supabase
+        // Storage (private bucket).
+        const { data: signed } = await admin.storage
+          .from("reference-photos")
+          .createSignedUrl(primaryPath, 600);
+        const photoUrl = signed?.signedUrl;
+        if (!photoUrl) return;
 
-      const token = process.env.REPLICATE_API_TOKEN;
-      if (!token) {
-        console.warn("[save-photos] REPLICATE_API_TOKEN missing, skipping embed");
-        return;
+        const token = process.env.REPLICATE_API_TOKEN;
+        if (!token) {
+          console.warn("[save-photos] REPLICATE_API_TOKEN missing, skipping embed");
+          return;
+        }
+
+        // ArcFace embedding via Replicate. Stores 512-dim vector on the
+        // creator row; the face-similarity gate compares generated outputs
+        // against this at gen time.
+        const res = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+            Prefer: "wait=30",
+          },
+          body: JSON.stringify({
+            version: process.env.FACE_EMBED_MODEL_VERSION ?? "",
+            input: { image: photoUrl },
+          }),
+        });
+
+        if (!res.ok) {
+          console.warn(
+            "[save-photos] face embed failed, will retry later",
+            res.status,
+          );
+          return;
+        }
+
+        const json = await res.json();
+        const embedding =
+          Array.isArray(json?.output) ? json.output : json?.output?.embedding;
+        if (!Array.isArray(embedding) || embedding.length === 0) return;
+
+        // Persist on the creator's primary reference photo row
+        await admin
+          .from("creator_reference_photos")
+          .update({ face_embedding: embedding })
+          .eq("creator_id", creator.id)
+          .eq("is_primary", true);
+      } catch (err) {
+        console.warn("[save-photos] face embed background job failed", err);
+        Sentry.captureException(err, {
+          tags: { route: "onboarding/save-photos", phase: "face_embed" },
+          extra: { creator_id: creator.id },
+        });
       }
-
-      // ArcFace embedding via Replicate. Stores 512-dim vector on the
-      // creator row; the face-similarity gate compares generated outputs
-      // against this at gen time.
-      const res = await fetch("https://api.replicate.com/v1/predictions", {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-          Prefer: "wait=30",
-        },
-        body: JSON.stringify({
-          version: process.env.FACE_EMBED_MODEL_VERSION ?? "",
-          input: { image: photoUrl },
-        }),
-      });
-
-      if (!res.ok) {
-        console.warn(
-          "[save-photos] face embed failed, will retry later",
-          res.status,
-        );
-        return;
-      }
-
-      const json = await res.json();
-      const embedding =
-        Array.isArray(json?.output) ? json.output : json?.output?.embedding;
-      if (!Array.isArray(embedding) || embedding.length === 0) return;
-
-      // Persist on the creator's primary reference photo row
-      await admin
-        .from("creator_reference_photos")
-        .update({ face_embedding: embedding })
-        .eq("creator_id", creator.id)
-        .eq("is_primary", true);
-    } catch (err) {
-      console.warn("[save-photos] face embed background job failed", err);
-      Sentry.captureException(err, {
-        tags: { route: "onboarding/save-photos", phase: "face_embed" },
-        extra: { creator_id: creator.id },
-      });
-    }
-  });
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

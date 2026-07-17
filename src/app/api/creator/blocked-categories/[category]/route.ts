@@ -14,8 +14,8 @@ const ALLOWED_CATEGORIES = [
   "religious",
   "adult",
   "crypto",
-  "weapons",
-  "pharma",
+  "gun",
+  "drugs",
 ] as const;
 
 type AllowedCategory = (typeof ALLOWED_CATEGORIES)[number];

@@ -45,10 +45,11 @@ export default function SendRequestPage() {
   const creatorId = params.creatorId as string;
   const packageId = searchParams.get("package") ?? "";
 
-  const { data: pkgData } = useCachedFetch<{ package?: PackageInfo }>(
+  const { data: pkgData, loading: pkgLoading } = useCachedFetch<{ package?: PackageInfo }>(
     packageId ? `/api/creator/packages/${packageId}` : null,
   );
   const pkg = pkgData?.package ?? null;
+  const pkgUnavailable = !packageId || (!pkgLoading && !pkg);
 
   const [productName, setProductName] = useState("");
   const [briefOneLiner, setBriefOneLiner] = useState("");
@@ -145,6 +146,33 @@ export default function SendRequestPage() {
         >
           View my collabs <ArrowRight className="h-3.5 w-3.5" />
         </button>
+      </div>
+    );
+  }
+
+  if (pkgUnavailable) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
+        <p className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+          Package not available
+        </p>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          This package is no longer available. Pick a package from the creator&apos;s profile to send a request.
+        </p>
+        <Link
+          href={`/brand/discover/${creatorId}`}
+          className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-6 py-2.5 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to creator profile
+        </Link>
+      </div>
+    );
+  }
+
+  if (pkgLoading && !pkg) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
   }
@@ -307,7 +335,7 @@ export default function SendRequestPage() {
 
         <button
           type="submit"
-          disabled={submitting || uploading || !productName || !productImageUrl || !briefOneLiner}
+          disabled={submitting || uploading || !pkg || !productName || !productImageUrl || !briefOneLiner}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] py-3 text-[14px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.5)] transition-all active:scale-[0.98] disabled:opacity-50"
         >
           {submitting ? (

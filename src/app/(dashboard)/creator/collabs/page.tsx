@@ -16,6 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
+import { CREATOR_SHARE_RATE } from "@/lib/billing/pricing-engine";
 
 interface Collab {
   id: string;
@@ -144,7 +145,10 @@ export default function CreatorCollabsPage() {
   }, 0);
   const totalEarnedPaise = collabs.reduce(
     (sum, c) =>
-      sum + (c.status === "completed" ? c.package_price_paise ?? 0 : 0),
+      sum +
+      (c.status === "completed"
+        ? Math.round((c.package_price_paise ?? 0) * CREATOR_SHARE_RATE)
+        : 0),
     0,
   );
 

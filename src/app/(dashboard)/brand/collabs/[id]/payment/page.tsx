@@ -479,7 +479,7 @@ export default function CollabPaymentPage() {
 
               <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
                 <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                <p className="text-[11px] leading-relaxed text-emerald-400">
                   <span className="font-700">100% escrow protected.</span> Full refund if the creator doesn&apos;t deliver.
                 </p>
               </div>

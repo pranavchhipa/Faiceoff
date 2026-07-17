@@ -118,7 +118,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     admin.from("brands").select("id", { count: "exact", head: true }),
     admin.from("licenses").select("id", { count: "exact", head: true }),
 
-    admin.from("approvals").select("creator_share_paise, platform_share_paise").eq("status", "approved"),
+    admin.from("licenses").select("creator_share_paise, platform_share_paise"),
 
     admin.from("webhook_events").select("received_at").eq("source", "razorpay").order("received_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("generations").select("created_at").not("image_url", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),

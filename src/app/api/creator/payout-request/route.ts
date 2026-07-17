@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMinPayoutPaise } from "@/lib/payouts/payout-service";
 import { emitNotification } from "@/lib/notifications/emit";
 import { accountLast4 } from "@/lib/kyc/bank-crypto";
+import { sendCreatorWithdrawalRequested } from "@/lib/email/transactional";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -180,6 +181,26 @@ export async function POST() {
       body: `We'll transfer ₹${(available / 100).toLocaleString("en-IN")} to your bank shortly.`,
       href: "/creator/earnings",
     });
+
+    try {
+      const { data: userRow } = await admin
+        .from("users")
+        .select("email, display_name")
+        .eq("id", creator.user_id)
+        .maybeSingle();
+      if (userRow?.email) {
+        await sendCreatorWithdrawalRequested({
+          to: userRow.email,
+          creatorName: userRow.display_name ?? "Creator",
+          amountPaise: available,
+          netPaise: available,
+          bankLast4: last4 || null,
+          payoutId: payout.id,
+        });
+      }
+    } catch (err) {
+      console.warn("[payout-request] withdrawal-requested email failed", err);
+    }
   });
 
   return NextResponse.json({ ok: true, payout_id: payout.id, amount_paise: available });

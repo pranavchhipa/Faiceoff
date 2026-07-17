@@ -314,13 +314,13 @@ export default function InstagramPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={handleResync}
                     disabled={syncing}
                     title="Refresh from Instagram"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)] disabled:opacity-50"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-foreground)] disabled:opacity-50"
                   >
                     <RefreshCcw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
                   </button>
@@ -328,7 +328,7 @@ export default function InstagramPage() {
                     type="button"
                     onClick={handleDisconnect}
                     title="Disconnect"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] hover:bg-red-500/10 hover:text-red-500"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-muted-foreground)] hover:bg-red-500/10 hover:text-red-500"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>

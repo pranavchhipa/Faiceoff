@@ -114,7 +114,7 @@ export async function forceCompleteCollab(formData: FormData): Promise<void> {
       type: "system",
       title: "Your collab was marked complete by support.",
       body: "A Faiceoff support operator closed this collab. Approved generations are settled per the normal escrow schedule.",
-      href: "/creator/collaborations",
+      href: "/creator/collabs",
     });
   }
 
@@ -188,7 +188,7 @@ export async function cancelCollab(formData: FormData): Promise<void> {
       type: "system",
       title: "Your collab was cancelled by support.",
       body: `A Faiceoff support operator cancelled this collab.${reasonSuffix}`,
-      href: "/creator/collaborations",
+      href: "/creator/collabs",
     });
   }
 

@@ -168,7 +168,7 @@ function VaultLightbox({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-sm sm:items-center sm:p-6"
           onClick={onClose}
         >
           <motion.div
@@ -176,7 +176,7 @@ function VaultLightbox({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="relative grid w-full max-w-[1100px] grid-cols-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-2xl md:grid-cols-[1.4fr_1fr]"
+            className="relative my-6 grid w-full max-w-[1100px] grid-cols-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-2xl sm:my-0 md:grid-cols-[1.4fr_1fr]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
@@ -751,7 +751,7 @@ export default function VaultGrid({
 
                     {/* Hover overlay (only when NOT in select mode) */}
                     {!selectMode && (
-                      <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-100 transition-opacity duration-300 sm:opacity-0 sm:group-hover:opacity-100">
                         <div className="pointer-events-auto p-3">
                           {item.creator_name && (
                             <p className="mb-2 inline-flex items-center gap-1 truncate text-[11px] font-600 text-white/90">

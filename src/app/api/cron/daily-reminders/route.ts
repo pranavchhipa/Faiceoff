@@ -25,10 +25,13 @@
  *   isn't a public spam-the-creator vector.
  *
  * Idempotency:
- *   Each reminder writes a marker on the targeted row (e.g.
- *   approval.reminder_sent_at) so consecutive runs don't double-send.
- *   If the marker column doesn't exist (older schema), we skip the
- *   double-send guard for that class — log a warning, no crash.
+ *   NONE at the row level today — there is no reminder_sent_at or
+ *   last_low_credits_reminded_at column on any target table. Safe only
+ *   because the 18-30h expiring-soon window doesn't overlap between
+ *   once-daily runs on the normal Vercel cron schedule. A manual/backfill
+ *   re-invocation of this endpoint (ops catching up after an outage, or
+ *   an accidental duplicate trigger) WILL resend the same reminders with
+ *   no guard — do not rely on this route being safe to re-run.
  */
 
 import { NextResponse } from "next/server";

@@ -29,6 +29,7 @@ import {
   Maximize2,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { CREATOR_SHARE_RATE as CREATOR_SHARE } from "@/lib/billing/pricing-engine";
 import { ChatThread } from "@/components/chat/chat-thread";
 import { AgreementCard } from "@/components/agreements/agreement-card";
@@ -612,31 +613,63 @@ function ImagesTab({
   const [acting, setActing] = useState<Record<string, boolean>>({});
 
   async function handleApprove(genId: string) {
-    const approvalRes = await fetch(`/api/generations/${genId}/approval-id`);
-    if (!approvalRes.ok) return;
-    const { approval_id } = await approvalRes.json();
-    if (!approval_id) return;
     setActing((p) => ({ ...p, [genId]: true }));
-    await fetch(`/api/approvals/${approval_id}/approve`, { method: "POST" });
-    setActing((p) => ({ ...p, [genId]: false }));
-    onAction();
+    try {
+      const approvalRes = await fetch(`/api/generations/${genId}/approval-id`);
+      if (!approvalRes.ok) {
+        const data = await approvalRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "Couldn't find this approval");
+      }
+      const { approval_id } = await approvalRes.json();
+      if (!approval_id) {
+        throw new Error("Couldn't find this approval");
+      }
+      const res = await fetch(`/api/approvals/${approval_id}/approve`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to approve");
+      }
+      onAction();
+    } catch (err) {
+      console.error("[creator/collabs] approve failed", err);
+      toast.error(err instanceof Error ? err.message : "Failed to approve");
+    } finally {
+      setActing((p) => ({ ...p, [genId]: false }));
+    }
   }
 
   async function handleReject(genId: string) {
     const reason = window.prompt("Reason for rejection (optional):");
     if (reason === null) return;
-    const approvalRes = await fetch(`/api/generations/${genId}/approval-id`);
-    if (!approvalRes.ok) return;
-    const { approval_id } = await approvalRes.json();
-    if (!approval_id) return;
     setActing((p) => ({ ...p, [genId]: true }));
-    await fetch(`/api/approvals/${approval_id}/reject`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feedback: reason }),
-    });
-    setActing((p) => ({ ...p, [genId]: false }));
-    onAction();
+    try {
+      const approvalRes = await fetch(`/api/generations/${genId}/approval-id`);
+      if (!approvalRes.ok) {
+        const data = await approvalRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "Couldn't find this approval");
+      }
+      const { approval_id } = await approvalRes.json();
+      if (!approval_id) {
+        throw new Error("Couldn't find this approval");
+      }
+      const res = await fetch(`/api/approvals/${approval_id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: reason }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to reject");
+      }
+      onAction();
+    } catch (err) {
+      console.error("[creator/collabs] reject failed", err);
+      toast.error(err instanceof Error ? err.message : "Failed to reject");
+    } finally {
+      setActing((p) => ({ ...p, [genId]: false }));
+    }
   }
 
   if (pending.length === 0 && approvedList.length === 0 && rejectedList.length === 0) {

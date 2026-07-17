@@ -372,7 +372,7 @@ function PageHeader({
           <span>Updated today</span>
         </p>
       </div>
-      <div>
+      <div className="hidden lg:block">
         <Dropdown
           label="Sort"
           value={sortBy}
@@ -712,7 +712,7 @@ function FilterSheet({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 border-t border-[var(--color-border)] px-5 py-4">
+        <div className="flex items-center gap-2 border-t border-[var(--color-border)] px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
             className="flex-1 rounded-[var(--radius-button)] border border-[var(--color-border)] bg-[var(--color-card)] py-2.5 text-[13px] font-700 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
@@ -875,42 +875,40 @@ function CreatorCardCmp({
   );
 }
 
-/* ───────── Skeleton + Empty ───────── */
+/* ───────── Empty ───────── */
 
-function SkeletonCard() {
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]">
-      <div className="aspect-[3/4] w-full animate-pulse rounded-t-2xl bg-[var(--color-secondary)]" />
-      <div className="space-y-2 p-4">
-        <div className="h-3 w-3/5 animate-pulse rounded bg-[var(--color-secondary)]" />
-        <div className="h-2.5 w-2/5 animate-pulse rounded bg-[var(--color-secondary)]" />
-        <div className="mt-3 h-3 w-4/5 animate-pulse rounded bg-[var(--color-secondary)]" />
-      </div>
-    </div>
-  );
-}
-
-function Empty({ onReset }: { onReset: () => void }) {
+function Empty({
+  onReset,
+  title = "No matches yet",
+  description = "Try widening your filters, or browse all verified creators across categories.",
+  showReset = true,
+}: {
+  onReset: () => void;
+  title?: string;
+  description?: string;
+  showReset?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-12 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
         <Search className="h-6 w-6" />
       </div>
       <p className="font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
-        No matches yet
+        {title}
       </p>
       <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-        Try widening your filters, or browse all verified creators across
-        categories.
+        {description}
       </p>
-      <button
-        type="button"
-        className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition-transform hover:-translate-y-0.5"
-        onClick={onReset}
-      >
-        Reset filters
-        <ArrowRight className="h-3.5 w-3.5" />
-      </button>
+      {showReset && (
+        <button
+          type="button"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition-transform hover:-translate-y-0.5"
+          onClick={onReset}
+        >
+          Reset filters
+          <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -1113,11 +1111,12 @@ export function DiscoverGrid({ creators }: Props) {
       />
 
       {creators.length === 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
+        <Empty
+          onReset={clearAll}
+          title="No creators live yet"
+          description="Check back soon — verified creators will show up here as they join Faiceoff."
+          showReset={false}
+        />
       ) : filtered.length === 0 ? (
         <Empty onReset={clearAll} />
       ) : (

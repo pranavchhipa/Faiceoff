@@ -51,8 +51,8 @@ function formatINR(paise: number): string {
 }
 
 const statusColors: Record<string, string> = {
-  active: "bg-[var(--color-mint)] text-green-700",
-  paused: "bg-[var(--color-blush)] text-red-700",
+  active: "bg-emerald-500/10 text-emerald-500",
+  paused: "bg-amber-500/10 text-amber-500",
   completed:
     "bg-[var(--color-surface-container-high)] text-[var(--color-on-surface-variant)]",
   cancelled:
@@ -224,7 +224,7 @@ export default function CampaignsListPage() {
                             key={`${campaign.id}-thumb-${idx}`}
                             src={url}
                             alt="Generation preview"
-                            className="size-10 shrink-0 rounded-lg border-2 border-white object-cover shadow-sm"
+                            className="size-10 shrink-0 rounded-lg border-2 border-[var(--color-card)] object-cover shadow-sm"
                             loading="lazy"
                           />
                         ))}

@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Inbox,
+  ClipboardCheck,
   IndianRupee,
   ShieldOff,
   User as UserIcon,
@@ -25,6 +26,7 @@ export type { NavItem };
 export const CREATOR_SIDE_NAV: NavItem[] = [
   { label: "Overview", short: "Overview", href: "/creator/dashboard", icon: LayoutDashboard, group: "Primary" },
   { label: "Requests", href: "/creator/requests", icon: Inbox, group: "Primary" },
+  { label: "Approvals", href: "/creator/approvals", icon: ClipboardCheck, group: "Primary" },
   { label: "Collabs", href: "/creator/collabs", icon: Megaphone, group: "Primary" },
   { label: "My Packages", href: "/creator/packages", icon: Tags, group: "Primary" },
   { label: "Public Profile", href: "/creator/profile/setup", icon: Share2, group: "Primary" },

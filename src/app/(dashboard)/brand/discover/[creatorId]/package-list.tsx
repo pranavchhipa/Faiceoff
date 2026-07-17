@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Image as ImageIcon,
@@ -152,6 +152,20 @@ interface Props {
 
 export function PackageList({ creatorId, packages, isLive }: Props) {
   const [openTier, setOpenTier] = useState<Package["tier"] | null>(null);
+
+  useEffect(() => {
+    if (!openTier) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenTier(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [openTier]);
 
   const ordered = (["frame", "feature", "cover"] as const)
     .map((t) => packages.find((p) => p.tier === t))

@@ -4,7 +4,9 @@
  * Reads:
  *   • creators.dpdp_consent_at — count of recorded DPDP consents
  *   • licenses.status='active' — active licences
- *   • gst_output_ledger / tds_ledger / tcs_ledger — MTD running totals (paise)
+ *   • gst_output_ledger / tds_ledger / tcs_ledger — rendered as "not tracked
+ *     in this build": these are only written by the dead withdrawal_requests
+ *     flow, so an MTD sum would always be a real-but-meaningless 0
  *   • data_export_requests / data_deletion_requests — queue depths
  *     (fall back to "—" if tables don't exist)
  *   • owner_audit_log — last 50 compliance-relevant entries
@@ -42,13 +44,6 @@ function fmt(paise: number | null | undefined): string {
   }).format((paise ?? 0) / 100);
 }
 
-function startOfMonthIso(): string {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  ).toISOString();
-}
-
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
@@ -68,14 +63,21 @@ export default async function CompliancePage({ params }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  const monthIso = startOfMonthIso();
+  // gst_output_ledger / tds_ledger / tcs_ledger are only ever written by the
+  // withdrawal_requests flow, which is dead in this build (real creator
+  // payouts go through creator_payouts, and GST on commission is actually
+  // recognised in platform_revenue_ledger). MTD-summing these three tables
+  // always yields a real-but-meaningless 0, so they're rendered as
+  // "not tracked in this build" rather than fabricated currency figures —
+  // same treatment as the data_export_requests / data_deletion_requests
+  // queues below when their tables aren't configured.
+  const gstMtd: number | null = null;
+  const tdsMtd: number | null = null;
+  const tcsMtd: number | null = null;
 
   const [
     dpdpCount,
     activeLicences,
-    gstMtd,
-    tdsMtd,
-    tcsMtd,
     exportQueue,
     deletionQueue,
     complianceAudits,
@@ -94,36 +96,6 @@ export default async function CompliancePage({ params }: Props) {
         .select("id", { count: "exact", head: true })
         .eq("status", "active");
       return (count as number | null) ?? 0;
-    }, 0),
-    safe(async () => {
-      const { data } = await admin
-        .from("gst_output_ledger")
-        .select("tax_paise")
-        .gte("created_at", monthIso);
-      return ((data ?? []) as Array<{ tax_paise: number | null }>).reduce(
-        (s, r) => s + (r.tax_paise ?? 0),
-        0,
-      );
-    }, 0),
-    safe(async () => {
-      const { data } = await admin
-        .from("tds_ledger")
-        .select("tax_paise")
-        .gte("created_at", monthIso);
-      return ((data ?? []) as Array<{ tax_paise: number | null }>).reduce(
-        (s, r) => s + (r.tax_paise ?? 0),
-        0,
-      );
-    }, 0),
-    safe(async () => {
-      const { data } = await admin
-        .from("tcs_ledger")
-        .select("tax_paise")
-        .gte("created_at", monthIso);
-      return ((data ?? []) as Array<{ tax_paise: number | null }>).reduce(
-        (s, r) => s + (r.tax_paise ?? 0),
-        0,
-      );
     }, 0),
     safe(
       async () => {
@@ -186,13 +158,13 @@ export default async function CompliancePage({ params }: Props) {
             />
             <Kpi
               label="GST collected · MTD"
-              value={fmt(gstMtd)}
-              sub="output_on_commission + service"
+              value={gstMtd === null ? "—" : fmt(gstMtd)}
+              sub="gst_output_ledger not tracked in this build"
             />
             <Kpi
               label="TDS withheld · MTD"
-              value={fmt(tdsMtd)}
-              sub="Sec 194-O · 1%"
+              value={tdsMtd === null ? "—" : fmt(tdsMtd)}
+              sub="tds_ledger not tracked in this build"
             />
           </div>
         </div>
@@ -299,7 +271,9 @@ export default async function CompliancePage({ params }: Props) {
               <tbody>
                 <tr>
                   <td className="cc-mono-cell">gst_output_ledger</td>
-                  <td className="cc-mono-cell">{fmt(gstMtd)}</td>
+                  <td className="cc-mono-cell">
+                    {gstMtd === null ? "—" : fmt(gstMtd)}
+                  </td>
                   <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)" }}>
                     18%
                   </td>
@@ -307,12 +281,16 @@ export default async function CompliancePage({ params }: Props) {
                     GSTR-1 / 3B
                   </td>
                   <td style={{ color: "var(--cc-fg-muted)" }}>
-                    GST collected on platform commission &amp; remitted on creator service
+                    {gstMtd === null
+                      ? "Not tracked in this build — fed only by the dead withdrawal_requests flow. GST on commission is actually recognised in platform_revenue_ledger."
+                      : "GST collected on platform commission & remitted on creator service"}
                   </td>
                 </tr>
                 <tr>
                   <td className="cc-mono-cell">tds_ledger</td>
-                  <td className="cc-mono-cell">{fmt(tdsMtd)}</td>
+                  <td className="cc-mono-cell">
+                    {tdsMtd === null ? "—" : fmt(tdsMtd)}
+                  </td>
                   <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)" }}>
                     194-O · 1%
                   </td>
@@ -320,12 +298,16 @@ export default async function CompliancePage({ params }: Props) {
                     Form 26Q
                   </td>
                   <td style={{ color: "var(--cc-fg-muted)" }}>
-                    Income-tax TDS deducted at creator withdrawal · Form 16A quarterly
+                    {tdsMtd === null
+                      ? "Not tracked in this build — fed only by the dead withdrawal_requests flow."
+                      : "Income-tax TDS deducted at creator withdrawal · Form 16A quarterly"}
                   </td>
                 </tr>
                 <tr>
                   <td className="cc-mono-cell">tcs_ledger</td>
-                  <td className="cc-mono-cell">{fmt(tcsMtd)}</td>
+                  <td className="cc-mono-cell">
+                    {tcsMtd === null ? "—" : fmt(tcsMtd)}
+                  </td>
                   <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)" }}>
                     Sec 52 · 1%
                   </td>
@@ -333,7 +315,9 @@ export default async function CompliancePage({ params }: Props) {
                     GSTR-8
                   </td>
                   <td style={{ color: "var(--cc-fg-muted)" }}>
-                    CGST TCS collected at creator withdrawal · monthly
+                    {tcsMtd === null
+                      ? "Not tracked in this build — fed only by the dead withdrawal_requests flow."
+                      : "CGST TCS collected at creator withdrawal · monthly"}
                   </td>
                 </tr>
               </tbody>

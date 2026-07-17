@@ -1,5 +1,7 @@
-// Thin wrapper — underlying Campaigns page is role-aware: shows
-// "Collaborations" header + creator-side data when role=creator, "Campaigns"
-// + brand-side data when role=brand. We mount it at /creator/collaborations
-// for creator's sidebar; brand has its own newer view at /brand/sessions.
-export { default } from "../../dashboard/campaigns/page";
+import { redirect } from "next/navigation";
+
+// This legacy page (thin wrapper around dashboard/campaigns) is superseded
+// by /creator/collabs. Redirect any bookmarked/direct hits there.
+export default function CreatorCollaborationsPage() {
+  redirect("/creator/collabs");
+}
