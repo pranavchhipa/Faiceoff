@@ -10,12 +10,17 @@
  *   6. Greedily select available escrow rows (type='release_per_image',
  *      payout_id IS NULL, holding_until <= now()) oldest-first until >= gross.
  *   7. Atomically INSERT creator_payouts + LOCK escrow via request_payout() RPC.
- *   8. Submit Cashfree IMPS transfer.
- *   9. UPDATE creator_payouts SET status='processing', cf_transfer_id=...
+ *   8. No automated payout provider is wired up yet (RazorpayX payouts pending —
+ *      see CLAUDE.md Pending Work). Step 8 immediately marks the payout
+ *      'failed' with a "processed manually, contact support" reason and
+ *      releases the escrow lock, so no money is ever double-moved and the
+ *      creator gets an explicit, non-silent status instead of a stuck request.
  *
  * ## Flow (handlePayoutWebhook)
- *   - SUCCESS: mark payout success, record completed_at.
- *   - FAILED/REVERSED: mark payout failed, release escrow locks (payout_id = NULL).
+ *   Present for when an automated provider is wired up — SUCCESS marks payout
+ *   success + records completed_at; FAILED/REVERSED marks payout failed and
+ *   releases escrow locks (payout_id = NULL). Not currently invoked by any
+ *   live payout, since step 8 above never reaches a real provider yet.
  *
  * All DB writes that touch money are atomic — the request_payout() Postgres function
  * handles the multi-table write in a single transaction.
