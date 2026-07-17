@@ -46,7 +46,7 @@ export async function POST(
 
   const { data: req } = await admin
     .from("collab_requests")
-    .select("id, status, brand_id, creator_id, package_id, package_tier, package_price_paise, final_images, gen_credits, usage_scope, license_duration_days, product_name, collab_session_id")
+    .select("id, status, brand_id, creator_id, package_id, package_tier, package_price_paise, final_images, gen_credits, usage_scope, license_duration_days, product_name, collab_session_id, razorpay_order_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -93,7 +93,52 @@ export async function POST(
     const valid = verifyRazorpayPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
     if (!valid) return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
 
+    // A valid signature only proves the triple was genuinely issued by
+    // Razorpay for SOME payment — not that it was issued for THIS request. A
+    // brand could otherwise replay a valid signature from an unrelated, cheaper
+    // payment to unlock an expensive collab for free. Reject unless the order
+    // is the exact one start-payment created for this request (migration 00072).
+    if (!req.razorpay_order_id || razorpay_order_id !== req.razorpay_order_id) {
+      console.error("[confirm-payment] order_id mismatch — possible signature replay", {
+        requestId, expected: req.razorpay_order_id, received: razorpay_order_id,
+      });
+      return NextResponse.json(
+        { error: "Payment does not match this request. Start payment again." },
+        { status: 400 },
+      );
+    }
+
     brandSignedName = sanitizeSignatureName(bodyData.agreement_signed_name);
+  }
+
+  // ── Atomically claim the accepted → paid transition ──────────────────────
+  // Both this route and the Razorpay webhook can reach this point for the
+  // SAME request (the browser's checkout callback and Razorpay's server
+  // webhook typically fire within moments of each other). Without a guarded
+  // UPDATE, both could pass the status==='accepted' check above, both create
+  // a collab_session, and both grant gen_credits_total — double-crediting the
+  // brand and orphaning one session. This UPDATE only succeeds for whichever
+  // caller gets here first; the loser sees 0 rows affected and backs off.
+  const { data: claimed } = await admin
+    .from("collab_requests")
+    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .eq("status", "accepted")
+    .select("id")
+    .maybeSingle();
+
+  if (!claimed) {
+    // Lost the race — the other caller is (or already has) processing this
+    // payment. Re-read and respond idempotently rather than duplicating work.
+    const { data: latest } = await admin
+      .from("collab_requests")
+      .select("status, collab_session_id")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (latest?.status === "paid" && latest.collab_session_id) {
+      return NextResponse.json({ ok: true, collab_session_id: latest.collab_session_id, status: "already_paid" });
+    }
+    return NextResponse.json({ ok: true, status: "processing" }, { status: 202 });
   }
 
   // Create collab_session
@@ -131,6 +176,13 @@ export async function POST(
       package_id: req.package_id,
       error: sessionErr,
     });
+    // Roll back the accepted→paid claim so a retry (webhook, or the brand
+    // reopening the payment page) can still succeed instead of getting stuck
+    // permanently 'paid' with no session and no path to create one.
+    await admin
+      .from("collab_requests")
+      .update({ status: "accepted", paid_at: null })
+      .eq("id", requestId);
     return NextResponse.json(
       {
         error: "Failed to create collab session",
@@ -144,10 +196,10 @@ export async function POST(
     );
   }
 
-  // Update request to paid
+  // Link the session now that we own this transition (status already 'paid').
   await admin
     .from("collab_requests")
-    .update({ status: "paid", paid_at: new Date().toISOString(), collab_session_id: session.id })
+    .update({ collab_session_id: session.id })
     .eq("id", requestId);
 
   // ── Single-pool model: add package credits to brand's global wallet ──

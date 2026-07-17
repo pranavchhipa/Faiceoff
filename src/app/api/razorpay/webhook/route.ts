@@ -142,25 +142,42 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
 
         await admin
           .from("collab_requests")
-          .select("id, status")
+          .select("id, status, brand_id, creator_id, package_id, package_tier, package_price_paise, final_images, gen_credits, usage_scope, product_name, collab_session_id, razorpay_order_id")
           .eq("id", collabRequestId)
           .maybeSingle()
-          .then(async ({ data: req }: { data: { id: string; status: string } | null }) => {
-            if (!req || req.status === "paid") return;
-            if (req.status !== "accepted") return;
-
-            // Fetch full request for session creation
-            const { data: fullReq } = await admin
-              .from("collab_requests")
-              .select("id, status, brand_id, creator_id, package_id, package_tier, package_price_paise, final_images, gen_credits, usage_scope, product_name, collab_session_id")
-              .eq("id", collabRequestId)
-              .maybeSingle();
-
+          .then(async ({ data: fullReq }: { data: Record<string, unknown> | null }) => {
             if (!fullReq || fullReq.status === "paid") return;
+            if (fullReq.status !== "accepted") return;
+
+            // Defense-in-depth: the order this payment.captured event is for
+            // must be the exact order start-payment created for this request.
+            // The webhook body is already HMAC-verified end-to-end (so this
+            // can't be forged), but a mismatch here would mean something is
+            // inconsistent upstream — safer to skip than to grant credits.
+            if (!fullReq.razorpay_order_id || fullReq.razorpay_order_id !== orderId) {
+              console.error("[razorpay/webhook] order_id mismatch on collab_payment — skipping", {
+                collabRequestId, expected: fullReq.razorpay_order_id, received: orderId,
+              });
+              return;
+            }
+
+            // ── Atomically claim the accepted → paid transition ──────────────
+            // The browser's confirm-payment call and this webhook can both reach
+            // here for the SAME payment. Only the first to win this guarded
+            // UPDATE proceeds; the other backs off — prevents a duplicate
+            // collab_session and a double credit grant.
+            const { data: claimed } = await admin
+              .from("collab_requests")
+              .update({ status: "paid", paid_at: new Date().toISOString() })
+              .eq("id", collabRequestId)
+              .eq("status", "accepted")
+              .select("id")
+              .maybeSingle();
+            if (!claimed) return;
 
             const gen_credits_total = (fullReq.gen_credits as number) || (fullReq.final_images as number) * 3;
 
-            const { data: session } = await admin
+            const { data: session, error: sessionErr } = await admin
               .from("collab_sessions")
               .insert({
                 brand_id: fullReq.brand_id,
@@ -183,11 +200,64 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
               .select("id")
               .single();
 
-            if (session) {
+            if (!session || sessionErr) {
+              console.error("[razorpay/webhook] session insert failed — rolling back claim", sessionErr);
+              // Roll back so a retry (brand reopening the payment page, or the
+              // next webhook delivery) can still succeed.
               await admin
                 .from("collab_requests")
-                .update({ status: "paid", paid_at: new Date().toISOString(), collab_session_id: session.id })
+                .update({ status: "accepted", paid_at: null })
                 .eq("id", collabRequestId);
+              return;
+            }
+
+            {
+              await admin
+                .from("collab_requests")
+                .update({ collab_session_id: session.id })
+                .eq("id", collabRequestId);
+
+              // ── Single-pool model: grant package credits to the brand's global
+              // wallet on THIS path too. The brand-UI handler (confirm-payment)
+              // does this already, but if the browser tab closes before it fires,
+              // this webhook is the only path that runs — without this block the
+              // brand's payment is captured but they get zero generation credits.
+              // Idempotent: this whole branch only runs when status transitions
+              // accepted → paid (guarded above), so it can't double-grant.
+              try {
+                const { data: brandRow } = await admin
+                  .from("brands")
+                  .select("credits_remaining, credits_lifetime_purchased")
+                  .eq("id", fullReq.brand_id)
+                  .maybeSingle();
+
+                if (brandRow) {
+                  const currentRemaining = (brandRow.credits_remaining ?? 0) as number;
+                  const currentLifetime = (brandRow.credits_lifetime_purchased ?? 0) as number;
+                  const newRemaining = currentRemaining + gen_credits_total;
+                  const newLifetime = currentLifetime + gen_credits_total;
+
+                  await admin
+                    .from("brands")
+                    .update({
+                      credits_remaining: newRemaining,
+                      credits_lifetime_purchased: newLifetime,
+                    })
+                    .eq("id", fullReq.brand_id);
+
+                  await admin.from("credit_transactions").insert({
+                    brand_id: fullReq.brand_id,
+                    type: "topup",
+                    credits: gen_credits_total,
+                    balance_after: newRemaining,
+                    reference_type: "collab_session",
+                    reference_id: session.id,
+                    description: `${fullReq.package_tier} package · ${gen_credits_total} credits unlocked (webhook)`,
+                  });
+                }
+              } catch (err) {
+                console.error("[razorpay/webhook] global credit grant failed (non-fatal)", err);
+              }
 
               // Finalize the Collaboration Agreement on the webhook path too
               // (the brand UI handler may never fire if the tab closed). Record
@@ -198,7 +268,7 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
                   .from("brands").select("company_name").eq("id", fullReq.brand_id).maybeSingle();
                 const agreementRow = await signBrandAndActivate({
                   admin,
-                  requestId: fullReq.id,
+                  requestId: collabRequestId,
                   sessionId: session.id,
                   brandSignedName: brandRow?.company_name ?? "Authorized signatory",
                   brandSignedIp: null,

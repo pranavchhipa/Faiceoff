@@ -38,7 +38,7 @@ export async function POST(
   // Load session + verify brand ownership
   const { data: session } = await admin
     .from("collab_sessions")
-    .select("id, status, brand_id, creator_id, gen_credits_total, gen_credits_used, final_images_target, approved_count, name")
+    .select("id, status, brand_id, creator_id, gen_credits_total, gen_credits_used, final_images_target, approved_count, name, package_price_paise")
     .eq("id", collabId)
     .maybeSingle();
 
@@ -82,16 +82,16 @@ export async function POST(
     _meta: { creator_id: session.creator_id },
   };
 
-  // Fetch creator's active category for cost reference (cheapest active category)
-  const { data: categories } = await admin
-    .from("creator_categories")
-    .select("price_per_generation_paise")
-    .eq("creator_id", session.creator_id)
-    .eq("is_active", true)
-    .order("price_per_generation_paise", { ascending: true })
-    .limit(1);
-
-  const costPaise = categories?.[0]?.price_per_generation_paise ?? 0;
+  // Cost basis for escrow/revenue accounting on approval: every generation
+  // created through THIS route is collab-funded, so its value is the brand's
+  // package price spread evenly across the deliverables it buys — NOT
+  // creator_categories.price_per_generation_paise, which migration 00047
+  // deprecated ("packages are the source of truth now; new code MUST NOT
+  // read this") and which silently defaults to 0 for creators with no active
+  // category, zeroing out the creator's escrow share and platform revenue on
+  // an approval the brand already paid full price for.
+  const finalImagesTarget = (session.final_images_target as number) || 1;
+  const costPaise = Math.round(((session.package_price_paise as number) ?? 0) / finalImagesTarget);
 
   // Atomically deduct from BOTH:
   //  1) brands.credits_remaining (global wallet — single-pool source of truth)

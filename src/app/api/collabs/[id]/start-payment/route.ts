@@ -59,6 +59,14 @@ export async function POST(
       },
     });
 
+    // Bind this order to the request so confirm-payment (and the webhook) can
+    // reject a signature replayed from a different, unrelated payment — see
+    // migration 00072 for the full exploit this closes.
+    await admin
+      .from("collab_requests")
+      .update({ razorpay_order_id: order.id })
+      .eq("id", requestId);
+
     return NextResponse.json({
       order_id: order.id,
       key_id: getRazorpayKeyId(),

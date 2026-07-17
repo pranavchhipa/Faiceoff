@@ -193,8 +193,12 @@ export async function POST(
 
   // ── 7. releaseReserve — return wallet funds to available balance ───────────
   // Credit stays consumed (deducted at generation-create time, never refunded).
-  // Only the wallet INR reservation is released.
-  if (costPaise > 0) {
+  // Only the wallet INR reservation is released. Guarded to the LEGACY
+  // per-generation wallet-reservation path only — see the matching comment in
+  // approve/route.ts for why collab-funded generations must skip this (they
+  // never reserved a wallet amount, and release_reserve validates against the
+  // brand's aggregate reservation, not a per-generation one).
+  if (costPaise > 0 && !gen.collab_session_id) {
     try {
       await releaseReserve({
         brandId,

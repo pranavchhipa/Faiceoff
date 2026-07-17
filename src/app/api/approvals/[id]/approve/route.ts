@@ -218,9 +218,16 @@ export async function POST(
   }
 
   // ── 4c. spendWallet ────────────────────────────────────────────────────────
-  // Converts the pending reservation to spent on the brand's wallet.
-  // credit stays permanently deducted; wallet reservation is converted to spend.
-  if (costPaise > 0) {
+  // Converts the pending reservation to spent on the brand's wallet. Only
+  // applies to the LEGACY per-generation wallet-reservation path — collab
+  // generations never reserve a wallet amount (run-generation.ts explicitly
+  // skips reserveWallet when a generation is collab-funded; money already
+  // flowed via the package price / single-pool credits). Without this guard,
+  // spend_wallet/release_reserve validate against the brand's AGGREGATE
+  // wallet_reserved_paise rather than a per-generation hold, so calling them
+  // for a collab generation can silently spend/release an unrelated legacy
+  // reservation belonging to a different, real wallet-funded generation.
+  if (costPaise > 0 && !gen.collab_session_id) {
     try {
       await spendWallet({
         brandId,

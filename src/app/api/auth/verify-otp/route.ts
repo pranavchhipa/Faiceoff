@@ -159,13 +159,17 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      // Insert with null fields — brand onboarding will fill them.
-      // Use insert + onConflict.do_nothing so re-verify on existing brand
-      // doesn't blank-out their already-filled company_name.
+      // Insert with company_name empty — brand onboarding will fill it.
+      // company_name is NOT NULL (no default) so the empty string is required
+      // for the insert to succeed; every completion check downstream already
+      // gates on `Boolean(brand.company_name)` (e.g. get-session-role.ts), so
+      // an empty string correctly keeps the brand routed into onboarding.
+      // Use insert + onConflict.ignoreDuplicates so re-verify on an existing
+      // brand doesn't blank out their already-filled company_name.
       const { error: brandUpsertErr } = await admin
         .from("brands")
         .upsert(
-          { user_id: authUserId },
+          { user_id: authUserId, company_name: "" },
           { onConflict: "user_id", ignoreDuplicates: true },
         );
       if (brandUpsertErr) {
