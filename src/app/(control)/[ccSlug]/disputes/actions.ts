@@ -149,13 +149,17 @@ export async function resolveDispute(formData: FormData): Promise<void> {
         .eq("id", brand.id);
       refundedCredits = DISPUTE_REFUND_CREDITS;
 
-      // Best-effort ledger row (schema may differ across envs — non-fatal).
+      // Ledger row — best-effort (balance is already updated above either way).
+      // Real columns are `credits`/`description`/`type` (not delta/reason);
+      // `type` is NOT NULL with a check constraint — 'refund' is the allowed
+      // value for this case (mirrors moderation/actions.ts forceDiscardGeneration).
       try {
         await admin.from("credit_transactions").insert({
           brand_id: brand.id,
-          delta: DISPUTE_REFUND_CREDITS,
+          type: "refund",
+          credits: DISPUTE_REFUND_CREDITS,
           balance_after: newBalance,
-          reason: "dispute_refund",
+          description: "Dispute refund",
           reference_type: "dispute",
           reference_id: disputeId,
         });

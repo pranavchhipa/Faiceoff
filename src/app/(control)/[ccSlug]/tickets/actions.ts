@@ -195,13 +195,17 @@ export async function grantCreditsForTicket(formData: FormData): Promise<void> {
     .update({ credits_remaining: newBalance })
     .eq("id", brand.id);
 
-  // Best-effort ledger row (table may differ — wrap in try)
+  // Ledger row — best-effort (balance is already updated above either way).
+  // Real columns are `credits`/`description`/`type` (not delta/reason); `type`
+  // is NOT NULL with a check constraint — 'bonus' is the allowed value for a
+  // goodwill grant (mirrors moderation/actions.ts forceDiscardGeneration).
   try {
     await admin.from("credit_transactions").insert({
       brand_id: brand.id,
-      delta: amount,
+      type: "bonus",
+      credits: amount,
       balance_after: newBalance,
-      reason: "support_grant",
+      description: "Support grant",
       reference_type: "support_ticket",
       reference_id: ticketId,
     });
