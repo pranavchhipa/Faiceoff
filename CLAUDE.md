@@ -18,6 +18,102 @@ Two-sided marketplace where **creators license their face** and **brands generat
 
 ---
 
+## 🌙 2026-07-18 overnight session — payment integrity + security + mobile hardening
+
+Razorpay went **LIVE** this session (test keys → live keys), which triggered a full
+payment-flow audit (30 agents, adversarially verified). 23 real findings, all fixed
+except the two explicitly noted as deferred below. Read this before touching payments,
+Control Centre ledgers, or the collab-generate/approve pipeline — several facts in the
+rest of this document (esp. **Known Issues** and **Tier 0/1 Pending Work** below) are now
+stale relative to these fixes.
+
+**Fixed tonight (see git log around this date for full diffs):**
+- **Payment bypass closed** — `confirm-payment` used to accept ANY valid Razorpay
+  signature, not one bound to the specific collab request/amount. A brand could replay
+  a signature from an unrelated cheap payment to unlock an expensive collab for free.
+  Fixed by persisting `collab_requests.razorpay_order_id` at `start-payment` (migration
+  `00072`) and requiring an exact match in both `confirm-payment` and the webhook.
+- **Double-session/double-credit race closed** — the webhook and the brand-UI
+  `confirm-payment` call could both win the `accepted → paid` transition concurrently,
+  creating two `collab_sessions` and granting credits twice. Both paths now do a guarded
+  `UPDATE ... WHERE status='accepted'` and only the winner proceeds.
+- **Escrow/revenue cost-basis fixed** — `collabs/[id]/generate` was pricing generations
+  off the **deprecated** `creator_categories.price_per_generation_paise` (migration 00047
+  says "new code MUST NOT read this"), defaulting to **₹0** when a creator had no active
+  category — meaning approved collab generations could record zero creator earnings and
+  zero platform revenue despite the brand paying full package price. Now computed as
+  `package_price_paise / final_images_target`.
+- **Brand signup was completely broken** — `verify-otp`'s brand-row upsert omitted
+  `company_name` (`NOT NULL`, no default) → every new brand signup 500'd. Fixed with an
+  empty-string placeholder (onboarding fills the real value; every completion check
+  already gates on `Boolean(company_name)`, so this doesn't skip onboarding).
+- **Orphaned legacy endpoint deleted** — `/api/generations/[id]/approve` (old,
+  pre-collab-package approve/reject) was still live/callable directly even though its
+  only page caller is unreachable (redirected away by `legacy-redirects.ts`). It never
+  issued a license on approve (brand downloads permanently blocked) and refunded a
+  credit on reject that the canonical flow explicitly does not. Deleted.
+- **Wallet RPC mis-targeting fixed** — `approvals/[id]/approve` and `.../reject` called
+  `spendWallet`/`releaseReserve` unconditionally; for collab-funded generations (which
+  never reserve a wallet amount) this could spend/release an unrelated brand's wallet
+  reservation. Now gated on `!gen.collab_session_id`.
+- **Control Centre ledger writes fixed** — `disputes/actions.ts` and `tickets/actions.ts`
+  inserted into `credit_transactions` with columns that don't exist (`delta`/`reason`
+  instead of `credits`/`description`) and omitted the `NOT NULL` `type` column — every
+  dispute refund and support-ticket credit grant silently wrote **zero** ledger rows
+  (balance updates were correct; only the audit trail was missing). Fixed to match the
+  real schema (see `moderation/actions.ts` for the pattern both now follow).
+- **`vault/bulk-download`** — `recordDownload()` was called with 2 positional args
+  instead of the `{brandId, imageId, format}` object it expects; download counters for
+  ZIP bulk-downloads silently never incremented. Fixed.
+- **Mobile: primary CTAs no longer hidden behind the bottom tab bar** — Studio's
+  "Generate" button, the multi-select "Send N for approval" bar + toast, and the
+  Settings "Save changes" bar all sat at a z-index tied with (and DOM-order-losing to)
+  `MobileBottomNav`, so at 375-430px they were partially/fully covered and tap-intercepted
+  by the tab bar. All now clear it with a `bottom-20 ... lg:bottom-N` offset.
+- **Mobile: hover-only controls made touch-usable** — Studio's multi-select checkbox +
+  "open review" link, the onboarding photo grid's Remove/Set-main buttons, and the
+  per-collab Vault tab's download buttons were all `opacity-0 group-hover:opacity-100`
+  with zero touch fallback — undiscoverable/unusable on any touch device. Now
+  `opacity-100 sm:opacity-0 sm:group-hover:opacity-100` (visible by default on mobile,
+  hover-reveal preserved on pointer devices).
+- **`/verify` entry page added** — the footer's "Verify Licence" link 404'd (only
+  `/verify/[license_id]` existed). New `/verify` landing page lets someone paste a
+  licence or agreement ID manually.
+- **`error.tsx`** no longer renders raw `error.message`/`error.stack` to end users in
+  production (was unconditional; gated behind `NODE_ENV !== "production"` now).
+- **Baseline security headers added** (`next.config.ts` `headers()`): X-Frame-Options,
+  `frame-ancestors 'none'`, X-Content-Type-Options, Referrer-Policy, HSTS. Deliberately
+  **no** script-src/connect-src CSP — this app loads Razorpay checkout JS, Sentry,
+  PostHog, and Supabase realtime; a hand-authored CSP risks silently breaking one of
+  those without a live test pass.
+- Auth/perf: `AuthProvider`'s role resolver could leave a logged-in user on the loading
+  skeleton **forever** if `/api/whoami` was slow/failed — added an 8s timeout + fallback
+  to signup metadata role. Middleware's `getSessionRole` now reuses one Supabase client
+  per request instead of 2-3.
+
+**Deliberately NOT fixed tonight (flagged, not urgent/safe to rush):**
+- Razorpay webhook always returns HTTP 200 even when internal processing throws, so
+  Razorpay never retries a failed event automatically. Mitigated by the brand-UI
+  `confirm-payment` call being an independent, equally-capable path (and now
+  idempotent/race-safe against the webhook). Revisit if stuck-payment reports appear.
+- **RazorpayX payouts are still not implemented** (`payout-service.ts` fails safe with
+  "processed manually — contact support"). This was already a known, explicitly-flagged
+  gap, not something introduced tonight — no automated creator payout rail exists yet.
+
+**⚠️ You must do before this build reaches prod:**
+1. **Apply migration `00072_collab_requests_razorpay_order_binding.sql`** — without it,
+   `confirm-payment` will 500 on every collab payment (`razorpay_order_id` column won't
+   exist). This is now as load-bearing as 00070/00071 already were.
+2. Confirm 00070 (brand GST verification) and 00071 (collab_agreements) are ALSO applied
+   — both back live, non-feature-flagged code paths (brand verification, the e-sign
+   Collaboration Agreement flow) and were already pending before tonight.
+3. The `deduct_credit` Postgres RPC issue in the **Known Issues** table below (`column
+   "credits" does not exist`) **was already fixed** by migration `00048` in an earlier
+   session — that table entry is stale, left as-is below rather than risk misreading a
+   section I didn't re-verify end-to-end tonight. Trust the migration, not the table row.
+
+---
+
 ## 🚨 CRITICAL CURRENT STATE (read this first)
 
 ### What's working in production right now

@@ -39,8 +39,33 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+  // Next.js 16 dropped the `eslint` key from next.config — it warned
+  // "no longer supported" / "Unrecognized key(s)" every build. ESLint no
+  // longer runs as part of `next build` at all in 16, so there's nothing to
+  // opt out of; removing the key just silences the warning with no behavior
+  // change (lint still runs via `npm run lint` / CI separately).
+
+  // Baseline security headers — no CSP script-src/connect-src here on purpose:
+  // this app loads Razorpay's checkout.razorpay.com script (live payments),
+  // Sentry, PostHog, and Supabase realtime websockets, and a hand-authored
+  // CSP risks silently blocking one of those without a live test pass. The
+  // headers below are the well-understood, zero-behavior-risk subset — they
+  // only restrict framing/sniffing/referrer leakage, never app functionality.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // Blocks the whole site from being iframed elsewhere (clickjacking)
+          // — nothing in Faiceoff needs to render inside a third-party frame.
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+        ],
+      },
+    ];
   },
 };
 

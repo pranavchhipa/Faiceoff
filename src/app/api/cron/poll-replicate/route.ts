@@ -1,8 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/cron/poll-replicate
 //
-// Every-15-min cron. Fallback for missed Replicate webhooks.
-// Polls 'processing' generations older than 5 minutes and syncs their status.
+// Daily cron (Vercel Hobby tier caps custom crons at once/day — see
+// vercel.json; was every-15-min before that constraint). Fallback for missed
+// Replicate webhooks. Polls 'processing' generations older than 5 minutes and
+// syncs their status. Practical effect of the daily schedule: a generation
+// whose webhook was missed can sit stuck in 'processing' for up to ~24h
+// before this fallback runs — acceptable on Hobby, revisit if upgrading to Pro.
 //
 // If Replicate reports 'succeeded' → finalize (run Hive + create approval).
 // If Replicate reports 'failed'/'canceled' → refund + mark failed.

@@ -44,14 +44,16 @@ export default function Error({
           Error ID: {error.digest}
         </p>
       )}
-      {/* DIAGNOSTIC: Show the actual error message + stack so we can debug
-          production crashes without needing devtools access. Safe to ship —
-          this is a generic in-app boundary; sensitive data isn't passed
-          via error.message in any of our own throws. */}
-      {error.message && (
+      {/* DIAGNOSTIC: raw message + stack, DEV ONLY. In production this used to
+          render unconditionally — any error reaching this boundary (including
+          rethrown DB/Supabase/third-party errors we don't fully control, not
+          just our own throws) would leak internals (table/column names,
+          file paths, service URLs) to any user who triggers a crash.
+          Production relies on error.digest + Sentry instead. */}
+      {process.env.NODE_ENV !== "production" && error.message && (
         <details className="mt-6 max-w-2xl rounded-lg border border-[var(--color-neutral-100)] bg-[var(--color-paper)] px-4 py-3 text-left">
           <summary className="cursor-pointer text-xs font-600 text-[var(--color-ink)]">
-            Show error details
+            Show error details (dev only)
           </summary>
           <p className="mt-2 break-words text-xs text-[var(--color-neutral-600)]">
             <strong>Message:</strong> {error.message}

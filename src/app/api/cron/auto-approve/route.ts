@@ -1,7 +1,11 @@
 /**
  * GET /api/cron/auto-approve
  *
- * Vercel-scheduled cron — runs every hour. Finds approval rows where:
+ * Vercel-scheduled cron — runs once daily (Vercel Hobby tier caps custom
+ * crons at once/day — see vercel.json; was hourly before that constraint).
+ * Practical effect: a creator's silent non-response can delay auto-approval
+ * by up to ~24h instead of ~1h — acceptable on Hobby, revisit on Pro.
+ * Finds approval rows where:
  *   • status = 'pending'
  *   • expires_at < now()
  * and runs the same flow as a creator-clicked approve: spendWallet, escrow

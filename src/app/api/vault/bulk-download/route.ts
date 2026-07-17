@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       added++;
 
       // Fire-and-forget download counter
-      void recordDownload(row.id, "original").catch(() => {});
+      void recordDownload({ brandId: brand.id, imageId: row.id, format: "original" }).catch(() => {});
     } catch (err) {
       console.warn(`[vault/bulk-download] item ${row.id} fetch failed`, err);
     }
