@@ -53,7 +53,6 @@ interface BrandRow {
   company_name: string | null;
   is_verified: boolean | null;
   credits_remaining: number | null;
-  wallet_balance_paise: number | null;
 }
 
 function fmt(paise: number | null | undefined): string {
@@ -105,7 +104,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
           .in("user_id", userIds),
         admin
           .from("brands")
-          .select("id, user_id, company_name, is_verified, credits_remaining, wallet_balance_paise")
+          .select("id, user_id, company_name, is_verified, credits_remaining")
           .in("user_id", userIds),
       ])
     : [{ data: [] }, { data: [] }];
@@ -231,7 +230,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
                 const stat = c
                   ? `${fmt(c.lifetime_earned_gross_paise)} earned · ${fmt(c.pending_balance_paise)} pending`
                   : b
-                    ? `${fmt(b.wallet_balance_paise)} wallet · ${(b.credits_remaining ?? 0).toLocaleString("en-IN")} credits`
+                    ? `${(b.credits_remaining ?? 0).toLocaleString("en-IN")} credits`
                     : "—";
 
                 const gens = c

@@ -20,10 +20,6 @@ import { cachedJson } from "@/lib/http/cacheable";
 interface BrandBillingView {
   credits_remaining: number;
   credits_lifetime_purchased: number;
-  wallet_balance_paise: number;
-  wallet_reserved_paise: number;
-  wallet_available_paise: number;
-  lifetime_topup_paise: number;
 }
 
 // ── Admin client type helper ──────────────────────────────────────────────────
@@ -64,9 +60,7 @@ export async function GET(req: NextRequest) {
   // ── 3. Query v_brand_billing view ─────────────────────────────────────────
   const { data: billing, error: billingError } = await admin
     .from("v_brand_billing")
-    .select(
-      "credits_remaining, credits_lifetime_purchased, wallet_balance_paise, wallet_reserved_paise, wallet_available_paise, lifetime_topup_paise",
-    )
+    .select("credits_remaining, credits_lifetime_purchased")
     // The view exposes the brand id as `brand_id`, not `id`. Filtering on
     // `id` returns 0 rows (or errors on some PostgREST versions) and the
     // route then surfaces all-zero balances despite the brand having funds.
@@ -83,12 +77,8 @@ export async function GET(req: NextRequest) {
     const zeroBilling: BrandBillingView = {
       credits_remaining: 0,
       credits_lifetime_purchased: 0,
-      wallet_balance_paise: 0,
-      wallet_reserved_paise: 0,
-      wallet_available_paise: 0,
-      lifetime_topup_paise: 0,
     };
-    // 15s cache + 60s SWR — wallet doesn't move every second, and the
+    // 15s cache + 60s SWR — credits don't move every second, and the
     // topbar BalanceChip polls every 60s anyway so freshness stays bounded.
     return cachedJson(zeroBilling);
   }
@@ -97,10 +87,6 @@ export async function GET(req: NextRequest) {
   const response: BrandBillingView = {
     credits_remaining: billing.credits_remaining as number,
     credits_lifetime_purchased: billing.credits_lifetime_purchased as number,
-    wallet_balance_paise: billing.wallet_balance_paise as number,
-    wallet_reserved_paise: billing.wallet_reserved_paise as number,
-    wallet_available_paise: billing.wallet_available_paise as number,
-    lifetime_topup_paise: billing.lifetime_topup_paise as number,
   };
 
   return cachedJson(response);

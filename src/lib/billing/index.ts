@@ -1,5 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Billing barrel export — Chunk E two-layer billing (credits + wallet).
+// Billing barrel export — single-pool credits model. Money enters via
+// /brand/credits (direct Razorpay purchase) or a paid collab package; every
+// generation spends from brands.credits_remaining. The older parallel
+// "wallet" (INR balance + reserve/spend) was removed — nothing on the live
+// generation path consumed it (see the credits-vs-wallet architecture memo).
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Error class
@@ -10,18 +14,12 @@ export type { BillingErrorCode } from "./errors";
 export type {
   PackCode,
   CreditPack,
-  WalletTransactionType,
-  WalletTransaction,
-  WalletTopUp,
-  WalletTopUpStatus,
   CreditTopUp,
   CreditTopUpStatus,
   BrandBillingRow,
   LicenseScope,
   AddCreditsResult,
   DeductCreditResult,
-  ReserveWalletResult,
-  SpendOrReleaseResult,
 } from "./types";
 
 // Credits service
@@ -39,29 +37,6 @@ export type {
   GetCreditsReturn,
   FreeSignupGrantReturn,
 } from "./credits-service";
-
-// Wallet service
-export {
-  addWallet,
-  reserveWallet,
-  releaseReserve,
-  spendWallet,
-  refundWallet,
-  getWallet,
-} from "./wallet-service";
-export type {
-  AddWalletParams,
-  AddWalletReturn,
-  ReserveWalletParams,
-  ReserveWalletReturn,
-  ReleaseReserveParams,
-  ReleaseReserveReturn,
-  SpendWalletParams,
-  SpendWalletReturn,
-  RefundWalletParams,
-  RefundWalletReturn,
-  GetWalletReturn,
-} from "./wallet-service";
 
 // Pack catalog
 export {

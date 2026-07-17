@@ -1,13 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/admin/stuck-gens/[id]/refund
 //
-// Marks a stuck generation as failed and refunds the brand's wallet reserve.
+// Marks a stuck generation as failed and refunds the brand's credit.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve, BillingError } from "@/lib/billing";
+
+// Statuses run-generation.ts can leave a generation stuck in — kept in sync
+// with GET /api/admin/stuck-gens's own STUCK_STATUSES. The pipeline never
+// sets "processing" (see run-generation.ts's own note: that string isn't in
+// the DB check constraint), so checking for it here rejected every real
+// stuck row with 409 generation_not_processing.
+const STUCK_STATUSES = ["generating", "compliance_check", "output_check", "draft"];
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -53,9 +59,9 @@ export async function POST(
     return NextResponse.json({ error: "generation_not_found" }, { status: 404 });
   }
 
-  if (gen.status !== "processing") {
+  if (!STUCK_STATUSES.includes(gen.status)) {
     return NextResponse.json(
-      { error: "generation_not_processing", current_status: gen.status },
+      { error: "generation_not_stuck", current_status: gen.status },
       { status: 409 },
     );
   }
@@ -69,23 +75,6 @@ export async function POST(
   if (updateErr) {
     console.error("[admin/stuck-gens/refund] generation update error:", updateErr);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  // Release wallet reserve
-  if (gen.brand_id && gen.cost_paise) {
-    try {
-      await releaseReserve({
-        brandId: gen.brand_id,
-        amountPaise: gen.cost_paise,
-        generationId,
-      });
-    } catch (err) {
-      if (err instanceof BillingError) {
-        console.warn("[admin/stuck-gens/refund] releaseReserve billing warn (non-fatal):", err.message);
-      } else {
-        console.error("[admin/stuck-gens/refund] releaseReserve unexpected error:", err);
-      }
-    }
   }
 
   // Refund 1 credit — stuck gen is a system failure, not brand's fault

@@ -416,18 +416,27 @@ export async function sendBrandRejected(opts: {
   creatorName: string;
   productName: string;
   feedback?: string | null;
+  /** true only when a real refund was issued (legacy wallet-funded path). */
+  refunded: boolean;
   refundPaise: number;
 }): Promise<void> {
+  const refundLine = opts.refunded
+    ? `<strong>${fmtINR(opts.refundPaise)}</strong> has been returned to your wallet.`
+    : `The credit used for this image was consumed — no refund for creator-declined images, but you can retry any time.`;
   await send({
     to: opts.to,
-    subject: `${opts.creatorName} declined your image — refund issued`,
+    subject: opts.refunded
+      ? `${opts.creatorName} declined your image — refund issued`
+      : `${opts.creatorName} declined your image`,
     html: wrap("Image declined", {
-      preheader: `${fmtINR(opts.refundPaise)} returned to your wallet. ${opts.feedback ? "See note inside." : "Try again with a tweaked brief."}`,
-      eyebrow: "Refunded",
+      preheader: opts.refunded
+        ? `${fmtINR(opts.refundPaise)} returned to your wallet. ${opts.feedback ? "See note inside." : "Try again with a tweaked brief."}`
+        : `${opts.feedback ? "See note inside." : "Try again with a tweaked brief."}`,
+      eyebrow: opts.refunded ? "Refunded" : "Declined",
       headline: `${opts.creatorName} declined this image.`,
-      body: `<p style="margin:0 0 12px;"><strong>${escapeHtml(opts.creatorName)}</strong> wasn't comfortable with the generated image for <strong>${escapeHtml(opts.productName)}</strong>. <strong>${fmtINR(opts.refundPaise)}</strong> has been returned to your wallet.</p>
+      body: `<p style="margin:0 0 12px;"><strong>${escapeHtml(opts.creatorName)}</strong> wasn't comfortable with the generated image for <strong>${escapeHtml(opts.productName)}</strong>. ${refundLine}</p>
         ${opts.feedback ? `<p style="margin:0 0 12px;padding:12px 14px;border-left:3px solid ${COLORS.gold};background:${COLORS.wash};border-radius:0 6px 6px 0;font-style:italic;">"${escapeHtml(opts.feedback)}"</p>` : ""}
-        <p style="margin:0;">Tweak the brief and try again — your wallet credit is unchanged.</p>`,
+        <p style="margin:0;">Tweak the brief and try again.</p>`,
       cta: { label: "Generate again", href: `${APP_URL}/brand/discover` },
     }),
   });

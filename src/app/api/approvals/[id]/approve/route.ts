@@ -10,10 +10,9 @@
 //   4. Atomic sequence (all via admin client):
 //      a. UPDATE approvals SET status='approved', decided_at=now()
 //      b. UPDATE generations SET status='approved'
-//      c. spendWallet({ brandId, amountPaise: gen.cost_paise, generationId })
-//      d. INSERT escrow_ledger: creator 75% share (1 - PLATFORM_COMMISSION_RATE), holding 7 days
-//      e. INSERT platform_revenue_ledger: 25% commission + 18% GST
-//      f. issueLicense (handles PDF gen + R2 upload internally)
+//      c. INSERT escrow_ledger: creator 75% share (1 - PLATFORM_COMMISSION_RATE), holding 7 days
+//      d. INSERT platform_revenue_ledger: 25% commission + 18% GST
+//      e. issueLicense (handles PDF gen + R2 upload internally)
 //   5. Return { status: 'approved', license_id, cert_url }
 //
 // IDEMPOTENT: if approval is already terminal, return 200 with current status.
@@ -22,7 +21,6 @@
 import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { spendWallet } from "@/lib/billing";
 import { issueLicense } from "@/lib/licenses";
 import { PLATFORM_COMMISSION_RATE, GST_ON_COMMISSION_RATE } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
@@ -214,29 +212,6 @@ export async function POST(
       }
     } catch (err) {
       console.error("[approvals/approve] approved_count increment failed", err);
-    }
-  }
-
-  // ── 4c. spendWallet ────────────────────────────────────────────────────────
-  // Converts the pending reservation to spent on the brand's wallet. Only
-  // applies to the LEGACY per-generation wallet-reservation path — collab
-  // generations never reserve a wallet amount (run-generation.ts explicitly
-  // skips reserveWallet when a generation is collab-funded; money already
-  // flowed via the package price / single-pool credits). Without this guard,
-  // spend_wallet/release_reserve validate against the brand's AGGREGATE
-  // wallet_reserved_paise rather than a per-generation hold, so calling them
-  // for a collab generation can silently spend/release an unrelated legacy
-  // reservation belonging to a different, real wallet-funded generation.
-  if (costPaise > 0 && !gen.collab_session_id) {
-    try {
-      await spendWallet({
-        brandId,
-        amountPaise: costPaise,
-        generationId,
-      });
-    } catch (err) {
-      console.error("[approvals/approve] spendWallet failed", err);
-      // Non-fatal for the approval flow — finance reconciliation will catch up
     }
   }
 

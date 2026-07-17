@@ -64,8 +64,6 @@ interface BrandRow {
   is_verified: boolean | null;
   credits_remaining: number | null;
   credits_lifetime_purchased: number | null;
-  wallet_balance_paise: number | null;
-  wallet_reserved_paise: number | null;
   created_at: string;
 }
 
@@ -217,7 +215,7 @@ export default async function UserDrillDownPage({ params }: Props) {
       .maybeSingle(),
     admin
       .from("brands")
-      .select("id, user_id, company_name, website_url, gst_number, industry, is_verified, credits_remaining, credits_lifetime_purchased, wallet_balance_paise, wallet_reserved_paise, created_at")
+      .select("id, user_id, company_name, website_url, gst_number, industry, is_verified, credits_remaining, credits_lifetime_purchased, created_at")
       .eq("user_id", userId)
       .maybeSingle(),
   ]);
@@ -565,7 +563,6 @@ export default async function UserDrillDownPage({ params }: Props) {
               <>
                 <Kpi label="Lifetime spent" value={fmt(lifetimeSpentPaise)} sub="across approved licences" />
                 <Kpi label="Top-ups paid" value={fmt(totalTopupsPaise)} sub={`${topups.filter((t) => t.status === "success").length} successful`} />
-                <Kpi label="Wallet balance" value={fmt(brand!.wallet_balance_paise)} sub={`${fmt(brand!.wallet_reserved_paise)} reserved`} />
                 <Kpi label="Credits remaining" value={String(brand!.credits_remaining ?? 0)} sub={`of ${(brand!.credits_lifetime_purchased ?? 0).toLocaleString("en-IN")} ever`} />
               </>
             )}

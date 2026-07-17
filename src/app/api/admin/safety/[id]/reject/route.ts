@@ -1,15 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/admin/safety/[id]/reject
 //
-// Admin final-rejects a generation that needed safety review. Refunds the
-// brand's wallet reserve AND restores 1 credit (admin caught it, not creator's
-// fault, so credit is returned).
+// Admin final-rejects a generation that needed safety review. Restores 1
+// credit (admin caught it, not creator's fault, so credit is returned).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve, BillingError } from "@/lib/billing";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -71,23 +69,6 @@ export async function POST(
   if (updateErr) {
     console.error("[admin/safety/reject] generation update error:", updateErr);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-
-  // Refund wallet reserve (brand gets their INR back)
-  if (gen.brand_id && gen.cost_paise) {
-    try {
-      await releaseReserve({
-        brandId: gen.brand_id,
-        amountPaise: gen.cost_paise,
-        generationId,
-      });
-    } catch (err) {
-      if (err instanceof BillingError) {
-        console.warn("[admin/safety/reject] releaseReserve billing error (non-fatal):", err.message);
-      } else {
-        console.error("[admin/safety/reject] releaseReserve unexpected error:", err);
-      }
-    }
   }
 
   // Refund 1 credit — admin caught the bad content, brand shouldn't lose credit

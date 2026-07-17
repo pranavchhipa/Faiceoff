@@ -8,8 +8,8 @@
  * Finds approval rows where:
  *   • status = 'pending'
  *   • expires_at < now()
- * and runs the same flow as a creator-clicked approve: spendWallet, escrow
- * credit, license issuance.
+ * and runs the same flow as a creator-clicked approve: escrow credit,
+ * license issuance.
  *
  * Why auto-approve (not auto-reject):
  *   The 48h window is creator's veto opportunity. Silence = consent. Brands
@@ -24,7 +24,6 @@
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { spendWallet } from "@/lib/billing";
 import { issueLicense } from "@/lib/licenses";
 import {
   PLATFORM_COMMISSION_RATE,
@@ -129,15 +128,8 @@ export async function GET(req: Request) {
         .update({ status: "approved", updated_at: now })
         .eq("id", gen.id);
 
-      // 3. Spend wallet
+      // 3. Escrow credit + platform revenue + license
       if (gen.cost_paise > 0) {
-        await spendWallet({
-          brandId: gen.brand_id,
-          amountPaise: gen.cost_paise,
-          generationId: gen.id,
-        });
-
-        // 4. Escrow credit
         const creatorShare = Math.round(
           gen.cost_paise * (1 - PLATFORM_COMMISSION_RATE),
         );
@@ -155,7 +147,7 @@ export async function GET(req: Request) {
           type: "release_per_image",
         });
 
-        // 5. Platform revenue
+        // 4. Platform revenue
         await admin.from("platform_revenue_ledger").insert({
           generation_id: gen.id,
           amount_paise: commission,
@@ -163,7 +155,7 @@ export async function GET(req: Request) {
           source: "auto_approval_commission",
         });
 
-        // 6. License (best-effort)
+        // 5. License (best-effort)
         const brief = gen.structured_brief ?? {};
         const scope = (brief.scope as string) ?? "digital";
         const isExclusive = Boolean(brief.exclusive ?? false);

@@ -10,9 +10,8 @@
 //   4. Parse optional body: { feedback?: string }
 //   5. UPDATE approvals SET status='rejected', feedback, decided_at=now()
 //   6. UPDATE generations SET status='rejected'
-//   7. releaseReserve (refunds wallet reservation back to available balance)
 //      Credit is NOT refunded — credit is consumed per generation attempt.
-//   8. Return { status: 'rejected' }
+//   7. Return { status: 'rejected' }
 //
 // IDEMPOTENT: if approval is already terminal, return 200 with current status.
 // No escrow. No license. No PDF.
@@ -22,7 +21,6 @@ import { NextResponse, type NextRequest, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve } from "@/lib/billing";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandRejected } from "@/lib/email/transactional";
 import { emitNotification } from "@/lib/notifications/emit";
@@ -191,25 +189,9 @@ export async function POST(
     // Approval row already flipped — log and continue
   }
 
-  // ── 7. releaseReserve — return wallet funds to available balance ───────────
-  // Credit stays consumed (deducted at generation-create time, never refunded).
-  // Only the wallet INR reservation is released. Guarded to the LEGACY
-  // per-generation wallet-reservation path only — see the matching comment in
-  // approve/route.ts for why collab-funded generations must skip this (they
-  // never reserved a wallet amount, and release_reserve validates against the
-  // brand's aggregate reservation, not a per-generation one).
-  if (costPaise > 0 && !gen.collab_session_id) {
-    try {
-      await releaseReserve({
-        brandId,
-        amountPaise: costPaise,
-        generationId,
-      });
-    } catch (err) {
-      console.error("[approvals/reject] releaseReserve failed", err);
-      // Non-fatal — reconciliation can handle this; rejection is committed
-    }
-  }
+  // Credit stays consumed — creator-declined images are never refunded.
+  // `refunded` below always reflects that (no wallet reservation exists to release).
+  const refunded = false;
 
   track(
     "generation_rejected",
@@ -261,13 +243,14 @@ export async function POST(
         creatorName: creatorUser?.display_name ?? "the creator",
         productName,
         feedback: feedback ?? null,
+        refunded,
         refundPaise: costPaise,
       });
       await emitNotification(admin, {
         userId: brand.user_id,
         type: "approval_rejected",
         title: `${creatorUser?.display_name ?? "Creator"} requested changes`,
-        body: `${productName} wasn't approved${feedback ? `: "${feedback}"` : "."} Credit refunded — retry in Studio.`,
+        body: `${productName} wasn't approved${feedback ? `: "${feedback}"` : "."} Retry in Studio.`,
         href: "/brand/collabs",
       });
     } catch (mailErr) {

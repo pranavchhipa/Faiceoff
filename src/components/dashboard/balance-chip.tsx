@@ -3,7 +3,7 @@
 /**
  * BalanceChip — role-aware live balance pill that sits in the topbar.
  *
- *   Brand   → "₹50,000 · ⚡120"   → links to /brand/wallet
+ *   Brand   → "⚡120 credits"      → links to /brand/credits
  *   Creator → "₹12,400 available" → links to /creator/earnings
  *   Admin   → null (no balance concept for admin)
  *
@@ -44,7 +44,7 @@ export function BalanceChip({ role }: Props) {
     // For both roles, /api/dashboard/stats is the LEGACY source — its
     // walletBalance reads from the sealed wallet_transactions_archive table
     // and is effectively always 0 / stale. The live numbers live in:
-    //   - brand   → /api/billing/balance       (v_brand_billing view)
+    //   - brand   → /api/billing/balance       (v_brand_billing view, credits only)
     //   - creator → /api/earnings/dashboard    (v_creator_dashboard view)
     // The stats route is only kept for activeCampaigns / pendingApprovals.
     async function load() {
@@ -64,8 +64,6 @@ export function BalanceChip({ role }: Props) {
         const data = (await liveRes.json()) as {
           // brand
           credits_remaining?: number;
-          wallet_available_paise?: number;
-          wallet_balance_paise?: number;
           // creator
           available_paise?: number;
         };
@@ -73,11 +71,6 @@ export function BalanceChip({ role }: Props) {
         if (role === "brand") {
           if (typeof data.credits_remaining === "number") {
             setCredits(data.credits_remaining);
-          }
-          if (typeof data.wallet_available_paise === "number") {
-            setWalletPaise(data.wallet_available_paise);
-          } else if (typeof data.wallet_balance_paise === "number") {
-            setWalletPaise(data.wallet_balance_paise);
           }
         } else if (role === "creator") {
           if (typeof data.available_paise === "number") {
@@ -108,18 +101,16 @@ export function BalanceChip({ role }: Props) {
   if (role === "brand") {
     return (
       <Link
-        href="/brand/wallet"
+        href="/brand/credits"
         className="hidden h-9 shrink-0 items-center gap-2 rounded-lg border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/8 px-3 text-[12px] font-700 text-[var(--color-foreground)] transition-all hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/15 md:flex"
-        aria-label="Wallet and credits"
+        aria-label="Credits balance"
       >
-        <Wallet className="h-3.5 w-3.5 text-[var(--color-primary)]" />
-        <span className="font-display tracking-tight">
-          {walletPaise === null ? "—" : formatINR(walletPaise)}
-        </span>
-        <span className="h-3 w-px bg-[var(--color-border)]" />
         <Zap className="h-3.5 w-3.5 text-[var(--color-primary)]" />
         <span className="font-display tabular-nums">
           {credits === null ? "—" : credits.toLocaleString("en-IN")}
+        </span>
+        <span className="font-display tracking-tight text-[11px] text-[var(--color-muted-foreground)]">
+          credits
         </span>
       </Link>
     );

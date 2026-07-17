@@ -3,11 +3,16 @@
  *
  * Chunk E rewrite — removes Inngest, adds direct Replicate webhook dispatch.
  *
+ * Not reachable from any live UI — the /dashboard/campaigns/* tree that
+ * called this is 308-redirected away before it renders (legacy-redirects.ts),
+ * and /api/campaigns/create (the other historical entry point) is a 410
+ * Gone stub. Kept only as a Replicate-provider kill-switch fallback.
+ *
  * Flow:
  *   Auth → Validate body → Resolve brand/creator → Resolve pricing →
  *   Anti-fraud rate limit → 3-layer compliance check →
- *   Two-layer billing preflight → Prompt assembly →
- *   Insert generation row → Atomic billing (deduct credit + reserve wallet) →
+ *   Credits preflight → Prompt assembly →
+ *   Insert generation row → Deduct credit →
  *   Submit to Replicate with webhook URL → Return 202
  */
 
@@ -18,9 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   deductCredit,
-  reserveWallet,
   getCredits,
-  getWallet,
   computeRate,
   BillingError,
 } from "@/lib/billing";
@@ -285,28 +288,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // 10b. Wallet check
-  let walletInfo: Awaited<ReturnType<typeof getWallet>>;
-  try {
-    walletInfo = await getWallet(brand.id);
-  } catch (err) {
-    console.error("[generations/create] getWallet failed:", err);
-    return NextResponse.json(
-      { error: "Could not read wallet balance" },
-      { status: 500 },
-    );
-  }
-
-  if (walletInfo.available < rate.total_paise) {
-    return NextResponse.json(
-      {
-        error: "low_wallet",
-        required: rate.total_paise,
-        available: walletInfo.available,
-      },
-      { status: 402 },
-    );
-  }
 
   // ── 11. Prompt assembly ───────────────────────────────────────────────────────
   // Build brief shape compatible with assemblePromptWithLLM's StructuredBrief.
@@ -443,31 +424,6 @@ export async function POST(request: Request) {
     }
     console.error("[generations/create] deductCredit failed:", err);
     return NextResponse.json({ error: "Billing error — credit deduction failed" }, { status: 402 });
-  }
-
-  // 14b. Reserve wallet (creator fee escrow)
-  try {
-    await reserveWallet({
-      brandId: brand.id,
-      amountPaise: rate.total_paise,
-      generationId,
-    });
-  } catch (err) {
-    // Roll back: delete the generation row, then attempt credit rollback.
-    await admin.from("generations").delete().eq("id", generationId);
-    await rollbackCredit(brand.id, generationId);
-    if (err instanceof BillingError && err.code === "INSUFFICIENT_WALLET") {
-      return NextResponse.json(
-        {
-          error: "low_wallet",
-          required: rate.total_paise,
-          available: walletInfo.available,
-        },
-        { status: 402 },
-      );
-    }
-    console.error("[generations/create] reserveWallet failed:", err);
-    return NextResponse.json({ error: "Billing error — wallet reservation failed" }, { status: 402 });
   }
 
   // ── 15. Dispatch image generation ─────────────────────────────────────────

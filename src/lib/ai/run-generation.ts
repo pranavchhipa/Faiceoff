@@ -17,20 +17,17 @@
  *   7. Upload result to R2
  *   8. Insert approval row (48h expiry) + flip generation to ready_for_approval
  *
- * Failure paths:
- *   - Gemini hard-fails → status='failed', releaseReserve, rollback credit
+ * Failure paths (all refund the deducted credit, since zero image was
+ * produced — see rollbackCreditSafe, idempotent per generation_id):
+ *   - Compliance block / face-ref fetch / Gemini / R2 upload failure →
+ *     status='failed', credit refunded
  *   - Hive flags unsafe → status='failed' (no refund — admin decides)
- *   - R2 / fetch / DB error → status='failed' (manual replay)
  */
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  releaseReserve,
-  reserveWallet,
-  deductCredit,
-} from "@/lib/billing";
+import { deductCredit } from "@/lib/billing";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
 import { assemblePromptWithLLM, buildSceneDirectives } from "@/lib/ai/prompt-assembler";
@@ -245,7 +242,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     .update({ status: "generating" })
     .eq("id", generationId)
     .eq("status", "draft")
-    .select("id, brand_id, creator_id, structured_brief, cost_paise")
+    .select("id, brand_id, creator_id, structured_brief")
     .maybeSingle();
 
   if (claimError) {
@@ -263,13 +260,12 @@ export async function runGeneration(generationId: string): Promise<void> {
 
   const brandId = claimed.brand_id as string;
   const creatorId = claimed.creator_id as string;
-  const costPaise = (claimed.cost_paise as number) ?? 0;
   const brief = claimed.structured_brief as Record<string, unknown>;
 
-  // ── 1b. Charge brand: -1 credit + reserve wallet (if cost > 0) ───────────
-  // For free retries (cost_paise=0), we still deduct 1 credit but skip the
-  // wallet reserve. For first-of-its-kind retries (is_free_retry=true on the
-  // row), we skip both — those are truly free.
+  // ── 1b. Charge brand: -1 credit (skipped for free retries / collab gens) ─
+  // Collab-funded generations are billed at /api/collabs/[id]/generate (the
+  // single-pool source of truth) before this pipeline runs. Free retries
+  // (is_free_retry=true) are never charged at all.
   // ── Billing pre-charge: best-effort, never block the pipeline ─────────────
   // The billing RPCs (deduct_credit, reserve_wallet) live in Postgres and
   // are still being finalised — schema mismatches between code and DB
@@ -338,26 +334,6 @@ export async function runGeneration(generationId: string): Promise<void> {
       }
     }
 
-    if (costPaise > 0 && !isCollabGen) {
-      try {
-        await reserveWallet({
-          brandId,
-          amountPaise: costPaise,
-          generationId,
-        });
-      } catch (walletErr) {
-        // Soft-fail — same reasoning as above.
-        console.warn(
-          `[run-generation] reserveWallet soft-failed for gen=${generationId} — continuing without reserve`,
-          walletErr,
-        );
-        Sentry.captureException(walletErr, {
-          tags: { route: "run-generation", phase: "reserve_wallet" },
-          extra: { generation_id: generationId, brand_id: brandId, costPaise },
-          level: "warning",
-        });
-      }
-    }
   } catch (metaErr) {
     // Failure to read the gen row itself is fatal — that's a real bug.
     console.error(
@@ -397,13 +373,6 @@ export async function runGeneration(generationId: string): Promise<void> {
           })
           .eq("id", generationId);
         // Refund — the brief was rejected, not a fault of the AI
-        if (costPaise > 0) {
-          await releaseReserve({
-            brandId,
-            amountPaise: costPaise,
-            generationId,
-          }).catch(() => {});
-        }
         await rollbackCreditSafe(admin, brandId, generationId);
         return;
       }
@@ -420,23 +389,42 @@ export async function runGeneration(generationId: string): Promise<void> {
       });
     }
 
-    // ── 2. Pick + fetch face refs ───────────────────────────────────────────
-    const facePaths = await pickFaceRefStoragePaths(admin, creatorId);
-    const faceRefs: ImageInput[] = [];
-    for (const p of facePaths) {
-      const url = await signedUrlFor(admin, p);
-      faceRefs.push(await fetchImageBytes(url, `face ref ${p}`));
-    }
+    // ── 2+3. Pick + fetch face refs, fetch product image ────────────────────
+    // Own try/catch: at this point zero AI compute has run and zero image has
+    // been produced, so any failure here (expired signed URL, storage hiccup,
+    // dead product_image_url) is a known-refundable state — unlike the outer
+    // catch-all below, which can't tell how far the pipeline got.
+    let faceRefs: ImageInput[];
+    let productImageRaw: ImageInput;
+    try {
+      const facePaths = await pickFaceRefStoragePaths(admin, creatorId);
+      faceRefs = [];
+      for (const p of facePaths) {
+        const url = await signedUrlFor(admin, p);
+        faceRefs.push(await fetchImageBytes(url, `face ref ${p}`));
+      }
 
-    // ── 3. Fetch product image ──────────────────────────────────────────────
-    const productImageUrl = brief.product_image_url as string | undefined;
-    if (!productImageUrl) {
-      throw new Error("Brief is missing product_image_url");
+      const productImageUrl = brief.product_image_url as string | undefined;
+      if (!productImageUrl) {
+        throw new Error("Brief is missing product_image_url");
+      }
+      productImageRaw = await fetchImageBytes(productImageUrl, "product image");
+    } catch (refFetchErr) {
+      console.error(
+        `[run-generation] face-ref/product-image fetch failed for gen=${generationId}`,
+        refFetchErr,
+      );
+      Sentry.captureException(refFetchErr, {
+        tags: { route: "run-generation", phase: "fetch_refs" },
+        extra: { generation_id: generationId },
+      });
+      await admin
+        .from("generations")
+        .update({ status: "failed" })
+        .eq("id", generationId);
+      await rollbackCreditSafe(admin, brandId, generationId);
+      return;
     }
-    const productImageRaw = await fetchImageBytes(
-      productImageUrl,
-      "product image",
-    );
 
     // ── 3b. Phase 6c — 3-panel composite when label_bbox is present ────────
     // Gives Gemini a "full / label crop / wordmark detail" view of the same
@@ -533,20 +521,6 @@ export async function runGeneration(generationId: string): Promise<void> {
           assembled_prompt: assembledPrompt,
         })
         .eq("id", generationId);
-      if (costPaise > 0) {
-        try {
-          await releaseReserve({
-            brandId,
-            amountPaise: costPaise,
-            generationId,
-          });
-        } catch (refundErr) {
-          console.error(
-            `[run-generation] releaseReserve failed for gen=${generationId}`,
-            refundErr,
-          );
-        }
-      }
       await rollbackCreditSafe(admin, brandId, generationId);
       return;
     }
@@ -731,6 +705,7 @@ export async function runGeneration(generationId: string): Promise<void> {
           assembled_prompt: assembledPrompt,
         })
         .eq("id", generationId);
+      await rollbackCreditSafe(admin, brandId, generationId);
       return;
     }
 
@@ -890,34 +865,14 @@ export async function runIteration(generationId: string): Promise<void> {
   const productImageUrl = brief.product_image_url as string | undefined;
   const aspectRatio = (brief.aspect_ratio as string | undefined) ?? "1:1";
 
-  /** Refund the 1 credit charged at retry-route time. */
+  /**
+   * Refund the 1 credit charged at retry-route time. Delegates to the same
+   * atomic, idempotent-per-generation RPC used by runGeneration — a plain
+   * select+update here would lose an increment if two retries for the same
+   * brand fail around the same time.
+   */
   async function refundCredit() {
-    try {
-      const { data: brandRow } = await admin
-        .from("brands")
-        .select("credits_remaining")
-        .eq("id", brandId)
-        .maybeSingle();
-      const current = (brandRow?.credits_remaining ?? 0) as number;
-      await admin
-        .from("brands")
-        .update({ credits_remaining: current + 1 })
-        .eq("id", brandId);
-      await admin.from("credit_transactions").insert({
-        brand_id: brandId,
-        type: "refund",
-        credits: 1,
-        balance_after: current + 1,
-        reference_type: "generation",
-        reference_id: generationId,
-        description: "Retry failed — credit refunded",
-      });
-    } catch (err) {
-      console.error(
-        `[run-iteration] credit refund failed for gen=${generationId}`,
-        err,
-      );
-    }
+    await rollbackCreditSafe(admin, brandId, generationId);
   }
 
   /** Mark gen failed with a reason in compliance_result for audit. */

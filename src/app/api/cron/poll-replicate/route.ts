@@ -17,7 +17,6 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve, BillingError } from "@/lib/billing";
 
 function verifyCronSecret(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
@@ -209,28 +208,6 @@ async function refundGeneration(admin: any, gen: StuckGenRow): Promise<void> {
     .from("generations")
     .update({ status: "failed" })
     .eq("id", gen.id);
-
-  if (gen.brand_id && gen.cost_paise) {
-    try {
-      await releaseReserve({
-        brandId: gen.brand_id,
-        amountPaise: gen.cost_paise,
-        generationId: gen.id,
-      });
-    } catch (err) {
-      if (err instanceof BillingError) {
-        console.warn(
-          `[cron/poll-replicate] releaseReserve billing warn for gen ${gen.id}:`,
-          err.message,
-        );
-      } else {
-        console.error(
-          `[cron/poll-replicate] releaseReserve error for gen ${gen.id}:`,
-          err,
-        );
-      }
-    }
-  }
 }
 
 export async function GET(req: NextRequest) {

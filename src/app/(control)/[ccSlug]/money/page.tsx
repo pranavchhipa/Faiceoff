@@ -133,13 +133,10 @@ export default async function MoneyPage({ params }: Props) {
       async () => {
         const { data } = await admin
           .from("brands")
-          .select("wallet_balance_paise, wallet_reserved_paise");
-        return (data ?? []) as Array<{
-          wallet_balance_paise: number | null;
-          wallet_reserved_paise: number | null;
-        }>;
+          .select("credits_remaining");
+        return (data ?? []) as Array<{ credits_remaining: number | null }>;
       },
-      [] as Array<{ wallet_balance_paise: number | null; wallet_reserved_paise: number | null }>,
+      [] as Array<{ credits_remaining: number | null }>,
     ),
     safeQuery(
       async () => {
@@ -298,12 +295,8 @@ export default async function MoneyPage({ params }: Props) {
     ),
   ]);
 
-  const totalWallet = walletAgg.reduce(
-    (s, b) => s + (b.wallet_balance_paise ?? 0),
-    0,
-  );
-  const totalReserved = walletAgg.reduce(
-    (s, b) => s + (b.wallet_reserved_paise ?? 0),
+  const totalCreditsOutstanding = walletAgg.reduce(
+    (s, b) => s + (b.credits_remaining ?? 0),
     0,
   );
 
@@ -322,9 +315,9 @@ export default async function MoneyPage({ params }: Props) {
           </p>
           <div className="cc-grid cc-grid-4">
             <Kpi
-              label="Brand wallets"
-              value={fmt(totalWallet)}
-              sub={`${fmt(totalReserved)} reserved · ${walletAgg.length} brands`}
+              label="Credits outstanding"
+              value={totalCreditsOutstanding.toLocaleString("en-IN")}
+              sub={`across ${walletAgg.length} brands`}
             />
             <Kpi
               label="Escrow held"

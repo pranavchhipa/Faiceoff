@@ -4,7 +4,6 @@ import {
   Users,
   Megaphone,
   Coins,
-  Wallet,
   Library,
   FileSignature,
   Settings as SettingsIcon,
@@ -32,9 +31,9 @@ export interface NavItem {
  *  • "Vault" was renamed to "Library" — clearer noun for "your licensed
  *    asset collection". URL stays /brand/vault for now (route is unchanged
  *    to avoid breaking inbound links).
- *  • Wallet + Billing were two pages for the same data (single-pool credit
- *    model). Merged into one entry, "Wallet" — that page now shows balance,
- *    top-up, and recent transactions in a single view.
+ *  • No separate wallet step — brands buy credits directly via Razorpay
+ *    checkout on /brand/credits (also how a paid collab package tops up
+ *    the same pool). The older wallet-balance concept was removed.
  */
 export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Dashboard", short: "Home", href: "/brand/dashboard", icon: LayoutDashboard, group: "Work" },
@@ -44,7 +43,6 @@ export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Library", href: "/brand/vault", icon: Library, group: "Work" },
   { label: "Licenses", href: "/brand/licenses", icon: FileSignature, group: "Work" },
   { label: "Credits", href: "/brand/credits", icon: Coins, group: "Money" },
-  { label: "Wallet", href: "/brand/wallet", icon: Wallet, group: "Money" },
   { label: "Support", href: "/brand/support", icon: LifeBuoy, group: "Account" },
   { label: "Settings", href: "/brand/settings", icon: SettingsIcon, group: "Account" },
 ];

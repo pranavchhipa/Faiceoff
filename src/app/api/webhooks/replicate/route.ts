@@ -16,7 +16,6 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { releaseReserve } from "@/lib/billing";
 import { checkImage } from "@/lib/ai/hive-client";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 
@@ -223,7 +222,6 @@ export async function POST(request: Request) {
 
   const brandId = generation.brand_id as string;
   const creatorId = generation.creator_id as string;
-  const costPaise = (generation.cost_paise as number) ?? 0;
 
   // ── 6. Handle prediction.status === 'failed' ──────────────────────────────────
   if (predictionStatus === "failed" || predictionStatus === "canceled") {
@@ -232,20 +230,7 @@ export async function POST(request: Request) {
       .update({ status: "failed" })
       .eq("id", genId);
 
-    // Refund wallet reserve.
-    if (costPaise > 0) {
-      try {
-        await releaseReserve({
-          brandId,
-          amountPaise: costPaise,
-          generationId: genId,
-        });
-      } catch (err) {
-        console.error(`[webhooks/replicate] releaseReserve failed for gen_id=${genId}:`, err);
-      }
-    }
-
-    console.log(`[webhooks/replicate] Generation ${genId} failed — wallet reserve released`);
+    console.log(`[webhooks/replicate] Generation ${genId} failed`);
     return NextResponse.json({ ok: true, status: "failed" }, { status: 200 });
   }
 

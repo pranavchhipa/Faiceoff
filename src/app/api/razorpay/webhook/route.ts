@@ -15,10 +15,6 @@ import {
   verifyRazorpayWebhook,
   RazorpayWebhookSignatureError,
 } from "@/lib/payments/razorpay/webhook";
-import {
-  handleWalletTopUpSuccess,
-  handleWalletTopUpFailed,
-} from "@/app/api/wallet/handlers";
 import { addCredits } from "@/lib/billing/credits-service";
 import { sendBrandTopupReceipt } from "@/lib/email/transactional";
 import { signBrandAndActivate, renderAndStorePDF, notifyAgreementActivated } from "@/lib/agreements";
@@ -341,22 +337,22 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
           }
         }
       } else {
-        // Default: wallet top-up (notes.type === "wallet_top_up" or legacy)
-        await handleWalletTopUpSuccess(admin, { orderId, cfPaymentId: payment.id });
+        // Wallet top-up was removed — brands fund via /brand/credits
+        // (notes.type === "credit_top_up") or a paid collab package
+        // (notes.type === "collab_payment") only. Any other/legacy type
+        // here means a pre-removal order that never completed.
+        console.warn(
+          `[razorpay/webhook] unrecognized payment notes.type="${notes.type}" for order=${orderId} — no handler (wallet top-up removed)`,
+        );
       }
       return;
     }
 
     case "payment.failed": {
       if (!payment) return;
-      const orderId = payment.order_id;
-      const reason = payment.error_description ?? "payment_failed";
-      const notes = payment.notes ?? {};
-
-      if (notes.type !== "collab_payment") {
-        await handleWalletTopUpFailed(admin, { orderId, reason });
-      }
-      // For collab: request stays 'accepted', brand can retry payment
+      // Collab: request stays 'accepted', brand can retry payment.
+      // Credit top-up failures need no server-side action — the
+      // credit_top_ups row simply stays 'initiated' and the brand can retry.
       return;
     }
 

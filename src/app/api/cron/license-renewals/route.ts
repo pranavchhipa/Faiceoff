@@ -2,17 +2,22 @@
 // GET /api/cron/license-renewals
 //
 // Daily cron. Processes licenses expiring today:
-//   - auto_renew=true + sufficient wallet → renewLicense
-//   - auto_renew=true + insufficient wallet → audit log (future: email)
+//   - auto_renew=true → audit log for manual admin follow-up (see note below)
 //   - auto_renew=false → mark expired
+//
+// The wallet top-up flow (brands' only automated INR funding source for a
+// renewal charge) was removed — auto_renew has had no live UI to set it
+// since the licenses-page toggle was removed, but any license row with
+// auto_renew=true from before that change would otherwise silently 500 here
+// on a missing getWallet(). Flagged for manual admin handling instead.
 //
 // Called by Vercel Cron. Protected by CRON_SECRET bearer token.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getExpiringSoon, renewLicense, LicenseError } from "@/lib/licenses";
-import { getWallet, BillingError } from "@/lib/billing";
+import { getExpiringSoon, LicenseError } from "@/lib/licenses";
+import { BillingError } from "@/lib/billing";
 import type { License } from "@/lib/licenses";
 
 function verifyCronSecret(req: NextRequest): boolean {
@@ -59,38 +64,19 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // auto_renew=true — check wallet balance
+    // auto_renew=true — no automated INR funding source exists anymore
+    // (wallet removed). Flag for manual admin review instead of renewing.
     try {
-      const wallet = await getWallet(license.brand_id);
-      const renewalCost = license.amount_paid_paise;
-
-      if (wallet.available < renewalCost) {
-        // Insufficient funds — log and notify
-        insufficient++;
-        await admin.from("audit_log").insert({
-          actor_type: "system",
-          action: "license_renewal_insufficient_funds",
-          resource_type: "license",
-          resource_id: license.id,
-          meta: {
-            brand_id: license.brand_id,
-            available_paise: wallet.available,
-            required_paise: renewalCost,
-          },
-        });
-        continue;
-      }
-
-      // Sufficient — renew
-      await renewLicense({ licenseId: license.id });
-      renewed++;
-
+      insufficient++;
       await admin.from("audit_log").insert({
         actor_type: "system",
-        action: "license_auto_renewed",
+        action: "license_renewal_needs_manual_review",
         resource_type: "license",
         resource_id: license.id,
-        meta: { brand_id: license.brand_id, cost_paise: renewalCost },
+        meta: {
+          brand_id: license.brand_id,
+          required_paise: license.amount_paid_paise,
+        },
       });
     } catch (err) {
       if (err instanceof LicenseError || err instanceof BillingError) {

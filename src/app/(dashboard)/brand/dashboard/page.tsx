@@ -8,7 +8,6 @@ import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
 import {
   ArrowRight,
   ArrowUpRight,
-  Wallet,
   Layers,
   Sparkles,
   Users,
@@ -37,7 +36,6 @@ interface BrandStats {
   activeCollabs?: number;
   totalCampaigns: number;
   totalGenerations: number;
-  walletBalance: number; // paise
   approvalRate?: number | null;
 }
 
@@ -65,16 +63,6 @@ interface VaultItem {
   brief?: Record<string, unknown> | null;
 }
 
-/* ───────── Utilities ───────── */
-
-function formatINR(paise: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
-}
 
 function relativeFrom(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -156,8 +144,6 @@ export default function BrandDashboardPage() {
   >("/api/collabs", { enabled });
 
   const { data: billingData, loading: billingLoading } = useCachedFetch<{
-    wallet_available_paise?: number;
-    wallet_balance_paise?: number;
     credits_remaining?: number;
   }>("/api/billing/balance", { enabled });
 
@@ -170,12 +156,6 @@ export default function BrandDashboardPage() {
 
   const profile: BrandProfile | null = statsData?.brand ?? null;
 
-  const liveWalletPaise: number | null =
-    typeof billingData?.wallet_available_paise === "number"
-      ? billingData.wallet_available_paise
-      : typeof billingData?.wallet_balance_paise === "number"
-        ? billingData.wallet_balance_paise
-        : null;
   const liveCredits: number | null =
     typeof billingData?.credits_remaining === "number"
       ? billingData.credits_remaining
@@ -187,10 +167,9 @@ export default function BrandDashboardPage() {
       activeCollabs: statsData?.stats?.activeCollabs,
       totalCampaigns: statsData?.stats?.totalCampaigns ?? 0,
       totalGenerations: statsData?.stats?.totalGenerations ?? 0,
-      walletBalance: liveWalletPaise ?? statsData?.stats?.walletBalance ?? 0,
       approvalRate: statsData?.stats?.approvalRate ?? null,
     }),
-    [statsData, liveWalletPaise],
+    [statsData],
   );
 
   const series: number[] = useMemo(
@@ -217,7 +196,6 @@ export default function BrandDashboardPage() {
   );
 
   const creditsBalance = liveCredits ?? 0;
-  const walletPaise = stats.walletBalance;
   const activeCount = stats.activeCollabs ?? stats.activeCampaigns;
   const company = profile?.company_name?.trim() || "there";
 
@@ -278,14 +256,14 @@ export default function BrandDashboardPage() {
       {/* ── METRIC STRIP ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard delay={0.06} lead>
-          <MetricHead icon={<Wallet className="h-[18px] w-[18px]" />} lead />
-          <MetricValue>{formatINR(walletPaise)}</MetricValue>
-          <MetricLabel>Wallet balance</MetricLabel>
+          <MetricHead icon={<Sparkles className="h-[18px] w-[18px]" />} lead />
+          <MetricValue>{creditsBalance.toLocaleString("en-IN")}</MetricValue>
+          <MetricLabel>Credits remaining</MetricLabel>
           <Link
-            href="/brand/wallet"
+            href="/brand/credits"
             className="mt-3 inline-flex items-center gap-1 text-[12px] font-700 text-[var(--color-primary)]"
           >
-            Top up <ArrowUpRight className="h-3.5 w-3.5" />
+            Buy credits <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </MetricCard>
 
@@ -558,35 +536,27 @@ export default function BrandDashboardPage() {
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
             <div className="mb-4 flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
-                <Wallet className="h-4 w-4" strokeWidth={2.4} />
+                <Sparkles className="h-4 w-4" strokeWidth={2.4} />
               </div>
               <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
-                Wallet
+                Credits
               </p>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[12.5px] text-[var(--color-muted-foreground)]">
-                  Available balance
-                </span>
-                <span className="font-display font-800 text-[16px] text-[var(--color-foreground)]">
-                  {formatINR(walletPaise)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-3">
-                <span className="text-[12.5px] text-[var(--color-muted-foreground)]">
                   Credits remaining
                 </span>
-                <span className="font-display font-700 text-[14px] text-[var(--color-foreground)]">
+                <span className="font-display font-800 text-[16px] text-[var(--color-foreground)]">
                   {creditsBalance.toLocaleString("en-IN")}
                 </span>
               </div>
             </div>
             <Link
-              href="/brand/wallet"
+              href="/brand/credits"
               className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] py-2.5 text-[12.5px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
             >
-              Top up wallet <ArrowUpRight className="h-3.5 w-3.5" />
+              Buy credits <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 

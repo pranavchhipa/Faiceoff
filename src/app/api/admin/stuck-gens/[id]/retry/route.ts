@@ -1,13 +1,21 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/admin/stuck-gens/[id]/retry
 //
-// Re-submits a stuck generation to Replicate using its stored assembled_prompt.
-// Creates a new Replicate prediction and updates replicate_prediction_id.
+// Re-dispatches a stuck generation through the live Gemini pipeline: resets
+// status to 'draft' (the pipeline's atomic claim only accepts draft→generating)
+// and re-invokes runGeneration(). No credit/wallet change — this is a replay
+// of the same already-billed attempt, not a new one.
+//
+// Previously resubmitted to Replicate — dead code against the live provider,
+// which is Gemini (run-generation.ts). Replicate submission removed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { runGeneration } from "@/lib/ai/run-generation";
+
+const STUCK_STATUSES = ["generating", "compliance_check", "output_check", "draft"];
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -40,7 +48,7 @@ export async function POST(
   // Fetch the stuck generation
   const { data: gen, error: genErr } = await admin
     .from("generations")
-    .select("id, status, assembled_prompt, structured_brief")
+    .select("id, status")
     .eq("id", generationId)
     .maybeSingle();
 
@@ -53,72 +61,34 @@ export async function POST(
     return NextResponse.json({ error: "generation_not_found" }, { status: 404 });
   }
 
-  if (gen.status !== "processing") {
+  if (!STUCK_STATUSES.includes(gen.status)) {
     return NextResponse.json(
-      { error: "generation_not_processing", current_status: gen.status },
+      { error: "generation_not_stuck", current_status: gen.status },
       { status: 409 },
     );
   }
 
-  if (!gen.assembled_prompt) {
-    return NextResponse.json(
-      { error: "no_assembled_prompt — cannot retry without prompt" },
-      { status: 422 },
-    );
-  }
-
-  // Submit new Replicate prediction
-  const replicateToken = process.env.REPLICATE_API_TOKEN;
-  if (!replicateToken) {
-    return NextResponse.json({ error: "REPLICATE_API_TOKEN not set" }, { status: 500 });
-  }
-
-  // Submit to Replicate using Flux Kontext Max (LoRA path retired in 00026).
-  let replicatePredictionId: string;
-  try {
-    const model =
-      process.env.REPLICATE_KONTEXT_MODEL ?? "black-forest-labs/flux-kontext-max";
-    const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${replicateToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input: {
-          prompt: gen.assembled_prompt,
-          num_outputs: 1,
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Replicate ${res.status}: ${errBody}`);
-    }
-
-    const prediction = await res.json() as { id: string };
-    replicatePredictionId = prediction.id;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[admin/stuck-gens/retry] Replicate submission failed:", message);
-    return NextResponse.json({ error: `replicate_error: ${message}` }, { status: 502 });
-  }
-
-  // Update generation with new prediction ID (keep status=processing)
+  // Reset to 'draft' so runGeneration's atomic draft→generating claim accepts it.
   const { error: updateErr } = await admin
     .from("generations")
-    .update({
-      replicate_prediction_id: replicatePredictionId,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status: "draft", updated_at: new Date().toISOString() })
     .eq("id", generationId);
 
   if (updateErr) {
-    console.error("[admin/stuck-gens/retry] update error:", updateErr);
-    // Still return success — Replicate job is running
-    console.warn("[admin/stuck-gens/retry] Could not persist new prediction ID");
+    console.error("[admin/stuck-gens/retry] status reset error:", updateErr);
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
+
+  after(async () => {
+    try {
+      await runGeneration(generationId);
+    } catch (err) {
+      console.error(
+        `[admin/stuck-gens/retry] runGeneration replay failed for gen=${generationId}`,
+        err,
+      );
+    }
+  });
 
   // Audit log
   await admin.from("audit_log").insert({
@@ -127,8 +97,8 @@ export async function POST(
     action: "admin_stuck_gen_retry",
     resource_type: "generation",
     resource_id: generationId,
-    meta: { replicate_prediction_id: replicatePredictionId },
+    meta: {},
   });
 
-  return NextResponse.json({ replicate_prediction_id: replicatePredictionId });
+  return NextResponse.json({ status: "requeued" });
 }
