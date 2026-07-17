@@ -100,21 +100,22 @@ export async function POST(
   // /api/collabs/[id]/generate deducted BOTH counters at generate time, so a
   // discard must restore BOTH. Best-effort — log + Sentry on failure, never
   // crash the discard (the status flip already succeeded).
+  //
+  // Uses the atomic add_credits_manual RPC (00038_admin_credit_rpcs.sql) —
+  // a plain select-then-update here would lose an increment if a brand has
+  // two generations discarded in quick succession, and writes the
+  // credit_transactions ledger row with the correct column names
+  // (amount_paise/balance_after_paise) plus built-in idempotency.
   if (collabSessionId) {
     try {
-      // 1. Refund global wallet (brands.credits_remaining += 1)
-      const { data: brandRow } = await admin
-        .from("brands")
-        .select("credits_remaining")
-        .eq("id", brandId)
-        .maybeSingle();
-      const currentCredits = (brandRow?.credits_remaining ?? 0) as number;
-      const newBalance = currentCredits + 1;
-
-      await admin
-        .from("brands")
-        .update({ credits_remaining: newBalance })
-        .eq("id", brandId);
+      // 1. Atomic credit refund + ledger row.
+      await admin.rpc("add_credits_manual", {
+        p_brand_id: brandId,
+        p_credits: 1,
+        p_bonus: 0,
+        p_source: "brand_discard",
+        p_reference_id: id,
+      });
 
       // 2. Decrement the per-collab counter (gen_credits_used -= 1), floored at 0.
       const { data: sessionRow } = await admin
@@ -127,17 +128,6 @@ export async function POST(
         .from("collab_sessions")
         .update({ gen_credits_used: Math.max(0, currentUsed - 1) })
         .eq("id", collabSessionId);
-
-      // 3. Audit ledger row.
-      await admin.from("credit_transactions").insert({
-        brand_id: brandId,
-        type: "refund",
-        credits: 1,
-        balance_after: newBalance,
-        reference_type: "generation",
-        reference_id: id,
-        description: "Discarded at brand review — iteration refunded",
-      });
 
       creditRefunded = true;
     } catch (err) {

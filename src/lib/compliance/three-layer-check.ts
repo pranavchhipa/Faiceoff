@@ -139,6 +139,15 @@ const PILL_FIELD_GROUPS: Record<string, readonly PillOption[]> = {
  * contributes "Mumbai chai stall" to the scanned text.
  */
 function briefToText(brief: ComplianceInput['structuredBrief']): string {
+  // Defensive: a malformed/null structured_brief (e.g. a bad DB row) must not
+  // throw here — this is Layer 1, a pure DB query whose errors are meant to
+  // be fatal/propagate, so a thrown TypeError from a missing brief would be
+  // caught by run-generation.ts's broader "fail-open on transient errors"
+  // handler and silently bypass ALL three compliance layers. Returning an
+  // empty string instead lets Layer 1's keyword scan run (finding nothing,
+  // correctly) and Layers 2-3 proceed normally.
+  if (!brief || typeof brief !== 'object') return '';
+
   const parts: string[] = [];
 
   if (typeof brief.product_name === 'string' && brief.product_name) {

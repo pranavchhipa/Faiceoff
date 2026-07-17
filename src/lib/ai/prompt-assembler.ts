@@ -376,7 +376,12 @@ interface StructuredBrief {
 
 /**
  * Assemble a professional prompt from a structured brief using an LLM.
- * Falls back to simple concatenation if LLM call fails.
+ * Throws on failure — the caller (run-generation.ts) has its own fallback
+ * that reads the CURRENT brief schema (product_name/setting/mood_palette).
+ * A local fallback used to live here too, but it read stale v1 field names
+ * (style/subject/pose/outfit/props/notes) that don't exist on the brief
+ * anymore, silently degrading every LLM-outage generation to a near-generic
+ * prompt while making the caller's correct fallback unreachable dead code.
  *
  * Phase 5.3 — optional `generationId` plumbs through to chatCompletion so
  * the prompt-assembly call lands in `generation_costs` with the right
@@ -385,7 +390,7 @@ interface StructuredBrief {
 export async function assemblePromptWithLLM(
   brief: StructuredBrief,
   generationId?: string | null,
-): Promise<{ prompt: string; method: "llm" | "fallback" }> {
+): Promise<{ prompt: string; method: "llm" }> {
   // Build the user message from brief fields
   const briefLines = briefToAssemblerLines(brief as Record<string, unknown>);
   // Back-compat: if caller still passes loose v1 fields, merge those too.
@@ -427,35 +432,10 @@ export async function assemblePromptWithLLM(
       return { prompt: llmPrompt, method: "llm" };
     }
 
-    // LLM returned empty/short — fall back
-    return { prompt: buildFallbackPrompt(brief), method: "fallback" };
+    // LLM returned empty/short — let the caller's fallback handle it.
+    throw new Error("LLM returned an empty or too-short prompt");
   } catch (error) {
-    console.error("[prompt-assembler] LLM call failed, using fallback:", error);
-    return { prompt: buildFallbackPrompt(brief), method: "fallback" };
+    console.error("[prompt-assembler] LLM call failed:", error);
+    throw error;
   }
-}
-
-/**
- * Simple string concatenation fallback (used when LLM is unavailable).
- */
-function buildFallbackPrompt(brief: StructuredBrief): string {
-  const parts: string[] = [];
-
-  if (brief.style) parts.push(`A ${brief.style}`);
-  if (brief.setting) parts.push(`${brief.setting}`);
-  parts.push(`photo of ${brief.subject ?? "the creator"}`);
-  if (brief.pose) parts.push(String(brief.pose).toLowerCase());
-  if (brief.expression)
-    parts.push(`with a ${brief.expression} expression`);
-  if (brief.outfit) parts.push(`wearing ${brief.outfit}`);
-  if (brief.product_name)
-    parts.push(`, showcasing ${brief.product_name}`);
-  if (brief.product_description)
-    parts.push(`(${brief.product_description})`);
-  if (brief.props) parts.push(String(brief.props));
-  if (brief.notes) parts.push(`. ${brief.notes}`);
-
-  parts.push(", professional lighting, 8K, commercial photography");
-
-  return parts.join(" ").replace(/\s{2,}/g, " ") || "portrait photo";
 }
