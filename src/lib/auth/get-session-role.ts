@@ -64,71 +64,51 @@ export async function getSessionRole(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { userId: null, role: null, onboardingComplete: true, refreshedResponse: response };
 
-  // Use service-role client for the role lookup so RLS misconfiguration on
-  // public.users can never silently strip the role and lock users out of
-  // their own dashboard. We've already authenticated the user via getUser()
-  // above, so reading their own role row with elevated privileges is safe.
+  // One service-role client, reused for the role + onboarding lookups (was
+  // creating 2-3 fresh clients per request). Service role is used so an RLS
+  // misconfiguration on public.users can never silently strip the role and
+  // lock users out — we've already authenticated via getUser() above.
   const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  let role: Role | null = null;
-  let roleError: string | null = null;
-  if (adminUrl && serviceKey) {
-    const admin = createSupabaseClient(adminUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data: row, error } = await admin
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    role = resolveRoleFromUserRow(row as { role?: string | null } | null);
-    roleError = error?.message ?? null;
-  } else {
-    // Fallback to anon client (RLS-gated) if service key isn't configured —
-    // mostly relevant for local dev environments that haven't set it.
-    const { data: row, error } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    role = resolveRoleFromUserRow(row as { role?: string | null } | null);
-    roleError = error?.message ?? null;
-  }
+  const admin =
+    adminUrl && serviceKey
+      ? createSupabaseClient(adminUrl, serviceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+      : null;
 
+  const roleClient = admin ?? supabase; // anon fallback for local dev
+  const { data: row, error: roleError } = await roleClient
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  const role = resolveRoleFromUserRow(row as { role?: string | null } | null);
   if (roleError) {
-    console.error(`[get-session-role] role lookup failed for ${user.id}: ${roleError}`);
+    console.error(`[get-session-role] role lookup failed for ${user.id}: ${roleError.message}`);
   }
 
-  // Onboarding gate — check completion status for creator/brand
-  // Admins are always considered complete.
+  // Onboarding gate — check completion status for creator/brand.
+  // Admins are always considered complete. Fail open on any error.
   let onboardingComplete = true;
-  if (role === "creator" && adminUrl && serviceKey) {
+  if (admin && role === "creator") {
     try {
-      const admin2 = createSupabaseClient(adminUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { data: creator } = await admin2
+      const { data: creator } = await admin
         .from("creators")
         .select("onboarding_step")
         .eq("user_id", user.id)
         .maybeSingle();
-      // "complete" step means done; anything else (or missing row) = gate them
       onboardingComplete = creator?.onboarding_step === "complete";
     } catch {
-      // Fail open — never block the user due to a lookup error
       onboardingComplete = true;
     }
-  } else if (role === "brand" && adminUrl && serviceKey) {
+  } else if (admin && role === "brand") {
     try {
-      const admin2 = createSupabaseClient(adminUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { data: brand } = await admin2
+      const { data: brand } = await admin
         .from("brands")
         .select("company_name")
         .eq("user_id", user.id)
         .maybeSingle();
-      // Brand is onboarded when company_name is filled in
       onboardingComplete = Boolean(brand?.company_name);
     } catch {
       onboardingComplete = true;

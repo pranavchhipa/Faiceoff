@@ -25,24 +25,27 @@ export async function GET() {
 
   const admin = createAdminClient();
 
+  // user / creator / brand in parallel (one round-trip). The old code fetched
+  // the creator row TWICE (once here, once nested inside the photo-count query)
+  // — now we fetch it once and reuse its id for the count.
   const [
     { data: publicUser },
     { data: creator },
     { data: brand },
-    { data: photoCount },
   ] = await Promise.all([
-    admin
-      .from("users")
-      .select("id, email, role, display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
+    admin.from("users").select("id, email, role, display_name").eq("id", user.id).maybeSingle(),
     admin.from("creators").select("id, onboarding_step").eq("user_id", user.id).maybeSingle(),
     admin.from("brands").select("id, company_name").eq("user_id", user.id).maybeSingle(),
-    admin
+  ]);
+
+  let photoCount = 0;
+  if (creator?.id) {
+    const { count } = await admin
       .from("creator_reference_photos")
       .select("id", { count: "exact", head: true })
-      .eq("creator_id", (await admin.from("creators").select("id").eq("user_id", user.id).maybeSingle()).data?.id ?? "00000000-0000-0000-0000-000000000000"),
-  ]);
+      .eq("creator_id", creator.id);
+    photoCount = count ?? 0;
+  }
 
   return cachedJson(
     {

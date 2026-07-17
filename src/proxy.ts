@@ -21,23 +21,10 @@ export async function proxy(request: NextRequest) {
 
   const target = decideRedirect(pathname, role, onboardingComplete);
 
-  // Debug logging — temporary, remove once login flow is stable.
-  // Skip noisy paths to keep Vercel logs readable.
-  const isNoisy =
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/api/health") ||
-    pathname.endsWith(".ico") ||
-    pathname.endsWith(".png") ||
-    pathname.endsWith(".svg");
-  if (!isNoisy) {
-    const sbCookieNames = request.cookies
-      .getAll()
-      .filter((c) => c.name.startsWith("sb-"))
-      .map((c) => c.name);
-    console.log(
-      `[proxy] ${pathname} userId=${userId ?? "null"} role=${role ?? "null"} target=${target ?? "passthrough"} sbCookies=[${sbCookieNames.join(",")}]`,
-    );
-  }
+  // (Removed the per-request debug console.log — it ran on every navigation +
+  // API call, adding overhead and noise to Vercel logs. userId is still
+  // available above if focused debugging is needed.)
+  void userId;
 
   if (!target) return refreshedResponse ?? response;
 

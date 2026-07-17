@@ -15,6 +15,17 @@ import type { Session, User, SupabaseClient } from "@supabase/supabase-js";
 
 type Role = "creator" | "brand" | "admin" | null;
 
+/**
+ * Best-effort role from the auth user's metadata (set at signup). Used ONLY as
+ * a fallback so the app never hangs on the loading skeleton when /api/whoami is
+ * slow, fails, or (edge case) resolves a brand-new user to null before their
+ * creator/brand row is visible. Not authoritative — whoami still corrects it.
+ */
+function metaRole(u: User | null): Role {
+  const r = (u?.user_metadata as { role?: string } | undefined)?.role;
+  return r === "brand" || r === "creator" || r === "admin" ? r : null;
+}
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
@@ -179,11 +190,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Slow path: no cache — fetch whoami and show spinner until resolved
+    // Slow path: no cache — fetch whoami and show spinner until resolved.
+    // Hard timeout (8s) + metadata fallback so a slow/hung whoami or a
+    // brand-new user whose row isn't visible yet can NEVER trap the user on
+    // the loading skeleton forever (was the "onboarding stuck >1min" bug).
     let cancelled = false;
     (async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
       try {
-        const res = await fetch("/api/whoami");
+        const res = await fetch("/api/whoami", { signal: controller.signal });
         if (!res.ok) throw new Error(`whoami ${res.status}`);
         const data = (await res.json()) as {
           loggedIn: boolean;
@@ -198,16 +214,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (data.has_creator_row) resolved = "creator";
         else if (data.public_users_row?.role === "brand") resolved = "brand";
         else if (data.public_users_row?.role === "creator") resolved = "creator";
+        // Never leave a logged-in user role-less: fall back to signup metadata.
+        if (!resolved) resolved = metaRole(user);
         setRole(resolved);
         setRoleResolvedForUserId(user.id);
-        writeRoleCache(user.id, resolved);
+        if (resolved) writeRoleCache(user.id, resolved);
       } catch (err) {
-        console.error("[auth-provider] role resolve failed", err);
+        console.error("[auth-provider] role resolve failed/slow", err);
         if (!cancelled) {
-          setRole(null);
-          // Mark as resolved (to failure) so UI stops hanging on spinner
+          // Timed out or errored — render the app using the metadata role so
+          // the user is never dropped on an endless skeleton.
+          setRole(metaRole(user));
           setRoleResolvedForUserId(user.id);
         }
+      } finally {
+        clearTimeout(timer);
       }
     })();
     return () => {
