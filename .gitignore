@@ -54,3 +54,6 @@ STITCH_UI_PROMPT.md
 # claude config (local only)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Generated reference-photo gallery (contains signed URLs to private creator photos)
+reference-photos-gallery.html
