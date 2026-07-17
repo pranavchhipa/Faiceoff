@@ -43,23 +43,26 @@ export async function markPayoutPaid(formData: FormData): Promise<void> {
 
   const admin = createAdminClient() as Admin;
 
-  const { data: payout } = await admin
-    .from("creator_payouts")
-    .select("id, creator_id, net_amount_paise, status")
-    .eq("id", payoutId)
-    .maybeSingle();
-  if (!payout) return;
-  if (payout.status === "success") return; // idempotent
-
   const nowIso = new Date().toISOString();
-  await admin
+
+  // Atomic conditional transition: only a payout still in requested/processing
+  // can be marked paid. This closes two races — (a) a stale "Mark paid" form
+  // submitted after the payout was already rejected (whose escrow was
+  // released back to the creator's available pool, so paying it now would
+  // let the creator claim the same earnings twice), and (b) two concurrent
+  // "Mark paid" clicks both racing past a read-then-write check.
+  const { data: payout } = await admin
     .from("creator_payouts")
     .update({
       status: "success",
       cf_transfer_id: utr || null,
       completed_at: nowIso,
     })
-    .eq("id", payoutId);
+    .eq("id", payoutId)
+    .in("status", ["requested", "processing"])
+    .select("id, creator_id, net_amount_paise")
+    .maybeSingle();
+  if (!payout) return; // already terminal (paid/rejected) or doesn't exist
 
   // On success the escrow rows stay linked to this payout (permanently
   // consumed) so the creator's available balance does not include them again.
@@ -94,22 +97,23 @@ export async function rejectPayout(formData: FormData): Promise<void> {
 
   const admin = createAdminClient() as Admin;
 
-  const { data: payout } = await admin
-    .from("creator_payouts")
-    .select("id, creator_id, status")
-    .eq("id", payoutId)
-    .maybeSingle();
-  if (!payout || payout.status === "success") return;
-
   const nowIso = new Date().toISOString();
-  await admin
+
+  // Same atomic-conditional-transition guard as markPayoutPaid — a stale
+  // reject submitted after the payout was already marked paid must not
+  // release escrow that's now correctly consumed.
+  const { data: payout } = await admin
     .from("creator_payouts")
     .update({
       status: "failed",
       failure_reason: reason || "Payout could not be processed. Please check your bank details.",
       completed_at: nowIso,
     })
-    .eq("id", payoutId);
+    .eq("id", payoutId)
+    .in("status", ["requested", "processing"])
+    .select("id, creator_id")
+    .maybeSingle();
+  if (!payout) return; // already terminal or doesn't exist
 
   // Release the locked escrow rows → funds return to the creator's available pot.
   await admin
