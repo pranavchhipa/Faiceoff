@@ -153,8 +153,8 @@ export default function ApprovalsPage() {
 
     try {
       // Hits the canonical approval endpoint which keyed by approval.id.
-      // The route handles spendWallet / releaseReserve / escrow_ledger /
-      // platform_revenue_ledger / license issuance internally.
+      // The route handles escrow_ledger / platform_revenue_ledger / license
+      // issuance internally.
       const endpoint =
         action === "approve"
           ? `/api/approvals/${approvalId}/approve`

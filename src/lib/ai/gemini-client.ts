@@ -12,7 +12,7 @@
  * and storage.
  *
  * Has 1 inline retry on transient failure. On second failure, throws —
- * caller is responsible for refund (releaseReserve + rollbackCredit).
+ * caller is responsible for refund (rollbackCreditSafe in run-generation.ts).
  */
 
 import { GoogleGenAI, Modality } from "@google/genai";

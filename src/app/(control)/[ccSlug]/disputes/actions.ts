@@ -11,10 +11,11 @@
  * ── Money movement (read this before changing) ──────────────────────────────
  * A dispute is raised AFTER a generation already moved through the pipeline, so
  * by resolution time the generation is typically terminal (approved → escrow
- * released to the creator + license issued, OR rejected → wallet reserve
- * already released). There is no live wallet reservation to `releaseReserve`,
- * and clawing escrow back from a creator who has been paid is NOT safe to
- * automate. So we do NOT touch escrow_ledger / wallet reservations here.
+ * released to the creator + license issued, OR rejected → credit consumed with
+ * no refund). There is no wallet reservation of any kind (the wallet concept
+ * was removed — brands fund via credits only), and clawing escrow back from a
+ * creator who has been paid is NOT safe to automate. So we do NOT touch
+ * escrow_ledger here.
  *
  * For a 'refund' outcome we use the ONE established, safe money path in the
  * Control Centre: grant the brand back credits (mirrors
