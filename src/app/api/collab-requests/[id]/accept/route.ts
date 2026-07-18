@@ -65,11 +65,21 @@ export async function POST(
     return NextResponse.json({ error: "Request has expired" }, { status: 400 });
   }
 
-  // Transition to accepted
-  await admin
+  // Transition to accepted — atomic conditional claim so a double-click or
+  // network retry can't both pass the earlier status check and both fire the
+  // agreement-draft + brand notification/email below (the agreement insert
+  // itself is protected by a DB unique constraint, but the notification side
+  // effects here are not, so a race would double-email the brand).
+  const { data: claimed } = await admin
     .from("collab_requests")
     .update({ status: "accepted", decided_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (!claimed) {
+    return NextResponse.json({ error: "Request is already accepted" }, { status: 400 });
+  }
 
   // Draft the Collaboration Agreement + capture the creator's signature.
   // Synchronous (must exist before the brand can pay). Non-throwing.

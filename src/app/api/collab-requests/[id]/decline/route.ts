@@ -43,10 +43,19 @@ export async function POST(
     return NextResponse.json({ error: `Request is already ${req.status}` }, { status: 400 });
   }
 
-  await admin
+  // Atomic conditional claim — same reasoning as accept/route.ts: prevents a
+  // double-click/retry from both passing the earlier status check and both
+  // firing the brand notification email below.
+  const { data: claimed } = await admin
     .from("collab_requests")
     .update({ status: "declined", decline_reason: reason, decided_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (!claimed) {
+    return NextResponse.json({ error: "Request is already declined" }, { status: 400 });
+  }
 
   track("collab_request_declined", {
     request_id: req.id,

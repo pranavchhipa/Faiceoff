@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { toast } from "sonner";
 import { AgreementReviewModal } from "@/components/agreements/agreement-review-modal";
 
 interface CollabRequest {
@@ -158,7 +159,14 @@ export default function CreatorRequestsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
       });
-      if (res.ok) invalidateRequestsAndCounters();
+      if (res.ok) {
+        invalidateRequestsAndCounters();
+      } else {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.message ?? j.error ?? "Couldn't decline the request. Try again.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
     } finally { setActing(null); }
   }
 
