@@ -202,7 +202,7 @@ export async function POST(
     .update({ collab_session_id: session.id })
     .eq("id", requestId);
 
-  // ── Single-pool model: add package credits to brand's global wallet ──
+  // ── Single-pool model: add package credits to the brand's credit balance ──
   // The collab session still tracks gen_credits_total/used for per-collab cap,
   // but actual debit happens against brands.credits_remaining when generating.
   // Idempotency: this block runs only when status flips accepted → paid (above

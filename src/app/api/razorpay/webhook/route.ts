@@ -4,7 +4,7 @@
 // Header: x-razorpay-signature
 //
 // Handled events:
-//   payment.captured → wallet top-up OR collab payment confirmation
+//   payment.captured → credits top-up OR collab payment confirmation
 //   payment.failed   → mark order failed
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -213,9 +213,10 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
                 .update({ collab_session_id: session.id })
                 .eq("id", collabRequestId);
 
-              // ── Single-pool model: grant package credits to the brand's global
-              // wallet on THIS path too. The brand-UI handler (confirm-payment)
-              // does this already, but if the browser tab closes before it fires,
+              // ── Single-pool model: grant package credits to the brand's
+              // credit balance on THIS path too. The brand-UI handler
+              // (confirm-payment) does this already, but if the browser tab
+              // closes before it fires,
               // this webhook is the only path that runs — without this block the
               // brand's payment is captured but they get zero generation credits.
               // Idempotent: this whole branch only runs when status transitions
