@@ -294,7 +294,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
             Buy credits
           </p>
           <h1 className="mt-1 font-display text-[32px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[40px]">
-            Top up your wallet
+            Top up your credits
             <span className="text-[var(--color-primary)]">.</span>
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--color-muted-foreground)]">
@@ -373,10 +373,10 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
           </span>
           <div>
             <p className="font-display text-[13px] font-700 text-[var(--color-foreground)]">
-              Wallet covers creator fee
+              Credits cover the creator fee too
             </p>
             <p className="mt-0.5 text-[11px] text-[var(--color-muted-foreground)]">
-              Held in escrow per generation, released on creator approval.
+              Reserved per generation, released to the creator on approval.
             </p>
           </div>
         </div>

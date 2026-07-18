@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { CreditPack, UpsertPackInput } from "@/lib/billing";
+import type { CreditPack, PackCode, UpsertPackInput } from "@/lib/billing";
 
 /* ── Types ── */
 
@@ -49,6 +49,20 @@ type PackFormState = {
   is_popular: boolean;
   is_active: boolean;
 };
+
+/* ── Constants ── */
+
+// Mirrors the credit_packs_catalog.code CHECK constraint
+// (supabase/migrations/00032_two_layer_billing.sql) and the PackCode type
+// (@/lib/billing/types.ts). Keep in sync with both.
+const PACK_CODES: PackCode[] = [
+  "free_signup",
+  "spark",
+  "flow",
+  "pro",
+  "studio",
+  "enterprise",
+];
 
 /* ── Helpers ── */
 
@@ -127,13 +141,28 @@ function PackFormFields({
           <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">
             Code
           </label>
-          <Input
-            value={form.code}
-            onChange={(e) => onChange({ code: e.target.value })}
-            placeholder="e.g. pro"
-            disabled={isEditing}
-            className="rounded-xl border-[var(--color-border)] text-sm font-500 disabled:bg-[var(--color-secondary)] disabled:opacity-60"
-          />
+          {isEditing ? (
+            <Input
+              value={form.code}
+              disabled
+              className="rounded-xl border-[var(--color-border)] text-sm font-500 disabled:bg-[var(--color-secondary)] disabled:opacity-60"
+            />
+          ) : (
+            <select
+              value={form.code}
+              onChange={(e) => onChange({ code: e.target.value })}
+              className="h-9 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm font-500 text-[var(--color-foreground)] outline-none focus:border-[var(--color-primary)]"
+            >
+              <option value="" disabled>
+                Select a code&hellip;
+              </option>
+              {PACK_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-600 text-[var(--color-foreground)]">

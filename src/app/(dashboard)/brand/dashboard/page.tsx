@@ -132,7 +132,6 @@ export default function BrandDashboardPage() {
       activeCollabs?: number;
       totalCampaigns?: number;
       totalGenerations?: number;
-      walletBalance?: number;
       approvalRate?: number | null;
     };
     generationsSeries?: number[];

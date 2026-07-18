@@ -633,8 +633,8 @@ function HowItWorks() {
   const steps = [
     { title: "Sign up", body: "Create brand account, basic verification." },
     {
-      title: "Add credits + wallet",
-      body: "Credits cover AI generation; wallet pays creator licensing fees.",
+      title: "Add credits",
+      body: "Credits cover AI generation and the creator's licensing fee together.",
     },
     {
       title: "Browse creators",

@@ -89,7 +89,7 @@ export default function TermsPage() {
       <Section n={6} title="Payments, escrow & payouts">
         <LegalList
           items={[
-            "All amounts are in Indian Rupees (INR). Brands fund a wallet or pay per collaboration via our payment processor.",
+            "All amounts are in Indian Rupees (INR). Brands purchase credits directly via our payment processor, which fund collaboration packages.",
             "Funds for a collaboration are held in escrow by Faiceoff and released to the creator after the creator approves the agreed images and the holding period elapses.",
             "Faiceoff charges a platform commission. The exact creator share and any applicable taxes (GST, TDS/TCS) are shown at the time of each transaction.",
             "Creator payouts are made by direct bank transfer after identity verification (KYC). We do not process payouts to UPI handles; verified bank account details are required.",

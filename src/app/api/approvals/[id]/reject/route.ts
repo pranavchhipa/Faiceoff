@@ -189,9 +189,8 @@ export async function POST(
     // Approval row already flipped — log and continue
   }
 
-  // Credit stays consumed — creator-declined images are never refunded.
-  // `refunded` below always reflects that (no wallet reservation exists to release).
-  const refunded = false;
+  // Credit stays consumed — creator-declined images are never refunded
+  // (no wallet reservation exists to release).
 
   track(
     "generation_rejected",
@@ -243,8 +242,6 @@ export async function POST(
         creatorName: creatorUser?.display_name ?? "the creator",
         productName,
         feedback: feedback ?? null,
-        refunded,
-        refundPaise: costPaise,
       });
       await emitNotification(admin, {
         userId: brand.user_id,
