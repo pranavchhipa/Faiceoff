@@ -13,7 +13,6 @@ import {
   Zap,
   Star,
   Building2,
-  Wallet,
   Coins,
   ChevronDown,
   Gift,
@@ -25,9 +24,9 @@ import {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export const metadata = {
-  title: "Faiceoff Pricing | AI Face Licensing Credits & Creator Wallet",
+  title: "Faiceoff Pricing | AI Face Licensing Credits",
   description:
-    "Simple pricing for AI creator campaigns. Buy credits for AI image generation and use wallet balance to pay creator licensing fees. Start free with 5 credits.",
+    "Simple pricing for AI creator campaigns. Buy credits once — they cover both AI image generation and the creator's licensing fee. Start free with 5 credits.",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,11 +92,10 @@ function Hero() {
               lineHeight: 1.7,
             }}
           >
-            Faiceoff pricing has two parts:{" "}
-            <strong style={{ color: "var(--lp-ink)" }}>Credits</strong> for AI
-            generation.{" "}
-            <strong style={{ color: "var(--lp-ink)" }}>Wallet balance</strong>{" "}
-            for creator licensing fees. No monthly lock-in. No hidden
+            One pool of{" "}
+            <strong style={{ color: "var(--lp-ink)" }}>credits</strong>{" "}
+            covers everything — AI generation and the creator&apos;s
+            licensing fee together. No monthly lock-in. No hidden
             production cost. No confusing usage rights.
           </div>
 
@@ -410,7 +408,7 @@ function CreditPacks() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section 3 — Pricing explainer (Credits + Wallet)
+// Section 3 — Pricing explainer (single credits pool)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PricingExplainer() {
@@ -429,7 +427,7 @@ function PricingExplainer() {
               fontSize: "clamp(32px, 4.2vw, 52px)",
             }}
           >
-            Credits + Wallet:{" "}
+            One pool of credits:{" "}
             <span
               style={{
                 fontFamily: "var(--font-display)",
@@ -442,7 +440,7 @@ function PricingExplainer() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Credits card */}
+          {/* Buy credits card */}
           <div
             className="lp-card relative overflow-hidden"
             style={{ padding: "32px" }}
@@ -478,7 +476,7 @@ function PricingExplainer() {
                     textTransform: "uppercase",
                   }}
                 >
-                  Layer 1
+                  Step 1
                 </div>
                 <h3
                   className="lp-display"
@@ -488,7 +486,7 @@ function PricingExplainer() {
                     fontWeight: 600,
                   }}
                 >
-                  Credits
+                  Buy credits
                 </h3>
               </div>
             </div>
@@ -500,13 +498,12 @@ function PricingExplainer() {
                 marginBottom: "20px",
               }}
             >
-              Pay for AI image generation. 1 credit = 1 image generation
-              request.
+              One purchase, one balance. No separate wallet to top up.
             </p>
             <ul className="space-y-3">
               {[
-                "Bought upfront",
-                "Used when you generate",
+                "Bought upfront via Razorpay",
+                "Covers generation + creator fee together",
                 "Valid for 12 months",
                 "Non-refundable once purchased",
               ].map((b) => (
@@ -532,7 +529,7 @@ function PricingExplainer() {
             </ul>
           </div>
 
-          {/* Wallet card */}
+          {/* Spend credits card */}
           <div
             className="lp-card relative overflow-hidden"
             style={{ padding: "32px" }}
@@ -556,7 +553,7 @@ function PricingExplainer() {
                   height: 44,
                 }}
               >
-                <Wallet size={20} style={{ color: "var(--lp-emerald)" }} />
+                <SparklesIcon size={20} style={{ color: "var(--lp-emerald)" }} />
               </div>
               <div>
                 <div
@@ -568,7 +565,7 @@ function PricingExplainer() {
                     textTransform: "uppercase",
                   }}
                 >
-                  Layer 2
+                  Step 2
                 </div>
                 <h3
                   className="lp-display"
@@ -578,7 +575,7 @@ function PricingExplainer() {
                     fontWeight: 600,
                   }}
                 >
-                  Wallet Balance
+                  Spend credits
                 </h3>
               </div>
             </div>
@@ -590,15 +587,15 @@ function PricingExplainer() {
                 marginBottom: "20px",
               }}
             >
-              Pays the creator licensing fee.
+              Used per generation — the creator's share is set aside from
+              the same credit.
             </p>
             <ul className="space-y-3">
               {[
-                "Depends on creator's rate",
-                "Reserved when you request approval",
-                "Returned if creator rejects",
-                "Released to creator on approval",
-                "Wallet balance does not expire",
+                "1 credit deducted per generation",
+                "Creator's fee reserved until they review",
+                "Released to the creator on approval",
+                "GST-invoiced automatically",
               ].map((b) => (
                 <li
                   key={b}
@@ -638,8 +635,8 @@ function GenerationFlow() {
       body: "One credit deducted on submit.",
     },
     {
-      title: "Creator fee is reserved",
-      body: "Held from your wallet until approval.",
+      title: "Creator's fee is set aside",
+      body: "Held from that credit until the creator reviews.",
     },
     {
       title: "Creator reviews",
@@ -740,15 +737,7 @@ function GenerationFlow() {
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: "What is a credit?",
-    a: "Used to generate one AI image.",
-  },
-  {
-    q: "What is wallet balance?",
-    a: "Pays the creator's licensing fee after approval.",
-  },
-  {
-    q: "Do I need both?",
-    a: "Yes. Credits create the image. Wallet balance pays the creator.",
+    a: "One credit covers one AI image generation, including the creator's licensing fee for that image.",
   },
   {
     q: "Are credits refundable?",
@@ -756,15 +745,11 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "What happens if a creator rejects my image?",
-    a: "The creator fee returns to your wallet. You don't lose that wallet amount.",
+    a: "The credit used for that attempt isn't refunded, but you can retry with a tweaked brief.",
   },
   {
     q: "Do credits expire?",
     a: "Yes. Valid for 12 months from purchase.",
-  },
-  {
-    q: "Does wallet balance expire?",
-    a: "No. Stays in your account until used.",
   },
   {
     q: "Are GST invoices available?",
