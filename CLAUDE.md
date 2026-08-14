@@ -154,9 +154,14 @@ stale relative to these fixes.
 ### What's BROKEN / soft-failing right now
 | Issue | Impact | Fix |
 |---|---|---|
-| **Upstash Redis stale** | Rate limiter returns "fail-open" — no actual rate limiting | User must rotate `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` from console.upstash.com |
-| **Stale Supabase types** | TypeScript build errors — fixed by `ignoreBuildErrors: true` in `next.config.ts` | Run `supabase gen types typescript` after migrations applied; remove the flag |
-| **Razorpay test keys only** | Pay flow will work in test mode only; live keys needed for real money | User adds `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` (live) to Vercel when ready |
+| **Upstash Redis stale** | Rate limiter fails OPEN — `/api/auth/sign-up`, `/api/auth/forgot-password` and `/api/auth/verify-otp` have limiters wired but they no-op, so the OTP/reset mailers are uncapped (inbox-bomb + Resend-quota + domain-reputation risk). Verified broken 2026-08-14: a REST `/ping` to the stored URL fails to connect. | User must rotate `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` at console.upstash.com and update Vercel. No code change needed — the limiters activate the moment the creds work. |
+| **No creators are live** | `is_verified` gates package visibility + Discover, and 0 of 14 creators are verified → brands see an EMPTY marketplace. 7 have finished onboarding and are `is_active`, but none have passed KYC. 1 submission is sitting in the Control Centre queue. | Operator approves in `/<ccSlug>/verifications`; remaining creators must submit KYC from `/creator/verify`. Pure ops, no code. |
+
+**RESOLVED (do not re-add):** Razorpay is on LIVE keys. `ignoreBuildErrors` is GONE
+— `tsc --noEmit` is clean and `next build` type-checks for real, so a wrong column
+name now fails the build instead of 500ing in prod. Don't reintroduce the flag;
+fix the types instead (annotate at the `createAdminClient() as any` boundary, which
+is where every implicit-any originated).
 
 ### What needs the user (cannot do without their input)
 1. **Razorpay live keys** — test keys work now; live keys for real transactions
@@ -617,7 +622,7 @@ RAZORPAYX_WEBHOOK_SECRET
 
 ### `next.config.ts` has these escape hatches enabled:
 ```ts
-typescript: { ignoreBuildErrors: true }  // stale Supabase types
+// typescript.ignoreBuildErrors was REMOVED — build now type-checks for real
 eslint: { ignoreDuringBuilds: true }
 experimental: { serverActions: { bodySizeLimit: "100mb" } }
 ```
@@ -663,7 +668,9 @@ npx supabase gen types typescript --project-id jgmhronskdnzqkkimffp > src/types/
 ```bash
 npx supabase gen types typescript --project-id jgmhronskdnzqkkimffp > src/types/supabase.ts
 ```
-Then remove `ignoreBuildErrors: true` from `next.config.ts`. Strict TS will catch real bugs going forward.
+`ignoreBuildErrors` is already removed and `tsc --noEmit` is clean — regenerating
+types is now an optional cleanup (it would let us drop the `as any` casts), not a
+prerequisite for strict builds.
 
 #### 5. Mobile QA + fixes (3h after user tests)
 User tests on phone, screenshots issues. Agent fixes overflow / scroll / touch on:

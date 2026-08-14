@@ -19,5 +19,6 @@ export {
   brandGenerationLimiter,
   brandTopupLimiter,
   creatorPayoutLimiter,
+  authEmailLimiter,
   checkRateLimit,
 } from './rate-limiter';

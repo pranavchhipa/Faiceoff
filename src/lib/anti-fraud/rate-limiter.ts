@@ -61,6 +61,27 @@ export function creatorPayoutLimiter(): Ratelimit | null {
 }
 
 /**
+ * Rate limiter for endpoints that SEND AN EMAIL to an arbitrary address
+ * (signup OTP, password reset). Keyed by the target email + client IP.
+ *
+ * Unauthenticated and email-sending = the most abusable surface we expose:
+ * without a cap, anyone can bomb a third party's inbox, burn the Resend
+ * quota, and get the sending domain flagged for spam.
+ *
+ * Limit: 5 per hour per identifier.
+ */
+export function authEmailLimiter(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(5, '1 h'),
+    analytics: true,
+    prefix: `${PREFIX}:authEmail`,
+  });
+}
+
+/**
  * Convenience wrapper: check a rate limit and return a standardised result.
  *
  * @param limiter - One of the factory functions above (may be `null` when

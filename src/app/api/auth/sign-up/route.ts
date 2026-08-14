@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateAndSendOtp } from "@/lib/email/send-otp";
+import { authEmailLimiter, checkRateLimit } from "@/lib/anti-fraud";
 
 /**
  * POST /api/auth/sign-up
@@ -31,6 +32,22 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Password must be at least 8 characters" },
       { status: 400 }
+    );
+  }
+
+  // Unauthenticated + sends an OTP mail to an arbitrary address → cap it, or
+  // this is an inbox-bomb / Resend-quota / domain-reputation vector. Keyed by
+  // target email + client IP so one abuser can't rotate either half freely.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(
+    authEmailLimiter(),
+    `${String(email).toLowerCase()}:${ip}`,
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429 },
     );
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
+import { authEmailLimiter, checkRateLimit } from "@/lib/anti-fraud";
 
 /**
  * POST /api/auth/forgot-password
@@ -27,6 +28,21 @@ export async function POST(request: Request) {
 
   if (!email || typeof email !== "string") {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  // Unauthenticated + sends mail to an arbitrary address → cap it, or this is
+  // an inbox-bomb / Resend-quota / domain-reputation vector. Keyed by target
+  // email + client IP so one abuser can't rotate either half freely.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(
+    authEmailLimiter(),
+    `${email.toLowerCase()}:${ip}`,
+  );
+  if (!allowed) {
+    // Same opaque 200 as the success path — never leak whether the address
+    // is registered, even while rate limited.
+    return NextResponse.json({ ok: true });
   }
 
   const admin = createAdminClient();
