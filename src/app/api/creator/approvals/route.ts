@@ -63,7 +63,18 @@ export async function GET() {
     );
   }
 
-  const rows = approvalsRaw ?? [];
+  // Annotated explicitly: the admin client is `any`-cast at the boundary
+  // (Supabase types are stale), so without this every downstream .map/.forEach
+  // callback param below silently becomes an implicit any.
+  interface ApprovalRow {
+    id: string;
+    status: string;
+    feedback: string | null;
+    expires_at: string | null;
+    created_at: string;
+    generation_id: string | null;
+  }
+  const rows: ApprovalRow[] = approvalsRaw ?? [];
   const generationIds = rows
     .map((r) => r.generation_id)
     .filter((id): id is string => Boolean(id));
@@ -88,7 +99,8 @@ export async function GET() {
       )
       .in("id", generationIds);
 
-    (gens ?? []).forEach((g) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (gens ?? []).forEach((g: any) => {
       gensById[g.id] = {
         id: g.id,
         assembled_prompt: g.assembled_prompt,
@@ -117,7 +129,8 @@ export async function GET() {
       .select("id, name")
       .in("id", sessionIds);
 
-    (sessions ?? []).forEach((c) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (sessions ?? []).forEach((c: any) => {
       sessionsById[c.id] = c;
     });
   }

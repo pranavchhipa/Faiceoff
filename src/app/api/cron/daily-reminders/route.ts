@@ -56,9 +56,16 @@ interface SummaryStat {
 
 export async function GET(req: Request) {
   // ── Auth gate ──────────────────────────────────────────────────────────────
+  // Fails CLOSED. A missing CRON_SECRET used to skip this check entirely,
+  // leaving the endpoint public — anyone could repeatedly trigger reminder
+  // emails to every creator and brand (spam vector, Resend quota burn).
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    console.error("[cron/daily-reminders] CRON_SECRET env var not set — refusing to run");
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

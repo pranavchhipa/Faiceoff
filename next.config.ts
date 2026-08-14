@@ -30,15 +30,12 @@ const nextConfig: NextConfig = {
       static: 180,
     },
   },
-  // The generated Supabase types in src/types/supabase.ts are stale — they
-  // don't yet include collab_sessions (post-rename) or the chat tables.
-  // Strict tsc on Vercel build trips on dozens of admin-client boundaries
-  // that runtime handles fine. Skipping build-time type-check lets the
-  // platform ship; we'll regenerate types post-launch and remove this.
-  // ESLint still runs, so dead code / unused vars are caught.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // Build-time type-checking is ON. It was previously disabled
+  // (ignoreBuildErrors) because stale generated Supabase types tripped strict
+  // tsc at dozens of admin-client boundaries. Those sites are now explicitly
+  // annotated at the `any`-cast boundary, so `tsc --noEmit` is clean and the
+  // escape hatch is gone — a broken refactor or a wrong column name now fails
+  // the build instead of 500ing in production.
   // Next.js 16 dropped the `eslint` key from next.config — it warned
   // "no longer supported" / "Unrecognized key(s)" every build. ESLint no
   // longer runs as part of `next build` at all in 16, so there's nothing to

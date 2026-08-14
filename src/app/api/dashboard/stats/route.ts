@@ -111,7 +111,7 @@ export async function GET() {
           .then(({ data }) => {
             const campaigns = data ?? [];
             return {
-              active: campaigns.filter((c) => c.status === "active").length,
+              active: campaigns.filter((c: { status: string }) => c.status === "active").length,
               total: campaigns.length,
             };
           })
@@ -249,7 +249,7 @@ export async function GET() {
           .then(({ data }) => {
             const campaigns = data ?? [];
             return {
-              active: campaigns.filter((c) => c.status === "active").length,
+              active: campaigns.filter((c: { status: string }) => c.status === "active").length,
               total: campaigns.length,
             };
           })

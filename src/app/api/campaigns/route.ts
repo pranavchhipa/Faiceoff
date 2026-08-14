@@ -56,12 +56,30 @@ export async function GET() {
     campaignsQuery = campaignsQuery.eq("creator_id", creatorRow!.id);
   }
 
-  const { data: campaigns, error } = await campaignsQuery;
+  // Annotated explicitly: the admin client is `any`-cast at the boundary
+  // (Supabase types are stale), so without this every downstream .map/.filter
+  // callback param below silently becomes an implicit any.
+  interface CampaignRow {
+    id: string;
+    name: string | null;
+    description: string | null;
+    status: string;
+    generation_count: number | null;
+    max_generations: number | null;
+    budget_paise: number | null;
+    spent_paise: number | null;
+    created_at: string;
+    creator_id: string;
+    brand_id: string;
+  }
+
+  const { data: campaignsRaw, error } = await campaignsQuery;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (!campaigns || campaigns.length === 0) {
+  const campaigns: CampaignRow[] = campaignsRaw ?? [];
+  if (campaigns.length === 0) {
     return NextResponse.json({ campaigns: [] });
   }
 
@@ -72,10 +90,22 @@ export async function GET() {
   const creatorIds = Array.from(new Set(campaigns.map((c) => c.creator_id)));
   const brandIds = Array.from(new Set(campaigns.map((c) => c.brand_id)));
 
+  interface IdUserRow {
+    id: string;
+    user_id: string;
+  }
+  interface GenRow {
+    id: string;
+    collab_session_id: string;
+    image_url: string | null;
+    created_at: string;
+    status: string;
+  }
+
   const [
-    { data: creatorRows },
-    { data: brandRows },
-    { data: genRows },
+    { data: creatorRowsRaw },
+    { data: brandRowsRaw },
+    { data: genRowsRaw },
   ] = await Promise.all([
     admin.from("creators").select("id, user_id").in("id", creatorIds),
     admin.from("brands").select("id, user_id").in("id", brandIds),
@@ -88,8 +118,12 @@ export async function GET() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const creatorUserIds = (creatorRows ?? []).map((r) => r.user_id);
-  const brandUserIds = (brandRows ?? []).map((r) => r.user_id);
+  const creatorRows: IdUserRow[] = creatorRowsRaw ?? [];
+  const brandRows: IdUserRow[] = brandRowsRaw ?? [];
+  const genRows: GenRow[] = genRowsRaw ?? [];
+
+  const creatorUserIds = creatorRows.map((r) => r.user_id);
+  const brandUserIds = brandRows.map((r) => r.user_id);
   const allUserIds = Array.from(
     new Set([...creatorUserIds, ...brandUserIds])
   );
@@ -100,13 +134,13 @@ export async function GET() {
     .in("id", allUserIds.length > 0 ? allUserIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const nameByUserId = new Map(
-    (userRows ?? []).map((u) => [u.id, u.display_name ?? null])
+    (userRows ?? []).map((u: { id: string; display_name: string | null }) => [u.id, u.display_name ?? null])
   );
   const creatorUserIdById = new Map(
-    (creatorRows ?? []).map((r) => [r.id, r.user_id])
+    creatorRows.map((r) => [r.id, r.user_id])
   );
   const brandUserIdById = new Map(
-    (brandRows ?? []).map((r) => [r.id, r.user_id])
+    brandRows.map((r) => [r.id, r.user_id])
   );
 
   // ── Creator-only enrichment (earnings, pending approvals, thumbs) ──
@@ -116,7 +150,7 @@ export async function GET() {
 
   // Always build thumbnails map (useful for both roles, but we only render
   // them for creators right now).
-  for (const gen of genRows ?? []) {
+  for (const gen of genRows) {
     if (!gen.image_url) continue;
     const list = thumbsByCampaign.get(gen.collab_session_id) ?? [];
     if (list.length < 4) {
@@ -126,9 +160,9 @@ export async function GET() {
   }
 
   if (isCreator) {
-    const genIds = (genRows ?? []).map((g) => g.id);
+    const genIds = genRows.map((g) => g.id);
     const genToCampaign = new Map(
-      (genRows ?? []).map((g) => [g.id, g.collab_session_id])
+      genRows.map((g) => [g.id, g.collab_session_id] as const)
     );
 
     if (genIds.length > 0) {
@@ -203,7 +237,7 @@ export async function GET() {
   // pulled. Without this, "New Generation" buttons show even after slots
   // are full.
   const genCountByCampaign = new Map<string, number>();
-  for (const gen of genRows ?? []) {
+  for (const gen of genRows) {
     genCountByCampaign.set(
       gen.collab_session_id,
       (genCountByCampaign.get(gen.collab_session_id) ?? 0) + 1

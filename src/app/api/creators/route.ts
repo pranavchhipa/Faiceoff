@@ -50,9 +50,25 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Shape the base response
+  // Shape the base response.
+  // `data` is `any` (admin client is cast at the boundary — Supabase types are
+  // stale), so annotate the result explicitly or every downstream .map/.filter
+  // callback param silently becomes an implicit any.
+  interface ShapedCreator {
+    id: string;
+    bio: string | null;
+    instagram_handle: string | null;
+    instagram_followers: number | null;
+    display_name: string;
+    avatar_url: string | null;
+    categories: Array<{
+      category: string;
+      price_per_generation_paise: number | null;
+    }>;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const creators = (data ?? []).map((c: any) => ({
+  const creators: ShapedCreator[] = (data ?? []).map((c: any) => ({
     id: c.id,
     bio: c.bio,
     instagram_handle: c.instagram_handle,
