@@ -41,6 +41,8 @@ interface VerificationState {
   instagram_followed: boolean;
   submitted_at: string | null;
   rejection_reason: string | null;
+  profile_published: boolean;
+  profile_slug: string | null;
 }
 
 export default function CreatorVerifyPage() {
@@ -63,7 +65,10 @@ export default function CreatorVerifyPage() {
     <div className="w-full max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
       <Header />
       {verified ? (
-        <VerifiedState />
+        <VerifiedState
+          profilePublished={data?.profile_published ?? false}
+          profileSlug={data?.profile_slug ?? null}
+        />
       ) : pending ? (
         <PendingState submittedAt={data?.submitted_at ?? null} />
       ) : (
@@ -109,7 +114,13 @@ function Header() {
 
 /* ───────── Verified state ───────── */
 
-function VerifiedState() {
+function VerifiedState({
+  profilePublished,
+  profileSlug,
+}: {
+  profilePublished: boolean;
+  profileSlug: string | null;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
@@ -123,17 +134,56 @@ function VerifiedState() {
       <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
         You&apos;re verified
       </h2>
-      <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
-        The gold tick now appears on your profile and across discovery. Brands
-        can see you&apos;re a real, vetted creator.
-      </p>
-      <Link
-        href="/creator/dashboard"
-        className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
-      >
-        Back to dashboard
-        <ArrowRight className="h-3.5 w-3.5" />
-      </Link>
+      {profilePublished ? (
+        <>
+          <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
+            The gold tick is live on your public page and across discovery.
+            Brands can see you&apos;re a real, vetted creator.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {profileSlug && (
+              <Link
+                href={`/creators/${profileSlug}`}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+              >
+                View your public page
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+            <Link
+              href="/creator/dashboard"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
+            >
+              Back to dashboard
+            </Link>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Verified, but nothing public to wear the tick on yet — say so
+              plainly instead of claiming it "appears on your profile". */}
+          <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
+            Your tick is active in your workspace. Publish your public creator
+            page and it shows there too — that&apos;s the page brands find you
+            through.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href="/creator/profile/setup"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-primary-foreground)] transition-transform hover:-translate-y-0.5"
+            >
+              Set up your public page
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="/creator/dashboard"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] px-5 py-2.5 text-[13px] font-700 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
+            >
+              Back to dashboard
+            </Link>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }

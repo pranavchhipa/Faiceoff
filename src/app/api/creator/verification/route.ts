@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: creator } = await admin
     .from("creators")
-    .select("id, is_verified, onboarding_step")
+    .select("id, is_verified, onboarding_step, profile_slug, profile_published")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -37,6 +37,12 @@ export async function GET() {
   return NextResponse.json({
     is_verified: creator.is_verified ?? false,
     onboarding_complete: creator.onboarding_step === "complete",
+    // Whether the gold tick has anywhere public to show. A verified creator
+    // with no published profile sees the tick only inside their workspace,
+    // which reads as "verification did nothing" — the verify page uses this
+    // to point them at profile setup instead.
+    profile_published: Boolean(creator.profile_published && creator.profile_slug),
+    profile_slug: creator.profile_slug ?? null,
     status: ver?.status ?? "not_started",
     aadhaar_uploaded: !!ver?.aadhaar_path,
     pan_uploaded: !!ver?.pan_path,

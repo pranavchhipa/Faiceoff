@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { VerifiedTick } from "@/components/creator/verified-tick";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Settings, ChevronDown } from "lucide-react";
@@ -87,6 +88,7 @@ export function UserMenu({ displayName, email, avatarUrl, role, variant = "topba
           <span className="hidden max-w-[140px] truncate font-600 md:block">
             {displayName || "…"}
           </span>
+          <VerifiedTick role={role} size={14} className="hidden md:inline-flex" />
           <ChevronDown className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
         </button>
       </DropdownMenuTrigger>
@@ -113,7 +115,10 @@ function MenuBody({
   return (
     <DropdownMenuContent align="end" className="w-64">
       <DropdownMenuLabel className="flex flex-col gap-0.5">
-        <span className="text-sm font-600">{displayName || "Signed in"}</span>
+        <span className="flex items-center gap-1.5 text-sm font-600">
+          <span className="truncate">{displayName || "Signed in"}</span>
+          <VerifiedTick role={role} size={13} />
+        </span>
         {email && (
           <span className="truncate text-[11px] font-normal text-[var(--color-muted-foreground)]">
             {email}
