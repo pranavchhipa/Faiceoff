@@ -86,45 +86,50 @@ export async function POST(request: Request) {
   }
 
   const expiresAt = new Date(Date.now() + APPROVAL_EXPIRY_MS).toISOString();
-  let sent = 0;
-  const sentGenIds: string[] = [];
-  let creatorId: string | null = null;
 
-  for (const gen of eligible) {
-    // Atomic flip per gen (guards against races / double-send)
-    const { data: claimed } = await admin
-      .from("generations")
-      .update({ status: "ready_for_approval" })
-      .eq("id", gen.id)
-      .eq("brand_id", brand.id)
-      .eq("status", "ready_for_brand_review")
-      .select("id")
-      .maybeSingle();
-    if (!claimed) continue;
-
-    const { error: apprErr } = await admin.from("approvals").insert({
-      generation_id: gen.id,
-      creator_id: gen.creator_id,
-      brand_id: gen.brand_id,
-      status: "pending",
-      expires_at: expiresAt,
-    });
-    if (apprErr) {
-      // Roll back the flip for this gen and skip
-      await admin
+  // Per-gen claim→insert stays sequential (atomicity per row), but the gens
+  // are independent of each other — run them CONCURRENTLY. The old serial
+  // loop cost 2 round trips per image (a 20-image send = 40 serial RTs).
+  const results = await Promise.all(
+    eligible.map(async (gen) => {
+      // Atomic flip per gen (guards against races / double-send)
+      const { data: claimed } = await admin
         .from("generations")
-        .update({ status: "ready_for_brand_review" })
-        .eq("id", gen.id);
-      Sentry.captureException(apprErr, {
-        tags: { route: "generations/bulk-send-for-approval", phase: "approval_insert" },
-        extra: { generation_id: gen.id },
+        .update({ status: "ready_for_approval" })
+        .eq("id", gen.id)
+        .eq("brand_id", brand.id)
+        .eq("status", "ready_for_brand_review")
+        .select("id")
+        .maybeSingle();
+      if (!claimed) return null;
+
+      const { error: apprErr } = await admin.from("approvals").insert({
+        generation_id: gen.id,
+        creator_id: gen.creator_id,
+        brand_id: gen.brand_id,
+        status: "pending",
+        expires_at: expiresAt,
       });
-      continue;
-    }
-    sent += 1;
-    sentGenIds.push(gen.id);
-    creatorId = gen.creator_id;
-  }
+      if (apprErr) {
+        // Roll back the flip for this gen and skip
+        await admin
+          .from("generations")
+          .update({ status: "ready_for_brand_review" })
+          .eq("id", gen.id);
+        Sentry.captureException(apprErr, {
+          tags: { route: "generations/bulk-send-for-approval", phase: "approval_insert" },
+          extra: { generation_id: gen.id },
+        });
+        return null;
+      }
+      return gen;
+    }),
+  );
+
+  const sentGens = results.filter((g): g is (typeof eligible)[number] => g !== null);
+  const sent = sentGens.length;
+  const sentGenIds = sentGens.map((g) => g.id);
+  const creatorId = sentGens[0]?.creator_id ?? null;
 
   // Notify creator — one email + one in-app notification summarizing the batch.
   if (sent > 0 && creatorId) {

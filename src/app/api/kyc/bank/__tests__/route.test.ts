@@ -6,20 +6,22 @@
 //   • @/lib/supabase/server::createClient → auth.getUser
 //   • @/lib/supabase/admin::createAdminClient → creators / creator_kyc /
 //                                               creator_bank_accounts chain mocks
-//   • @/lib/payments/cashfree/kyc::pennyDrop
-//   • @/lib/payments/cashfree/payouts::createBeneficiary
 //
-// Security invariants:
-//   • The full 9-18 digit account number MUST NOT appear in the insert row
-//     (only account_number_encrypted Buffer + account_number_last4 do)
-//   • On verification failure we MUST NOT call createBeneficiary
+// The external KYC provider is NOT configured (Cashfree removed; penny-drop
+// and beneficiary registration pending). The route keeps its gates — auth
+// (401), Zod validation (400), creator-only (403) — and then returns 503
+// kyc_provider_unavailable for every valid submission WITHOUT persisting
+// anything or calling any external API.
+//
+// Security invariants preserved:
+//   • The full 9-18 digit account number MUST NOT be written to the DB
+//     (no bank row is inserted at all while the provider is unavailable)
+//   • creators.kyc_status must never flip to 'verified' through this stub
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserMock = vi.fn();
-const pennyDropMock = vi.fn();
-const createBeneficiaryMock = vi.fn();
 
 interface AdminMocks {
   creatorLookup: ReturnType<typeof vi.fn>;
@@ -30,7 +32,6 @@ interface AdminMocks {
   kycUpsert: ReturnType<typeof vi.fn>;
   kycUpdate: ReturnType<typeof vi.fn>;
   creatorUpdate: ReturnType<typeof vi.fn>;
-  userLookup: ReturnType<typeof vi.fn>;
 }
 
 let adminMocks: AdminMocks;
@@ -50,13 +51,6 @@ function buildAdminClient() {
                 c: string,
                 v: string,
               ) => Promise<{ error: unknown }>)(patch, col, val),
-          }),
-        };
-      }
-      if (table === "users") {
-        return {
-          select: () => ({
-            eq: () => ({ maybeSingle: adminMocks.userLookup }),
           }),
         };
       }
@@ -82,8 +76,6 @@ function buildAdminClient() {
       }
       if (table === "creator_bank_accounts") {
         return {
-          // Two callers here: one with count opts, one for plain insert /
-          // deactivate update.
           select: (_cols: string, opts?: { count?: string; head?: boolean }) => ({
             eq: () =>
               (adminMocks.bankCountLookup as (o?: unknown) => unknown)(opts),
@@ -117,14 +109,6 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => buildAdminClient(),
 }));
 
-vi.mock("@/lib/payments/cashfree/kyc", () => ({
-  pennyDrop: pennyDropMock,
-}));
-
-vi.mock("@/lib/payments/cashfree/payouts", () => ({
-  createBeneficiary: createBeneficiaryMock,
-}));
-
 async function callRoute(body: unknown) {
   const { POST } = await import("../route");
   const req = new Request("http://localhost/api/kyc/bank", {
@@ -146,6 +130,7 @@ function defaultMocks(): AdminMocks {
         creator_id: "creator-1",
         pan_verification_status: "verified",
         aadhaar_verified_at: "2026-04-20T00:00:00Z",
+        cf_beneficiary_id: null,
         status: "bank_pending",
       },
       error: null,
@@ -159,11 +144,26 @@ function defaultMocks(): AdminMocks {
     kycUpsert: vi.fn().mockResolvedValue({ error: null }),
     kycUpdate: vi.fn().mockResolvedValue({ error: null }),
     creatorUpdate: vi.fn().mockResolvedValue({ error: null }),
-    userLookup: vi.fn().mockResolvedValue({
-      data: { id: "user-1", email: "creator@test.com", phone: null },
-      error: null,
-    }),
   };
+}
+
+/** Assert no admin write ever contained the raw account number as a string. */
+function expectNoRawAccountPersisted(accountNumber: string) {
+  const writeCalls = [
+    ...adminMocks.bankInsert.mock.calls,
+    ...adminMocks.bankUpdate.mock.calls,
+    ...adminMocks.kycUpsert.mock.calls,
+    ...adminMocks.kycUpdate.mock.calls,
+    ...adminMocks.creatorUpdate.mock.calls,
+  ];
+  for (const call of writeCalls) {
+    const row = call[0] as Record<string, unknown>;
+    for (const value of Object.values(row)) {
+      if (typeof value === "string") {
+        expect(value).not.toContain(accountNumber);
+      }
+    }
+  }
 }
 
 describe("POST /api/kyc/bank", () => {
@@ -174,15 +174,6 @@ describe("POST /api/kyc/bank", () => {
     getUserMock.mockResolvedValue({
       data: { user: { id: "user-1", email: "creator@test.com" } },
       error: null,
-    });
-    pennyDropMock.mockResolvedValue({
-      success: true,
-      actualName: "PRIYA SHARMA",
-      matchScore: 95,
-      raw: { bank_name: "HDFC BANK" },
-    });
-    createBeneficiaryMock.mockResolvedValue({
-      beneficiary_id: "user-1",
     });
   });
 
@@ -208,14 +199,14 @@ describe("POST /api/kyc/bank", () => {
     expect(res.status).toBe(403);
   });
 
-  it("400 when IFSC format is invalid", async () => {
+  it("400 when IFSC format is invalid — nothing persisted", async () => {
     const res = await callRoute({
       account_number: "123456789012",
       ifsc: "XXXX123", // bad format
       account_holder_name: "Priya Sharma",
     });
     expect(res.status).toBe(400);
-    expect(pennyDropMock).not.toHaveBeenCalled();
+    expect(adminMocks.bankInsert).not.toHaveBeenCalled();
   });
 
   it("400 when account number is too short", async () => {
@@ -225,120 +216,54 @@ describe("POST /api/kyc/bank", () => {
       account_holder_name: "Priya Sharma",
     });
     expect(res.status).toBe(400);
-    expect(pennyDropMock).not.toHaveBeenCalled();
+    expect(adminMocks.bankInsert).not.toHaveBeenCalled();
   });
 
-  it("happy path: bank row inserted with encrypted account + last4 — full number NOT persisted", async () => {
+  it("503 kyc_provider_unavailable for a valid submission — no bank row inserted", async () => {
     const res = await callRoute({
       account_number: "123456789012",
       ifsc: "HDFC0001234",
       account_holder_name: "Priya Sharma",
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
     const body = await res.json();
-    expect(body.bank_verified).toBe(true);
+    expect(body.error).toBe("kyc_provider_unavailable");
+    expect(body.message).toContain("support@faiceoff.com");
 
-    expect(adminMocks.bankInsert).toHaveBeenCalled();
-    const [insertedRow] = adminMocks.bankInsert.mock.calls[0] as [
-      Record<string, unknown>,
-    ];
-    expect(insertedRow.creator_id).toBe("creator-1");
-    expect(insertedRow.account_number_last4).toBe("9012");
-    expect(insertedRow.ifsc).toBe("HDFC0001234");
-    expect(Buffer.isBuffer(insertedRow.account_number_encrypted)).toBe(true);
-    // Full account number MUST NOT appear as any string value
-    for (const value of Object.values(insertedRow)) {
-      if (typeof value === "string") {
-        expect(value).not.toBe("123456789012");
-      }
-    }
+    // Stub contract: no bank row, no KYC row, no status flip — the full
+    // account number never reaches the DB while the provider is unavailable.
+    expect(adminMocks.bankInsert).not.toHaveBeenCalled();
+    expect(adminMocks.bankUpdate).not.toHaveBeenCalled();
+    expect(adminMocks.kycUpsert).not.toHaveBeenCalled();
+    expect(adminMocks.creatorUpdate).not.toHaveBeenCalled();
+    expectNoRawAccountPersisted("123456789012");
   });
 
-  it("happy path: pennyDrop called with full account number + IFSC + name", async () => {
-    await callRoute({
-      account_number: "123456789012",
-      ifsc: "HDFC0001234",
-      account_holder_name: "Priya Sharma",
-    });
-    expect(pennyDropMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        accountNumber: "123456789012",
-        ifsc: "HDFC0001234",
-        expectedName: "Priya Sharma",
-      }),
-    );
-  });
-
-  it("happy path: createBeneficiary called with user_id as stable id", async () => {
-    await callRoute({
-      account_number: "123456789012",
-      ifsc: "HDFC0001234",
-      account_holder_name: "Priya Sharma",
-    });
-    expect(createBeneficiaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beneficiaryId: "user-1",
-        bankAccountNumber: "123456789012",
-        bankIfsc: "HDFC0001234",
-      }),
-    );
-  });
-
-  it("422 when pennyDrop says account is not valid — and beneficiary NOT created", async () => {
-    pennyDropMock.mockResolvedValue({
-      success: false,
-      actualName: undefined,
-      matchScore: 0,
-      raw: { account_status: "INVALID" },
-    });
-    const res = await callRoute({
-      account_number: "123456789012",
-      ifsc: "HDFC0001234",
-      account_holder_name: "Priya Sharma",
-    });
-    expect(res.status).toBe(422);
-    const body = await res.json();
-    expect(body.bank_verified).toBe(false);
-    expect(createBeneficiaryMock).not.toHaveBeenCalled();
-  });
-
-  it("502 when pennyDrop throws", async () => {
-    pennyDropMock.mockRejectedValue(new Error("Cashfree timeout"));
-    const res = await callRoute({
-      account_number: "123456789012",
-      ifsc: "HDFC0001234",
-      account_holder_name: "Priya Sharma",
-    });
-    expect(res.status).toBe(502);
-    expect(createBeneficiaryMock).not.toHaveBeenCalled();
-  });
-
-  it("transitions creators.kyc_status='verified' when bank closes the 3/3 set", async () => {
-    // PAN verified + Aadhaar verified already in defaults; bank is the last step.
-    const res = await callRoute({
-      account_number: "123456789012",
-      ifsc: "HDFC0001234",
-      account_holder_name: "Priya Sharma",
-    });
-    expect(res.status).toBe(200);
-    const verifiedCall = adminMocks.creatorUpdate.mock.calls.find(
-      (call) => (call[0] as Record<string, unknown>).kyc_status === "verified",
-    );
-    expect(verifiedCall).toBeDefined();
-  });
-
-  it("deactivates existing active bank when inserting a new one (one-active-only invariant)", async () => {
-    // Simulate an existing active account.
+  it("never flips creators.kyc_status to 'verified' through the stub", async () => {
+    // Even with PAN + Aadhaar verified and an existing active bank account,
+    // the stub must not complete the 3/3 rollup.
     adminMocks.bankCountLookup.mockResolvedValue({ count: 1, error: null });
-    await callRoute({
+    const res = await callRoute({
       account_number: "999988887777",
       ifsc: "HDFC0001234",
       account_holder_name: "Priya Sharma",
     });
-    // Previous active accounts deactivated via bankUpdate({is_active:false})
-    const deactivateCall = adminMocks.bankUpdate.mock.calls.find(
-      (call) => (call[0] as Record<string, unknown>).is_active === false,
+    expect(res.status).toBe(503);
+    const verifiedCall = adminMocks.creatorUpdate.mock.calls.find(
+      (call) => (call[0] as Record<string, unknown>).kyc_status === "verified",
     );
-    expect(deactivateCall).toBeDefined();
+    expect(verifiedCall).toBeUndefined();
+  });
+
+  it("never calls an external KYC provider (no network I/O)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const res = await callRoute({
+      account_number: "123456789012",
+      ifsc: "HDFC0001234",
+      account_holder_name: "Priya Sharma",
+    });
+    expect(res.status).toBe(503);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

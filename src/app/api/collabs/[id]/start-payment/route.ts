@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/payments/razorpay/orders";
+import { createRazorpayOrder, getRazorpayOrder, getRazorpayKeyId } from "@/lib/payments/razorpay/orders";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -35,7 +35,7 @@ export async function POST(
 
   const { data: req } = await admin
     .from("collab_requests")
-    .select("id, status, brand_id, package_tier, package_price_paise, product_name")
+    .select("id, status, brand_id, package_tier, package_price_paise, product_name, razorpay_order_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -46,6 +46,30 @@ export async function POST(
   }
 
   const amount_paise = req.package_price_paise as number;
+
+  // Reuse the already-bound order when it is still payable and the amount
+  // matches. Creating a fresh order on every page open used to OVERWRITE
+  // razorpay_order_id — if the brand then completed a delayed payment
+  // (e.g. UPI) against the superseded order, confirm-payment and the webhook
+  // would reject it as unbound: money captured, collab permanently locked.
+  if (req.razorpay_order_id) {
+    try {
+      const existing = await getRazorpayOrder(req.razorpay_order_id as string);
+      if (
+        (existing.status === "created" || existing.status === "attempted") &&
+        existing.amount === amount_paise
+      ) {
+        return NextResponse.json({
+          order_id: existing.id,
+          key_id: getRazorpayKeyId(),
+          amount_paise,
+        });
+      }
+    } catch (err) {
+      // Order lookup failed (deleted/expired) — fall through and mint a new one.
+      console.warn("[collabs/start-payment] bound-order lookup failed, minting new", err);
+    }
+  }
 
   try {
     const order = await createRazorpayOrder({

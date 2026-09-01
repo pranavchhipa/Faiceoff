@@ -2,6 +2,21 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Module-scope signed-URL cache: path -> { url, exp }. 24h token TTL, cached
+// for 23h so we never serve one about to expire.
+const signedCoverCache = new Map<string, { url: string; exp: number }>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function signCoverCached(admin: any, path: string): Promise<string | null> {
+  const hit = signedCoverCache.get(path);
+  if (hit && hit.exp > Date.now()) return hit.url;
+  const { data: signed } = await admin.storage
+    .from("reference-photos")
+    .createSignedUrl(path, 60 * 60 * 24);
+  const url = signed?.signedUrl ?? null;
+  if (url) signedCoverCache.set(path, { url, exp: Date.now() + 23 * 60 * 60 * 1000 });
+  return url;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
@@ -43,13 +58,12 @@ export async function GET() {
     .order("created_at", { ascending: true });
 
   // Sign the cover image so the setup page can preview it without exposing
-  // the raw storage path. 1h is plenty for the page session.
+  // the raw storage path. Signed once per path per ~23h (module cache) — the
+  // setup page polls this endpoint every few seconds and re-signing per tick
+  // handed the browser a new URL each time, defeating its image cache.
   let coverImageUrl: string | null = null;
   if (creator.cover_image_path) {
-    const { data: signed } = await admin.storage
-      .from("reference-photos")
-      .createSignedUrl(creator.cover_image_path, 3600);
-    coverImageUrl = signed?.signedUrl ?? null;
+    coverImageUrl = await signCoverCached(admin, creator.cover_image_path);
   }
 
   return NextResponse.json({

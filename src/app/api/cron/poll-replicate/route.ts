@@ -90,11 +90,7 @@ async function finalizeGeneration(
     console.warn(
       `[cron/poll-replicate] prediction ${prediction.id} succeeded but no output URL`,
     );
-    // Treat as failed
-    await admin
-      .from("generations")
-      .update({ status: "failed" })
-      .eq("id", gen.id);
+    // Treat as failed (refundGeneration owns the status flip + credit refund)
     await refundGeneration(admin, gen);
     return;
   }
@@ -186,28 +182,48 @@ async function finalizeGeneration(
     creatorId = campaign?.creator_id;
   }
 
-  await admin
-    .from("approvals")
-    .insert({
-      generation_id: gen.id,
-      creator_id: creatorId ?? null,
-      status: "pending",
-      expires_at: expiresAt,
-    })
-    .catch((err: unknown) => {
-      // If unique violation, approval already exists — ok
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/unique|23505/i.test(msg)) {
-        console.error(`[cron/poll-replicate] approval insert error for gen ${gen.id}:`, msg);
-      }
-    });
+  const { error: approvalError } = await admin.from("approvals").insert({
+    generation_id: gen.id,
+    creator_id: creatorId ?? null,
+    status: "pending",
+    expires_at: expiresAt,
+  });
+  if (approvalError) {
+    // If unique violation, approval already exists — ok
+    const msg = `${approvalError.code ?? ""} ${approvalError.message ?? ""}`;
+    if (!/unique|23505/i.test(msg)) {
+      console.error(`[cron/poll-replicate] approval insert error for gen ${gen.id}:`, approvalError);
+    }
+  }
 }
 
 async function refundGeneration(admin: any, gen: StuckGenRow): Promise<void> {
-  await admin
+  // Guarded transition: only refund if WE flip processing → failed, so a
+  // concurrent webhook/cron run can't double-refund. (RPC is also idempotent.)
+  const { data: flipped, error: flipError } = await admin
     .from("generations")
     .update({ status: "failed" })
-    .eq("id", gen.id);
+    .eq("id", gen.id)
+    .eq("status", "processing")
+    .select("id");
+
+  if (flipError) {
+    console.error(`[cron/poll-replicate] failed-status update error for gen ${gen.id}:`, flipError);
+    return;
+  }
+  if (!flipped || flipped.length === 0) {
+    // Already left 'processing' elsewhere — that path owns the refund.
+    return;
+  }
+
+  // Refund the credit deducted at generation create.
+  const { error: refundError } = await admin.rpc("rollback_credit_for_generation", {
+    p_brand_id: gen.brand_id,
+    p_generation_id: gen.id,
+  });
+  if (refundError) {
+    console.error(`[cron/poll-replicate] credit refund RPC error for gen ${gen.id}:`, refundError);
+  }
 }
 
 export async function GET(req: NextRequest) {

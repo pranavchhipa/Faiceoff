@@ -2,16 +2,18 @@
 // POST /api/kyc/aadhaar — route tests
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Security critical: we MUST NOT store the full 12-digit Aadhaar. We store:
-//   • aadhaar_last4 — last 4 digits (plain text, UIDAI-compliant)
-//   • aadhaar_hash  — salted HMAC(full_aadhaar) for dedup (unique constraint)
-// The full number is in memory only for the Cashfree call. Never logged.
+// Security critical (UIDAI): the full 12-digit Aadhaar must NEVER be stored.
+// The external KYC provider is NOT configured (Cashfree removed; Razorpay/
+// Signzy pending). The route keeps its gates — auth (401), Zod validation +
+// last4 cross-check (400), creator-only (403) — and then returns 503
+// kyc_provider_unavailable for every valid submission WITHOUT persisting
+// anything or calling any external API. That trivially (and importantly)
+// upholds the invariant: the full Aadhaar never reaches the DB.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserMock = vi.fn();
-const verifyAadhaarMock = vi.fn();
 
 interface AdminMocks {
   creatorLookup: ReturnType<typeof vi.fn>;
@@ -83,10 +85,6 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => buildAdminClient(),
 }));
 
-vi.mock("@/lib/payments/cashfree/kyc", () => ({
-  verifyAadhaar: verifyAadhaarMock,
-}));
-
 async function callRoute(body: unknown) {
   const { POST } = await import("../route");
   const req = new Request("http://localhost/api/kyc/aadhaar", {
@@ -119,6 +117,23 @@ function defaultMocks(): AdminMocks {
   };
 }
 
+/** Assert no admin write ever contained the full Aadhaar as a string value. */
+function expectNoFullAadhaarPersisted(fullAadhaar: string) {
+  const writeCalls = [
+    ...adminMocks.kycUpsert.mock.calls,
+    ...adminMocks.kycUpdate.mock.calls,
+    ...adminMocks.creatorUpdate.mock.calls,
+  ];
+  for (const call of writeCalls) {
+    const row = call[0] as Record<string, unknown>;
+    for (const value of Object.values(row)) {
+      if (typeof value === "string") {
+        expect(value).not.toContain(fullAadhaar);
+      }
+    }
+  }
+}
+
 describe("POST /api/kyc/aadhaar", () => {
   beforeEach(() => {
     process.env.KYC_ENCRYPTION_KEY =
@@ -127,12 +142,6 @@ describe("POST /api/kyc/aadhaar", () => {
     getUserMock.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
-    });
-    verifyAadhaarMock.mockResolvedValue({
-      verified: true,
-      nameMatch: true,
-      confidence: 95,
-      raw: {},
     });
   });
 
@@ -158,14 +167,14 @@ describe("POST /api/kyc/aadhaar", () => {
     expect(res.status).toBe(403);
   });
 
-  it("400 when full_aadhaar is not 12 digits", async () => {
+  it("400 when full_aadhaar is not 12 digits — nothing persisted", async () => {
     const res = await callRoute({
       aadhaar_last4: "1234",
       full_aadhaar: "12345",
       name_as_per_aadhaar: "Priya Sharma",
     });
     expect(res.status).toBe(400);
-    expect(verifyAadhaarMock).not.toHaveBeenCalled();
+    expect(adminMocks.kycUpsert).not.toHaveBeenCalled();
   });
 
   it("400 when last4 isn't 4 digits", async () => {
@@ -177,91 +186,47 @@ describe("POST /api/kyc/aadhaar", () => {
     expect(res.status).toBe(400);
   });
 
-  it("happy path: aadhaar_last4 + hash stored, NOT the full number", async () => {
+  it("400 when declared last4 doesn't match the tail of full_aadhaar", async () => {
     const res = await callRoute({
-      aadhaar_last4: "1234",
+      aadhaar_last4: "9999",
       full_aadhaar: "123456781234",
       name_as_per_aadhaar: "Priya Sharma",
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.aadhaar_verified).toBe(true);
-
-    expect(adminMocks.kycUpsert).toHaveBeenCalled();
-    const [upsertedRow] = adminMocks.kycUpsert.mock.calls[0] as [
-      Record<string, unknown>,
-      unknown,
-    ];
-    expect(upsertedRow.aadhaar_last4).toBe("1234");
-    expect(upsertedRow.aadhaar_hash).toMatch(/^[0-9a-f]{64}$/);
-    // NEVER persist the full number
-    for (const value of Object.values(upsertedRow)) {
-      if (typeof value === "string") {
-        expect(value).not.toBe("123456781234");
-      }
-    }
+    expect(body.reason).toBe("last4_mismatch");
+    expect(adminMocks.kycUpsert).not.toHaveBeenCalled();
   });
 
-  it("happy path: Cashfree called with the full number + name", async () => {
-    await callRoute({
-      aadhaar_last4: "1234",
-      full_aadhaar: "123456781234",
-      name_as_per_aadhaar: "Priya Sharma",
-    });
-    expect(verifyAadhaarMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        aadhaarNumber: "123456781234",
-        name: "Priya Sharma",
-      }),
-    );
-  });
-
-  it("422 when Cashfree says Aadhaar is not verified", async () => {
-    verifyAadhaarMock.mockResolvedValue({
-      verified: false,
-      nameMatch: false,
-      confidence: 10,
-      raw: {},
-    });
+  it("503 kyc_provider_unavailable for a valid submission — nothing persisted", async () => {
     const res = await callRoute({
       aadhaar_last4: "1234",
       full_aadhaar: "123456781234",
       name_as_per_aadhaar: "Priya Sharma",
     });
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("kyc_provider_unavailable");
+    expect(body.message).toContain("support@faiceoff.com");
+
+    // Stub contract: no KYC row is written — the full Aadhaar can never
+    // reach the DB while the provider is unavailable.
+    expect(adminMocks.kycUpsert).not.toHaveBeenCalled();
+    expect(adminMocks.kycUpdate).not.toHaveBeenCalled();
+    // kyc_status must never flip through the stub path.
+    expect(adminMocks.creatorUpdate).not.toHaveBeenCalled();
+    expectNoFullAadhaarPersisted("123456781234");
   });
 
-  it("502 when Cashfree throws", async () => {
-    verifyAadhaarMock.mockRejectedValue(new Error("timeout"));
+  it("never calls an external KYC provider (no network I/O)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     const res = await callRoute({
       aadhaar_last4: "1234",
       full_aadhaar: "123456781234",
       name_as_per_aadhaar: "Priya Sharma",
     });
-    expect(res.status).toBe(502);
-  });
-
-  it("transitions to verified when Aadhaar closes the 3/3 set (PAN + bank already done)", async () => {
-    adminMocks.kycLookup.mockResolvedValue({
-      data: {
-        creator_id: "creator-1",
-        pan_verification_status: "verified",
-        aadhaar_verified_at: null,
-        status: "aadhaar_pending",
-      },
-      error: null,
-    });
-    adminMocks.bankCountLookup.mockResolvedValue({ count: 1, error: null });
-
-    const res = await callRoute({
-      aadhaar_last4: "1234",
-      full_aadhaar: "123456781234",
-      name_as_per_aadhaar: "Priya Sharma",
-    });
-    expect(res.status).toBe(200);
-    const verifiedCall = adminMocks.creatorUpdate.mock.calls.find(
-      (call) => (call[0] as Record<string, unknown>).kyc_status === "verified",
-    );
-    expect(verifiedCall).toBeDefined();
+    expect(res.status).toBe(503);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

@@ -225,10 +225,27 @@ export async function POST(request: Request) {
 
   // ── 6. Handle prediction.status === 'failed' ──────────────────────────────────
   if (predictionStatus === "failed" || predictionStatus === "canceled") {
-    await admin
+    // Guarded flip: refund only if THIS request transitions processing → failed,
+    // so a concurrent webhook retry or cron poll cannot double-refund.
+    const { data: flipped, error: failError } = await admin
       .from("generations")
       .update({ status: "failed" })
-      .eq("id", genId);
+      .eq("id", genId)
+      .eq("status", "processing")
+      .select("id");
+
+    if (failError) {
+      console.error(`[webhooks/replicate] failed-status update error for gen_id=${genId}:`, failError);
+    } else if (flipped && flipped.length > 0) {
+      // Refund the credit deducted at generation create (RPC is idempotent).
+      const { error: refundError } = await admin.rpc("rollback_credit_for_generation", {
+        p_brand_id: brandId,
+        p_generation_id: genId,
+      });
+      if (refundError) {
+        console.error(`[webhooks/replicate] credit refund RPC error for gen_id=${genId}:`, refundError);
+      }
+    }
 
     console.log(`[webhooks/replicate] Generation ${genId} failed`);
     return NextResponse.json({ ok: true, status: "failed" }, { status: 200 });

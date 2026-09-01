@@ -10,7 +10,9 @@
  *   trust strip · Style Previews (2×2) · categories chips · pricing tiers · CTA
  *   custom links (Linktree-style) · footer
  *
- * Data: pulled from /api/public/creators/[slug] (PublicProfileResponse).
+ * Data: direct DB read via getPublicCreatorProfile() (no self-HTTP fetch),
+ * cached 5 min per slug and deduped so generateMetadata + the page share one
+ * lookup.
  * Preview mode: ?preview=1 + authenticated owner shows the page even when
  * profile_published=false, with a sticky amber banner up top.
  *
@@ -18,10 +20,17 @@
  * to avoid leaking — every selector below is prefixed with the wrapper class.
  */
 
+import { cache } from "react";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DEMO_CATEGORIES, type DemoCategoryKey } from "@/lib/profile/demo-prompts";
+import {
+  getPublicCreatorProfile,
+  bumpProfileViewCount,
+  type PublicCreatorProfile,
+} from "@/lib/profile/public-creators";
+import { DEMO_CATEGORIES } from "@/lib/profile/demo-prompts";
 import {
   detectPlatform,
   platformLabel,
@@ -36,69 +45,24 @@ const APP_URL =
   process.env.NEXT_PUBLIC_BASE_URL ??
   "https://faiceoff.com";
 
-interface PublicProfileResponse {
-  slug: string;
-  published: boolean;
-  preview: boolean;
-  published_at: string | null;
-  theme: string;
-  is_live: boolean;
-  creator: {
-    display_name: string;
-    avatar_url: string | null;
-    bio: string | null;
-    instagram_handle: string | null;
-    instagram_followers: number | null;
-    instagram_account_type: string | null;
-    instagram_verified: boolean;
-    instagram_media_count: number | null;
-    youtube_handle: string | null;
-    youtube_subscribers: number | null;
-  };
-  categories: DemoCategoryKey[];
-  links: Array<{
-    id: string;
-    label: string;
-    url: string;
-    /**
-     * Tagged by the links API when a creator saves their list. Older rows
-     * (saved before the tag column landed) don't have this — we fall back to
-     * a client-side detectPlatform() below so the icon row still works.
-     */
-    platform?: SocialPlatform | null;
-  }>;
-  samples: Array<{
-    id: string;
-    category: DemoCategoryKey;
-    image_url: string;
-    created_at: string;
-  }>;
-  packages: Array<{
-    id: string;
-    tier: string;
-    price_paise: number;
-    final_images: number;
-    description: string | null;
-  }>;
-  stats: {
-    completed_collabs: number;
-    approval_rate_pct: number | null;
-  };
-}
+// ISR the public profile — data is cached 5 min per slug (see getProfile).
+// Note: reading searchParams (preview mode) keeps the *render* per-request,
+// but every render within the window hits the cache, not the DB.
+export const revalidate = 300;
 
-async function fetchProfile(
-  slug: string,
-  opts: { preview?: boolean; cookieHeader?: string | null } = {},
-): Promise<PublicProfileResponse | null> {
-  const url = `${APP_URL}/api/public/creators/${slug}${opts.preview ? "?preview=1" : ""}`;
-  const res = await fetch(url, {
-    next: opts.preview ? { revalidate: 0 } : { revalidate: 60 },
-    cache: opts.preview ? "no-store" : undefined,
-    headers: opts.cookieHeader ? { cookie: opts.cookieHeader } : undefined,
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as PublicProfileResponse;
-}
+/**
+ * Public (published-only) profile fetch. unstable_cache gives cross-request
+ * caching — 5 min, keyed per slug — and React cache() dedupes within a
+ * request so generateMetadata + the page body share a single lookup.
+ * Preview mode bypasses this and reads the DB directly (see page below).
+ */
+const getProfile = cache(
+  unstable_cache(
+    (slug: string) => getPublicCreatorProfile(slug),
+    ["public-creator-profile"],
+    { revalidate: 300 },
+  ),
+);
 
 /* ───────── Metadata ───────── */
 
@@ -106,7 +70,7 @@ export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchProfile(slug);
+  const data = await getProfile(slug);
   if (!data) return { title: "Creator not found · Faiceoff" };
   const title = `${data.creator.display_name} · Brief them on Faiceoff`;
   const description = data.creator.bio
@@ -905,15 +869,27 @@ export default async function CreatorProfilePage(
   const sp = await searchParams;
   const wantsPreview = sp.preview === "1";
 
-  let cookieHeader: string | null = null;
+  let data: PublicCreatorProfile | null = null;
+  let isPreview = false;
   if (wantsPreview) {
-    const { headers } = await import("next/headers");
-    const h = await headers();
-    cookieHeader = h.get("cookie");
+    // Owner-only preview of an unpublished profile — auth via Supabase
+    // cookies, uncached so the creator always sees their latest edits.
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const full = await getPublicCreatorProfile(slug, { includeUnpublished: true });
+    if (full && (full.published || (user && user.id === full.user_id))) {
+      data = full;
+      isPreview = !full.published;
+    }
+  } else {
+    data = await getProfile(slug);
   }
-
-  const data = await fetchProfile(slug, { preview: wantsPreview, cookieHeader });
   if (!data) notFound();
+
+  // Bump view count (best-effort, fire-and-forget). Skip when ?preview=1 —
+  // don't inflate analytics with the owner's own views.
+  if (!wantsPreview) void bumpProfileViewCount(data.id);
 
   const c = data.creator;
   const firstName = c.display_name.split(" ")[0] || c.display_name;
@@ -922,7 +898,7 @@ export default async function CreatorProfilePage(
   const samplesByCategory = new Map(data.samples.map((s) => [s.category, s]));
   const orderedSamples = data.categories
     .map((cat) => samplesByCategory.get(cat))
-    .filter(Boolean) as PublicProfileResponse["samples"];
+    .filter(Boolean) as PublicCreatorProfile["samples"];
   // Fallback: if samples aren't keyed to selected categories, just take first 4
   const reelSamples = (orderedSamples.length > 0 ? orderedSamples : data.samples).slice(0, 4);
 
@@ -998,7 +974,7 @@ export default async function CreatorProfilePage(
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
 
       {/* schema.org structured data — only for published (indexable) profiles */}
-      {!data.preview && (
+      {!isPreview && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -1006,7 +982,7 @@ export default async function CreatorProfilePage(
       )}
 
       {/* Preview banner — only when owner is previewing an unpublished profile */}
-      {data.preview && (
+      {isPreview && (
         <div
           style={{
             position: "sticky",

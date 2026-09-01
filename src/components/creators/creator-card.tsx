@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { DEMO_CATEGORIES } from "@/lib/profile/demo-prompts";
@@ -8,6 +9,24 @@ function compact(n: number | null): string | null {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
   return String(n);
+}
+
+/**
+ * Hosts allowlisted in next.config images.remotePatterns — anything else
+ * (e.g. an Instagram-CDN avatar fallback) would 400 through the optimizer,
+ * so those keep the plain <img> path below.
+ */
+function canOptimize(src: string): boolean {
+  try {
+    const host = new URL(src).hostname;
+    return (
+      host === "images.unsplash.com" ||
+      host.endsWith(".supabase.co") ||
+      host.endsWith(".r2.dev")
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -26,14 +45,24 @@ export function CreatorCard({ c }: { c: PublicCreatorCard }) {
       {/* Cover */}
       <div className="relative aspect-[4/5] overflow-hidden bg-[#1a1612]">
         {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover}
-            alt={`${c.display_name} — AI creator on Faiceoff`}
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-          />
+          canOptimize(cover) ? (
+            <Image
+              src={cover}
+              alt={`${c.display_name} — AI creator on Faiceoff`}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 340px"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cover}
+              alt={`${c.display_name} — AI creator on Faiceoff`}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            />
+          )
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-5xl font-800 text-[#3a3530]">
             {c.display_name[0]?.toUpperCase()}

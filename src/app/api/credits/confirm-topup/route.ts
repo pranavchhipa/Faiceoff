@@ -37,10 +37,15 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient() as Admin;
 
-  // Look up the credit_top_ups row by Razorpay order ID (stored in cf_order_id)
+  // Look up the credit_top_ups row by Razorpay order ID (stored in cf_order_id).
+  // `credits` MUST be selected: it feeds credits_granted below, and the
+  // add_credits_for_topup RPC grants exactly credits_granted (NOT NULL DEFAULT 0
+  // — COALESCE never falls through). The old select omitted it, so this path
+  // wrote credits_granted=0 and every UI-confirmed top-up granted ZERO base
+  // credits (migration 00073 repairs the affected rows).
   const { data: topUp } = await admin
     .from("credit_top_ups")
-    .select("id, brand_id, status")
+    .select("id, brand_id, status, credits")
     .eq("cf_order_id", razorpay_order_id)
     .maybeSingle();
 

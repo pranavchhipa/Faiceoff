@@ -7,9 +7,15 @@
  */
 
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DiscoverGrid, type CreatorCard } from "./discover-grid";
+
+// Signed URLs are valid for 24h; the cached payload below revalidates hourly,
+// so every brand re-uses the same URL per photo and the browser cache actually
+// hits instead of re-downloading on each visit.
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
 
 async function loadCreators(): Promise<CreatorCard[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +89,7 @@ async function loadCreators(): Promise<CreatorCard[]> {
     if (allPaths.length > 0) {
       const { data: signed } = await admin.storage
         .from("reference-photos")
-        .createSignedUrls(allPaths, 60 * 60);
+        .createSignedUrls(allPaths, SIGNED_URL_TTL_SECONDS);
       const urlByPath = new Map<string, string>();
       for (const s of signed ?? []) {
         if (s.signedUrl && s.path) urlByPath.set(s.path, s.signedUrl);
@@ -132,6 +138,14 @@ async function loadCreators(): Promise<CreatorCard[]> {
   });
 }
 
+// The discover payload is identical for every brand (admin-client queries,
+// nothing user-specific) — cache it server-side so navigations don't re-run
+// 3 DB queries + re-sign every photo. Revalidates hourly, well inside the
+// 24h signed-URL TTL.
+const loadCreatorsCached = unstable_cache(loadCreators, ["brand-discover-creators"], {
+  revalidate: 3600,
+});
+
 export default async function BrandDiscoverPage() {
   // ── Auth gate ──────────────────────────────────────────────────────────────
   const supabase = await createClient();
@@ -140,7 +154,7 @@ export default async function BrandDiscoverPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const creators = await loadCreators();
+  const creators = await loadCreatorsCached();
 
   // DiscoverGrid owns the entire UI: header + filter bar + chip strip + grid
   // + mobile sheet. Visual language now matches the rest of the dashboard

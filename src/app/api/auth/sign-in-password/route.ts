@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { rateLimit } from "@/lib/redis/rate-limiter";
 
 /**
  * POST /api/auth/sign-in-password
@@ -34,6 +35,21 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Email and password are required" },
       { status: 400 }
+    );
+  }
+
+  // Brute-force guard: per-account and per-IP. Supabase's own auth throttling
+  // is generous; without this the endpoint allowed unlimited password guesses.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const [byEmail, byIp] = await Promise.all([
+    rateLimit(`pw-login:${String(email).toLowerCase()}`, 10, "5 m"),
+    rateLimit(`pw-login-ip:${ip}`, 30, "5 m"),
+  ]);
+  if (!byEmail.success || !byIp.success) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Please wait a few minutes." },
+      { status: 429 },
     );
   }
 

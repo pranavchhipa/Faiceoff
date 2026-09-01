@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/credits/top-up — route tests (Chunk E rewrite)
+// POST /api/credits/top-up — route tests (Razorpay order era)
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Mock strategy:
 //   • @/lib/supabase/server::createClient → returns { auth.getUser }
 //   • @/lib/supabase/admin::createAdminClient → fluent chain mock
-//   • @/lib/payments/cashfree/collect::createTopUpOrder → factory mock
+//   • @/lib/payments/razorpay/orders::createRazorpayOrder/getRazorpayKeyId → mocks
 //   • @/lib/billing::getPackByCode → mock returns CreditPack with new codes
 //
 // Pack codes are the Chunk E catalog: spark/flow/pro/studio/enterprise.
@@ -18,12 +18,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ── Mock surfaces (hoisted via vi.mock) ──────────────────────────────────────
 
 const getUserMock = vi.fn();
-const createTopUpOrderMock = vi.fn();
+const createRazorpayOrderMock = vi.fn();
+const getRazorpayKeyIdMock = vi.fn();
 const getPackByCodeMock = vi.fn();
 
 interface AdminMocks {
   brandsMaybeSingle: ReturnType<typeof vi.fn>;
-  usersMaybeSingle: ReturnType<typeof vi.fn>;
   topUpInsertSingle: ReturnType<typeof vi.fn>;
   topUpUpdate: ReturnType<typeof vi.fn>;
 }
@@ -37,13 +37,6 @@ function buildAdminClient() {
         return {
           select: () => ({
             eq: () => ({ maybeSingle: adminMocks.brandsMaybeSingle }),
-          }),
-        };
-      }
-      if (table === "users") {
-        return {
-          select: () => ({
-            eq: () => ({ maybeSingle: adminMocks.usersMaybeSingle }),
           }),
         };
       }
@@ -77,8 +70,9 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => buildAdminClient(),
 }));
 
-vi.mock("@/lib/payments/cashfree/collect", () => ({
-  createTopUpOrder: createTopUpOrderMock,
+vi.mock("@/lib/payments/razorpay/orders", () => ({
+  createRazorpayOrder: (...args: unknown[]) => createRazorpayOrderMock(...args),
+  getRazorpayKeyId: (...args: unknown[]) => getRazorpayKeyIdMock(...args),
 }));
 
 vi.mock("@/lib/billing", async () => {
@@ -181,15 +175,6 @@ function defaultAdminMocks(): AdminMocks {
       data: { id: "brand-1", user_id: "user-1" },
       error: null,
     }),
-    usersMaybeSingle: vi.fn().mockResolvedValue({
-      data: {
-        id: "user-1",
-        email: "brand@example.com",
-        phone: "9999999999",
-        role: "brand",
-      },
-      error: null,
-    }),
     topUpInsertSingle: vi.fn().mockResolvedValue({
       data: {
         id: "topup-uuid-1",
@@ -215,10 +200,19 @@ describe("POST /api/credits/top-up", () => {
       data: { user: { id: "user-1", email: "brand@example.com" } },
       error: null,
     });
-    createTopUpOrderMock.mockResolvedValue({
-      orderId: "topup_brand-1_123",
-      paymentSessionId: "session_abc",
+    createRazorpayOrderMock.mockResolvedValue({
+      id: "order_test_123",
+      entity: "order",
+      amount: 30000,
+      amount_paid: 0,
+      amount_due: 30000,
+      currency: "INR",
+      receipt: "topup-uuid-1",
+      status: "created",
+      notes: {},
+      created_at: 1_750_000_000,
     });
+    getRazorpayKeyIdMock.mockReturnValue("rzp_test_key");
     getPackByCodeMock.mockImplementation(async (code: string) => {
       const pack = PACK_FIXTURES[code];
       if (!pack) {
@@ -233,32 +227,34 @@ describe("POST /api/credits/top-up", () => {
     vi.clearAllMocks();
   });
 
-  it("happy path: returns orderId + paymentSessionId and persists row", async () => {
+  it("happy path: returns orderId + keyId and persists row", async () => {
     const res = await callRoute({ pack: "spark" });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({
-      orderId: "topup_brand-1_123",
-      paymentSessionId: "session_abc",
+      orderId: "order_test_123",
+      keyId: "rzp_test_key",
       amount_paise: 30000,
       credits: 10,
       bonus_credits: 0,
     });
 
-    expect(createTopUpOrderMock).toHaveBeenCalledWith(
+    expect(createRazorpayOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        brandId: "brand-1",
-        pack: "spark",
-        credits: 10,
-        amountPaise: 30000,
-        customerEmail: "brand@example.com",
-        customerPhone: "9999999999",
+        amount_paise: 30000,
+        receipt: "topup-uuid-1",
+        notes: {
+          type: "credit_top_up",
+          credit_top_up_id: "topup-uuid-1",
+          brand_id: "brand-1",
+          pack: "spark",
+        },
       }),
     );
 
     expect(adminMocks.topUpUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        cf_order_id: "topup_brand-1_123",
+        cf_order_id: "order_test_123",
         status: "processing",
       }),
       "id",
@@ -301,48 +297,67 @@ describe("POST /api/credits/top-up", () => {
     expect(res.status).toBe(400);
   });
 
-  it("502 when Cashfree order creation fails; marks row failed", async () => {
-    createTopUpOrderMock.mockRejectedValueOnce(new Error("Cashfree is down"));
+  it("400 when pack is inactive in the catalog", async () => {
+    getPackByCodeMock.mockResolvedValueOnce({
+      ...PACK_FIXTURES.spark,
+      is_active: false,
+    });
+    const res = await callRoute({ pack: "spark" });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("pack_inactive");
+  });
+
+  it("502 when Razorpay order creation fails; marks row failed", async () => {
+    createRazorpayOrderMock.mockRejectedValueOnce(new Error("Razorpay is down"));
     const res = await callRoute({ pack: "flow" });
     expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toBe("payment_unavailable");
 
     expect(adminMocks.topUpUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "failed" }),
+      expect.objectContaining({
+        status: "failed",
+        failure_reason: expect.stringContaining("Razorpay is down"),
+      }),
       "id",
       "topup-uuid-1",
     );
   });
 
   it("uses spec pricing for Flow pack (₹1,200 / 50+10 credits)", async () => {
-    await callRoute({ pack: "flow" });
-    expect(createTopUpOrderMock).toHaveBeenCalledWith(
+    const res = await callRoute({ pack: "flow" });
+    expect(createRazorpayOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        pack: "flow",
-        credits: 50,
-        amountPaise: 120000,
+        amount_paise: 120000,
+        notes: expect.objectContaining({ pack: "flow" }),
       }),
     );
+    const body = await res.json();
+    expect(body).toMatchObject({ amount_paise: 120000, credits: 50, bonus_credits: 10 });
   });
 
   it("uses spec pricing for Pro pack (₹4,500 / 200+50 credits)", async () => {
-    await callRoute({ pack: "pro" });
-    expect(createTopUpOrderMock).toHaveBeenCalledWith(
+    const res = await callRoute({ pack: "pro" });
+    expect(createRazorpayOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        pack: "pro",
-        credits: 200,
-        amountPaise: 450000,
+        amount_paise: 450000,
+        notes: expect.objectContaining({ pack: "pro" }),
       }),
     );
+    const body = await res.json();
+    expect(body).toMatchObject({ amount_paise: 450000, credits: 200, bonus_credits: 50 });
   });
 
   it("uses spec pricing for Studio pack (₹12,000 / 600+200 credits)", async () => {
-    await callRoute({ pack: "studio" });
-    expect(createTopUpOrderMock).toHaveBeenCalledWith(
+    const res = await callRoute({ pack: "studio" });
+    expect(createRazorpayOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        pack: "studio",
-        credits: 600,
-        amountPaise: 1200000,
+        amount_paise: 1200000,
+        notes: expect.objectContaining({ pack: "studio" }),
       }),
     );
+    const body = await res.json();
+    expect(body).toMatchObject({ amount_paise: 1200000, credits: 600, bonus_credits: 200 });
   });
 });

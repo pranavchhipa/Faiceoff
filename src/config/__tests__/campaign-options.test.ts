@@ -25,7 +25,7 @@ describe("campaign-options", () => {
     expect(EXPRESSION_OPTIONS.length).toBe(8);
     expect(OUTFIT_STYLE_OPTIONS.length).toBe(8);
     expect(CAMERA_FRAMING_OPTIONS.length).toBe(8);
-    expect(CAMERA_TYPE_OPTIONS.length).toBe(9);
+    expect(CAMERA_TYPE_OPTIONS.length).toBe(13);
     expect(ASPECT_RATIO_OPTIONS.length).toBe(4);
   });
 

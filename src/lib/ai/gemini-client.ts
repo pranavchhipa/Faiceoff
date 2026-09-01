@@ -201,7 +201,9 @@ function getClient(): GoogleGenAI {
       "Missing API key — set GEMINI_API_KEY or GOOGLE_AI_API_KEY",
     );
   }
-  _client = new GoogleGenAI({ apiKey });
+  // 3-minute request timeout — an unbounded generateContent hang used to
+  // leave the generation row stuck in 'generating' until the cron sweep.
+  _client = new GoogleGenAI({ apiKey, httpOptions: { timeout: 180_000 } });
   return _client;
 }
 

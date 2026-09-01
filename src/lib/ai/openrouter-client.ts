@@ -89,6 +89,8 @@ export async function chatCompletion(
       temperature: options.temperature,
       max_tokens: options.max_tokens,
     }),
+    // Bounded — a hung completion call must not stall the pipeline.
+    signal: AbortSignal.timeout(120_000),
   });
 
   if (!response.ok) {

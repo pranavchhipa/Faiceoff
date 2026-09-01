@@ -1,9 +1,15 @@
 /**
  * Integration-style unit tests for payout-service.ts.
  *
- * All external dependencies (Supabase admin client, Cashfree adapter) are
- * mocked at the module boundary using Vitest's vi.mock(). Each test controls
- * the stub return values to exercise one code path in isolation.
+ * The Supabase admin client is mocked at the module boundary using Vitest's
+ * vi.mock(). Each test controls the stub return values to exercise one code
+ * path in isolation.
+ *
+ * NOTE: There is currently NO automated payout provider (the Cashfree adapter
+ * was removed; RazorpayX payouts are pending). requestPayout is a fail-safe
+ * stub past the atomic RPC: it marks the payout row 'failed' with a
+ * "processed manually" reason, releases the escrow locks, and throws — so no
+ * money is ever double-moved. The tests assert THAT contract.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -56,19 +62,9 @@ function updateChain(result: { data: unknown; error: null | { message: string } 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const mockRpc = vi.fn();
-const mockEnsureBeneficiary = vi.fn().mockResolvedValue(undefined);
-const mockSubmitTransfer = vi.fn().mockResolvedValue({
-  cfTransferId: "cf_transfer_test_123",
-  rawStatus: "PROCESSING",
-});
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => currentAdminClient),
-}));
-
-vi.mock("../cashfree-payout-adapter", () => ({
-  ensureBeneficiary: (...args: unknown[]) => mockEnsureBeneficiary(...args),
-  submitTransfer: (...args: unknown[]) => mockSubmitTransfer(...args),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,12 +115,6 @@ const PAYOUT_ROW_REQUESTED = {
   escrow_ledger_ids: ["escrow-001", "escrow-002"],
 };
 
-const PAYOUT_ROW_PROCESSING = {
-  ...PAYOUT_ROW_REQUESTED,
-  status: "processing" as const,
-  cf_transfer_id: "cf_transfer_test_123",
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Import subject under test
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,12 +124,6 @@ import { requestPayout, handlePayoutWebhook } from "../payout-service";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Reset default adapter mocks.
-  mockEnsureBeneficiary.mockResolvedValue(undefined);
-  mockSubmitTransfer.mockResolvedValue({
-    cfTransferId: "cf_transfer_test_123",
-    rawStatus: "PROCESSING",
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,7 +135,7 @@ beforeEach(() => {
  *  call 1 → creators  (maybeSingle)
  *  call 2 → creator_bank_accounts  (maybeSingle)
  *  call 3 → escrow_ledger  (order)
- *  call 4 → creator_payouts update  (single)
+ *  calls 4+ → fail-safe stub updates (creator_payouts mark-failed, escrow release)
  */
 function makeRequestPayoutFrom(overrides: {
   creatorData?: unknown;
@@ -160,8 +144,6 @@ function makeRequestPayoutFrom(overrides: {
   bankError?: { message: string } | null;
   escrowData?: unknown;
   escrowError?: { message: string } | null;
-  updateData?: unknown;
-  updateError?: { message: string } | null;
 }) {
   const {
     creatorData = VERIFIED_CREATOR,
@@ -170,8 +152,6 @@ function makeRequestPayoutFrom(overrides: {
     bankError = null,
     escrowData = ESCROW_ROWS,
     escrowError = null,
-    updateData = PAYOUT_ROW_PROCESSING,
-    updateError = null,
   } = overrides;
 
   let call = 0;
@@ -186,10 +166,7 @@ function makeRequestPayoutFrom(overrides: {
     if (call === 3) {
       return selectChain({ data: escrowData, error: escrowError });
     }
-    if (call === 4) {
-      return updateChain({ data: updateData, error: updateError });
-    }
-    // Fallback for any additional calls (fire-and-forget updates on rollback paths).
+    // Post-RPC fail-safe updates (mark payout failed, release escrow locks).
     return updateChain({ data: null, error: null });
   };
 }
@@ -211,7 +188,6 @@ describe("requestPayout", () => {
     ).rejects.toMatchObject({ code: "KYC_NOT_VERIFIED" });
 
     expect(mockRpc).not.toHaveBeenCalled();
-    expect(mockSubmitTransfer).not.toHaveBeenCalled();
   });
 
   it("throws BANK_ACCOUNT_MISSING when no active bank account exists", async () => {
@@ -260,7 +236,11 @@ describe("requestPayout", () => {
     mockRpc.mockResolvedValue({ data: PAYOUT_ROW_REQUESTED, error: null });
     currentAdminClient = buildAdminClient(makeRequestPayoutFrom({}));
 
-    await requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 });
+    // The fail-safe stub always throws after the RPC — the deductions math
+    // and greedy escrow selection are still asserted via the RPC arguments.
+    await expect(
+      requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 }),
+    ).rejects.toBeInstanceOf(PayoutError);
 
     // TDS = 1% of 100000 = 1000; fee = 2500; net = 96500
     expect(mockRpc).toHaveBeenCalledWith("request_payout", {
@@ -275,37 +255,83 @@ describe("requestPayout", () => {
     });
   });
 
-  it("calls Cashfree adapter with NET amount (not gross)", async () => {
+  it("fail-safe stub: marks payout failed ('processed manually') and releases escrow locks", async () => {
     mockRpc.mockResolvedValue({ data: PAYOUT_ROW_REQUESTED, error: null });
-    currentAdminClient = buildAdminClient(makeRequestPayoutFrom({}));
 
-    await requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 });
+    const payoutUpdate = vi.fn();
+    const payoutUpdateEq = vi.fn();
+    const escrowUpdate = vi.fn();
+    const escrowUpdateEq = vi.fn();
 
-    expect(mockSubmitTransfer).toHaveBeenCalledWith(
+    let call = 0;
+    currentAdminClient = buildAdminClient((table: string) => {
+      call++;
+      if (call === 1) return selectChain({ data: VERIFIED_CREATOR, error: null });
+      if (call === 2) return selectChain({ data: ACTIVE_BANK, error: null });
+      if (call === 3) return selectChain({ data: ESCROW_ROWS, error: null });
+      if (table === "creator_payouts") {
+        return {
+          update: (payload: unknown) => {
+            payoutUpdate(payload);
+            return {
+              eq: (...args: unknown[]) => {
+                payoutUpdateEq(...args);
+                return Promise.resolve({ data: null, error: null });
+              },
+            };
+          },
+        };
+      }
+      if (table === "escrow_ledger") {
+        return {
+          update: (payload: unknown) => {
+            escrowUpdate(payload);
+            return {
+              eq: (...args: unknown[]) => {
+                escrowUpdateEq(...args);
+                return Promise.resolve({ data: null, error: null });
+              },
+            };
+          },
+        };
+      }
+      return updateChain({ data: null, error: null });
+    });
+
+    await expect(
+      requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 }),
+    ).rejects.toMatchObject({
+      code: "CASHFREE_ERROR",
+      message: expect.stringMatching(/processed manually/i),
+    });
+
+    // Payout row is explicitly marked failed with a manual-processing reason —
+    // never left silently stuck in 'requested'/'processing'.
+    expect(payoutUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        amountPaise: 96_500,          // net, not gross
-        beneficiaryId: ACTIVE_BANK.cf_beneficiary_id,
-        payoutId: PAYOUT_ID,
+        status: "failed",
+        failure_reason: expect.stringContaining("processed manually"),
+        completed_at: expect.any(String),
       }),
     );
+    expect(payoutUpdateEq).toHaveBeenCalledWith("id", PAYOUT_ID);
+
+    // Escrow locks are released so no funds stay locked to a dead payout.
+    expect(escrowUpdate).toHaveBeenCalledWith({ payout_id: null });
+    expect(escrowUpdateEq).toHaveBeenCalledWith("payout_id", PAYOUT_ID);
   });
 
-  it("returns payout in processing status on happy path", async () => {
+  it("never calls an external payout provider (no network I/O)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     mockRpc.mockResolvedValue({ data: PAYOUT_ROW_REQUESTED, error: null });
     currentAdminClient = buildAdminClient(makeRequestPayoutFrom({}));
 
-    const result = await requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 });
+    await expect(
+      requestPayout({ creatorId: CREATOR_ID, amountPaise: 100_000 }),
+    ).rejects.toMatchObject({ code: "CASHFREE_ERROR" });
 
-    expect(result).toMatchObject({
-      id: PAYOUT_ID,
-      creator_id: CREATOR_ID,
-      status: "processing",
-      cf_transfer_id: "cf_transfer_test_123",
-      gross_amount_paise: 100_000,
-      tds_amount_paise: 1_000,
-      processing_fee_paise: 2_500,
-      net_amount_paise: 96_500,
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
   it("throws ESCROW_LOCK_RACE when RPC fails with race condition", async () => {

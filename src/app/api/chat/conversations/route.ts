@@ -67,9 +67,20 @@ export async function GET() {
   const brandIds = Array.from(new Set(rows.map((r) => r.brand_id)));
   const creatorIds = Array.from(new Set(rows.map((r) => r.creator_id)));
 
-  const [brandsRes, creatorsRes] = await Promise.all([
+  const role = brand ? "brand" : "creator";
+  const readCol = role === "brand" ? "read_by_brand" : "read_by_creator";
+  const [brandsRes, creatorsRes, unreadRes] = await Promise.all([
     admin.from("brands").select("id, company_name, user_id").in("id", brandIds),
     admin.from("creators").select("id, user_id").in("id", creatorIds),
+    // Unread counts depend only on the conversation ids — ride batch 1.
+    admin
+      .from("conversation_messages")
+      .select("conversation_id")
+      .in(
+        "conversation_id",
+        rows.map((r) => r.id),
+      )
+      .eq(readCol, false),
   ]);
 
   // Pull display_name + avatar from users for both sides
@@ -102,17 +113,7 @@ export async function GET() {
     ),
   );
 
-  // Unread counts in one batch query
-  const role = brand ? "brand" : "creator";
-  const readCol = role === "brand" ? "read_by_brand" : "read_by_creator";
-  const { data: unreadRows } = await admin
-    .from("conversation_messages")
-    .select("conversation_id")
-    .in(
-      "conversation_id",
-      rows.map((r) => r.id),
-    )
-    .eq(readCol, false);
+  const unreadRows = unreadRes.data;
   const unreadByConv = new Map<string, number>();
   for (const m of (unreadRows ?? []) as Array<{ conversation_id: string }>) {
     unreadByConv.set(

@@ -4,9 +4,12 @@
 // Cycles three (creator portrait + product thumb → AI composite) pairs every
 // ~3.5s with a soft cross-fade. Lives next to page.tsx so the marketing
 // home page can stay a server component everywhere else.
+//
+// Pure CSS cross-fade (stacked layers + opacity transition) — this was the
+// ONLY framer-motion consumer on the marketing home, and ~30 kB gzip of
+// motion runtime for an opacity fade is a bad trade on the landing page.
 
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import {
@@ -53,7 +56,13 @@ const SLIDES: DemoSlide[] = [
   },
 ];
 
-const ease = [0.22, 1, 0.36, 1] as const;
+/** Stacked cross-fade layer — all slides render, active one is visible. */
+function fadeStyle(active: boolean): React.CSSProperties {
+  return {
+    opacity: active ? 1 : 0,
+    transition: "opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1)",
+  };
+}
 
 export function HomeBrandDemo() {
   const [index, setIndex] = useState(0);
@@ -91,26 +100,24 @@ export function HomeBrandDemo() {
           className="relative overflow-hidden rounded-2xl aspect-[4/5] w-full"
           style={{ border: "1px solid var(--lp-border)" }}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`creator-${index}`}
-              initial={{ opacity: 0, scale: 1.02 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.55, ease }}
+          {SLIDES.map((s, i) => (
+            <div
+              key={`creator-${i}`}
               className="absolute inset-0"
+              style={fadeStyle(i === index)}
+              aria-hidden={i !== index}
             >
               <Image
-                src={slide.creator}
-                alt={slide.creatorName}
+                src={s.creator}
+                alt={s.creatorName}
                 fill
                 sizes="(max-width: 1024px) 90vw, 480px"
                 className="object-cover"
                 style={WATERMARK_MASK}
                 unoptimized
               />
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          ))}
 
           {/* tag */}
           <div
@@ -186,26 +193,24 @@ export function HomeBrandDemo() {
           className="relative overflow-hidden rounded-2xl aspect-[4/5] w-full"
           style={{ border: "1px solid var(--lp-border)" }}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`comp-${index}`}
-              initial={{ opacity: 0, scale: 1.04 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6, ease }}
+          {SLIDES.map((s, i) => (
+            <div
+              key={`comp-${i}`}
               className="absolute inset-0"
+              style={fadeStyle(i === index)}
+              aria-hidden={i !== index}
             >
               <Image
-                src={slide.composite}
-                alt={slide.caption}
+                src={s.composite}
+                alt={s.caption}
                 fill
                 sizes="(max-width: 1024px) 90vw, 520px"
                 className="object-cover"
                 style={WATERMARK_MASK}
                 unoptimized
               />
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          ))}
 
           {/* watermark badge */}
           <div
@@ -225,32 +230,27 @@ export function HomeBrandDemo() {
           </div>
 
           {/* caption */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`cap-${index}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease }}
-              className="absolute left-3 bottom-3 right-3 px-3 py-2 rounded-xl"
+          <div
+            className="absolute left-3 bottom-3 right-3 px-3 py-2 rounded-xl"
+            style={{
+              background: "rgba(26,20,16,0.78)",
+              color: "var(--lp-paper)",
+            }}
+          >
+            <div
+              className="text-[10px]"
               style={{
-                background: "rgba(26,20,16,0.78)",
-                color: "var(--lp-paper)",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
+                opacity: 0.7,
               }}
             >
-              <div
-                className="text-[10px]"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  letterSpacing: "0.1em",
-                  opacity: 0.7,
-                }}
-              >
-                CAMPAIGN
-              </div>
-              <div className="text-[13px] font-semibold">{slide.caption}</div>
-            </motion.div>
-          </AnimatePresence>
+              CAMPAIGN
+            </div>
+            <div className="text-[13px] font-semibold" style={{ transition: "opacity 0.4s" }}>
+              {slide.caption}
+            </div>
+          </div>
         </div>
 
         {/* dot indicator */}

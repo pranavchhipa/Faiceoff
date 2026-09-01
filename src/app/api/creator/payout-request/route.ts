@@ -1,12 +1,14 @@
 // Creator payout requests — SIMPLE manual model.
 //
 // Creators do NOT withdraw themselves. They add bank details, then "Request
-// payout" for their full available balance. That creates a `creator_payouts`
-// row (status 'requested') and locks the available escrow rows against it (so
-// the balance drops immediately and can't be double-requested). An operator
-// then pays the creator manually via RazorpayX from the Control Centre and
-// marks it paid. No deductions are computed here (kept simple — TDS is handled
-// at payout time by the operator).
+// payout" for their full available balance. We read the available escrow rows,
+// compute the amount from that exact row set, and claim it atomically via the
+// `request_payout` RPC (INSERT creator_payouts + lock those escrow rows in one
+// transaction — it raises if any row was claimed concurrently, so the recorded
+// amount always matches the locked rows). An operator then pays the creator
+// manually via RazorpayX from the Control Centre and marks it paid. No
+// deductions are computed here (kept simple — TDS is handled at payout time by
+// the operator).
 
 import { NextResponse } from "next/server";
 import { after } from "next/server";
@@ -111,8 +113,26 @@ export async function POST() {
     );
   }
 
+  // Read the available escrow rows themselves (not the rollup view) so the
+  // payout amount is computed from the exact rows we're about to claim.
+  const { data: escrowRows, error: escrowErr } = await admin
+    .from("escrow_ledger")
+    .select("id, amount_paise")
+    .eq("creator_id", creator.id)
+    .is("payout_id", null)
+    .lte("holding_until", new Date().toISOString())
+    .eq("type", "release_per_image");
+
+  if (escrowErr) {
+    console.error("[payout-request] escrow read failed", escrowErr);
+    return NextResponse.json({ error: "Failed to read balance" }, { status: 500 });
+  }
+
+  const rows = (escrowRows ?? []) as { id: string; amount_paise: number }[];
+  const escrowIds = rows.map((r) => r.id);
+  const available = rows.reduce((sum, r) => sum + Number(r.amount_paise), 0);
+
   const min = getMinPayoutPaise();
-  const available = await availablePaise(admin, creator.id);
   if (available < min) {
     return NextResponse.json(
       {
@@ -127,50 +147,34 @@ export async function POST() {
 
   const last4 = accountLast4(creator.bank_account_number_encrypted);
 
-  // Create the payout record (no deductions — operator settles TDS at payout).
-  const { data: payout, error: insErr } = await admin
-    .from("creator_payouts")
-    .insert({
-      creator_id: creator.id,
-      gross_amount_paise: available,
-      tds_amount_paise: 0,
-      processing_fee_paise: 0,
-      net_amount_paise: available,
-      status: "requested",
-      bank_account_last4: last4 || null,
-    })
-    .select("id")
-    .single();
+  // Create the payout record + lock exactly the escrow rows we summed, in one
+  // transaction (no deductions — operator settles TDS at payout). The RPC
+  // raises if any of the rows were claimed concurrently, so the recorded
+  // amount can never drift from the locked set.
+  const { data: payout, error: rpcErr } = await admin.rpc("request_payout", {
+    p_creator_id: creator.id,
+    p_amount_paise: available,
+    p_tds_paise: 0,
+    p_fee_paise: 0,
+    p_net_paise: available,
+    p_bank_last4: last4 || null,
+    p_escrow_ids: escrowIds,
+  });
 
-  if (insErr || !payout) {
-    // 23505 = the uniq_open_payout_per_creator partial index fired — a
-    // concurrent request already created the open payout (TOCTOU race). Treat
-    // it as "already pending" rather than a 500.
-    if ((insErr as { code?: string } | null)?.code === "23505") {
+  if (rpcErr || !payout) {
+    const msg = rpcErr?.message ?? "";
+    // uniq_open_payout_per_creator fired inside the RPC — a concurrent request
+    // already created the open payout. "race condition" = some of our escrow
+    // rows were claimed between the read above and the lock. Both mean a
+    // parallel request won; treat as "already pending" rather than a 500.
+    if (msg.includes("uniq_open_payout_per_creator") || msg.includes("race condition")) {
       return NextResponse.json(
         { error: "request_pending", message: "You already have a payout being processed." },
         { status: 409 },
       );
     }
-    console.error("[payout-request] insert failed", insErr);
+    console.error("[payout-request] request_payout RPC failed", rpcErr);
     return NextResponse.json({ error: "Failed to create payout request" }, { status: 500 });
-  }
-
-  // Lock the available escrow rows against this payout so the balance drops
-  // immediately and can't be requested twice. (Released rows past their hold.)
-  const { error: lockErr } = await admin
-    .from("escrow_ledger")
-    .update({ payout_id: payout.id })
-    .eq("creator_id", creator.id)
-    .is("payout_id", null)
-    .lte("holding_until", new Date().toISOString())
-    .eq("type", "release_per_image");
-
-  if (lockErr) {
-    // Roll the payout back so we don't leave a request with no locked funds.
-    await admin.from("creator_payouts").delete().eq("id", payout.id);
-    console.error("[payout-request] escrow lock failed", lockErr);
-    return NextResponse.json({ error: "Failed to reserve funds" }, { status: 500 });
   }
 
   after(async () => {

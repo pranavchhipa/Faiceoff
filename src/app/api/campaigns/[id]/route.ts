@@ -7,6 +7,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * Returns a campaign with creator/brand display names and all generations.
  * Uses admin client to bypass RLS on users table for cross-user display name reads.
+ *
+ * HOT PATH: the campaign detail page polls this every 4s while a generation
+ * is running — independent lookups are batched (3 round-trip times instead
+ * of the old 7 sequential awaits).
  */
 export async function GET(
   _request: Request,
@@ -29,42 +33,61 @@ export async function GET(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  // Fetch campaign with related data
-  const { data: campaign, error: campError } = await admin
-    .from("collab_sessions")
-    .select(
-      `
+  // Batch 1: campaign + caller's DB role. The role must come from the DB —
+  // user_metadata is CLIENT-MUTABLE (supabase.auth.updateUser) and was
+  // previously trusted here, letting any user grant themselves admin access
+  // to arbitrary campaigns.
+  const [campRes, roleRes] = await Promise.all([
+    admin
+      .from("collab_sessions")
+      .select(
+        `
       id, name, description, status, budget_paise, spent_paise,
       generation_count, max_generations, created_at,
       creator_id, brand_id
     `
-    )
-    .eq("id", id)
-    .single();
+      )
+      .eq("id", id)
+      .single(),
+    admin.from("users").select("role").eq("id", user.id).single(),
+  ]);
 
-  if (campError || !campaign) {
+  const campaign = campRes.data;
+  if (campRes.error || !campaign) {
     return NextResponse.json(
       { error: "Campaign not found" },
       { status: 404 }
     );
   }
 
-  // Verify user has access (is the brand or creator)
-  const { data: brandRow } = await admin
-    .from("brands")
-    .select("id, user_id")
-    .eq("id", campaign.brand_id)
-    .single();
+  // Batch 2: participant rows + generations (independent given campaign).
+  const [brandRowRes, creatorRowRes, gensRes] = await Promise.all([
+    admin
+      .from("brands")
+      .select("id, user_id")
+      .eq("id", campaign.brand_id)
+      .single(),
+    admin
+      .from("creators")
+      .select("id, user_id")
+      .eq("id", campaign.creator_id)
+      .single(),
+    admin
+      .from("generations")
+      .select(
+        "id, status, assembled_prompt, structured_brief, image_url, cost_paise, created_at, replicate_prediction_id"
+      )
+      .eq("collab_session_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  const { data: creatorRow } = await admin
-    .from("creators")
-    .select("id, user_id")
-    .eq("id", campaign.creator_id)
-    .single();
+  const brandRow = brandRowRes.data;
+  const creatorRow = creatorRowRes.data;
+  const generations = gensRes.data ?? [];
 
   const isBrand = brandRow?.user_id === user.id;
   const isCreator = creatorRow?.user_id === user.id;
-  const isAdmin = user.user_metadata?.role === "admin";
+  const isAdmin = roleRes.data?.role === "admin";
 
   if (!isBrand && !isCreator && !isAdmin) {
     return NextResponse.json(
@@ -73,92 +96,60 @@ export async function GET(
     );
   }
 
-  // Get display names from users table (bypasses RLS)
-  const { data: creatorUser } = creatorRow
-    ? await admin
-        .from("users")
-        .select("display_name, avatar_url")
-        .eq("id", creatorRow.user_id)
-        .single()
-    : { data: null };
-
-  const { data: brandUser } = brandRow
-    ? await admin
-        .from("users")
-        .select("display_name, avatar_url")
-        .eq("id", brandRow.user_id)
-        .single()
-    : { data: null };
-
-  // Fetch generations for this campaign
-  const { data: generations } = await admin
-    .from("generations")
-    .select(
-      "id, status, assembled_prompt, structured_brief, image_url, cost_paise, created_at, replicate_prediction_id"
-    )
-    .eq("collab_session_id", id)
-    .order("created_at", { ascending: false });
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const generationIds = ((generations ?? []) as any[]).map((g: { id: string }) => g.id);
+  const generationIds = (generations as any[]).map((g: { id: string }) => g.id);
 
-  // ── Creator-only enrichment ──────────────────────────────────────
-  // Pull earnings + pending approval count scoped to this campaign so
-  // the creator's collaboration detail page can show real numbers
-  // without running its own queries.
-  let earningsPaise = 0;
-  let pendingApprovalCount = 0;
-
-  if (isCreator && generationIds.length > 0) {
-    // Reads archive (renamed in migration 00027). New earnings flow for
-    // Chunk D will live in escrow_ledger + platform_revenue_ledger.
-    const adminAny = admin as unknown as {
-      from(table: string): {
-        select(cols: string): {
-          eq(col: string, val: string): {
-            eq(col: string, val: string): {
-              eq(col: string, val: string): {
-                in(col: string, vals: string[]): Promise<{
-                  data: Array<{ amount_paise: number | null }> | null;
-                  error: { message: string } | null;
-                }>;
-              };
-            };
-          };
-        };
-      };
-    };
-    const [{ data: earnings }, { count: pendingCount }] = await Promise.all([
-      adminAny
-        .from("wallet_transactions_archive")
-        .select("amount_paise")
-        .eq("user_id", user.id)
-        .eq("direction", "credit")
-        .eq("reference_type", "generation")
-        .in("reference_id", generationIds),
-      admin
-        .from("approvals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending")
-        .in("generation_id", generationIds),
+  // Batch 3: display names + creator-only enrichment, all independent.
+  // Earnings read the archive (renamed in migration 00027). New earnings
+  // flow for Chunk D will live in escrow_ledger + platform_revenue_ledger.
+  const [creatorUserRes, brandUserRes, earningsRes, pendingRes] =
+    await Promise.all([
+      creatorRow
+        ? admin
+            .from("users")
+            .select("display_name, avatar_url")
+            .eq("id", creatorRow.user_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      brandRow
+        ? admin
+            .from("users")
+            .select("display_name, avatar_url")
+            .eq("id", brandRow.user_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      isCreator && generationIds.length > 0
+        ? admin
+            .from("wallet_transactions_archive")
+            .select("amount_paise")
+            .eq("user_id", user.id)
+            .eq("direction", "credit")
+            .eq("reference_type", "generation")
+            .in("reference_id", generationIds)
+        : Promise.resolve({ data: null }),
+      isCreator && generationIds.length > 0
+        ? admin
+            .from("approvals")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "pending")
+            .in("generation_id", generationIds)
+        : Promise.resolve({ count: 0 }),
     ]);
 
-    earningsPaise = (earnings ?? []).reduce(
-      (acc, row) => acc + (row.amount_paise ?? 0),
-      0
-    );
-    pendingApprovalCount = pendingCount ?? 0;
-  }
+  const earningsPaise = (
+    (earningsRes.data ?? []) as Array<{ amount_paise: number | null }>
+  ).reduce((acc, row) => acc + (row.amount_paise ?? 0), 0);
+  const pendingApprovalCount = pendingRes.count ?? 0;
 
   return NextResponse.json({
     campaign: {
       ...campaign,
-      generation_count: generations?.length ?? 0,
-      creator_display_name: creatorUser?.display_name ?? "Creator",
-      brand_display_name: brandUser?.display_name ?? "Brand",
+      generation_count: generations.length,
+      creator_display_name: creatorUserRes.data?.display_name ?? "Creator",
+      brand_display_name: brandUserRes.data?.display_name ?? "Brand",
       earnings_paise: earningsPaise,
       pending_approval_count: pendingApprovalCount,
     },
-    generations: generations ?? [],
+    generations,
   });
 }

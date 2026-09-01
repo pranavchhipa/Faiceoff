@@ -6,7 +6,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
       // Supabase Storage (reference photos, avatars)
       { protocol: "https", hostname: "*.supabase.co" },
-      // Cloudflare R2 public CDN (generated images)
+      // Cloudflare R2 — custom domain (current uploads). Keep the r2.dev
+      // pattern below too: existing generations have the full pub-*.r2.dev
+      // URL baked into generations.image_url, so those rows only render
+      // while that hostname stays allowed AND public on the bucket.
+      { protocol: "https", hostname: "cdn.faiceoff.com" },
       { protocol: "https", hostname: "*.r2.dev" },
     ],
   },
@@ -14,6 +18,11 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "100mb",
     },
+    // Import-rewrite these so each icon/motion import pulls only its own
+    // module instead of the package barrel (smaller route chunks, faster
+    // dev + build resolution). lucide-react is in Next's default list;
+    // framer-motion is not — 62 client files import it.
+    optimizePackageImports: ["framer-motion", "lucide-react"],
     /* ── App Router client-side cache TTLs ──────────────────────────────
        Next.js 14+ tunes how long the client-side Router Cache holds
        prefetched + already-rendered route segments. The defaults are

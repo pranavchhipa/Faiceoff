@@ -34,7 +34,6 @@ import {
 } from "@/lib/anti-fraud";
 import { assemblePromptWithLLM } from "@/lib/ai/prompt-assembler";
 import { replicate } from "@/lib/ai/replicate-client";
-import { runGeneration } from "@/lib/ai/run-generation";
 import type { LicenseScope } from "@/lib/billing";
 import type { Json } from "@/types/supabase";
 
@@ -168,36 +167,9 @@ export async function POST(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  // ── 4. Resolve brand ─────────────────────────────────────────────────────────
-  const { data: brand, error: brandError } = await admin
-    .from("brands")
-    .select("id, user_id, company_name")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (brandError || !brand) {
-    return NextResponse.json({ error: "Brand profile not found" }, { status: 403 });
-  }
-
-  // ── 5. Resolve creator ────────────────────────────────────────────────────────
-  const { data: creator, error: creatorError } = await admin
-    .from("creators")
-    .select("id, user_id, is_active, onboarding_step")
-    .eq("id", creator_id)
-    .maybeSingle();
-
-  if (creatorError || !creator) {
-    return NextResponse.json({ error: "Creator not found" }, { status: 404 });
-  }
-
-  if (!creator.is_active) {
-    return NextResponse.json(
-      { error: "Creator is not currently active" },
-      { status: 422 },
-    );
-  }
-
-  // ── 6. Resolve creator pricing ───────────────────────────────────────────────
+  // ── 4-6. Resolve brand, creator, creator pricing ─────────────────────────────
+  // All three lookups depend only on request inputs — run them in one batch.
+  // Error precedence below matches the original sequential order.
   const briefCategory = brief.category;
   let categoryQuery = admin
     .from("creator_categories")
@@ -209,9 +181,38 @@ export async function POST(request: Request) {
     categoryQuery = categoryQuery.eq("category", briefCategory);
   }
 
-  const { data: creatorCategory, error: categoryError } = await categoryQuery
-    .limit(1)
-    .maybeSingle();
+  const [
+    { data: brand, error: brandError },
+    { data: creator, error: creatorError },
+    { data: creatorCategory, error: categoryError },
+  ] = await Promise.all([
+    admin
+      .from("brands")
+      .select("id, user_id, company_name")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    admin
+      .from("creators")
+      .select("id, user_id, is_active, onboarding_step")
+      .eq("id", creator_id)
+      .maybeSingle(),
+    categoryQuery.limit(1).maybeSingle(),
+  ]);
+
+  if (brandError || !brand) {
+    return NextResponse.json({ error: "Brand profile not found" }, { status: 403 });
+  }
+
+  if (creatorError || !creator) {
+    return NextResponse.json({ error: "Creator not found" }, { status: 404 });
+  }
+
+  if (!creator.is_active) {
+    return NextResponse.json(
+      { error: "Creator is not currently active" },
+      { status: 422 },
+    );
+  }
 
   if (categoryError || !creatorCategory) {
     return NextResponse.json(
@@ -237,25 +238,46 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── 9. 3-layer compliance check ──────────────────────────────────────────────
-  let complianceResult: Awaited<ReturnType<typeof runComplianceCheck>>;
-  try {
-    complianceResult = await runComplianceCheck({
-      creatorId: creator_id,
-      structuredBrief: {
-        product: brief.product,
-        scene: brief.scene,
-        mood: brief.mood,
-        aesthetic: brief.aesthetic,
-      },
-    });
-  } catch (err) {
-    console.error("[generations/create] Compliance check error:", err);
+  // ── 9-11. Compliance check, credits preflight, prompt assembly ───────────────
+  // Independent of each other (inputs come from the request + resolved brand),
+  // so run them concurrently — compliance and prompt assembly are both LLM
+  // calls and dominate latency. allSettled keeps per-branch error handling;
+  // error precedence below matches the original sequential order.
+
+  // Build brief shape compatible with assemblePromptWithLLM's StructuredBrief.
+  const promptBrief: Record<string, unknown> = {
+    product_name: brief.product,
+    setting: brief.scene,
+    ...(brief.mood ? { mood_palette: brief.mood } : {}),
+    ...(brief.aesthetic ? { notes: brief.aesthetic } : {}),
+    aspect_ratio: brief.aspect_ratio,
+    ...(briefCategory ? { category: briefCategory } : {}),
+  };
+
+  const [complianceSettled, creditsSettled, promptSettled] =
+    await Promise.allSettled([
+      runComplianceCheck({
+        creatorId: creator_id,
+        structuredBrief: {
+          product: brief.product,
+          scene: brief.scene,
+          mood: brief.mood,
+          aesthetic: brief.aesthetic,
+        },
+      }),
+      getCredits(brand.id),
+      assemblePromptWithLLM(promptBrief),
+    ]);
+
+  // 9. 3-layer compliance check
+  if (complianceSettled.status === "rejected") {
+    console.error("[generations/create] Compliance check error:", complianceSettled.reason);
     return NextResponse.json(
       { error: "Compliance check failed — please try again" },
       { status: 500 },
     );
   }
+  const complianceResult = complianceSettled.value;
 
   if (!complianceResult.passed) {
     return NextResponse.json(
@@ -268,18 +290,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── 10. Two-layer billing preflight ──────────────────────────────────────────
-  // 10a. Credits check (1 generation slot)
-  let creditsInfo: Awaited<ReturnType<typeof getCredits>>;
-  try {
-    creditsInfo = await getCredits(brand.id);
-  } catch (err) {
-    console.error("[generations/create] getCredits failed:", err);
+  // 10. Two-layer billing preflight — 10a. Credits check (1 generation slot)
+  if (creditsSettled.status === "rejected") {
+    console.error("[generations/create] getCredits failed:", creditsSettled.reason);
     return NextResponse.json(
       { error: "Could not read credit balance" },
       { status: 500 },
     );
   }
+  const creditsInfo = creditsSettled.value;
 
   if (creditsInfo.remaining < 1) {
     return NextResponse.json(
@@ -288,25 +307,13 @@ export async function POST(request: Request) {
     );
   }
 
-
-  // ── 11. Prompt assembly ───────────────────────────────────────────────────────
-  // Build brief shape compatible with assemblePromptWithLLM's StructuredBrief.
-  const promptBrief: Record<string, unknown> = {
-    product_name: brief.product,
-    setting: brief.scene,
-    ...(brief.mood ? { mood_palette: brief.mood } : {}),
-    ...(brief.aesthetic ? { notes: brief.aesthetic } : {}),
-    aspect_ratio: brief.aspect_ratio,
-    ...(briefCategory ? { category: briefCategory } : {}),
-  };
-
+  // 11. Prompt assembly result
   let assembledPrompt: string;
-  try {
-    const { prompt } = await assemblePromptWithLLM(promptBrief);
-    assembledPrompt = prompt;
-  } catch (err) {
+  if (promptSettled.status === "fulfilled") {
+    assembledPrompt = promptSettled.value.prompt;
+  } else {
     // Fail-open: use templated fallback so generation still proceeds.
-    console.error("[generations/create] Prompt assembly error:", err);
+    console.error("[generations/create] Prompt assembly error:", promptSettled.reason);
     assembledPrompt = [
       `A photorealistic image of ${brief.product}`,
       `in ${brief.scene}`,
@@ -433,6 +440,9 @@ export async function POST(request: Request) {
   if (provider === "gemini") {
     after(async () => {
       try {
+        // Lazy import: run-generation pulls sharp + tesseract.js — keep them
+        // out of the route's cold-start module graph.
+        const { runGeneration } = await import("@/lib/ai/run-generation");
         await runGeneration(generationId);
       } catch (err) {
         console.error(

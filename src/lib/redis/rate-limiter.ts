@@ -4,6 +4,8 @@ import type { Duration } from '@upstash/ratelimit';
 
 import { getRedis } from './client';
 
+const limiters = new Map<string, Ratelimit>();
+
 const DEFAULT_LIMIT = 10;
 const DEFAULT_WINDOW: Duration = '60 s';
 
@@ -47,12 +49,20 @@ export async function rateLimit(
       };
     }
 
-    const limiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(limit, window),
-      analytics: true,
-      prefix: 'faiceoff:ratelimit',
-    });
+    // Memoize one Ratelimit per (limit, window) — constructing a fresh
+    // instance per call defeated its internal caching. analytics:false
+    // drops the extra fire-and-forget Redis command per check.
+    const key = `${limit}:${window}`;
+    let limiter = limiters.get(key);
+    if (!limiter) {
+      limiter = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(limit, window),
+        analytics: false,
+        prefix: 'faiceoff:ratelimit',
+      });
+      limiters.set(key, limiter);
+    }
 
     return await limiter.limit(identifier);
   } catch (err) {

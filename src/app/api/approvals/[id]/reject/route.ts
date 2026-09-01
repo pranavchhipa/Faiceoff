@@ -165,7 +165,8 @@ export async function POST(
       feedback: feedback ?? null,
       decided_at: now,
     })
-    .eq("id", approvalId);
+    .eq("id", approvalId)
+    .eq("status", "pending"); // guarded claim — concurrent decide races safely
 
   if (approvalUpdateError) {
     console.error(

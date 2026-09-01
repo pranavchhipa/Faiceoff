@@ -79,3 +79,20 @@ export function decideRedirect(pathname: string, role: Role | null, onboardingCo
 
   return null;
 }
+
+/**
+ * Does this path's routing decision require the session at all?
+ *
+ * Mirrors decideRedirect's early-return table exactly: /api/*, Next
+ * internals, the Control Centre slug, and public marketing pages pass
+ * through REGARDLESS of who is logged in — so the middleware can skip
+ * every Supabase call for them (API handlers authenticate themselves).
+ */
+export function needsSession(pathname: string): boolean {
+  if (pathname.startsWith("/api/")) return false;
+  if (pathname.startsWith("/_next/") || pathname.startsWith("/static/")) return false;
+  const ccSlug = process.env.OWNER_CONTROL_CENTRE_SLUG?.trim();
+  if (ccSlug && (pathname === `/${ccSlug}` || pathname.startsWith(`/${ccSlug}/`))) return false;
+  if (isPublicPath(pathname)) return false;
+  return true;
+}

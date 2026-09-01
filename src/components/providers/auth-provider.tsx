@@ -100,6 +100,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { sessionStorage.removeItem(ROLE_CACHE_KEY); } catch { /* noop */ }
   }
 
+  // Middleware-resolved role hint (`fo_role` = "uid:role", set by proxy.ts on
+  // every authenticated navigation). Lets a first visit in a fresh tab paint
+  // the correct chrome instantly — no /api/whoami wait. UI hint only; every
+  // API re-checks role server-side.
+  function readRoleCookie(userId: string): Role {
+    try {
+      const m = document.cookie.match(/(?:^|;\s*)fo_role=([^;]*)/);
+      if (!m) return null;
+      const [uid, r] = decodeURIComponent(m[1]).split(":");
+      if (uid !== userId) return null;
+      return r === "brand" || r === "creator" || r === "admin" ? r : null;
+    } catch { return null; }
+  }
+
   const handleAuthChange = useCallback(
     (_event: string, newSession: Session | null) => {
       // Always keep the latest session (access_token may have rotated).
@@ -163,8 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Fast path: cached role for this user — resolve instantly, skip spinner
-    const cached = readRoleCache(user.id);
+    // Fast path: cached role for this user — resolve instantly, skip spinner.
+    // Sources in priority order: sessionStorage (same-tab return visit),
+    // then the middleware's fo_role cookie (fresh tab, first visit).
+    const cached = readRoleCache(user.id) ?? readRoleCookie(user.id);
     if (cached) {
       setRole(cached);
       setRoleResolvedForUserId(user.id);

@@ -49,8 +49,12 @@ export async function POST(request: Request) {
   if (kyc_document_url) {
     updatePayload.kyc_document_url = kyc_document_url;
   }
-  if (kyc_status && ["not_started", "pending", "approved", "rejected"].includes(kyc_status)) {
-    updatePayload.kyc_status = kyc_status as "not_started" | "pending" | "approved" | "rejected";
+  // Client may only move KYC to a NON-verified state. approved/rejected are
+  // verdicts — they come exclusively from the KYC verification flows
+  // (/api/kyc/*) and admin actions; accepting them here let a creator
+  // self-approve KYC with one crafted request.
+  if (kyc_status && ["not_started", "pending"].includes(kyc_status)) {
+    updatePayload.kyc_status = kyc_status as "not_started" | "pending";
   }
   if (gender && ["male", "female", "non_binary", "prefer_not_to_say"].includes(gender)) {
     updatePayload.gender = gender as "male" | "female" | "non_binary" | "prefer_not_to_say";

@@ -50,25 +50,9 @@ interface PaletteGroup {
   items: PaletteItem[];
 }
 
-/**
- * Hook: globally listen for ⌘K / Ctrl+K to open the palette.
- */
-export function useCommandPalette() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function down(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-    }
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  return { open, setOpen };
-}
+// useCommandPalette moved to ./use-command-palette (own module) so the
+// layout can import it without defeating the dynamic() code-split of this file.
+export { useCommandPalette } from "./use-command-palette";
 
 interface CommandPaletteProps {
   role: Role | null;

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runGenerationsBatch } from "@/lib/ai/run-generation";
 import { StructuredBriefSchema } from "@/domains/generation/structured-brief";
 import { rateLimit } from "@/lib/redis/rate-limiter";
 import { track } from "@/lib/observability/analytics";
@@ -116,11 +115,23 @@ export async function POST(
     .eq("gen_credits_used", session.gen_credits_used); // optimistic concurrency
 
   if (creditErr) {
-    // Rollback the global deduction so balance stays correct
-    await admin
+    // Rollback the global deduction so balance stays correct. Guarded: only
+    // restore if the balance is still exactly what our deduction left it at —
+    // an unconditional write-back of the pre-read value would clobber any
+    // concurrent top-up/spend that landed in between.
+    const { data: rbWallet, error: rbWalletErr } = await admin
       .from("brands")
       .update({ credits_remaining: globalCredits })
-      .eq("id", brand.id);
+      .eq("id", brand.id)
+      .eq("credits_remaining", globalCredits - 1)
+      .select("id")
+      .maybeSingle();
+    if (rbWalletErr || !rbWallet) {
+      console.error(
+        `[collabs/generate] wallet rollback skipped (balance changed concurrently) brand=${brand.id} expected=${globalCredits - 1}`,
+        rbWalletErr,
+      );
+    }
     return NextResponse.json({ error: "Credit reservation failed, please retry" }, { status: 409 });
   }
 
@@ -154,15 +165,35 @@ export async function POST(
     .single();
 
   if (genErr || !gen) {
-    // Rollback BOTH counters
-    await admin
+    // Rollback BOTH counters. Guarded: each restore only fires if the column
+    // is still exactly what our deduction left it at — an unconditional
+    // write-back of the pre-read value would clobber concurrent updates.
+    const { data: rbCollab, error: rbCollabErr } = await admin
       .from("collab_sessions")
       .update({ gen_credits_used: session.gen_credits_used })
-      .eq("id", collabId);
-    await admin
+      .eq("id", collabId)
+      .eq("gen_credits_used", session.gen_credits_used + 1)
+      .select("id")
+      .maybeSingle();
+    if (rbCollabErr || !rbCollab) {
+      console.error(
+        `[collabs/generate] collab counter rollback skipped (changed concurrently) collab=${collabId} expected=${session.gen_credits_used + 1}`,
+        rbCollabErr,
+      );
+    }
+    const { data: rbWallet, error: rbWalletErr } = await admin
       .from("brands")
       .update({ credits_remaining: globalCredits })
-      .eq("id", brand.id);
+      .eq("id", brand.id)
+      .eq("credits_remaining", globalCredits - 1)
+      .select("id")
+      .maybeSingle();
+    if (rbWalletErr || !rbWallet) {
+      console.error(
+        `[collabs/generate] wallet rollback skipped (balance changed concurrently) brand=${brand.id} expected=${globalCredits - 1}`,
+        rbWalletErr,
+      );
+    }
     return NextResponse.json({ error: "Failed to create generation" }, { status: 500 });
   }
 
@@ -189,6 +220,9 @@ export async function POST(
 
   after(async () => {
     try {
+      // Lazy import: run-generation pulls sharp + tesseract.js — keep them
+      // out of the route's cold-start module graph.
+      const { runGenerationsBatch } = await import("@/lib/ai/run-generation");
       await runGenerationsBatch([gen.id]);
     } catch (err) {
       console.error("[collab-generate] runGenerationsBatch failed", err);

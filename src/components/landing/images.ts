@@ -6,28 +6,28 @@
 import type { CSSProperties } from "react";
 
 // ── Core 3 creators (used in cards, BrandDemo, AuthShell) ─────────────────
-export const CREATOR_PRIYA = "/landing/creator-face.jpg";  // Priya · Mumbai
-export const CREATOR_ARJUN = "/landing/creator-2.jpg";     // Arjun · Bengaluru
-export const CREATOR_MEERA = "/landing/creator-3.jpg";     // Meera · Delhi
+export const CREATOR_PRIYA = "/landing/creator-face.webp";  // Priya · Mumbai
+export const CREATOR_ARJUN = "/landing/creator-2.webp";     // Arjun · Bengaluru
+export const CREATOR_MEERA = "/landing/creator-3.webp";     // Meera · Delhi
 
 // ── Extra creators (used in expanded creator gallery) ─────────────────────
-export const CREATOR_AJAY    = "/landing/creator-ajay.jpg";
-export const CREATOR_NIDHI   = "/landing/creator-nidhi.jpg";
-export const CREATOR_ALEX    = "/landing/creator-alex.jpg";
-export const CREATOR_SAKSHI  = "/landing/creator-sakshi.jpg";
-export const CREATOR_SHERYL  = "/landing/creator-sheryl.jpg";
+export const CREATOR_AJAY    = "/landing/creator-ajay.webp";
+export const CREATOR_NIDHI   = "/landing/creator-nidhi.webp";
+export const CREATOR_ALEX    = "/landing/creator-alex.webp";
+export const CREATOR_SAKSHI  = "/landing/creator-sakshi.webp";
+export const CREATOR_SHERYL  = "/landing/creator-sheryl.webp";
 
 // ── Priya × product composites (BrandDemo + VaultGallery) ─────────────────
-export const PRIYA_WITH_SNEAKERS  = "/landing/product-sneaker.jpg";
-export const PRIYA_WITH_PHONE     = "/landing/product-phone.jpg";
-export const PRIYA_WITH_SKINCARE  = "/landing/product-skincare.jpg";
-export const PRIYA_WITH_FOOD      = "/landing/product-food.jpg";
-export const PRIYA_WITH_LIPSTICK  = "/landing/priya-lipstick.jpg";
+export const PRIYA_WITH_SNEAKERS  = "/landing/product-sneaker.webp";
+export const PRIYA_WITH_PHONE     = "/landing/product-phone.webp";
+export const PRIYA_WITH_SKINCARE  = "/landing/product-skincare.webp";
+export const PRIYA_WITH_FOOD      = "/landing/product-food.webp";
+export const PRIYA_WITH_LIPSTICK  = "/landing/priya-lipstick.webp";
 
 // ── Arjun × product composites (variety in CreatorDemo) ───────────────────
-export const ARJUN_WITH_HALDIRAM   = "/landing/arjun-haldiram.jpg";
-export const ARJUN_WITH_PAPERBOAT  = "/landing/arjun-paperboat.jpg";
-export const ARJUN_WITH_SMARTWATCH = "/landing/arjun-smartwatch.jpg";
+export const ARJUN_WITH_HALDIRAM   = "/landing/arjun-haldiram.webp";
+export const ARJUN_WITH_PAPERBOAT  = "/landing/arjun-paperboat.webp";
+export const ARJUN_WITH_SMARTWATCH = "/landing/arjun-smartwatch.webp";
 
 // ── Convenience groupings ──────────────────────────────────────────────────
 export const CREATORS = {

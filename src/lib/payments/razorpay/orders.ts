@@ -34,3 +34,8 @@ export function getRazorpayKeyId(): string {
   if (!key) throw new Error("RAZORPAY_KEY_ID not set");
   return key;
 }
+
+/** Fetch an existing order (used to reuse a still-payable bound order). */
+export async function getRazorpayOrder(orderId: string): Promise<RazorpayOrder> {
+  return razorpayRequest<RazorpayOrder>("GET", `/orders/${orderId}`);
+}

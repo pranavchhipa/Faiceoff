@@ -98,19 +98,28 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     .filter((c) => c.is_active)
     .map((c) => c.category as string);
 
+  // Photo chain (path lookup → sign) and packages are independent — overlap
+  // them instead of the old 3 sequential awaits.
   let heroPhotoUrl: string | null = null;
-  let finalPath: string | null = data.cover_image_path ?? null;
-
-  if (!finalPath) {
-    const { data: primaryPhoto } = await admin
-      .from("creator_reference_photos")
-      .select("storage_path")
+  const [finalPath, packagesRes] = await Promise.all([
+    (async (): Promise<string | null> => {
+      if (data.cover_image_path) return data.cover_image_path as string;
+      const { data: primaryPhoto } = await admin
+        .from("creator_reference_photos")
+        .select("storage_path")
+        .eq("creator_id", id)
+        .order("is_primary", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return primaryPhoto?.storage_path ?? null;
+    })(),
+    admin
+      .from("creator_packages")
+      .select("id, tier, price_paise, final_images, is_active")
       .eq("creator_id", id)
-      .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    finalPath = primaryPhoto?.storage_path ?? null;
-  }
+      .eq("is_active", true)
+      .order("price_paise", { ascending: true }),
+  ]);
 
   if (finalPath) {
     const { data: signed } = await admin.storage
@@ -119,12 +128,7 @@ async function loadCreator(id: string): Promise<CreatorDetail | null> {
     heroPhotoUrl = signed?.signedUrl ?? null;
   }
 
-  const { data: packages } = await admin
-    .from("creator_packages")
-    .select("id, tier, price_paise, final_images, is_active")
-    .eq("creator_id", id)
-    .eq("is_active", true)
-    .order("price_paise", { ascending: true });
+  const packages = packagesRes.data;
 
   return {
     id: data.id as string,

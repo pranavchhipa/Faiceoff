@@ -11,7 +11,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildAgreementTerms } from "./terms";
-import { generateCollabAgreementPDF } from "./agreement-pdf";
+// generateCollabAgreementPDF is imported LAZILY inside finalizeAgreementOnPayment
+// — a static import here drags @react-pdf/renderer + fontkit into every route
+// that touches the agreements barrel (incl. the hot GET /api/collabs/[id]).
 import { uploadAgreementPDF, normalizeAgreementUrl } from "./storage";
 import { computeShares } from "./terms";
 import { AGREEMENT_VERSION } from "./clauses";
@@ -233,6 +235,7 @@ export async function renderAndStorePDF(admin: Admin, row: CollabAgreement): Pro
       product_name: row.product_name,
     });
 
+    const { generateCollabAgreementPDF } = await import("./agreement-pdf");
     const { buffer, sha256 } = await generateCollabAgreementPDF({
       agreement: row,
       terms,

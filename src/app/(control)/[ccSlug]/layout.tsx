@@ -70,7 +70,11 @@ export default async function CCLayout({ children, params }: Props) {
   const isSetupPage = segment === "setup";
   const isLoginPage = segment === "login";
 
-  const hasTotp = await totpExists();
+  // totpExists + session read are independent DB hits — overlap them.
+  const [hasTotp, sessionEarly] = await Promise.all([
+    totpExists(),
+    getCurrentSession().catch(() => null),
+  ]);
 
   // 2. No TOTP configured yet → only /setup is reachable.
   if (!hasTotp) {
@@ -97,8 +101,8 @@ export default async function CCLayout({ children, params }: Props) {
     );
   }
 
-  // 3. TOTP exists. Check session.
-  const session = await getCurrentSession();
+  // 3. TOTP exists. Session was read concurrently above.
+  const session = sessionEarly;
 
   // 3a. Authenticated user landed on /login or /setup → punt to /ops.
   if (session && (isLoginPage || isSetupPage)) {

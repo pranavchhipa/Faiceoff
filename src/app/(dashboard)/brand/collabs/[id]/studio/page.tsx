@@ -129,7 +129,10 @@ const DEFAULT_BRIEF: Brief = {
 };
 
 const POLL_INTERVAL = 4000;
-const TERMINAL_STATUSES = new Set(["ready_for_brand_review", "ready_for_approval", "approved", "rejected", "failed", "discarded"]);
+const TERMINAL_STATUSES = new Set(["ready_for_brand_review", "ready_for_approval", "approved", "rejected", "failed", "discarded", "needs_admin_review"]);
+// Give up polling after 15 min — the server-side stuck-gen sweep marks such
+// rows failed; endless silent polling looked like an infinite spinner.
+const POLL_DEADLINE_MS = 15 * 60 * 1000;
 const PENDING_STATUSES = new Set(["draft", "compliance_check", "generating", "output_check"]);
 
 const STATUS_LABEL: Record<string, string> = {
@@ -376,7 +379,19 @@ export default function BrandStudioPage() {
 
   useEffect(() => {
     if (!pendingGenId) return;
-    pollRef.current = setInterval(() => pollGenStatus(pendingGenId), POLL_INTERVAL);
+    const startedAt = Date.now();
+    pollRef.current = setInterval(() => {
+      if (Date.now() - startedAt > POLL_DEADLINE_MS) {
+        clearInterval(pollRef.current!);
+        setPendingGenId(null);
+        setToast({
+          kind: "info",
+          text: "This generation is taking unusually long. If it failed, your credit is returned automatically — check back in a bit.",
+        });
+        return;
+      }
+      pollGenStatus(pendingGenId);
+    }, POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [pendingGenId, pollGenStatus]);
 

@@ -115,8 +115,12 @@ export async function resolveDispute(formData: FormData): Promise<void> {
 
   const nowIso = new Date().toISOString();
 
-  // ── 1. Flip the dispute to its resolved state ──────────────────────────────
-  await admin
+  // ── 1. Flip the dispute to its resolved state — guarded claim ─────────────
+  // The .not(status in terminal) guard makes this atomic: of two concurrent
+  // resolves, exactly one wins and proceeds to the refund below. The earlier
+  // read-then-check above is only a fast path; without this guard both racers
+  // passed it and double-refunded.
+  const { data: claimedDispute } = await admin
     .from("disputes")
     .update({
       status: newStatus,
@@ -124,7 +128,11 @@ export async function resolveDispute(formData: FormData): Promise<void> {
       resolved_at: nowIso,
       updated_at: nowIso,
     })
-    .eq("id", disputeId);
+    .eq("id", disputeId)
+    .not("status", "in", "(resolved_refund,resolved_no_action,closed)")
+    .select("id")
+    .maybeSingle();
+  if (!claimedDispute) return; // another operator already resolved it
 
   // ── 2. Money (refund outcome only) ─────────────────────────────────────────
   // Safe path: grant the brand back credits (same mechanism as the support

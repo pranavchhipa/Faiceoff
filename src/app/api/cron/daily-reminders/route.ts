@@ -17,7 +17,7 @@
  *   3. LOW CREDITS — active brands with `credits_remaining <= 5` who
  *      have generated something in the last 30d (signal of intent to
  *      keep using the platform). Skipped if the brand was already
- *      reminded in the last 7 days (last_low_credits_reminded_at).
+ *      reminded in the last 7 days (Redis SET NX EX guard — see below).
  *
  * Auth:
  *   Vercel cron jobs are called with header
@@ -25,18 +25,21 @@
  *   isn't a public spam-the-creator vector.
  *
  * Idempotency:
- *   NONE at the row level today — there is no reminder_sent_at or
- *   last_low_credits_reminded_at column on any target table. Safe only
- *   because the 18-30h expiring-soon window doesn't overlap between
- *   once-daily runs on the normal Vercel cron schedule. A manual/backfill
- *   re-invocation of this endpoint (ops catching up after an outage, or
- *   an accidental duplicate trigger) WILL resend the same reminders with
- *   no guard — do not rely on this route being safe to re-run.
+ *   LOW CREDITS is deduped via Upstash Redis (`reminder:low-credits:<brandId>`,
+ *   SET NX with a 7-day TTL) — without it every low-credit brand got the
+ *   same email EVERY day. If Redis is unconfigured (getRedis() → null) or
+ *   errors, we fail open and send: a duplicate nudge beats a missed one.
+ *   The two EXPIRING reminders are intentionally unguarded — they're tied
+ *   to a row's `expires_at` landing in the 18-30h window, which doesn't
+ *   overlap between once-daily runs. A manual/backfill re-invocation of
+ *   this endpoint within the same day WILL resend those two — do not rely
+ *   on this route being fully safe to re-run.
  */
 
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRedis } from "@/lib/redis/client";
 import {
   sendBrandLowCredits,
   sendCreatorApprovalReminder,
@@ -239,6 +242,25 @@ export async function GET(req: Request) {
 
       for (const b of list) {
         try {
+          // Dedup: SET NX EX claims a 7-day slot per brand so once-daily
+          // runs (and retries) don't re-nudge the same brand. Fail OPEN —
+          // if Redis is unconfigured or errors, send anyway.
+          try {
+            const redis = getRedis();
+            if (redis) {
+              const claimed = await redis.set(`reminder:low-credits:${b.id}`, "1", {
+                nx: true,
+                ex: 7 * 24 * 60 * 60,
+              });
+              if (claimed === null) continue; // reminded within last 7d
+            }
+          } catch (redisErr) {
+            console.warn(
+              "[cron/daily-reminders] low-credits dedup check failed; sending anyway",
+              b.id,
+              redisErr,
+            );
+          }
           const { data: u } = await admin
             .from("users")
             .select("email")

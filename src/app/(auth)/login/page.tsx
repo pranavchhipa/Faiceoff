@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { AuthShell, FormField } from "@/components/landing/AuthShell";
@@ -11,8 +11,19 @@ function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
+// useSearchParams requires a Suspense boundary on statically-prerendered
+// pages — same pattern as /auth/verify.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -48,7 +59,15 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      // Honor the deep link the proxy preserved (?redirect=/brand/collabs/…).
+      // Internal paths only — "//host" or absolute URLs would be an open
+      // redirect. Fallback "/dashboard" bounces to the role home.
+      const redirectTo = searchParams.get("redirect");
+      const safeTarget =
+        redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+          ? redirectTo
+          : "/dashboard";
+      router.push(safeTarget);
       router.refresh();
     } catch {
       setServerError("Something went wrong. Please try again.");

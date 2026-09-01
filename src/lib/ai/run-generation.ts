@@ -49,12 +49,18 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const HIVE_UNSAFE_THRESHOLD = 0.7;
-const HIVE_NSFW_CLASSES = new Set([
-  "yes_sexual",
-  "yes_male_nudity",
-  "yes_female_nudity",
-  "yes_graphic_violence",
-]);
+// Hive visual-moderation classes that hard-fail a generation. Class names
+// vary across Hive model versions (e.g. yes_sexual vs yes_sexual_activity),
+// so isUnsafeHiveClass matches the yes_*/general_nsfw families by keyword
+// instead of an exact allowlist — an exact list that drifts from the live
+// taxonomy silently never matches (= no moderation at all). no_* classes
+// score HIGH on SAFE content and must never match.
+function isUnsafeHiveClass(cls: string): boolean {
+  if (!cls || cls.startsWith("no_")) return false;
+  if (cls === "general_nsfw") return true;
+  if (!cls.startsWith("yes_")) return false;
+  return /sexual|nudity|nsfw|violence|gore/.test(cls);
+}
 
 const REFERENCE_PHOTO_BUCKET = "reference-photos";
 const SIGNED_URL_TTL_SECONDS = 600; // 10 minutes — only need it long enough to fetch
@@ -206,10 +212,21 @@ async function signedUrlFor(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function rollbackCreditSafe(admin: any, brandId: string, generationId: string) {
   try {
-    await admin.rpc("rollback_credit_for_generation", {
+    // supabase .rpc() resolves with { error } instead of throwing — the old
+    // try/catch alone never noticed a failed refund.
+    const { error } = await admin.rpc("rollback_credit_for_generation", {
       p_brand_id: brandId,
       p_generation_id: generationId,
     });
+    if (error) {
+      console.error(
+        `[run-generation] credit rollback FAILED for gen=${generationId} — manual reconcile needed: ${error.message}`,
+      );
+      Sentry.captureException(new Error(`credit rollback failed: ${error.message}`), {
+        tags: { route: "run-generation", phase: "credit_rollback" },
+        extra: { generation_id: generationId, brand_id: brandId },
+      });
+    }
   } catch (err) {
     console.warn(
       `[run-generation] rollback_credit_for_generation RPC missing — manual reconcile needed for gen=${generationId}`,
@@ -674,6 +691,8 @@ export async function runGeneration(generationId: string): Promise<void> {
             Key: r2Key,
             Body: finalImage.bytes,
             ContentType: finalImage.mimeType,
+            // Generated images never change at a given key — let browsers/CDN cache hard.
+            CacheControl: "public, max-age=31536000, immutable",
           }),
         ),
         r2Client.send(
@@ -716,10 +735,7 @@ export async function runGeneration(generationId: string): Promise<void> {
       const allClasses =
         hiveResult.status?.[0]?.response?.output?.[0]?.classes ?? [];
       for (const cls of allClasses) {
-        if (
-          HIVE_NSFW_CLASSES.has(cls.class) &&
-          cls.score > HIVE_UNSAFE_THRESHOLD
-        ) {
+        if (cls.score > HIVE_UNSAFE_THRESHOLD && isUnsafeHiveClass(cls.class)) {
           hiveUnsafe = true;
           console.warn(
             `[run-generation] Hive flagged gen=${generationId}: class=${cls.class} score=${cls.score}`,
@@ -736,10 +752,13 @@ export async function runGeneration(generationId: string): Promise<void> {
     }
 
     if (hiveUnsafe) {
+      // needs_admin_review — the admin safety queue reads exactly this
+      // status. 'failed' dead-ended flagged images where no human ever saw
+      // them; credit refund (or confirmation) is the admin verdict's job.
       await admin
         .from("generations")
         .update({
-          status: "failed",
+          status: "needs_admin_review",
           image_url: r2Url,
           assembled_prompt: assembledPrompt,
         })
@@ -1075,6 +1094,7 @@ export async function runIteration(generationId: string): Promise<void> {
             Key: r2Key,
             Body: iterFinal.bytes,
             ContentType: iterFinal.mimeType,
+            CacheControl: "public, max-age=31536000, immutable",
           }),
         ),
         r2Client.send(
@@ -1114,10 +1134,7 @@ export async function runIteration(generationId: string): Promise<void> {
       const allClasses =
         hiveResult.status?.[0]?.response?.output?.[0]?.classes ?? [];
       for (const cls of allClasses) {
-        if (
-          HIVE_NSFW_CLASSES.has(cls.class) &&
-          cls.score > HIVE_UNSAFE_THRESHOLD
-        ) {
+        if (cls.score > HIVE_UNSAFE_THRESHOLD && isUnsafeHiveClass(cls.class)) {
           hiveUnsafe = true;
           console.warn(
             `[run-iteration] Hive flagged gen=${generationId}: class=${cls.class} score=${cls.score}`,
@@ -1133,15 +1150,17 @@ export async function runIteration(generationId: string): Promise<void> {
     }
 
     if (hiveUnsafe) {
+      // Same admin-review routing as the first-generation path (and same
+      // refund policy: the admin verdict decides — auto-refunding here while
+      // the first-gen path did not was an inconsistency).
       await admin
         .from("generations")
         .update({
-          status: "failed",
+          status: "needs_admin_review",
           image_url: r2Url,
           assembled_prompt: iterationResult.finalPrompt,
         })
         .eq("id", generationId);
-      await refundCredit();
       return;
     }
 

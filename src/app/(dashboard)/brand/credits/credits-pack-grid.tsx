@@ -243,7 +243,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
           razorpay_signature: string;
         }) => {
           try {
-            await fetch("/api/credits/confirm-topup", {
+            const confirmRes = await fetch("/api/credits/confirm-topup", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(response),
@@ -252,9 +252,18 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
             // any next visit refetches fresh balance.
             invalidateCache("/api/billing/balance");
             invalidateCache("/api/dashboard/stats");
-            toast.success(
-              `${data.credits + data.bonus_credits} credits added to your account!`,
-            );
+            if (confirmRes.ok) {
+              toast.success(
+                `${data.credits + data.bonus_credits} credits added to your account!`,
+              );
+            } else {
+              // Payment IS captured (Razorpay handler only fires on success);
+              // only our confirm call failed. The webhook independently
+              // grants the credits — don't claim success, don't scare either.
+              toast.info(
+                "Payment received — credits will appear within a minute. Refresh if they don't.",
+              );
+            }
           } catch {
             toast.info("Payment received — credits will appear shortly.");
           }

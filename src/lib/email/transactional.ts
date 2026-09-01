@@ -266,7 +266,7 @@ async function send(opts: { to: string; subject: string; html: string }): Promis
   try {
     const client = getClient();
     if (!client) return;
-    await client.emails.send({
+    const { error } = await client.emails.send({
       from: FROM_ADDRESS,
       to: opts.to,
       subject: opts.subject,
@@ -287,6 +287,22 @@ async function send(opts: { to: string; subject: string; html: string }): Promis
           }
         : {}),
     });
+    // The Resend SDK does NOT throw on API failures — it resolves with
+    // { error }. Without this check a rejected send is silently swallowed.
+    // Log domain only (never the full address — PII).
+    if (error) {
+      const domain = opts.to.split("@")[1] ?? "unknown";
+      console.error("[email] resend rejected send", {
+        subject: opts.subject,
+        domain,
+        error,
+      });
+      Sentry.captureMessage(`[email] resend rejected send: ${opts.subject}`, {
+        level: "error",
+        tags: { module: "email", subject: opts.subject, domain },
+        extra: { error },
+      });
+    }
   } catch (err) {
     console.error("[email] send failed", err);
     Sentry.captureException(err, {

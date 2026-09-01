@@ -46,7 +46,7 @@ interface Notification {
   created_at: string;
 }
 
-const POLL_MS = 20_000;
+const POLL_MS = 60_000; // realtime is the primary channel; this is only the fallback sweep
 
 function iconFor(type: string) {
   switch (type) {

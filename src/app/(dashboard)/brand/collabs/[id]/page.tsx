@@ -136,7 +136,7 @@ const CREATOR_PENDING_STATUSES = new Set(["ready_for_approval"]);
 
 export default function BrandCollabWorkspacePage() {
   const { id } = useParams<{ id: string }>();
-  const { data, loading: rawLoading } = useCachedFetch<CollabData>(
+  const { data, loading: rawLoading, error, refresh } = useCachedFetch<CollabData>(
     id ? `/api/collabs/${id}` : null,
   );
   const loading = rawLoading && !data;
@@ -151,6 +151,24 @@ export default function BrandCollabWorkspacePage() {
   }
 
   if (!data) {
+    // Distinguish a real 404 from a failed/expired fetch — the old copy said
+    // "not found" for BOTH, sending users away from collabs that exist.
+    if (error) {
+      return (
+        <div className="mx-auto max-w-md px-4 py-20 text-center">
+          <p className="text-[var(--color-muted-foreground)]">
+            Couldn&apos;t load this collab. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => refresh()}
+            className="mt-4 text-sm font-semibold text-[var(--color-primary)]"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Collab not found.</p>

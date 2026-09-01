@@ -29,10 +29,16 @@ export async function POST(
 ) {
   const { id: requestId } = await params;
 
-  // Can be called from webhook (no user session) or brand UI
+  // Can be called from webhook (no user session) or brand UI.
+  // FAIL CLOSED on unset secrets: the old template-string comparison turned an
+  // unset env var into the literal "Bearer undefined" (or "Bearer " for empty),
+  // which anyone could send to unlock a funded collab with zero payment.
   const authHeader = request.headers.get("authorization") ?? "";
-  const isWebhook = authHeader === `Bearer ${process.env.RAZORPAY_WEBHOOK_SECRET}` ||
-                    authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
+  const isWebhook =
+    (Boolean(webhookSecret) && authHeader === `Bearer ${webhookSecret}`) ||
+    (Boolean(cronSecret) && authHeader === `Bearer ${cronSecret}`);
 
   let userId: string | null = null;
   if (!isWebhook) {
@@ -207,39 +213,17 @@ export async function POST(
   // but actual debit happens against brands.credits_remaining when generating.
   // Idempotency: this block runs only when status flips accepted → paid (above
   // we already short-circuit if req.status === 'paid').
+  // Atomic + idempotent via grant_collab_credits (migration 00074). The old
+  // read-modify-write on brands.credits_remaining raced with concurrent
+  // top-ups/deducts and could clobber their balance updates.
   try {
-    const { data: brandRow } = await admin
-      .from("brands")
-      .select("credits_remaining, credits_lifetime_purchased")
-      .eq("id", req.brand_id)
-      .maybeSingle();
-
-    if (brandRow) {
-      const currentRemaining = (brandRow.credits_remaining ?? 0) as number;
-      const currentLifetime  = (brandRow.credits_lifetime_purchased ?? 0) as number;
-      const newRemaining = currentRemaining + gen_credits_total;
-      const newLifetime  = currentLifetime + gen_credits_total;
-
-      await admin
-        .from("brands")
-        .update({
-          credits_remaining: newRemaining,
-          credits_lifetime_purchased: newLifetime,
-        })
-        .eq("id", req.brand_id);
-
-      await admin
-        .from("credit_transactions")
-        .insert({
-          brand_id: req.brand_id,
-          type: "topup",
-          credits: gen_credits_total,
-          balance_after: newRemaining,
-          reference_type: "collab_session",
-          reference_id: session.id,
-          description: `${req.package_tier} package · ${gen_credits_total} credits unlocked`,
-        });
-    }
+    const { error: grantErr } = await admin.rpc("grant_collab_credits", {
+      p_brand_id: req.brand_id,
+      p_session_id: session.id,
+      p_credits: gen_credits_total,
+      p_description: `${req.package_tier} package · ${gen_credits_total} credits unlocked`,
+    });
+    if (grantErr) throw grantErr;
   } catch (err) {
     // Non-fatal — collab is already created. Credits can be reconciled
     // by an admin if this fails. Logged for observability.

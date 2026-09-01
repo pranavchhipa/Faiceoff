@@ -31,25 +31,23 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load requests" }, { status: 500 });
   }
 
-  // Enrich with brand display names
+  // Enrich with brand display names — one embedded query instead of the old
+  // brands→users two-step (brands.user_id FK makes users(display_name)
+  // embeddable; same pattern as src/lib/cc/overview.ts).
   const brandIds = [...new Set((rows ?? []).map((r: { brand_id: string }) => r.brand_id))];
   const brandNames: Record<string, string> = {};
   if (brandIds.length > 0) {
     const { data: brands } = await admin
       .from("brands")
-      .select("id, user_id, company_name")
+      .select("id, company_name, user:users(display_name)")
       .in("id", brandIds);
 
-    const userIds = (brands ?? []).map((b: { user_id: string }) => b.user_id);
-    const { data: brandUsers } = userIds.length > 0
-      ? await admin.from("users").select("id, display_name").in("id", userIds)
-      : { data: [] };
-
-    const userNameById: Record<string, string> = {};
-    for (const u of brandUsers ?? []) userNameById[u.id] = u.display_name;
-
-    for (const b of brands ?? []) {
-      brandNames[b.id] = b.company_name ?? userNameById[b.user_id] ?? "Brand";
+    for (const b of (brands ?? []) as Array<{
+      id: string;
+      company_name: string | null;
+      user: { display_name: string | null } | null;
+    }>) {
+      brandNames[b.id] = b.company_name ?? b.user?.display_name ?? "Brand";
     }
   }
 

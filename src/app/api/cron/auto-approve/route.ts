@@ -69,6 +69,44 @@ export async function GET(req: Request) {
     console.warn("[cron/auto-approve] collab_requests expiry sweep failed", e);
   }
 
+  // ── Recover generations stuck mid-pipeline (>30 min) ──
+  // The Gemini path is synchronous (~1-2 min worst case). A crash between
+  // claim and terminal status used to leave the row 'generating' FOREVER —
+  // studio spinners never resolved and the deducted credit was never
+  // returned. Flip to failed + refund; rollback RPC is idempotent.
+  try {
+    const stuckCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: stuck } = await admin
+      .from("generations")
+      .select("id, brand_id")
+      .in("status", ["generating", "compliance_check", "output_check"])
+      .lt("updated_at", stuckCutoff)
+      .limit(50);
+    for (const g of (stuck ?? []) as Array<{ id: string; brand_id: string }>) {
+      const { data: flipped } = await admin
+        .from("generations")
+        .update({ status: "failed", updated_at: now })
+        .eq("id", g.id)
+        .in("status", ["generating", "compliance_check", "output_check"])
+        .select("id")
+        .maybeSingle();
+      if (!flipped) continue; // finished/claimed in the meantime
+      const { error: rbErr } = await admin.rpc("rollback_credit_for_generation", {
+        p_brand_id: g.brand_id,
+        p_generation_id: g.id,
+      });
+      if (rbErr) {
+        console.error(
+          `[cron/auto-approve] stuck-gen refund failed gen=${g.id}: ${rbErr.message}`,
+        );
+      } else {
+        console.log(`[cron/auto-approve] recovered stuck gen=${g.id} (failed + refunded)`);
+      }
+    }
+  } catch (e) {
+    console.warn("[cron/auto-approve] stuck-generation sweep failed", e);
+  }
+
   // ── Find expired pending approvals ──
   const { data: expired, error: queryErr } = await admin
     .from("approvals")
@@ -76,7 +114,8 @@ export async function GET(req: Request) {
       `
       id, generation_id, creator_id, brand_id, expires_at,
       generations!approvals_generation_id_fkey (
-        id, brand_id, creator_id, cost_paise, structured_brief, status
+        id, brand_id, creator_id, cost_paise, structured_brief, status,
+        collab_session_id
       )
       `,
     )
@@ -107,6 +146,7 @@ export async function GET(req: Request) {
           cost_paise: number;
           structured_brief: Record<string, unknown> | null;
           status: string;
+          collab_session_id: string | null;
         }
       | null;
     if (!gen || gen.status !== "ready_for_approval") {
@@ -134,6 +174,34 @@ export async function GET(req: Request) {
         .from("generations")
         .update({ status: "approved", updated_at: now })
         .eq("id", gen.id);
+
+      // 2b. Increment collab_sessions.approved_count + auto-complete —
+      // mirrors the manual approve route. Without this, an auto-approved
+      // final image left the collab 'active' forever with an undercounted
+      // approved_count (state-machine hole).
+      if (gen.collab_session_id) {
+        try {
+          const { data: sess } = await admin
+            .from("collab_sessions")
+            .select("approved_count, final_images_target, status")
+            .eq("id", gen.collab_session_id)
+            .maybeSingle();
+          if (sess) {
+            const newCount = (sess.approved_count ?? 0) + 1;
+            const isComplete =
+              sess.final_images_target && newCount >= sess.final_images_target;
+            await admin
+              .from("collab_sessions")
+              .update({
+                approved_count: newCount,
+                ...(isComplete ? { status: "completed" } : {}),
+              })
+              .eq("id", gen.collab_session_id);
+          }
+        } catch (err) {
+          console.error("[cron/auto-approve] approved_count increment failed", err);
+        }
+      }
 
       // 3. Escrow credit + platform revenue + license
       if (gen.cost_paise > 0) {

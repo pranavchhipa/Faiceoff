@@ -6,6 +6,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const BRAND_REVIEW_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const APPROVAL_EXPIRY_MS = 48 * 60 * 60 * 1000;
 
+const GEN_COLUMNS = `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
+       structured_brief, image_url, cost_paise, created_at, updated_at,
+       upscaled_url, quality_scores, generation_attempts,
+       provider_prediction_id, pipeline_version, retry_count, is_free_retry`;
+
+/**
+ * GET /api/generations/[id]
+ *
+ * HOT PATH: the studio polls this every 4s while a generation is running.
+ * All independent lookups are batched with Promise.all — the old version
+ * ran ~8 sequential round trips per poll (including a duplicated creators
+ * query); this runs 2 batches.
+ */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -26,24 +39,20 @@ export async function GET(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  // --- Fetch generation ---
+  // --- Batch 1: generation + caller identity (all independent) ---
   // Note: upscaled_url, quality_scores, generation_attempts,
   // provider_prediction_id, retry_count, is_free_retry, and pipeline_version
   // are from migrations 00016 / 00028. src/types/supabase.ts is stale until
   // we regenerate, so we cast the row shape at the boundary.
   // (base_image_url dropped in 00054 — was never populated.)
-  const { data: genRaw, error: genError } = await admin
-    .from("generations")
-    .select(
-      `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
-       structured_brief, image_url, cost_paise, created_at, updated_at,
-       upscaled_url, quality_scores, generation_attempts,
-       provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
-    )
-    .eq("id", id)
-    .single();
+  const [genRes, userRes, brandRes, creatorRes] = await Promise.all([
+    admin.from("generations").select(GEN_COLUMNS).eq("id", id).single(),
+    admin.from("users").select("role").eq("id", user.id).single(),
+    admin.from("brands").select("id").eq("user_id", user.id).maybeSingle(),
+    admin.from("creators").select("id").eq("user_id", user.id).maybeSingle(),
+  ]);
 
-  const gen = genRaw as unknown as
+  const gen = genRes.data as unknown as
     | {
         id: string;
         collab_session_id: string | null;
@@ -66,7 +75,7 @@ export async function GET(
       }
     | null;
 
-  if (genError || !gen) {
+  if (genRes.error || !gen) {
     return NextResponse.json(
       { error: "Generation not found" },
       { status: 404 },
@@ -74,65 +83,48 @@ export async function GET(
   }
 
   // --- Verify access: user must be the brand, creator, or admin ---
-  const { data: userRow } = await admin
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const isAdmin = userRes.data?.role === "admin";
+  const isBrandOwner = brandRes.data && gen.brand_id === brandRes.data.id;
+  const isCreator = Boolean(creatorRes.data && gen.creator_id === creatorRes.data.id);
 
-  const isAdmin = userRow?.role === "admin";
+  if (!isAdmin && !isBrandOwner && !isCreator) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
 
-  if (!isAdmin) {
-    // Check if brand
-    const { data: brand } = await admin
-      .from("brands")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    // Check if creator
-    const { data: creator } = await admin
-      .from("creators")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const isBrandOwner = brand && gen.brand_id === brand.id;
-    const isCreatorOwner = creator && gen.creator_id === creator.id;
-
-    if (!isBrandOwner && !isCreatorOwner) {
-      return NextResponse.json(
-        { error: "Access denied" },
-        { status: 403 },
-      );
+  // --- Self-healing: a generation stuck mid-pipeline for >30 min is dead
+  //     (the Gemini path completes in 1-2 min). Flip to failed + refund the
+  //     credit inline so the polling UI resolves immediately instead of
+  //     waiting for the daily cron sweep. Guarded update → race-safe. ---
+  let effectiveGen = gen;
+  const STUCK_STATUSES = ["generating", "compliance_check", "output_check"];
+  if (STUCK_STATUSES.includes(gen.status)) {
+    const stuckAgeMs = Date.now() - new Date(gen.updated_at).getTime();
+    if (stuckAgeMs > 30 * 60 * 1000) {
+      const { data: flipped } = await admin
+        .from("generations")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .in("status", STUCK_STATUSES)
+        .select(GEN_COLUMNS)
+        .maybeSingle();
+      if (flipped) {
+        effectiveGen = { ...(flipped as typeof gen) };
+        const { error: rbErr } = await admin.rpc("rollback_credit_for_generation", {
+          p_brand_id: gen.brand_id,
+          p_generation_id: id,
+        });
+        if (rbErr) {
+          console.error(
+            `[generations/${id}] stuck-gen refund failed: ${rbErr.message}`,
+          );
+        }
+      }
     }
   }
-
-  // --- Fetch session name ---
-  let campaign: { id: string; name: string } | null = null;
-  if (gen.collab_session_id) {
-    const { data: campData } = await admin
-      .from("collab_sessions")
-      .select("id, name")
-      .eq("id", gen.collab_session_id)
-      .single();
-    if (campData) campaign = campData;
-  }
-
-
-  // --- Check if current user is the creator ---
-  const { data: creatorRow } = await admin
-    .from("creators")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const isCreator = creatorRow?.id === gen.creator_id;
 
   // --- Auto-send timeout (Q3=A): if generation has been sitting in
   //     ready_for_brand_review for >24h, auto-promote to ready_for_approval
   //     so the pipeline keeps moving without forever-hanging gens. ---
-  let effectiveGen = gen;
   if (gen.status === "ready_for_brand_review") {
     const ageMs = Date.now() - new Date(gen.updated_at).getTime();
     if (ageMs > BRAND_REVIEW_TIMEOUT_MS) {
@@ -141,12 +133,7 @@ export async function GET(
         .update({ status: "ready_for_approval" })
         .eq("id", id)
         .eq("status", "ready_for_brand_review")
-        .select(
-          `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
-           structured_brief, image_url, cost_paise, created_at, updated_at,
-           upscaled_url, quality_scores, generation_attempts,
-           provider_prediction_id, pipeline_version, retry_count, is_free_retry`,
-        )
+        .select(GEN_COLUMNS)
         .maybeSingle();
       if (claimed) {
         const expiresAt = new Date(
@@ -164,18 +151,29 @@ export async function GET(
     }
   }
 
-  // --- Fetch approval record ---
-  const { data: approvalData } = await admin
-    .from("approvals")
-    .select("id, status, feedback, decided_at, expires_at, created_at")
-    .eq("generation_id", id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // --- Batch 2: session name + latest approval (independent) ---
+  const [campRes, approvalRes] = await Promise.all([
+    gen.collab_session_id
+      ? admin
+          .from("collab_sessions")
+          .select("id, name")
+          .eq("id", gen.collab_session_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    admin
+      .from("approvals")
+      .select("id, status, feedback, decided_at, expires_at, created_at")
+      .eq("generation_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const campaign: { id: string; name: string } | null = campRes.data ?? null;
 
   return NextResponse.json({
     generation: { ...effectiveGen, campaign },
-    approval: approvalData ?? null,
+    approval: approvalRes.data ?? null,
     is_creator: isCreator,
   });
 }

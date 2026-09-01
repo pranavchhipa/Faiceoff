@@ -152,11 +152,18 @@ export async function POST(
 
   const now = new Date().toISOString();
 
-  // ── 4a. UPDATE approvals ───────────────────────────────────────────────────
-  const { error: approvalUpdateError } = await admin
+  // ── 4a. UPDATE approvals — guarded claim ───────────────────────────────────
+  // `.eq("status", "pending")` makes the transition atomic: of two concurrent
+  // approve calls (double-tap, retry storm), exactly ONE wins the claim and
+  // proceeds to the money writes below; the loser exits idempotently. The old
+  // read-then-write check raced and could double-book escrow + earnings.
+  const { data: claimed, error: approvalUpdateError } = await admin
     .from("approvals")
     .update({ status: "approved", decided_at: now })
-    .eq("id", approvalId);
+    .eq("id", approvalId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
 
   if (approvalUpdateError) {
     console.error(
@@ -164,6 +171,11 @@ export async function POST(
       approvalUpdateError,
     );
     return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
+
+  if (!claimed) {
+    // Another request already decided this approval — treat as idempotent.
+    return NextResponse.json({ status: "approved" }, { status: 200 });
   }
 
   // ── 4b. UPDATE generations ─────────────────────────────────────────────────
@@ -279,47 +291,52 @@ export async function POST(
   const scope = (brief.scope as string) ?? "digital";
   const isExclusive = Boolean(brief.exclusive ?? false);
 
+  // License issuance (PDF certificate render + R2 upload, ~1-3s) runs AFTER
+  // the response via after() — it was the single slowest inline step of the
+  // creator's Approve tap. The license ROW is committed first inside
+  // issueLicense (idempotent on generation_id), so brand-vault download
+  // gating sees it within ~a second of the approval; failure remains
+  // non-fatal exactly as before (admin can re-issue).
   let licenseId: string | null = null;
   let certUrl: string | null = null;
-
-  try {
-    const licenseResult = await issueLicense({
-      generationId,
-      brandId,
-      creatorId,
-      scope: scope as "digital" | "digital_print" | "digital_print_packaging",
-      isExclusive,
-      amountPaidPaise: costPaise,
-      creatorSharePaise: creatorShare,
-      platformSharePaise: commission,
-    });
-
-    licenseId = licenseResult.license.id;
-    certUrl = licenseResult.cert_url;
-  } catch (err) {
-    console.error("[approvals/approve] issueLicense failed", err);
-    // Non-fatal — approval is committed; license can be re-issued by admin
-  }
-
-  track(
-    "generation_approved",
-    {
-      generation_id: generationId,
-      brand_id: brandId,
-      creator_id: creatorId,
-      cost_paise: costPaise,
-      creator_share_paise: creatorShare,
-      platform_share_paise: commission,
-      license_id: licenseId,
-    },
-    user.id,
-  );
 
   // Fire-and-forget email batch:
   //   • Brand: image approved + licence ready
   //   • Creator: licence issued (their share now in escrow)
   //   • Both sides: collab completed (only if THIS approval finished it)
   after(async () => {
+    try {
+      const licenseResult = await issueLicense({
+        generationId,
+        brandId,
+        creatorId,
+        scope: scope as "digital" | "digital_print" | "digital_print_packaging",
+        isExclusive,
+        amountPaidPaise: costPaise,
+        creatorSharePaise: creatorShare,
+        platformSharePaise: commission,
+      });
+      licenseId = licenseResult.license.id;
+      certUrl = licenseResult.cert_url;
+    } catch (err) {
+      console.error("[approvals/approve] issueLicense failed", err);
+      // Non-fatal — approval is committed; license can be re-issued by admin
+    }
+
+    track(
+      "generation_approved",
+      {
+        generation_id: generationId,
+        brand_id: brandId,
+        creator_id: creatorId,
+        cost_paise: costPaise,
+        creator_share_paise: creatorShare,
+        platform_share_paise: commission,
+        license_id: licenseId,
+      },
+      user.id,
+    );
+
     try {
       const { data: brand } = await admin
         .from("brands")
@@ -432,11 +449,14 @@ export async function POST(
   });
 
   // ── 5. Return ──────────────────────────────────────────────────────────────
+  // license_id/cert_url are issued post-response (see after() above); no UI
+  // consumer reads them from this payload.
   return NextResponse.json(
     {
       status: "approved",
-      license_id: licenseId,
-      cert_url: certUrl,
+      license_id: null,
+      cert_url: null,
+      license_pending: true,
     },
     { status: 200 },
   );

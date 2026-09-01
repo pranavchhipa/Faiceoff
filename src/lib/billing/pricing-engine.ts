@@ -8,7 +8,7 @@
 //   - Scope add-ons: digital = +0, digital_print = +₹500 (50000p),
 //     digital_print_packaging = +₹1000 (100000p)
 //   - Exclusivity: +50% of (base + scope_addon)
-//   - Platform commission: 20% of effective rate (base + scope_addon, before exclusivity)
+//   - Platform commission: 25% (PLATFORM_COMMISSION_RATE) of effective rate (base + scope_addon, before exclusivity)
 //   - GST on commission: 18% of commission
 //
 // Structure:
@@ -73,7 +73,7 @@ export interface RateBreakdown {
   exclusivity_premium:   number;
   /** Total brand-facing rate = effective_rate + exclusivity_premium. */
   total_rate:            number;
-  /** Platform commission = 20% of effective_rate. */
+  /** Platform commission = PLATFORM_COMMISSION_RATE (25%) of effective_rate. */
   commission:            number;
   /** GST on commission = 18% of commission. */
   gst:                   number;
@@ -127,7 +127,7 @@ export function computeRate(params: ComputeRateParams): ComputeRateResult {
 
   const total_rate = effective_rate + exclusivity_premium;
 
-  // Commission is 20% of the effective_rate (NOT the exclusivity-inflated rate).
+  // Commission is PLATFORM_COMMISSION_RATE (25%) of the effective_rate (NOT the exclusivity-inflated rate).
   // The exclusivity premium goes to the creator.
   const commission = Math.round(effective_rate * PLATFORM_COMMISSION_RATE);
 

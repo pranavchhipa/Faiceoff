@@ -70,7 +70,7 @@ describe("uploadContract", () => {
     expect(input.ContentType).toBe("application/pdf");
     expect(input.Metadata).toBeDefined();
     expect(input.Metadata!.sha256).toBe(result.sha256);
-    expect(input.Metadata!.template_version).toBe("v1.2026-04");
+    expect(input.Metadata!.template_version).toBe("v1.2026-05");
   });
 
   it("computes correct SHA256 hash of pdf bytes", async () => {

@@ -62,39 +62,11 @@ export async function GET() {
           .then(({ count }) => count ?? 0)
           .catch(() => 0),
 
-        // Wallet balance — reads wallet_transactions_archive
-        // (migration 00027). Cast because Supabase types don't yet know
-        // about the renamed table.
-        Promise.resolve(
-          (
-            admin as unknown as {
-              from(t: string): {
-                select(c: string): {
-                  eq(col: string, v: string): {
-                    order(
-                      col: string,
-                      opts: { ascending: boolean },
-                    ): {
-                      limit(n: number): {
-                        maybeSingle(): Promise<{
-                          data: { balance_after_paise: number | null } | null;
-                        }>;
-                      };
-                    };
-                  };
-                };
-              };
-            }
-          )
-            .from("wallet_transactions_archive")
-            .select("balance_after_paise")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        )
-          .then(({ data }) => data?.balance_after_paise ?? 0)
-          .catch(() => 0),
+        // walletBalance — legacy field, no dashboard renders it anymore and
+        // the archived wallet table it used to read was sealed at 00027.
+        // Kept as 0 for response-shape compatibility; drop with the next
+        // client-type cleanup.
+        Promise.resolve(0),
 
         // Campaigns — only count NEW-flow collab_sessions (linked to a
         // collab_request from the current package-based model). Old
@@ -143,22 +115,27 @@ export async function GET() {
               .catch(() => 0)
           : Promise.resolve(0),
 
-        // Earnings credits over the last 8 weeks (for the activity chart).
+        // Earnings over the last 8 weeks (for the activity chart).
+        // Source: escrow_ledger release_per_image rows — the LIVE earnings
+        // ledger (00068). The old wallet_transactions_archive was sealed at
+        // migration 00027, so the chart flatlined at ₹0 for every creator
+        // earning after that.
         Promise.resolve(
           admin
-            .from("wallet_transactions_archive")
-            .select("amount_paise, direction, created_at")
-            .eq("user_id", user.id)
+            .from("escrow_ledger")
+            .select("amount_paise, created_at")
+            .eq("creator_id", creator.id)
+            .eq("type", "release_per_image")
             .gte("created_at", sinceIso)
             .order("created_at", { ascending: false })
             .limit(2000),
         )
           .then(
-            ({ data }: { data: Array<{ amount_paise: number; direction: string; created_at: string }> | null }) =>
+            ({ data }: { data: Array<{ amount_paise: number; created_at: string }> | null }) =>
               data ?? [],
           )
           .catch(
-            () => [] as Array<{ amount_paise: number; direction: string; created_at: string }>,
+            () => [] as Array<{ amount_paise: number; created_at: string }>,
           ),
 
         // Approval decisions over the last 8 weeks (for the approval ring).
@@ -181,7 +158,6 @@ export async function GET() {
       const cNow = Date.now();
       const earningsSeries = new Array(WEEKS).fill(0) as number[];
       for (const tx of earningsTxResult) {
-        if (tx.direction !== "credit") continue;
         const weeksAgo = Math.floor(
           (cNow - new Date(tx.created_at).getTime()) / cWeekMs,
         );
@@ -255,39 +231,11 @@ export async function GET() {
           })
           .catch(() => ({ active: 0, total: 0 })),
 
-        // Brand wallet balance — reads wallet_transactions_archive
-        // (migration 00027). Cast because Supabase types don't yet know
-        // about the renamed table.
-        Promise.resolve(
-          (
-            admin as unknown as {
-              from(t: string): {
-                select(c: string): {
-                  eq(col: string, v: string): {
-                    order(
-                      col: string,
-                      opts: { ascending: boolean },
-                    ): {
-                      limit(n: number): {
-                        maybeSingle(): Promise<{
-                          data: { balance_after_paise: number | null } | null;
-                        }>;
-                      };
-                    };
-                  };
-                };
-              };
-            }
-          )
-            .from("wallet_transactions_archive")
-            .select("balance_after_paise")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        )
-          .then(({ data }) => data?.balance_after_paise ?? 0)
-          .catch(() => 0),
+        // walletBalance — legacy field, no dashboard renders it anymore and
+        // the archived wallet table it used to read was sealed at 00027.
+        // Kept as 0 for response-shape compatibility; drop with the next
+        // client-type cleanup.
+        Promise.resolve(0),
 
         // Recent generations (status + created_at) for the activity
         // sparkline and approval-health ring. Bounded to the 8-week window

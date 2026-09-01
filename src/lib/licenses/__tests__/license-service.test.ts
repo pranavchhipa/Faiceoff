@@ -160,6 +160,14 @@ describe("issueLicense", () => {
         }),
       }),
       generations: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { image_url: "https://cdn.example.com/gens/gen-001.png" },
+              error: null,
+            }),
+          }),
+        }),
         update: () => ({ eq: updateEq }),
       }),
     });
@@ -170,6 +178,15 @@ describe("issueLicense", () => {
     expect(result.license.generation_id).toBe("gen-001");
     expect(result.license.brand_id).toBe("brand-001");
     expect(mockGeneratePDF).toHaveBeenCalledTimes(1);
+    // The cert generator receives the generation id + image_url for embedding
+    expect(mockGeneratePDF).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation: {
+          id: "gen-001",
+          image_url: "https://cdn.example.com/gens/gen-001.png",
+        },
+      }),
+    );
     expect(mockUploadCert).toHaveBeenCalledTimes(1);
   });
 
@@ -249,6 +266,17 @@ describe("issueLicense", () => {
             }),
           }),
         }),
+      }),
+      generations: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { image_url: null },
+              error: null,
+            }),
+          }),
+        }),
+        update: () => ({ eq: updateEq }),
       }),
     });
 

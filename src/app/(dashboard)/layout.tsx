@@ -4,13 +4,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/components/providers/auth-provider";
+import { useAuth, AuthProvider } from "@/components/providers/auth-provider";
 import { BrandIconRail } from "@/components/dashboard/brand-icon-rail";
 import { CreatorIconRail } from "@/components/dashboard/creator-icon-rail";
 import { AdminSectionSidebar } from "@/components/dashboard/admin-section-sidebar";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { useCommandPalette } from "@/components/dashboard/command-palette";
+import { useCommandPalette } from "@/components/dashboard/use-command-palette";
 import { MobileDrawerNav } from "@/components/dashboard/mobile-drawer-nav";
 import { Logo } from "@/components/brand/logo";
 import { Menu } from "lucide-react";
@@ -38,7 +38,17 @@ const CommandPalette = dynamic(
  *
  * The command palette (⌘K) is globally mounted for all roles.
  */
+// AuthProvider wraps ONLY the dashboard tree (see providers.tsx note) — the
+// layout body itself consumes useAuth, hence the thin outer wrapper.
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </AuthProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const [drawerOpen, setDrawerOpen] = useState(false);

@@ -140,14 +140,21 @@ const IN_PROGRESS_STATUSES = [
   "output_check",
 ];
 
+/** Stop polling for generations older than this — a gen still image-less
+ *  after 30 min is stuck, and hammering the API every 4s forever won't
+ *  unstick it (the cron sweep / support handles those). */
+const POLL_MAX_AGE_MS = 30 * 60 * 1000;
+
 function hasInProgressGenerations(gens: Generation[]): boolean {
-  // Poll while any generation is still running OR has no image yet.
+  // Poll while any RECENT generation is still running OR has no image yet.
   // Covers race: status transitions to ready_for_approval but image_url
   // write is still in flight, or pipeline stalled mid-step.
+  const cutoff = Date.now() - POLL_MAX_AGE_MS;
   return gens.some(
     (g) =>
-      IN_PROGRESS_STATUSES.includes(g.status) ||
-      (g.status !== "rejected" && g.status !== "failed" && !g.image_url),
+      new Date(g.created_at).getTime() > cutoff &&
+      (IN_PROGRESS_STATUSES.includes(g.status) ||
+        (g.status !== "rejected" && g.status !== "failed" && !g.image_url)),
   );
 }
 

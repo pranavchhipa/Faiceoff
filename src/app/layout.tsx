@@ -106,12 +106,10 @@ export default function RootLayout({
       className={`${outfit.variable} ${plusJakartaSans.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        {/* Preload critical above-fold landing images */}
-        <link rel="preload" as="image" href="/landing/creator-face.jpg" />
-        <link rel="preload" as="image" href="/landing/creator-2.jpg" />
-        <link rel="preload" as="image" href="/landing/logo-dark.png" />
-      </head>
+      {/* No image preloads here: the root layout wraps EVERY route (dashboard,
+          auth, API-rendered pages), so preloading landing imagery from it taxed
+          all of them. Above-the-fold landing images use next/image `priority`
+          in the (marketing) pages instead. */}
       <body className="min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)] antialiased">
         <Providers>{children}</Providers>
       </body>
