@@ -74,7 +74,7 @@ export function MetricHead({
 
 export function MetricValue({ children }: { children: ReactNode }) {
   return (
-    <p className="font-display text-[26px] font-800 leading-none tracking-tight text-[var(--color-foreground)] lg:text-[28px]">
+    <p className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
       {children}
     </p>
   );
@@ -276,7 +276,7 @@ export function ApprovalRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <b className="font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+          <b className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
             {rate}%
           </b>
           <small className="mt-1 text-[10.5px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">

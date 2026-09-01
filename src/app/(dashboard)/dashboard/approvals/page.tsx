@@ -197,8 +197,8 @@ export default function ApprovalsPage() {
       className="max-w-5xl"
     >
       {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-on-surface)]">
           Approvals
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-outline)]">
@@ -220,7 +220,7 @@ export default function ApprovalsPage() {
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[var(--color-mint)]/30">
             <Inbox className="size-6 text-[var(--color-outline)]" />
           </div>
-          <h2 className="text-xl font-700 text-[var(--color-on-surface)] mb-2">
+          <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-on-surface)] mb-2">
             No pending approvals
           </h2>
           <p className="text-sm text-[var(--color-outline)] max-w-sm mx-auto">
@@ -293,7 +293,7 @@ export default function ApprovalsPage() {
                         className={`size-3.5 ${expiringSoon ? "text-[var(--color-error)]" : "text-[var(--color-outline-variant)]"}`}
                       />
                       <span
-                        className={`text-xl font-700 ${
+                        className={`text-[15px] sm:text-[16px] font-700 ${
                           expiringSoon
                             ? "text-[var(--color-error)]"
                             : "text-[var(--color-on-surface)]"

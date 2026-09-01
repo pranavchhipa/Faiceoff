@@ -83,7 +83,7 @@ export default function BrandRequestsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[860px] space-y-3 px-4 py-8 lg:px-8">
+      <div className="w-full max-w-[860px] space-y-3 px-4 py-8 lg:px-8">
         <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
         {[1, 2].map((i) => (
           <div key={i} className="h-[160px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
@@ -98,21 +98,21 @@ export default function BrandRequestsPage() {
   const past         = requests.filter((r) => ["declined", "expired", "cancelled"].includes(r.status));
 
   return (
-    <div className="mx-auto w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
 
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-7 flex items-start justify-between gap-4"
+        className="mb-6 flex flex-wrap items-start justify-between gap-4"
       >
         <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
             <Send className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
             Collab Requests
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Requests
           </h1>
           <p className="mt-1.5 text-[13px] text-[var(--color-muted-foreground)]">
@@ -266,7 +266,7 @@ function RequestCard({ req, delay }: { req: BrandRequest; delay: number }) {
           {/* Row 1: name + status */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate font-display text-[17px] font-800 leading-tight text-[var(--color-foreground)]">
+              <p className="truncate font-display text-[13.5px] font-600 leading-tight text-[var(--color-foreground)] sm:text-[14px]">
                 {req.product_name}
               </p>
               <p className="mt-0.5 text-[12px] text-[var(--color-muted-foreground)]">
@@ -308,7 +308,7 @@ function RequestCard({ req, delay }: { req: BrandRequest; delay: number }) {
           </div>
 
           {/* Row 4: action */}
-          <div className="mt-3 flex items-center gap-3 border-t border-[var(--color-border)] pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-3">
             {isAccepted && (
               <>
                 <div className="flex min-w-0 items-center gap-1.5">
@@ -333,9 +333,9 @@ function RequestCard({ req, delay }: { req: BrandRequest; delay: number }) {
             )}
             {isPaid && req.collab_session_id && (
               <>
-                <span className="flex items-center gap-1.5 text-[12px] font-600 text-[var(--color-primary)]">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Paid · Collab active
+                <span className="flex min-w-0 items-center gap-1.5 text-[12px] font-600 text-[var(--color-primary)]">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Paid · Collab active</span>
                 </span>
                 <Link
                   href={`/brand/collabs/${req.collab_session_id}`}

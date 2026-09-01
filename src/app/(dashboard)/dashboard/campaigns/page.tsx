@@ -109,9 +109,9 @@ export default function CampaignsListPage() {
       className="max-w-4xl pt-6 lg:pt-8"
     >
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-800 tracking-tight text-[var(--color-on-surface)]">
+          <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-on-surface)]">
             {role === "brand" ? "Campaigns" : "Collaborations"}
           </h1>
           <p className="mt-1 text-sm sm:text-base text-[var(--color-outline)]">
@@ -140,7 +140,7 @@ export default function CampaignsListPage() {
               <Handshake className="size-6 text-[var(--color-on-surface-variant)]" />
             )}
           </div>
-          <h2 className="text-xl font-700 text-[var(--color-on-surface)] mb-2">
+          <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-on-surface)] mb-2">
             {role === "brand" ? "No campaigns yet" : "No collaborations yet"}
           </h2>
           <p className="text-sm text-[var(--color-outline)] max-w-sm mx-auto mb-6">

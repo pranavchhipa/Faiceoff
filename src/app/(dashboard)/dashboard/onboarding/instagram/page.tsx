@@ -237,7 +237,7 @@ export default function InstagramPage() {
       className="max-w-lg"
     >
       <div className="mb-6">
-        <h2 className="font-display text-xl font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
           Your social presence
         </h2>
         <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
@@ -288,7 +288,7 @@ export default function InstagramPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-display text-sm font-800 text-[var(--color-foreground)]">
+                    <span className="truncate font-display text-sm font-700 text-[var(--color-foreground)]">
                       @{status.handle}
                     </span>
                     {status.account_type && (

@@ -227,7 +227,7 @@ export default function CreatorCollabWorkspacePage() {
 
   if (!data) {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="max-w-md px-4 py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">
           Collab not found.
         </p>
@@ -284,7 +284,7 @@ export default function CreatorCollabWorkspacePage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
       {/* Back link */}
       <Link
         href="/creator/collabs"
@@ -344,10 +344,10 @@ export default function CreatorCollabWorkspacePage() {
           {/* Right: details */}
           <div className="flex flex-1 flex-col justify-between gap-5 p-5 sm:p-6">
             <div>
-              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
                 Collab workspace
               </p>
-              <h1 className="mt-1 font-display text-[26px] font-800 leading-[1.1] tracking-tight text-[var(--color-foreground)] sm:text-[30px]">
+              <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
                 {session.name}
               </h1>
 
@@ -583,7 +583,7 @@ function Stat({
         </span>
       </div>
       <p
-        className={`mt-2 font-display text-[24px] font-800 leading-none ${toneStyles[tone]}`}
+        className={`mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] sm:text-[26px] ${toneStyles[tone]}`}
       >
         {value}
         {sub && (

@@ -138,7 +138,7 @@ export function AgreementReviewModal({
                   <FileSignature className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="font-display text-[16px] font-800 leading-tight text-[var(--color-foreground)]">
+                  <p className="font-display text-[16px] font-700 leading-tight text-[var(--color-foreground)]">
                     Collaboration Agreement
                   </p>
                   <p className="text-[11px] text-[var(--color-muted-foreground)]">
@@ -307,7 +307,7 @@ function TermRow({
       </div>
       <span
         className={`shrink-0 text-right text-[13px] ${
-          strong ? "font-800 text-[var(--color-foreground)]" : "font-700 text-[var(--color-foreground)]"
+          strong ? "font-700 text-[var(--color-foreground)]" : "font-700 text-[var(--color-foreground)]"
         }`}
       >
         {value}

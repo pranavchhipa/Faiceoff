@@ -137,23 +137,23 @@ export default function CreatorLikenessPage() {
   if (loading) return <LikenessSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 md:mb-8"
+        className="mb-5 md:mb-6"
       >
-        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
           <Fingerprint className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
           Your face · your rules
         </p>
-        <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Likeness
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--color-muted-foreground)]">
+        <p className="mt-2 max-w-2xl text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
           Every generation uses your reference photos as the identity anchor —
           more photos = sharper output. Control which niches brands can book,
           and set your per-generation rate.
@@ -180,26 +180,26 @@ export default function CreatorLikenessPage() {
                 sizes="(max-width: 1024px) 100vw, 600px"
               />
             ) : (
-              <div className="flex h-full items-center justify-center font-display text-[120px] font-800 text-[var(--color-muted-foreground)]/30">
+              <div className="flex h-full items-center justify-center font-display text-[96px] font-700 text-[var(--color-muted-foreground)]/30">
                 {firstName[0]?.toUpperCase() ?? "?"}
               </div>
             )}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent p-5">
               <div className="mb-2 flex items-center gap-2">
                 {kycVerified && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 font-mono text-[9px] font-800 uppercase tracking-wider text-white backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider text-white backdrop-blur-sm">
                     <ShieldCheck className="h-2.5 w-2.5" />
                     KYC live
                   </span>
                 )}
                 {faceModelReady && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 font-mono text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)]">
                     <Sparkles className="h-2.5 w-2.5" />
                     Face model live
                   </span>
                 )}
               </div>
-              <h2 className="font-display text-[26px] font-800 tracking-tight text-white">
+              <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-white sm:text-[16px]">
                 {firstName}
               </h2>
               {profile?.instagram_handle && (
@@ -218,7 +218,7 @@ export default function CreatorLikenessPage() {
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
                 Face model
               </p>
-              <h3 className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+              <h3 className="mt-1 font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
                 {faceModelReady ? "Live & ready" : "Add more photos"}
               </h3>
             </div>
@@ -286,7 +286,7 @@ export default function CreatorLikenessPage() {
             <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
               Reference photos
             </p>
-            <h3 className="mt-1 font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <h3 className="mt-1 font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
               {photos} uploaded
             </h3>
           </div>
@@ -346,7 +346,7 @@ export default function CreatorLikenessPage() {
                     </div>
                   )}
                   {photo.is_primary && (
-                    <span className="absolute left-1 top-1 z-10 inline-flex items-center gap-0.5 rounded bg-[var(--color-primary)] px-1 py-px font-mono text-[8px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                    <span className="absolute left-1 top-1 z-10 inline-flex items-center gap-0.5 rounded bg-[var(--color-primary)] px-1 py-px font-mono text-[8px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)]">
                       <Star className="h-2 w-2 fill-current" />
                       Primary
                     </span>
@@ -360,7 +360,7 @@ export default function CreatorLikenessPage() {
                         type="button"
                         onClick={() => handleSetPrimary(photo.id)}
                         disabled={isLoading || isDeleting}
-                        className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 px-1.5 py-1 font-mono text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md transition hover:bg-[var(--color-primary)] disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 px-1.5 py-1 font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md transition hover:bg-[var(--color-primary)] disabled:opacity-60"
                       >
                         {isLoading ? (
                           <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -475,7 +475,7 @@ function ManageCard({
 
 function LikenessSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[1200px] animate-pulse px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px] animate-pulse px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-8 h-16 w-56 rounded-lg bg-[var(--color-secondary)]" />
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
         <div className="aspect-[16/10] rounded-2xl bg-[var(--color-secondary)]" />

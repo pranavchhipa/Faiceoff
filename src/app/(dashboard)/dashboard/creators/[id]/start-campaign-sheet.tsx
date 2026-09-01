@@ -602,7 +602,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
               >
                 −
               </button>
-              <span className="min-w-[36px] text-center text-xl font-700 text-[var(--color-foreground)]">
+              <span className="min-w-[36px] text-center text-[15px] sm:text-[16px] font-700 text-[var(--color-foreground)]">
                 {count}
               </span>
               <button
@@ -651,7 +651,7 @@ export function StartCampaignSheet({ creator, minPrice, onClose }: Props) {
           <div className="text-xs text-[var(--color-muted-foreground)]">
             Total
             <br />
-            <b className="text-lg font-800 text-[var(--color-foreground)]">{formatINR(total)}</b>
+            <b className="text-[14px] sm:text-[15px] font-700 text-[var(--color-foreground)]">{formatINR(total)}</b>
           </div>
           <button
             type="button"

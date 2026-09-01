@@ -239,21 +239,28 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
 
         {/* Page content. Bottom padding leaves room for mobile bottom nav.
 
-            Layout-level centering fix (2026-04-25):
-            Many pages use `<div className="max-w-5xl">` without `mx-auto`,
-            which left-aligned their content against the sidebar. Rather
-            than touch every page, we force every direct child of <main>
-            to be horizontally centered via the `[&>*]:mx-auto` arbitrary
-            variant, and cap them at 1400px so the layout breathes on
-            ultra-wide displays. Pages with their own (smaller) max-w
-            still win because their max-w is more restrictive. */}
+            Alignment (2026-09-01) — content is LEFT-aligned against the
+            sidebar, not centered in the viewport.
+
+            The previous `mx-auto` + `[&>*]:mx-auto` pair centered this
+            container AND force-centered every page inside it. Stacked with
+            each page's own `mx-auto max-w-*`, a narrow page (max-w-2xl =
+            672px) ended up ~480px away from the sidebar on a wide display —
+            the "big gap between the nav and the content" report. Centering
+            also made the gap *change size per page*, since every page picked
+            its own max-width, so nothing ever lined up between routes.
+
+            Now: the container hugs the sidebar and caps at 1400px, so every
+            route starts at the same x-position (aligned with the top bar)
+            and only the line length varies. Pages must not re-add `mx-auto`
+            to their outermost wrapper. */}
         <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
           {/* Top padding intentionally removed (2026-05-08): pages own their
               vertical spacing. Previously `py-6 lg:py-8` here stacked with
               page-level `py-6/8/10`, producing ~70px ghost gaps below the
               top bar across the entire site. Bare pages without their own
               `py-` add it inline. */}
-          <div className="mx-auto w-full max-w-[1400px] px-4 pb-6 lg:px-8 lg:pb-8 [&>*]:mx-auto">
+          <div className="w-full max-w-[1400px] px-4 pb-6 lg:px-8 lg:pb-8">
             {children}
           </div>
         </main>

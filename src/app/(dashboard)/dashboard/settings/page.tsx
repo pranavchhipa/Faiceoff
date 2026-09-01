@@ -182,12 +182,12 @@ export default function SettingsPage() {
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8 pb-32"
+      className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8 pb-32"
     >
       {/* Hero header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">{eyebrow}</p>
-        <h1 className="mt-1 font-display text-[28px] font-800 leading-[1.1] tracking-tight text-[var(--color-foreground)] sm:text-[34px]">
+        <h1 className="mt-1 font-display text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
           Account settings
         </h1>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img loading="lazy" decoding="async" src={up.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="font-display text-[26px] font-800 text-[var(--color-foreground)]">{initial}</span>
+                    <span className="font-display text-[26px] font-700 text-[var(--color-foreground)]">{initial}</span>
                   )}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-transform group-hover:scale-110">

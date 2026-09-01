@@ -116,14 +116,14 @@ export default function BlocksManager({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-3xl pt-6 lg:pt-8"
+      className="max-w-3xl px-4 pt-6 lg:px-8 lg:pt-8"
     >
       {/* Header */}
       <div className="mb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
+        <h1 className="text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Blocked categories
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)] max-w-xl">
+        <p className="mt-1 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] max-w-xl sm:text-[13.5px]">
           Brands cannot generate content matching your blocked categories. You will be
           auto-rejected from requests in these categories.
         </p>

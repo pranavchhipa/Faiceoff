@@ -140,17 +140,17 @@ function ImagesInput({
       <button
         type="button"
         onClick={() => onChange(Math.max(1, value - 1))}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] text-[14px] font-800 text-[var(--color-foreground)] hover:bg-[var(--color-card)] active:scale-95"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] text-[14px] font-700 text-[var(--color-foreground)] hover:bg-[var(--color-card)] active:scale-95"
       >
         −
       </button>
-      <span className="w-8 text-center font-display text-[16px] font-800 text-[var(--color-foreground)]">
+      <span className="w-8 text-center font-display text-[16px] font-700 text-[var(--color-foreground)]">
         {value}
       </span>
       <button
         type="button"
         onClick={() => onChange(Math.min(20, value + 1))}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] text-[14px] font-800 text-[var(--color-foreground)] hover:bg-[var(--color-card)] active:scale-95"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-secondary)] text-[14px] font-700 text-[var(--color-foreground)] hover:bg-[var(--color-card)] active:scale-95"
       >
         +
       </button>
@@ -201,7 +201,7 @@ function PackageCard({ tier, pkg, saving, onSave, onToggle }: PackageCardProps) 
               <Icon className={`h-5 w-5 ${tier.iconColor}`} />
             </span>
             <div>
-              <h3 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+              <h3 className="font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
                 {tier.label}
               </h3>
               <span className={`text-[11px] font-600 ${tier.badgeColor}`}>
@@ -396,7 +396,7 @@ export default function CreatorPackagesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
 
       {/* ── GO LIVE CELEBRATION OVERLAY ── */}
       <AnimatePresence>
@@ -435,10 +435,10 @@ export default function CreatorPackagesPage() {
               >
                 <span className="text-4xl">🎉</span>
               </motion.div>
-              <h2 className="mb-2 font-display text-[28px] font-800 tracking-tight text-[var(--color-foreground)]">
+              <h2 className="mb-2 font-display text-[17px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[20px]">
                 You&apos;re live!
               </h2>
-              <p className="mb-6 text-[14px] text-[var(--color-muted-foreground)] leading-relaxed">
+              <p className="mb-5 text-[13px] text-[var(--color-muted-foreground)] leading-[1.55] sm:text-[13.5px]">
                 Brands can now discover your profile and send collab requests.
               </p>
               <button
@@ -457,17 +457,17 @@ export default function CreatorPackagesPage() {
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
+        className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"
       >
         <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
             <Tags className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             My Packages
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Set your packages
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-2 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             Set a price for each tier. Brands pick one and send you a collab request — you approve or decline.
           </p>
         </div>
@@ -597,10 +597,10 @@ function HowItem({ n, title, body }: { n: string; title: string; body: string })
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4">
       <div className="mb-2 flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)] font-mono text-[10px] font-800 text-[var(--color-primary-foreground)]">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)] font-mono text-[10px] font-700 text-[var(--color-primary-foreground)]">
           {n}
         </span>
-        <h4 className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h4 className="font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
           {title}
         </h4>
       </div>

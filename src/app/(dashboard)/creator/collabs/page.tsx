@@ -153,20 +153,20 @@ export default function CreatorCollabsPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
       <motion.div
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
+        className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"
       >
         <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
             <Handshake className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Collabs
           </p>
-          <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Your Collabs
           </h1>
           <p className="mt-2 text-[13px] text-[var(--color-muted-foreground)]">
@@ -335,7 +335,7 @@ function ActiveCollabCard({
 
         {/* Body */}
         <div className="p-4">
-          <p className="line-clamp-1 font-display text-[16px] font-800 leading-tight text-[var(--color-foreground)]">
+          <p className="line-clamp-1 font-display text-[13.5px] font-600 leading-tight text-[var(--color-foreground)] sm:text-[14px]">
             {collab.name}
           </p>
 
@@ -504,7 +504,7 @@ function Stat({
         </span>
       </div>
       <p
-        className={`mt-2 font-display text-[24px] font-800 leading-none ${toneStyles[tone]}`}
+        className={`mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] sm:text-[26px] ${toneStyles[tone]}`}
       >
         {value}
         {sub && (

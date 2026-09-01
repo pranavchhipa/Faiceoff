@@ -111,7 +111,7 @@ export default function CompliancePage() {
           <ShieldOff className="size-3" />
           Content rules
         </div>
-        <h2 className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
           What should your face never promote?
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">

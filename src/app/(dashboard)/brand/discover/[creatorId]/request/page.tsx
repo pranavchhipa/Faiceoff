@@ -132,9 +132,9 @@ export default function SendRequestPage() {
 
   if (submitted) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
         <CheckCircle2 className="mb-4 h-12 w-12 text-emerald-500" />
-        <h2 className="font-display text-[26px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
           Request sent!
         </h2>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
@@ -152,8 +152,8 @@ export default function SendRequestPage() {
 
   if (pkgUnavailable) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
-        <p className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
+        <p className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
           Package not available
         </p>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
@@ -171,7 +171,7 @@ export default function SendRequestPage() {
 
   if (pkgLoading && !pkg) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -181,7 +181,7 @@ export default function SendRequestPage() {
   const meta = TIER_META[tierKey];
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-10">
+    <div className="max-w-xl px-4 py-6 sm:py-10 lg:px-8">
       <Link
         href={`/brand/discover/${creatorId}`}
         className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
@@ -190,7 +190,7 @@ export default function SendRequestPage() {
         Back to profile
       </Link>
 
-      <h1 className="font-display text-[28px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <h1 className="font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
         Send collab request
       </h1>
 
@@ -199,14 +199,14 @@ export default function SendRequestPage() {
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
           <meta.icon className={`h-5 w-5 shrink-0 ${meta.color}`} />
           <div className="flex-1">
-            <p className="font-display text-[15px] font-800 text-[var(--color-foreground)]">
+            <p className="font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
               {meta.label} package
             </p>
             <p className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
               {meta.badge} · {meta.duration} · {pkg.final_images} images
             </p>
           </div>
-          <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
+          <p className="font-display text-[14px] font-700 text-[var(--color-foreground)] sm:text-[15px]">
             {fmt(pkg.price_paise)}
           </p>
         </div>

@@ -78,7 +78,7 @@ export function VerifyBanner() {
         <VerifiedSeal size={22} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 font-display text-[14px] font-800 text-[var(--color-foreground)]">
+        <p className="flex items-center gap-1.5 font-display text-[14px] font-700 text-[var(--color-foreground)]">
           Get the gold tick
           <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-primary)]" />
         </p>

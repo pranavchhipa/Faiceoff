@@ -218,7 +218,7 @@ function VaultLightbox({
                 <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
                   Licensed asset · {formatDate(item.created_at)}
                 </p>
-                <h3 className="mt-1 font-display text-[22px] font-800 leading-tight tracking-tight text-[var(--color-foreground)]">
+                <h3 className="mt-1 font-display text-[15px] font-700 leading-tight tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                   {brief.product_name ?? "Licensed image"}
                 </h3>
                 {item.creator_name && (
@@ -639,7 +639,7 @@ export default function VaultGrid({
           <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-[var(--color-primary)]/12 ring-1 ring-[var(--color-primary)]/20">
             <ImageIcon className="size-8 text-[var(--color-primary)]" />
           </div>
-          <h3 className="mb-2 font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+          <h3 className="mb-2 font-display text-[14px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[15px]">
             {searchValue || activeStatus
               ? "No images found"
               : "Your library is empty"}

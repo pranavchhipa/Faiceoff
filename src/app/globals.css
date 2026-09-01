@@ -166,21 +166,25 @@ html.dark body {
 }
 
 @theme {
-  /* ── Typography ── */
-  --font-display: var(--font-outfit);
-  --font-sans: var(--font-plus-jakarta-sans);
+  /* ── Typography ──
+     APP surface = Inter. The dashboard is dense UI that lives at 12-15px,
+     where Inter is simply more legible than a geometric display face, and
+     its tabular figures keep INR columns from jittering. Outfit + Plus
+     Jakarta Sans are NOT retired — `.landing-scope` (marketing + auth)
+     overrides these same tokens back to them further down this file, so the
+     selling surfaces keep the editorial voice while the product surface
+     reads like a tool. */
+  --font-display: var(--font-inter);
+  --font-sans: var(--font-inter);
   /* HARD RULE: NO MONOSPACE anywhere in Faiceoff. The Tailwind `font-mono`
-     class still resolves but renders in Plus Jakarta Sans so any legacy
-     usage just looks like a regular sans-serif label. For uppercase labels
-     use `font-mono` + letter-spacing + text-transform: uppercase; do NOT
+     class still resolves but renders in the UI sans so any legacy usage
+     just looks like a regular sans-serif label. For uppercase labels use
+     `font-mono` + letter-spacing + text-transform: uppercase; do NOT
      introduce a real mono family. */
-  --font-mono: var(--font-plus-jakarta-sans);
-  /* Space Grotesk + Manrope were removed (migration to a 2-family system
-     Outfit + Plus Jakarta Sans). The Tailwind utilities --font-headline /
-     --font-body / --font-label still resolve cleanly via these aliases. */
-  --font-headline: var(--font-outfit);
-  --font-body: var(--font-plus-jakarta-sans);
-  --font-label: var(--font-plus-jakarta-sans);
+  --font-mono: var(--font-inter);
+  --font-headline: var(--font-inter);
+  --font-body: var(--font-inter);
+  --font-label: var(--font-inter);
 
   /* ── Stitch UI Palette (Material3) ── */
   --color-primary: #6a1cf6;
@@ -314,6 +318,11 @@ html.dark body {
 
 body {
   font-family: var(--font-sans);
+  /* Tabular figures app-wide: this product is full of INR columns, credit
+     counts and dates, and proportional digits make them jitter between
+     renders. `.landing-scope` re-enables proportional figures for marketing
+     copy, where tabular numerals look mechanical. */
+  font-variant-numeric: tabular-nums;
   font-weight: 400;
   color: var(--color-ink);
   background-color: var(--color-background);
@@ -649,6 +658,9 @@ pre code {
   --font-mono:    var(--font-plus-jakarta-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   font-family: var(--font-body);
+  /* Marketing copy reads better with proportional figures — the app-wide
+     tabular-nums default (set on body) is a dashboard concern. */
+  font-variant-numeric: normal;
 }
 
 /* light-bg grain (subtle, almost invisible) */

@@ -72,7 +72,7 @@ export default function BrandVerifyPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
+      <div className="flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -82,7 +82,7 @@ export default function BrandVerifyPage() {
   const pending = data?.status === "pending";
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 lg:py-8">
+    <div className="w-full max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
       <Header />
       {verified ? (
         <VerifiedState data={data!} />
@@ -117,7 +117,7 @@ function Header() {
         <ShieldCheck className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
         Brand verification
       </p>
-      <h1 className="mt-1 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)] sm:text-[34px]">
+      <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
         Verify with GST
       </h1>
       <p className="mt-2 max-w-lg text-[13px] text-[var(--color-muted-foreground)] sm:text-[14px]">
@@ -143,7 +143,7 @@ function VerifiedState({ data }: { data: VerificationState }) {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
           <ShieldCheck className="h-7 w-7" />
         </div>
-        <h2 className="font-display text-[22px] font-800 tracking-tight text-emerald-500">
+        <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-emerald-500 sm:text-[18px]">
           Brand verified
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
@@ -178,7 +178,7 @@ function PendingState({ data }: { data: VerificationState }) {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
           <Clock className="h-6 w-6" />
         </div>
-        <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
           Under review
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
@@ -633,7 +633,7 @@ function StepCard({
     >
       <div className="flex items-start gap-3">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-[13px] font-800 ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-[13px] font-700 ${
             done
               ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
               : "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"

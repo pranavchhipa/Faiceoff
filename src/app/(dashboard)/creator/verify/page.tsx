@@ -50,7 +50,7 @@ export default function CreatorVerifyPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
+      <div className="flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -60,7 +60,7 @@ export default function CreatorVerifyPage() {
   const pending = data?.status === "pending";
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 lg:py-8">
+    <div className="w-full max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
       <Header />
       {verified ? (
         <VerifiedState />
@@ -89,15 +89,15 @@ function Header() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-6"
+      className="mb-5"
     >
-      <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+      <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
         <ShieldCheck className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
         Verification
       </p>
-      <h1 className="mt-1 flex items-center gap-2 font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)] sm:text-[34px]">
+      <h1 className="mt-1 flex flex-wrap items-center gap-2 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
         Get the gold tick
-        <VerifiedSeal size={26} />
+        <VerifiedSeal size={20} />
       </h1>
       <p className="mt-2 max-w-lg text-[13px] text-[var(--color-muted-foreground)] sm:text-[14px]">
         Verified creators stand out in discovery, build brand trust, and unlock
@@ -120,7 +120,7 @@ function VerifiedState() {
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-primary)]/15">
         <VerifiedSeal size={44} />
       </div>
-      <h2 className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
         You&apos;re verified
       </h2>
       <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
@@ -151,7 +151,7 @@ function PendingState({ submittedAt }: { submittedAt: string | null }) {
       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
         <Clock className="h-6 w-6" />
       </div>
-      <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
         Under review
       </h2>
       <p className="mx-auto mt-2 max-w-sm text-[13px] text-[var(--color-muted-foreground)]">
@@ -364,7 +364,7 @@ function StepCard({
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-display text-[13px] font-800 text-[var(--color-primary)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-display text-[13px] font-700 text-[var(--color-primary)]">
           {n}
         </span>
         <div className="min-w-0 flex-1">

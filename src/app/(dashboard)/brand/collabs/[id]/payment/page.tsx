@@ -171,9 +171,9 @@ export default function CollabPaymentPage() {
 
   if (paid) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
         <CheckCircle2 className="mb-4 h-12 w-12 text-emerald-500" />
-        <h2 className="font-display text-[26px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
           Payment successful!
         </h2>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
@@ -191,7 +191,7 @@ export default function CollabPaymentPage() {
 
   if (!req) {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="max-w-md px-4 py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Request not found.</p>
         <Link href="/brand/collabs" className="mt-4 block text-sm text-[var(--color-primary)]">
           Back to collabs
@@ -211,7 +211,7 @@ export default function CollabPaymentPage() {
   const genCredits = req.final_images * 3;
 
   return (
-    <div className="mx-auto max-w-[920px] px-4 py-6 sm:px-6 sm:py-10">
+    <div className="max-w-[920px] px-4 py-6 sm:py-10 lg:px-8">
       <Link
         href="/brand/requests"
         className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
@@ -230,7 +230,7 @@ export default function CollabPaymentPage() {
           <Lock className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
           Step 3 of 4 · Activate collab
         </p>
-        <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Complete payment
         </h1>
         <p className="mt-2 max-w-lg text-[14px] text-[var(--color-muted-foreground)]">
@@ -239,7 +239,7 @@ export default function CollabPaymentPage() {
       </motion.div>
 
       {/* Two-column grid: left = collab card + breakup; right = total + pay */}
-      <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
 
         {/* ── LEFT COLUMN ── */}
         <div className="space-y-5">
@@ -281,7 +281,7 @@ export default function CollabPaymentPage() {
                   <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     Product
                   </p>
-                  <h3 className="mt-1 font-display text-[20px] font-800 leading-tight text-[var(--color-foreground)]">
+                  <h3 className="mt-1 font-display text-[15px] font-700 leading-tight tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                     {req.product_name}
                   </h3>
 
@@ -337,7 +337,7 @@ export default function CollabPaymentPage() {
               <Sparkles className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
               What you get
             </p>
-            <h3 className="mt-1 font-display text-[18px] font-800 text-[var(--color-foreground)]">
+            <h3 className="mt-1 font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               Included with the {tier.label} package
             </h3>
 
@@ -386,7 +386,7 @@ export default function CollabPaymentPage() {
               <Clock className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
               After you pay
             </p>
-            <h3 className="mt-1 font-display text-[18px] font-800 text-[var(--color-foreground)]">
+            <h3 className="mt-1 font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               Here&apos;s what happens next
             </h3>
 
@@ -443,7 +443,7 @@ export default function CollabPaymentPage() {
             <div className="border-t border-[var(--color-border)] px-5 py-4">
               <div className="flex items-baseline justify-between">
                 <span className="text-[14px] font-700 text-[var(--color-foreground)]">Total</span>
-                <span className="font-display text-[28px] font-800 leading-none text-[var(--color-foreground)]">
+                <span className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
                   {fmt(subtotal)}
                 </span>
               </div>

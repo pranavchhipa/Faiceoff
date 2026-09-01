@@ -163,8 +163,8 @@ export default function CreatorCatalogPage() {
   return (
     <div className="max-w-6xl">
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-800 tracking-tight text-[var(--color-ink)] sm:text-3xl lg:text-4xl">
+      <div className="mb-6">
+        <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
           Discover Creators
         </h1>
         <p className="mt-2 text-base text-[var(--color-neutral-500)]">
@@ -238,7 +238,7 @@ export default function CreatorCatalogPage() {
           <div className="flex size-16 items-center justify-center rounded-full bg-[var(--color-neutral-100)]">
             <Users className="size-7 text-[var(--color-neutral-400)]" />
           </div>
-          <h3 className="mt-4 text-lg font-600 text-[var(--color-ink)]">
+          <h3 className="mt-4 text-[14px] sm:text-[15px] font-600 text-[var(--color-ink)]">
             No creators found
           </h3>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
@@ -301,14 +301,14 @@ export default function CreatorCatalogPage() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--color-blush)] to-[var(--color-ocean)]">
-                        <span className="font-['Outfit'] text-5xl font-800 text-[var(--color-ink)]/70">
+                        <span className="text-5xl font-700 text-[var(--color-ink)]/70">
                           {initials}
                         </span>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                      <h3 className="text-[17px] font-700 leading-tight">
+                      <h3 className="text-[13.5px] sm:text-[14px] font-600 leading-tight">
                         {creator.display_name}
                       </h3>
                       <p className="mt-0.5 text-[11px] opacity-90">

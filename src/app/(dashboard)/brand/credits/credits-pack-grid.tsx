@@ -105,7 +105,7 @@ function PackCard({
     >
       {/* Most Popular ribbon */}
       {isPro && (
-        <div className="absolute -right-12 top-5 rotate-45 bg-[var(--color-primary)] px-12 py-1 text-[9px] font-800 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]">
+        <div className="absolute -right-12 top-5 rotate-45 bg-[var(--color-primary)] px-12 py-1 text-[9px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary-foreground)]">
           Most Popular
         </div>
       )}
@@ -124,7 +124,7 @@ function PackCard({
 
       {/* Big credits number */}
       <div className="mb-2 flex items-baseline gap-1.5">
-        <span className="font-display text-[44px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+        <span className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
           {totalCredits.toLocaleString("en-IN")}
         </span>
         <span className="text-sm font-600 text-[var(--color-muted-foreground)]">
@@ -150,7 +150,7 @@ function PackCard({
       {/* Price block */}
       <div className="mt-auto border-t border-[var(--color-border)] pt-5">
         <div className="mb-4 flex items-baseline justify-between gap-2">
-          <p className="font-display text-[26px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+          <p className="font-display text-[16px] font-700 leading-none tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
             {formatINR(pack.price_paise)}
           </p>
           <p className="font-mono text-[11px] text-[var(--color-muted-foreground)]">
@@ -302,7 +302,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             Buy credits
           </p>
-          <h1 className="mt-1 font-display text-[32px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Top up your credits
             <span className="text-[var(--color-primary)]">.</span>
           </h1>
@@ -318,7 +318,7 @@ export function CreditsPackGrid({ packs, creditsRemaining }: Props) {
           <span className="font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Balance
           </span>
-          <span className="font-display text-base font-800 tracking-tight text-[var(--color-foreground)]">
+          <span className="font-display text-base font-700 tracking-tight text-[var(--color-foreground)]">
             {creditsRemaining.toLocaleString("en-IN")}
           </span>
         </div>

@@ -135,7 +135,7 @@ export default function CreatorProfilePage({
           Back to creators
         </Link>
         <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] bg-[var(--color-card)] py-16 shadow-[var(--shadow-card)]">
-          <h3 className="text-lg font-600 text-[var(--color-ink)]">Creator not found</h3>
+          <h3 className="text-[14px] sm:text-[15px] font-600 text-[var(--color-ink)]">Creator not found</h3>
           <p className="mt-1 text-sm text-[var(--color-neutral-500)]">
             {error ?? "This creator may no longer be available."}
           </p>
@@ -193,7 +193,7 @@ export default function CreatorProfilePage({
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-7 text-white sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-800 tracking-tight">{creator.display_name}</h1>
+              <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15]">{creator.display_name}</h1>
               {creator.instagram_handle && (
                 <p className="mt-1 flex items-center gap-1 text-sm opacity-90">
                   <AtSign className="size-3.5" />
@@ -280,7 +280,7 @@ export default function CreatorProfilePage({
                     className="rounded-xl border border-[var(--color-neutral-100)] bg-[var(--color-paper)] p-4"
                   >
                     <p className="text-xs text-[var(--color-neutral-500)]">{cat.category}</p>
-                    <p className="mt-1 text-lg font-700 text-[var(--color-ink)]">
+                    <p className="mt-1 text-[14px] sm:text-[15px] font-700 text-[var(--color-ink)]">
                       {formatINR(cat.price_per_generation_paise)}
                       <span className="ml-1 text-xs font-400 text-[var(--color-neutral-400)]">
                         /image
@@ -346,7 +346,7 @@ export default function CreatorProfilePage({
 function Stat({ big, small }: { big: string; small: string }) {
   return (
     <div>
-      <p className="text-2xl font-800 text-[var(--color-ink)]">{big}</p>
+      <p className="text-[22px] sm:text-[26px] font-700 tracking-[-0.02em] text-[var(--color-ink)]">{big}</p>
       <p className="mt-0.5 text-xs text-[var(--color-neutral-500)]">{small}</p>
     </div>
   );

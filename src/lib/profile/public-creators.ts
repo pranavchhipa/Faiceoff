@@ -21,7 +21,11 @@ export interface PublicCreatorCard {
   cover_image_url: string | null;
   categories: DemoCategoryKey[];
   followers: number | null;
+  /** Faiceoff verification (KYC-approved gold tick) — creators.is_verified. */
   verified: boolean;
+  /** Instagram's own blue tick on the linked handle. A completely different
+   *  signal from `verified` — never conflate the two in UI copy. */
+  instagram_verified: boolean;
   is_live: boolean;
 }
 
@@ -42,7 +46,7 @@ export async function listPublishedCreators(
       `
       id, user_id, profile_slug, selected_categories,
       instagram_followers, instagram_profile_pic_url,
-      instagram_verified, is_live
+      instagram_verified, is_verified, is_live
       `,
     )
     .eq("profile_published", true)
@@ -95,6 +99,7 @@ export async function listPublishedCreators(
       instagram_followers: number | null;
       instagram_profile_pic_url: string | null;
       instagram_verified: boolean | null;
+      is_verified: boolean | null;
       is_live: boolean | null;
     }) => {
       const u = userById.get(c.user_id);
@@ -105,7 +110,8 @@ export async function listPublishedCreators(
         cover_image_url: coverByCreator.get(c.id) ?? null,
         categories: c.selected_categories ?? [],
         followers: c.instagram_followers,
-        verified: Boolean(c.instagram_verified),
+        verified: Boolean(c.is_verified),
+        instagram_verified: Boolean(c.instagram_verified),
         is_live: Boolean(c.is_live),
       };
     },
@@ -129,7 +135,10 @@ export interface PublicCreatorProfile {
     instagram_handle: string | null;
     instagram_followers: number | null;
     instagram_account_type: string | null;
+    /** Instagram's own blue tick. NOT the Faiceoff gold tick — see `verified`. */
     instagram_verified: boolean;
+    /** Faiceoff KYC verification (creators.is_verified) — the gold tick. */
+    verified: boolean;
     instagram_media_count: number | null;
     youtube_handle: string | null;
     youtube_subscribers: number | null;
@@ -200,6 +209,7 @@ export async function getPublicCreatorProfile(
       instagram_profile_pic_url,
       instagram_account_type,
       instagram_verified,
+      is_verified,
       instagram_media_count,
       youtube_handle,
       youtube_subscribers,
@@ -276,6 +286,7 @@ export async function getPublicCreatorProfile(
       instagram_followers: creator.instagram_followers,
       instagram_account_type: creator.instagram_account_type,
       instagram_verified: Boolean(creator.instagram_verified),
+      verified: Boolean(creator.is_verified),
       instagram_media_count: creator.instagram_media_count,
       youtube_handle: creator.youtube_handle ?? null,
       youtube_subscribers: creator.youtube_subscribers ?? null,

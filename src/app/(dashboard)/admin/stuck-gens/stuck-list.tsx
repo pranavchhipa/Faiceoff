@@ -159,18 +159,18 @@ export function StuckList() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
-      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <Timer className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Replicate SLA breach · triage queue
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Stuck generations
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-1.5 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             <span className="font-600 text-[var(--color-foreground)]">
               {items.length}
             </span>{" "}
@@ -201,7 +201,7 @@ export function StuckList() {
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/15">
             <Inbox className="size-6 text-emerald-500 dark:text-emerald-300" />
           </div>
-          <h2 className="mb-1 text-lg font-700 text-[var(--color-foreground)]">
+          <h2 className="mb-1 text-[14px] font-700 text-[var(--color-foreground)] sm:text-[15px]">
             Nothing stuck
           </h2>
           <p className="mx-auto max-w-xs text-sm text-[var(--color-muted-foreground)]">
@@ -328,7 +328,7 @@ export function StuckList() {
       >
         <DialogContent className="rounded-2xl border-[var(--color-border)] sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-800 tracking-tight text-[var(--color-foreground)]">
+            <DialogTitle className="font-display text-[14px] font-700 tracking-tight sm:text-[15px] text-[var(--color-foreground)]">
               Confirm refund
             </DialogTitle>
             <DialogDescription className="text-sm text-[var(--color-muted-foreground)]">

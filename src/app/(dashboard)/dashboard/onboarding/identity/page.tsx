@@ -134,12 +134,12 @@ export default function IdentityPage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
-<div className="mb-8">
+<div className="mb-6">
         <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <User className="size-3.5" />
           Identity Verification
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
+        <h2 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)] mb-1">
           Tell us about yourself
         </h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">

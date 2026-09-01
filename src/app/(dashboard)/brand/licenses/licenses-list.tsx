@@ -198,12 +198,12 @@ function LicenseCard({ license, delay }: { license: LicenseItem; delay: number }
                     unoptimized
                   />
                 ) : (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] font-display text-[12px] font-800 text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] font-display text-[12px] font-700 text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
                     {(license.creator_display_name ?? "?").charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate font-display text-[15px] font-800 leading-tight text-[var(--color-foreground)]">
+                  <p className="truncate font-display text-[13.5px] font-600 leading-tight text-[var(--color-foreground)] sm:text-[14px]">
                     {license.creator_display_name}
                   </p>
                   <p className="font-mono text-[10px] text-[var(--color-muted-foreground)]">
@@ -334,7 +334,7 @@ export default function LicensesList() {
 
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
       {/* ── Header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
@@ -344,7 +344,7 @@ export default function LicensesList() {
         <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
           Library
         </p>
-        <h1 className="mt-2 font-display text-[32px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[44px]">
+        <h1 className="mt-1.5 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Your licenses
         </h1>
         <p className="mt-1.5 text-[14px] text-[var(--color-muted-foreground)]">
@@ -475,7 +475,7 @@ function EmptyState({ filter }: { filter: string }) {
           <FileSignature className="h-6 w-6" />
         )}
       </div>
-      <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
+      <p className="font-display text-[14px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[15px]">
         {filtered ? "Nothing in this bucket" : "No licenses yet"}
       </p>
       <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">

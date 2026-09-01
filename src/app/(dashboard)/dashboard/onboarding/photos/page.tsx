@@ -388,7 +388,7 @@ export default function PhotosPage() {
           <Camera className="size-3" />
           Reference photos
         </div>
-        <h2 className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
           The photos that become your AI face
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -404,7 +404,7 @@ export default function PhotosPage() {
       {/* Do / Don't guide */}
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-          <p className="mb-2.5 flex items-center gap-1.5 font-display text-[13px] font-800 text-emerald-600 dark:text-emerald-400">
+          <p className="mb-2.5 flex items-center gap-1.5 font-display text-[13px] font-700 text-emerald-600 dark:text-emerald-400">
             <Check className="size-3.5" strokeWidth={3} /> Do this
           </p>
           <ul className="space-y-2.5">
@@ -422,7 +422,7 @@ export default function PhotosPage() {
           </ul>
         </div>
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4">
-          <p className="mb-2.5 flex items-center gap-1.5 font-display text-[13px] font-800 text-rose-600 dark:text-rose-400">
+          <p className="mb-2.5 flex items-center gap-1.5 font-display text-[13px] font-700 text-rose-600 dark:text-rose-400">
             <X className="size-3.5" strokeWidth={3} /> Avoid
           </p>
           <ul className="space-y-2">
@@ -563,7 +563,7 @@ export default function PhotosPage() {
 
                     {/* Primary badge */}
                     {isPrimary && (
-                      <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                      <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)]">
                         <Star className="size-2.5 fill-current" /> Main
                       </span>
                     )}
@@ -586,7 +586,7 @@ export default function PhotosPage() {
                           type="button"
                           onClick={() => setExistingPrimaryPhoto(photo.id)}
                           disabled={isBusy}
-                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md disabled:opacity-50"
                         >
                           <Star className="size-2.5" /> Set main
                         </button>
@@ -616,7 +616,7 @@ export default function PhotosPage() {
 
                     {/* Primary badge */}
                     {isPrimary && (
-                      <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)]">
+                      <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)]">
                         <Star className="size-2.5 fill-current" /> Main
                       </span>
                     )}
@@ -643,7 +643,7 @@ export default function PhotosPage() {
                         <button
                           type="button"
                           onClick={() => setNewPrimaryPhoto(photo.id)}
-                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-800 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md"
+                          className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--color-primary)]/95 py-1 text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary-foreground)] backdrop-blur-md"
                         >
                           <Star className="size-2.5" /> Set main
                         </button>

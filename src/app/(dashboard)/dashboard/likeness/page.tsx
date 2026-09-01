@@ -108,7 +108,7 @@ export default function LikenessPage() {
     return (
       <div className="max-w-2xl space-y-4">
         <div>
-          <h1 className="text-xl font-700 text-[var(--color-ink)]">
+          <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
             My Likeness
           </h1>
           <p className="mt-0.5 text-[13px] text-[var(--color-ink)]/50">
@@ -147,7 +147,7 @@ export default function LikenessPage() {
     <div className="max-w-5xl space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-700 text-[var(--color-ink)]">
+        <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
           My Likeness
         </h1>
         <p className="mt-0.5 text-[13px] text-[var(--color-ink)]/50">

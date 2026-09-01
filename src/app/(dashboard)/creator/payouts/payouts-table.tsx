@@ -141,11 +141,11 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
       className="max-w-4xl pt-6 lg:pt-8"
     >
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
+      <div className="mb-5">
+        <h1 className="text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Payout history
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+        <p className="mt-1 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
           All your withdrawal requests and their current status.
         </p>
       </div>

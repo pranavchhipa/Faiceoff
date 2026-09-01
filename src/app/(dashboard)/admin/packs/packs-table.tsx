@@ -401,18 +401,18 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
   const activeCount = packs.filter((p) => p.is_active).length;
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
-      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <Package className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Pricing ops · brand top-ups · catalog
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Credit packs
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-1.5 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             <span className="font-600 text-[var(--color-foreground)]">
               {packs.length}
             </span>{" "}
@@ -589,7 +589,7 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="rounded-2xl border-[var(--color-border)] sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-800 tracking-tight text-[var(--color-foreground)]">
+            <DialogTitle className="font-display text-[14px] font-700 tracking-tight sm:text-[15px] text-[var(--color-foreground)]">
               {editingPack
                 ? `Edit pack · ${editingPack.code}`
                 : "Add new pack"}
@@ -636,7 +636,7 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
       >
         <DialogContent className="rounded-2xl border-[var(--color-border)] sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-800 tracking-tight text-[var(--color-foreground)]">
+            <DialogTitle className="font-display text-[14px] font-700 tracking-tight sm:text-[15px] text-[var(--color-foreground)]">
               Deactivate pack?
             </DialogTitle>
             <DialogDescription className="text-sm text-[var(--color-muted-foreground)]">

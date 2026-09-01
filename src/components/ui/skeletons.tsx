@@ -27,11 +27,11 @@ export function PageHeaderSkeleton({
   withCta?: boolean;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
+    <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
       <div className="flex-1">
         <Pulse className="h-3 w-24" />
-        <Pulse className="mt-3 h-9 w-2/3 max-w-[420px]" />
-        <Pulse className="mt-3 h-3.5 w-3/4 max-w-[560px]" />
+        <Pulse className="mt-2 h-6 w-2/3 max-w-[420px] sm:h-7" />
+        <Pulse className="mt-2 h-3.5 w-3/4 max-w-[560px]" />
       </div>
       {withCta && <Pulse className="h-11 w-[180px] shrink-0 rounded-xl" />}
     </div>
@@ -41,7 +41,7 @@ export function PageHeaderSkeleton({
 /** 4-tile stat strip — Active / Completed / Images / Spent style. */
 export function StatStripSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -51,7 +51,7 @@ export function StatStripSkeleton({ count = 4 }: { count?: number }) {
             <Pulse className="h-7 w-7 rounded-lg" />
             <Pulse className="h-3 w-20" />
           </div>
-          <Pulse className="mt-3 h-6 w-16" />
+          <Pulse className="mt-2 h-5 w-16 sm:h-6" />
         </div>
       ))}
     </div>

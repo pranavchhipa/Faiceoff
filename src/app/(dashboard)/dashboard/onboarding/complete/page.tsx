@@ -116,7 +116,7 @@ export default function CompletePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <h2 className="text-3xl font-800 text-[var(--color-foreground)] mb-3">
+        <h2 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)] mb-2">
           You are all set!
         </h2>
         <p className="text-[var(--color-muted-foreground)] max-w-md mx-auto mb-8 leading-relaxed">
@@ -154,7 +154,7 @@ export default function CompletePage() {
               Next step
             </span>
           </div>
-          <p className="font-display text-[15px] font-800 text-[var(--color-foreground)]">
+          <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
             Set up your packages to go live
           </p>
           <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">

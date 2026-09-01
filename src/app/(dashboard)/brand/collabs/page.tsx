@@ -200,7 +200,7 @@ export default function BrandCollabsPage() {
   if (loading) return <CollabsSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
       <FaSealDefs />
 
       {/* ═══════════ Header ═══════════ */}
@@ -216,7 +216,7 @@ export default function BrandCollabsPage() {
             <Megaphone className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
             Collabs
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] lg:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Your collabs
           </h1>
           <p className="mt-1.5 max-w-xl text-[13px] text-[var(--color-muted-foreground)] lg:text-[14px]">
@@ -443,7 +443,7 @@ function StatTile({
         </span>
       </div>
       <p
-        className={`mt-2.5 font-display text-[24px] font-800 leading-none tracking-tight ${valueColor} lg:text-[28px]`}
+        className={`mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] ${valueColor} sm:text-[26px]`}
       >
         {value}
       </p>
@@ -518,7 +518,7 @@ function CollabCard({ collab, delay }: { collab: Collab; delay: number }) {
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-4 sm:p-5">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="line-clamp-2 font-display text-[15px] font-800 leading-tight tracking-tight text-[var(--color-foreground)]">
+              <h3 className="line-clamp-2 font-display text-[13.5px] font-600 leading-tight tracking-tight text-[var(--color-foreground)] sm:text-[14px]">
                 {collab.name}
               </h3>
               {tier && TierIcon && (
@@ -540,7 +540,7 @@ function CollabCard({ collab, delay }: { collab: Collab; delay: number }) {
                   unoptimized
                 />
               ) : (
-                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] font-display text-[9px] font-800 text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] font-display text-[9px] font-700 text-[var(--color-foreground)] ring-1 ring-[var(--color-border)]">
                   {collab.counterpart_name.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -668,7 +668,7 @@ function EmptyState({ pendingRequests }: { pendingRequests: number }) {
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
         <Megaphone className="h-6 w-6" />
       </div>
-      <p className="font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <p className="font-display text-[14px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[15px]">
         No active collabs yet
       </p>
       <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -691,7 +691,7 @@ function EmptyState({ pendingRequests }: { pendingRequests: number }) {
 
 function CollabsSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
       <div className="flex items-end justify-between">
         <div>
           <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-secondary)]" />

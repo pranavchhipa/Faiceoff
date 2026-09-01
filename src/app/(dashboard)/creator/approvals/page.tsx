@@ -208,7 +208,7 @@ export default function CreatorApprovalsPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-md py-20 text-center">
+      <div className="max-w-md py-20 text-center">
         <p className="font-display text-lg font-700 text-[var(--color-foreground)]">
           Couldn&apos;t load approvals
         </p>
@@ -218,24 +218,24 @@ export default function CreatorApprovalsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-end md:justify-between"
+        className="mb-5 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between"
       >
         <div>
-          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+          <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
             <Shield className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             48h window · Your consent is final
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Approval queue
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-2 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             <span className="font-600 text-[var(--color-foreground)]">
               {approvals.length}
             </span>{" "}
@@ -255,7 +255,7 @@ export default function CreatorApprovalsPage() {
             <p className="font-mono text-[9px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
               This week
             </p>
-            <p className="font-display text-[18px] font-800 text-[var(--color-foreground)]">
+            <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
               {weekApproved} approved
             </p>
           </div>
@@ -306,7 +306,7 @@ export default function CreatorApprovalsPage() {
                         {a.brand}
                       </p>
                       {a.urgent && (
-                        <span className="rounded-full bg-rose-500/15 px-1.5 py-px font-mono text-[9px] font-800 uppercase tracking-wider text-rose-500">
+                        <span className="rounded-full bg-rose-500/15 px-1.5 py-px font-mono text-[9px] font-700 uppercase tracking-wider text-rose-500">
                           Urgent
                         </span>
                       )}
@@ -365,7 +365,7 @@ export default function CreatorApprovalsPage() {
                     <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-white/70">
                       {selected.niche} · Generation
                     </p>
-                    <h2 className="mt-1 font-display text-[22px] font-800 tracking-tight text-white">
+                    <h2 className="mt-1 font-display text-[15px] font-700 tracking-[-0.01em] text-white sm:text-[16px]">
                       {selected.brand}
                     </h2>
                     <p className="text-[13px] text-white/80">
@@ -440,7 +440,7 @@ export default function CreatorApprovalsPage() {
                         </div>
                       </motion.div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <button
                           disabled={pendingId === selected.id}
                           onClick={() => setDecision("reject")}
@@ -506,7 +506,7 @@ function MetaBlock({
         {label}
       </p>
       <p
-        className={`mt-1 font-display text-[16px] font-800 tracking-tight ${
+        className={`mt-1 font-display text-[15px] font-700 tracking-[-0.01em] sm:text-[16px] ${
           accent ? "text-[var(--color-primary)]" : "text-[var(--color-foreground)]"
         }`}
       >
@@ -527,7 +527,7 @@ function EmptyState() {
       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-primary)]/10">
         <Inbox className="h-6 w-6 text-[var(--color-primary)]" />
       </div>
-      <h3 className="font-display text-[22px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <h3 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
         Inbox zero.
       </h3>
       <p className="mx-auto mt-2 max-w-md text-[13px] text-[var(--color-muted-foreground)]">

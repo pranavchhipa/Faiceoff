@@ -155,7 +155,7 @@ export default function BrandCollabWorkspacePage() {
     // "not found" for BOTH, sending users away from collabs that exist.
     if (error) {
       return (
-        <div className="mx-auto max-w-md px-4 py-20 text-center">
+        <div className="max-w-md px-4 py-20 text-center">
           <p className="text-[var(--color-muted-foreground)]">
             Couldn&apos;t load this collab. Check your connection and try again.
           </p>
@@ -170,7 +170,7 @@ export default function BrandCollabWorkspacePage() {
       );
     }
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="max-w-md px-4 py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Collab not found.</p>
         <Link href="/brand/collabs" className="mt-4 block text-sm text-[var(--color-primary)]">Back to collabs</Link>
       </div>
@@ -204,7 +204,7 @@ export default function BrandCollabWorkspacePage() {
   const noCredits = creditsLeft !== null && creditsLeft <= 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
 
       {/* Back link */}
       <Link
@@ -264,7 +264,7 @@ export default function BrandCollabWorkspacePage() {
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                 Collab workspace
               </p>
-              <h1 className="mt-1 font-display text-[26px] font-800 leading-[1.1] tracking-tight text-[var(--color-foreground)] sm:text-[30px]">
+              <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
                 {session.name}
               </h1>
 
@@ -479,7 +479,7 @@ function Stat({
           {label}
         </span>
       </div>
-      <p className={`mt-2 font-display text-[26px] font-800 leading-none ${toneStyles[tone]}`}>
+      <p className={`mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] sm:text-[26px] ${toneStyles[tone]}`}>
         {value}
         {sub && (
           <span className="ml-1.5 align-middle font-display text-[11px] font-600 text-[var(--color-muted-foreground)]">

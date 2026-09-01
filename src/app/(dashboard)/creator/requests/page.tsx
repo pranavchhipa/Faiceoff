@@ -172,7 +172,7 @@ export default function CreatorRequestsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[860px] px-4 py-8 space-y-3 lg:px-8">
+      <div className="w-full max-w-[860px] px-4 py-8 space-y-3 lg:px-8">
         <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
         {[1, 2].map((i) => (
           <div key={i} className="h-[160px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
@@ -185,20 +185,20 @@ export default function CreatorRequestsPage() {
   const past    = requests.filter((r) => r.status !== "pending");
 
   return (
-    <div className="mx-auto w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
 
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-7"
+        className="mb-5"
       >
-        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
           <Inbox className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
           Collab Requests
         </p>
-        <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Requests
         </h1>
         <p className="mt-1.5 text-[13px] text-[var(--color-muted-foreground)]">
@@ -341,7 +341,7 @@ function RequestCard({
           {/* Top row: product name + status */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate font-display text-[16px] font-800 text-[var(--color-foreground)]">
+              <p className="truncate font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
                 {req.product_name}
               </p>
               <p className="mt-0.5 truncate text-[12px] text-[var(--color-muted-foreground)]">
@@ -380,7 +380,7 @@ function RequestCard({
 
           {/* Footer: timer + actions */}
           {isPending ? (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="mr-auto flex items-center gap-1 font-mono text-[11px] font-600 text-amber-600">
                 <Clock className="h-3 w-3" />
                 {timeLeft(req.expires_at)}
@@ -388,14 +388,14 @@ function RequestCard({
               <button
                 onClick={() => onDecline(req.id)}
                 disabled={acting}
-                className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-[12px] font-700 text-[var(--color-muted-foreground)] transition hover:border-red-400/60 hover:bg-red-500/5 hover:text-red-500 disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2 text-[12px] font-700 text-[var(--color-muted-foreground)] transition hover:border-red-400/60 hover:bg-red-500/5 hover:text-red-500 disabled:opacity-50"
               >
                 Decline
               </button>
               <button
                 onClick={() => onAccept(req.id)}
                 disabled={acting}
-                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-5 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition active:scale-[0.98] disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-5 py-2 text-[12px] font-700 text-[var(--color-primary-foreground)] shadow-[0_4px_14px_-4px_rgba(201,169,110,0.4)] transition active:scale-[0.98] disabled:opacity-50"
               >
                 {acting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

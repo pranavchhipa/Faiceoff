@@ -408,7 +408,7 @@ export default function NewGenerationPage() {
 
   if (loadError || !campaign) {
     return (
-      <div className="max-w-2xl mx-auto py-12">
+      <div className="max-w-2xl py-12">
         <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50 p-6">
           <p className="text-sm font-600 text-red-700 mb-2">
             Couldn&apos;t load campaign
@@ -442,10 +442,10 @@ export default function NewGenerationPage() {
         Back to {campaign.name}
       </Link>
 
-      <h1 className="text-3xl font-800 tracking-tight text-[var(--color-ink)] mb-2">
+      <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)] mb-2">
         New Generation
       </h1>
-      <p className="text-[var(--color-neutral-500)] mb-8">
+      <p className="text-[var(--color-neutral-500)] mb-6">
         Creating a generation for <strong>{creatorName}</strong> in the{" "}
         <strong>{campaign.name}</strong> campaign.
       </p>
@@ -480,7 +480,7 @@ export default function NewGenerationPage() {
 
       {/* Form */}
       <div className="rounded-[var(--radius-card)] border border-[var(--color-neutral-200)] bg-[var(--color-card)] p-6">
-        <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-1">
           Guided Prompt Builder
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-6">

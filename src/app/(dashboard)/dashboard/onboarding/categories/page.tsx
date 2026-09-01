@@ -92,7 +92,7 @@ export default function CategoriesPage() {
         >
           <ArrowLeft className="size-3.5" /> Back
         </button>
-        <h2 className="text-xl font-800 text-[var(--color-foreground)] mb-1">Pick your categories</h2>
+        <h2 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)] mb-1">Pick your categories</h2>
         <p className="text-[13px] text-[var(--color-muted-foreground)]">
           Choose up to 5 that best describe your content.
         </p>

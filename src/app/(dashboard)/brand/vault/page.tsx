@@ -83,15 +83,15 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
   const count = data.total;
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Hero header ═══════════ */}
-      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
+      <div className="mb-5 flex flex-col gap-4 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <Library className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Licensed assets · ready to deploy
           </p>
-          <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Library
             <span className="text-[var(--color-primary)]">.</span>
           </h1>

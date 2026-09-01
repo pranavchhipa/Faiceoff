@@ -377,7 +377,7 @@ export default function GenerationDetailPage({
   if (notFound || !generation) {
     return (
       <div className="max-w-2xl py-24 text-center">
-        <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
+        <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-2">
           Generation not found
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-6">
@@ -441,7 +441,7 @@ export default function GenerationDetailPage({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-              <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-ink)]">
+              <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
                 Generation Detail
               </h1>
               <span
@@ -470,7 +470,7 @@ export default function GenerationDetailPage({
                 <IndianRupee className="size-3" />
                 Cost
               </div>
-              <p className="text-lg font-700 text-[var(--color-ink)]">
+              <p className="text-[14px] sm:text-[15px] font-700 text-[var(--color-ink)]">
                 {formatINR(generation.cost_paise)}
               </p>
             </div>
@@ -858,7 +858,7 @@ export default function GenerationDetailPage({
         animate="visible"
         className="mt-6 rounded-[var(--radius-card)] bg-[var(--color-card)] p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
-        <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-1">
           Timeline
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-5">
@@ -918,7 +918,7 @@ export default function GenerationDetailPage({
         animate="visible"
         className="mt-6 rounded-[var(--radius-card)] bg-[var(--color-card)] p-5 sm:p-8 shadow-[var(--shadow-card)]"
       >
-        <h2 className="text-lg font-700 text-[var(--color-ink)] mb-1">
+        <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-1">
           Details
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-5">

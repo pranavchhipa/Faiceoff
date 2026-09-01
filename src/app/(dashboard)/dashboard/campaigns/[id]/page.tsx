@@ -263,7 +263,7 @@ export default function CampaignDetailPage() {
   if (notFound || !campaign) {
     return (
       <div className="max-w-2xl py-24 text-center">
-        <h2 className="text-xl font-700 text-[var(--color-ink)] mb-2">
+        <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-2">
           Campaign not found
         </h2>
         <p className="text-sm text-[var(--color-neutral-500)] mb-6">
@@ -340,7 +340,7 @@ export default function CampaignDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-            <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-ink)]">
+            <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
               {campaign.name}
             </h1>
             <span
@@ -453,7 +453,7 @@ export default function CampaignDetailPage() {
               {role === "creator" ? "Earned" : "Budget Used"}
             </h3>
           </div>
-          <p className="text-2xl font-700 text-[var(--color-ink)]">
+          <p className="text-[22px] sm:text-[26px] font-700 tracking-[-0.02em] text-[var(--color-ink)]">
             {role === "creator"
               ? formatINR(campaign.earnings_paise)
               : formatINR(campaign.spent_paise)}
@@ -488,7 +488,7 @@ export default function CampaignDetailPage() {
               {role === "creator" ? "Generations of You" : "Generations"}
             </h3>
           </div>
-          <p className="text-2xl font-700 text-[var(--color-ink)]">
+          <p className="text-[22px] sm:text-[26px] font-700 tracking-[-0.02em] text-[var(--color-ink)]">
             {campaign.generation_count}
             <span className="text-base font-500 text-[var(--color-neutral-400)]">
               {" "}
@@ -504,12 +504,12 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      <Separator className="mb-8" />
+      <Separator className="mb-6" />
 
       {/* ── Generation History ── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-700 text-[var(--color-ink)]">
+          <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)]">
             Generation History
           </h2>
           {isPolling && (

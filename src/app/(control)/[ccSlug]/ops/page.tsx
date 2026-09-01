@@ -468,8 +468,8 @@ function BigStat({
       <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--cc-fg-muted)" }}>{label}</span>
       <span
         style={{
-          fontSize: 34,
-          fontWeight: 800,
+          fontSize: 26,
+          fontWeight: 700,
           lineHeight: 1.05,
           letterSpacing: "-0.02em",
           fontVariantNumeric: "tabular-nums",
@@ -505,8 +505,8 @@ function ActionCard({ queue }: { queue: ActionQueue }) {
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span
           style={{
-            fontSize: 30,
-            fontWeight: 800,
+            fontSize: 26,
+            fontWeight: 700,
             lineHeight: 1,
             letterSpacing: "-0.02em",
             fontVariantNumeric: "tabular-nums",

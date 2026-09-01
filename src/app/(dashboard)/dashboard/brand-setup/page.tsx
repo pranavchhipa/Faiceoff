@@ -114,7 +114,7 @@ export default function BrandSetupPage() {
 
       <Card className="border-[var(--color-border)] shadow-[var(--shadow-card)]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-700 tracking-tight text-[var(--color-foreground)]">
+          <CardTitle className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
             Set up your brand
           </CardTitle>
           <CardDescription className="text-[var(--color-muted-foreground)]">

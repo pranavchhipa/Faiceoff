@@ -907,9 +907,12 @@ export default async function CreatorProfilePage(
     ? `/signup?role=brand&intent=collab&creator=${data.slug}&package=${defaultPackage.id}`
     : `/signup?role=brand&intent=discover&creator=${data.slug}`;
 
-  // Trust pills — show platform-level guarantees always, IG-verified only when true
+  // Trust pills. "KYC Verified" is a claim about THIS creator, so it is gated
+  // on their actual verification state — it used to render unconditionally,
+  // asserting a completed identity check for creators who had not done one.
+  // DPDP/Escrow are genuine platform-level guarantees and always apply.
   const trustPills: Array<{ key: string; label: string }> = [
-    { key: "kyc", label: "KYC Verified" },
+    ...(c.verified ? [{ key: "kyc", label: "KYC Verified" }] : []),
     ...(c.instagram_verified ? [{ key: "ig", label: "Instagram Verified" }] : []),
     { key: "dpdp", label: "DPDP Compliant" },
     { key: "escrow", label: "Escrow Protected" },
@@ -1097,12 +1100,19 @@ export default async function CreatorProfilePage(
                   </div>
                 )}
               </div>
-              {/* Faiceoff Verified seal — platform-level (all listed creators are verified) */}
-              <div className="verified-ring" title="Faiceoff Verified Creator">
-                <svg viewBox="0 0 100 100" aria-hidden>
-                  <use href="#faSeal" />
-                </svg>
-              </div>
+              {/* Faiceoff Verified seal — shown ONLY for creators who actually
+                  passed KYC (creators.is_verified). It used to render for every
+                  listed creator on the assumption that listing implied
+                  verification, which was never true: publishing a profile has
+                  no verification gate, so unverified creators wore the trust
+                  mark of verified ones. */}
+              {c.verified && (
+                <div className="verified-ring" title="Faiceoff Verified Creator">
+                  <svg viewBox="0 0 100 100" aria-hidden>
+                    <use href="#faSeal" />
+                  </svg>
+                </div>
+              )}
             </div>
 
             <h1 className="name">{c.display_name}</h1>

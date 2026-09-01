@@ -186,7 +186,7 @@ export default function LicenseDetailPage({
         <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-500/10">
           <AlertTriangle className="size-7 text-red-500" />
         </div>
-        <h2 className="text-xl font-700 text-[var(--color-foreground)] mb-2">License not found</h2>
+        <h2 className="text-[16px] sm:text-[18px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] mb-2">License not found</h2>
         <p className="text-sm text-[var(--color-muted-foreground)] mb-6">
           This license does not exist or you don't have access to it.
         </p>
@@ -240,8 +240,8 @@ export default function LicenseDetailPage({
           className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-card)] p-5 sm:p-6 shadow-[var(--shadow-card)] flex flex-col gap-5"
         >
           {/* Status big pill */}
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-xl sm:text-2xl font-800 tracking-tight text-[var(--color-foreground)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h1 className="text-[20px] sm:text-[24px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)]">
               License Agreement
             </h1>
             <span className={`shrink-0 rounded-[var(--radius-pill)] px-3.5 py-1 text-sm font-700 ${cfg.bg} ${cfg.text}`}>

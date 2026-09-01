@@ -223,18 +223,18 @@ export function SafetyCards() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1440px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
-      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <ShieldAlert className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Hive queue · admin override · audited
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[36px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Safety review
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-1.5 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             <span className="font-600 text-[var(--color-foreground)]">
               {totalCount}
             </span>{" "}
@@ -264,7 +264,7 @@ export function SafetyCards() {
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/15">
             <Inbox className="size-6 text-emerald-500 dark:text-emerald-300" />
           </div>
-          <h2 className="mb-1 text-lg font-700 text-[var(--color-foreground)]">
+          <h2 className="mb-1 text-[14px] font-700 text-[var(--color-foreground)] sm:text-[15px]">
             Queue clear
           </h2>
           <p className="mx-auto max-w-xs text-sm text-[var(--color-muted-foreground)]">
@@ -386,7 +386,7 @@ export function SafetyCards() {
                 </div>
 
                 {/* Title + caption */}
-                <h5 className="mt-4 font-display text-[20px] font-800 leading-tight tracking-tight text-[var(--color-foreground)]">
+                <h5 className="mt-4 font-display text-[15px] font-700 leading-tight tracking-tight sm:text-[16px] text-[var(--color-foreground)]">
                   {selected.title ?? selected.brand ?? "Flagged generation"}
                 </h5>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">

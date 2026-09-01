@@ -155,10 +155,10 @@ export default function WithdrawWizard({
             <IndianRupee className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
             Withdraw
           </p>
-          <h1 className="mt-2 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] md:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Almost there.
           </h1>
-          <p className="mt-3 max-w-[480px] text-[14px] leading-relaxed text-[var(--color-muted-foreground)]">
+          <p className="mt-2 max-w-[480px] text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             Cross the minimum payout threshold and withdraw to your bank — TDS is
             handled at source per Section 194-O.
           </p>
@@ -182,7 +182,7 @@ export default function WithdrawWizard({
                 <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                   Below minimum
                 </p>
-                <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+                <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                   A little more to go
                 </h2>
               </div>
@@ -276,7 +276,7 @@ export default function WithdrawWizard({
             <p className="mt-6 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
               Withdrawal submitted
             </p>
-            <h2 className="mt-2 font-display text-[28px] font-800 leading-tight tracking-tight text-[var(--color-foreground)] md:text-[32px]">
+            <h2 className="mt-2 font-display text-[17px] font-700 leading-[1.15] tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[20px]">
               Funds on the way.
             </h2>
             <p className="mx-auto mt-3 max-w-[420px] text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -345,7 +345,7 @@ export default function WithdrawWizard({
           <Wallet className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
           Withdraw — step {step} of 3
         </p>
-        <h1 className="mt-2 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] md:text-[40px]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           {step === 1 && "How much?"}
           {step === 2 && "Where to?"}
           {step === 3 && "Looks good?"}
@@ -386,7 +386,7 @@ export default function WithdrawWizard({
                   <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                     You&rsquo;re withdrawing
                   </p>
-                  <p className="mt-2 font-display text-[44px] font-800 leading-none tracking-tight text-[var(--color-primary)]">
+                  <p className="mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-primary)] sm:text-[26px]">
                     {fmt(grossPaise)}
                   </p>
                   <p className="mt-1.5 font-mono text-[11px] text-[var(--color-muted-foreground)]">
@@ -473,7 +473,7 @@ export default function WithdrawWizard({
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="truncate font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
+                        <p className="truncate font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
                           {primaryAccount.account_holder_name}
                         </p>
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-[0.12em] text-emerald-600">
@@ -493,7 +493,7 @@ export default function WithdrawWizard({
                   <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                     <div>
-                      <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+                      <p className="font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
                         No bank account linked
                       </p>
                       <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -559,7 +559,7 @@ export default function WithdrawWizard({
                   <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary)]">
                     You&rsquo;ll receive
                   </p>
-                  <p className="mt-2 font-display text-[36px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+                  <p className="mt-2 font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
                     {fmt(computeNet(grossPaise))}
                   </p>
                   <p className="mt-1.5 font-mono text-[11px] text-[var(--color-muted-foreground)]">
@@ -668,7 +668,7 @@ function Stepper({
                 }`}
               >
                 <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-800 transition-all ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-700 transition-all ${
                     isActive
                       ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] ring-4 ring-[var(--color-primary)]/15"
                       : isDone
@@ -727,7 +727,7 @@ function SectionHeader({
         <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           {eyebrow}
         </p>
-        <h2 className="mt-0.5 font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="mt-0.5 font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
           {title}
         </h2>
         <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">{sub}</p>
@@ -752,7 +752,7 @@ function Stat({
         {label}
       </p>
       <p
-        className={`mt-1.5 font-display text-[22px] font-800 leading-none tracking-tight ${
+        className={`mt-1.5 font-display text-[22px] font-700 leading-none tracking-[-0.02em] sm:text-[26px] ${
           tone === "primary" ? "text-[var(--color-primary)]" : "text-[var(--color-foreground)]"
         }`}
       >
@@ -797,10 +797,10 @@ function Breakdown({
         </div>
       </div>
       <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
-        <span className="font-display text-[13px] font-800 text-[var(--color-foreground)]">
+        <span className="font-display text-[13px] font-700 text-[var(--color-foreground)]">
           {variant === "confirm" ? "You'll receive" : "Net to bank"}
         </span>
-        <span className="font-display text-[16px] font-800 text-[var(--color-primary)]">{fmt(net)}</span>
+        <span className="font-display text-[16px] font-700 text-[var(--color-primary)]">{fmt(net)}</span>
       </div>
     </div>
   );
@@ -824,7 +824,7 @@ function ReceiptRow({
       <span
         className={`text-right ${mono ? "font-mono" : ""} ${
           highlight
-            ? "font-display text-[16px] font-800 text-[var(--color-primary)]"
+            ? "font-display text-[16px] font-700 text-[var(--color-primary)]"
             : "font-700 text-[var(--color-foreground)]"
         }`}
       >
@@ -847,7 +847,7 @@ function InfoCard({
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:border-[var(--color-primary)]/30">
       <Icon className="h-4 w-4 text-[var(--color-primary)]" />
-      <p className="mt-2.5 font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <p className="mt-2.5 font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
         {title}
       </p>
       <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">{body}</p>

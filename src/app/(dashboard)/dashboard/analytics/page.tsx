@@ -182,7 +182,7 @@ export default function AnalyticsPage() {
     <div className="max-w-5xl space-y-4 pt-6 lg:pt-8">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-700 text-[var(--color-foreground)]">Analytics</h1>
+        <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">Analytics</h1>
         <p className="mt-0.5 text-[13px] text-[var(--color-muted-foreground)]">
           Track your performance, earnings, and engagement
         </p>

@@ -105,7 +105,7 @@ export default function ConsentPage() {
           <ShieldCheck className="size-3" />
           DPDP Act 2023
         </div>
-        <h2 className="text-xl font-800 text-[var(--color-foreground)] mb-1">Biometric data consent</h2>
+        <h2 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)] mb-1">Biometric data consent</h2>
         <p className="text-[13px] text-[var(--color-muted-foreground)]">
           Required under Indian law before we process your face data.
         </p>

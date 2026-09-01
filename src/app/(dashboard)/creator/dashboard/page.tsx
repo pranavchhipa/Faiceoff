@@ -251,7 +251,7 @@ export default function CreatorDashboardPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
 
       {/* ── Verification nudge (hidden once verified) ── */}
       <VerifyBanner />
@@ -265,10 +265,10 @@ export default function CreatorDashboardPage() {
         className="flex items-start justify-between gap-4"
       >
         <div className="min-w-0">
-          <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] lg:text-[48px]">
+          <h1 className="font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Hi {firstName} —
           </h1>
-          <p className="mt-1 font-display text-[18px] font-700 tracking-tight text-[var(--color-primary)] lg:text-[22px]">
+          <p className="mt-1 font-display text-[15px] font-700 text-[var(--color-primary)] sm:text-[16px]">
             {pendingRequestsCount > 0
               ? `${pendingRequestsCount} brand request${pendingRequestsCount > 1 ? "s" : ""} waiting for you`
               : pendingCount > 0
@@ -344,7 +344,7 @@ export default function CreatorDashboardPage() {
             <div className="flex items-center gap-3">
               <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
                 <Inbox className="h-4 w-4" />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-800 text-amber-600">
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-700 text-amber-600">
                   {pendingRequestsCount}
                 </span>
               </div>
@@ -505,7 +505,7 @@ export default function CreatorDashboardPage() {
           >
             <div className="mb-1 flex items-start justify-between">
               <div>
-                <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+                <h3 className="font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
                   Earnings activity
                 </h3>
                 <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
@@ -541,7 +541,7 @@ export default function CreatorDashboardPage() {
             transition={{ duration: 0.45, delay: 0.22 }}
             className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 lg:p-6"
           >
-            <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+            <h3 className="font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
               Approval health
             </h3>
             <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
@@ -593,12 +593,12 @@ export default function CreatorDashboardPage() {
           animate="animate"
           transition={{ duration: 0.45, delay: 0.2 }}
         >
-          <div className="mb-5 flex items-end justify-between">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                 Approval queue
               </p>
-              <h2 className="mt-1 font-display text-[22px] font-700 tracking-tight text-[var(--color-foreground)]">
+              <h2 className="mt-1 font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                 Brands ask. You decide.
               </h2>
             </div>
@@ -651,7 +651,7 @@ export default function CreatorDashboardPage() {
                         <div
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent} text-white`}
                         >
-                          <span className="font-display text-[18px] font-800">
+                          <span className="font-display text-[16px] font-700">
                             {brandName.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -829,7 +829,7 @@ export default function CreatorDashboardPage() {
                 <span className="text-[12px] font-700 text-[var(--color-muted-foreground)]">
                   Lifetime total
                 </span>
-                <span className="font-800 text-[15px] text-[var(--color-foreground)]">
+                <span className="font-700 text-[15px] text-[var(--color-foreground)]">
                   {formatINR(earnings.lifetime_earned_paise)}
                 </span>
               </div>
@@ -884,7 +884,7 @@ export default function CreatorDashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+    <div className="w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
       <div className="space-y-3">
         <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
         <div className="h-12 w-72 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />

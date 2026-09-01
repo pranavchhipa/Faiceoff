@@ -165,7 +165,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
   const totalReachStr = fmtFollowers(totalReach);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+    <div className="max-w-6xl px-4 py-6 sm:py-10 lg:px-8">
       {/* Back link */}
       <Link
         href="/brand/discover"
@@ -189,7 +189,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
               priority
             />
           ) : (
-            <div className="flex h-full items-center justify-center font-display text-[88px] font-800 text-[var(--color-muted-foreground)]/30">
+            <div className="flex h-full items-center justify-center font-display text-[88px] font-700 text-[var(--color-muted-foreground)]/30">
               {creator.display_name[0]?.toUpperCase() ?? "?"}
             </div>
           )}
@@ -208,20 +208,20 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             Creator profile
           </p>
-          <h1 className="mt-1 font-display text-[40px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[52px] lg:text-[64px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             {creator.display_name}
           </h1>
 
           {creator.bio && (
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
+            <p className="mt-2 max-w-xl text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
               {creator.bio}
             </p>
           )}
 
           {/* Stats strip */}
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-md sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md sm:grid-cols-3">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
-              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+              <p className="font-display text-[14px] font-700 leading-none text-[var(--color-foreground)] sm:text-[15px]">
                 {totalReachStr ?? "—"}
               </p>
               <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -229,7 +229,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
               </p>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
-              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+              <p className="font-display text-[14px] font-700 leading-none text-[var(--color-foreground)] sm:text-[15px]">
                 {creator.categories.length || 0}
               </p>
               <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -237,7 +237,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
               </p>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5">
-              <p className="font-display text-[18px] font-800 leading-none text-[var(--color-foreground)]">
+              <p className="font-display text-[14px] font-700 leading-none text-[var(--color-foreground)] sm:text-[15px]">
                 {creator.packages.length}
               </p>
               <p className="mt-1 font-mono text-[9px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -326,7 +326,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="md:mt-1">
-                  <p className="flex items-center gap-2 font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)] md:justify-center">
+                  <p className="flex items-center gap-2 font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)] md:justify-center">
                     <span className="font-mono text-[10px] font-700 text-[var(--color-primary)]">
                       0{i + 1}
                     </span>
@@ -344,12 +344,12 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
 
       {/* ═══════════ PACKAGES ═══════════ */}
       <section className="mt-10">
-        <div className="mb-5 flex items-end justify-between">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
               Packages
             </p>
-            <h2 className="mt-1 font-display text-[26px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <h2 className="mt-1 font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               Pick the right tier for your campaign
             </h2>
           </div>

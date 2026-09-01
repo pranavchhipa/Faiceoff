@@ -132,24 +132,24 @@ export default function CreatorEarningsPage() {
   const historyLoading = payoutsLoading && !payoutsData;
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Hero ═══════════ */}
       <motion.div
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-8"
+        className="mb-6"
       >
-        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
+        <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)] sm:text-[10.5px]">
           <IndianRupee className="mr-1 inline h-3 w-3 text-[var(--color-primary)]" />
           Earnings
         </p>
-        <h1 className="mt-2 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] md:text-[40px]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Your money,
           <span className="text-[var(--color-primary)]"> in one place.</span>
         </h1>
-        <p className="mt-3 max-w-[560px] text-[14px] leading-relaxed text-[var(--color-muted-foreground)]">
+        <p className="mt-2 max-w-[560px] text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
           Approved work clears to your available balance after a 7-day hold. Add your bank
           once, then request a payout — we transfer it to you manually.
         </p>
@@ -214,7 +214,7 @@ export default function CreatorEarningsPage() {
             <p className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               History
             </p>
-            <h3 className="mt-0.5 font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <h3 className="mt-0.5 font-display text-[13.5px] font-600 text-[var(--color-foreground)] sm:text-[14px]">
               Past payouts
             </h3>
           </div>
@@ -230,7 +230,7 @@ export default function CreatorEarningsPage() {
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-secondary)] text-[var(--color-muted-foreground)]">
                 <Send className="h-5 w-5" />
               </div>
-              <p className="font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
+              <p className="font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
                 No payouts yet
               </p>
               <p className="mx-auto mt-1.5 max-w-[300px] text-[12px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -283,7 +283,7 @@ function Stat({
           {label}
         </span>
       </div>
-      <p className={`mt-2.5 font-display text-[26px] font-800 leading-none ${toneText[tone]}`}>
+      <p className={`mt-2.5 font-display text-[22px] font-700 leading-none tracking-[-0.02em] sm:text-[26px] ${toneText[tone]}`}>
         {value}
       </p>
       {sub && (
@@ -406,7 +406,7 @@ function BankAccountCard() {
             <Landmark className="h-4 w-4" />
           </span>
           <div>
-            <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <p className="font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
               Bank account
             </p>
             <p className="text-[11px] text-[var(--color-muted-foreground)]">
@@ -454,7 +454,7 @@ function BankAccountCard() {
                 <AlertCircle className="h-4 w-4" />
               </span>
               <div>
-                <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+                <p className="font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
                   No bank account on file
                 </p>
                 <p className="mt-0.5 text-[12px] text-[var(--color-muted-foreground)]">
@@ -604,7 +604,7 @@ function PayoutCard() {
           <Wallet className="h-4 w-4" />
         </span>
         <div>
-          <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+          <p className="font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
             Request a payout
           </p>
           <p className="text-[11px] text-[var(--color-muted-foreground)]">
@@ -626,7 +626,7 @@ function PayoutCard() {
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
                 Available to request
               </p>
-              <p className="mt-1.5 font-display text-[32px] font-800 leading-none tracking-tight text-[var(--color-primary)]">
+              <p className="mt-1.5 font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-primary)] sm:text-[26px]">
                 {fmt(available)}
               </p>
             </div>
@@ -643,7 +643,7 @@ function PayoutCard() {
               <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
                 <div className="flex items-center gap-2">
                   <Hourglass className="h-4 w-4 text-amber-500" />
-                  <p className="font-display text-[14px] font-800 tracking-tight text-[var(--color-foreground)]">
+                  <p className="font-display text-[14px] font-700 tracking-tight text-[var(--color-foreground)]">
                     Payout requested — we&rsquo;re processing it
                   </p>
                 </div>

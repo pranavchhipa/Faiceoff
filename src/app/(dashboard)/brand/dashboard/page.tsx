@@ -201,7 +201,7 @@ export default function BrandDashboardPage() {
   if (loading && !statsData && !collabsData) return <BrandDashboardSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pt-5 pb-12 lg:px-8">
+    <div className="w-full max-w-6xl space-y-6 px-4 pt-5 pb-12 lg:px-8">
       {/* ── Verification nudge (hidden once verified) ── */}
       <BrandVerifyBanner />
 
@@ -214,14 +214,14 @@ export default function BrandDashboardPage() {
         className="flex flex-wrap items-end justify-between gap-4"
       >
         <div>
-          <p className="text-[12px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+          <p className="text-[11px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)] sm:text-[11.5px]">
             {new Date().toLocaleDateString("en-IN", {
               weekday: "long",
               day: "numeric",
               month: "long",
             })}
           </p>
-          <h1 className="mt-2 font-display text-[30px] font-800 leading-[1.04] tracking-tight text-[var(--color-foreground)] lg:text-[34px]">
+          <h1 className="mt-1.5 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             {greeting()},{" "}
             <span className="text-[var(--color-primary)]">{company}</span>
           </h1>
@@ -302,7 +302,7 @@ export default function BrandDashboardPage() {
             {stats.approvalRate != null ? (
               <>
                 {stats.approvalRate}
-                <span className="text-[18px] text-[var(--color-muted-foreground)]">
+                <span className="text-[14px] text-[var(--color-muted-foreground)] sm:text-[15px]">
                   %
                 </span>
               </>
@@ -326,7 +326,7 @@ export default function BrandDashboardPage() {
         >
           <div className="mb-1 flex items-start justify-between">
             <div>
-              <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+              <h3 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                 Generation activity
               </h3>
               <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
@@ -361,7 +361,7 @@ export default function BrandDashboardPage() {
           transition={{ duration: 0.45, delay: 0.24, ease: [0.22, 1, 0.36, 1] as const }}
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 lg:p-6"
         >
-          <h3 className="font-display text-[17px] font-700 tracking-tight text-[var(--color-foreground)]">
+          <h3 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
             Approval health
           </h3>
           <p className="mt-1 text-[12.5px] text-[var(--color-muted-foreground)]">
@@ -383,7 +383,7 @@ export default function BrandDashboardPage() {
           transition={{ duration: 0.45, delay: 0.28, ease: [0.22, 1, 0.36, 1] as const }}
         >
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-[18px] font-700 tracking-tight text-[var(--color-foreground)]">
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               Recent generations
             </h2>
             <Link
@@ -410,7 +410,7 @@ export default function BrandDashboardPage() {
           transition={{ duration: 0.45, delay: 0.3, ease: [0.22, 1, 0.36, 1] as const }}
         >
           <div className="mb-4 flex items-end justify-between">
-            <h2 className="font-display text-[18px] font-700 tracking-tight text-[var(--color-foreground)]">
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               Recent collabs
             </h2>
             <Link
@@ -474,7 +474,7 @@ export default function BrandDashboardPage() {
                           unoptimized
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center font-display text-[16px] font-800 text-[var(--color-foreground)]">
+                        <div className="flex h-full w-full items-center justify-center font-display text-[16px] font-700 text-[var(--color-foreground)]">
                           {collabName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -546,7 +546,7 @@ export default function BrandDashboardPage() {
                 <span className="text-[12.5px] text-[var(--color-muted-foreground)]">
                   Credits remaining
                 </span>
-                <span className="font-display font-800 text-[16px] text-[var(--color-foreground)]">
+                <span className="font-display font-700 text-[16px] text-[var(--color-foreground)]">
                   {creditsBalance.toLocaleString("en-IN")}
                 </span>
               </div>
@@ -654,7 +654,7 @@ function MetricHead({
 
 function MetricValue({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-display text-[28px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+    <p className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
       {children}
     </p>
   );
@@ -945,7 +945,7 @@ function ApprovalRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <b className="font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+          <b className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
             {rate}%
           </b>
           <small className="mt-1 text-[10.5px] font-700 uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -998,7 +998,7 @@ function RingLegend({
 
 function BrandDashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 lg:px-8 lg:py-10">
+    <div className="w-full max-w-6xl space-y-6 px-4 py-8 lg:px-8 lg:py-10">
       <div className="space-y-3">
         <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
         <div className="h-10 w-80 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />

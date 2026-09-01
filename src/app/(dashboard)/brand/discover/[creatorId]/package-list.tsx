@@ -220,7 +220,7 @@ export function PackageList({ creatorId, packages, isLive }: Props) {
                     <Icon className={`h-5 w-5 ${meta.iconColor}`} />
                   </span>
                   <div className="min-w-0">
-                    <h3 className="font-display text-[20px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+                    <h3 className="font-display text-[15px] font-700 leading-none tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
                       {meta.label}
                     </h3>
                     <p className={`mt-1 font-mono text-[10px] font-700 uppercase tracking-[0.16em] ${meta.accentText}`}>
@@ -236,7 +236,7 @@ export function PackageList({ creatorId, packages, isLive }: Props) {
 
                 {/* Price */}
                 <div>
-                  <p className="font-display text-[34px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+                  <p className="font-display text-[22px] font-700 leading-none tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
                     {fmt(pkg.price_paise)}
                   </p>
                   <p className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">
@@ -332,7 +332,7 @@ export function PackageList({ creatorId, packages, isLive }: Props) {
                     <p className={`font-mono text-[10px] font-700 uppercase tracking-[0.18em] ${openMeta.accentText}`}>
                       {openMeta.badge} · {openMeta.duration}
                     </p>
-                    <h3 className="mt-0.5 font-display text-[26px] font-800 leading-tight tracking-tight text-[var(--color-foreground)]">
+                    <h3 className="mt-0.5 font-display text-[16px] font-700 leading-tight tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
                       {openMeta.label} <span className="text-[var(--color-muted-foreground)]">— {fmt(openPkg.price_paise)}</span>
                     </h3>
                   </div>

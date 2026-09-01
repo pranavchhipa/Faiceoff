@@ -755,7 +755,7 @@ export default function BrandStudioPage() {
 
   if (!session || session.status !== "active") {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="max-w-md px-4 py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Studio unavailable — collab not active.</p>
         <Link href={`/brand/collabs/${collabId}`} className="mt-4 block text-sm text-[var(--color-primary)]">Back to collab</Link>
       </div>
@@ -787,7 +787,7 @@ export default function BrandStudioPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">
 
       {/* Back link */}
       <Link
@@ -803,14 +803,14 @@ export default function BrandStudioPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
       >
         <div className="min-w-0">
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <Wand2 className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
             Studio · Generate
           </p>
-          <h1 className="mt-1 font-display text-[34px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] sm:text-[40px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             {session.name}
           </h1>
           <div className="mt-2.5 flex items-center gap-2">
@@ -851,7 +851,7 @@ export default function BrandStudioPage() {
                 Iterations left
               </p>
               <div className="flex items-baseline gap-1.5">
-                <span className="font-display text-[24px] font-800 leading-none text-[var(--color-foreground)]">
+                <span className="font-display text-[16px] font-700 leading-none tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
                   {collabCapLeft}
                 </span>
                 <span className="font-mono text-[10px] text-[var(--color-muted-foreground)]">of {total}</span>
@@ -1350,7 +1350,7 @@ export default function BrandStudioPage() {
                 <CheckCircle2 className="h-4 w-4 text-[var(--color-primary)]" />
               </span>
               <div className="flex flex-col">
-                <span className="font-display text-[14px] font-800 leading-none text-[var(--color-foreground)]">
+                <span className="font-display text-[14px] font-700 leading-none text-[var(--color-foreground)]">
                   {selectedIds.size} image{selectedIds.size === 1 ? "" : "s"} selected
                 </span>
                 <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">

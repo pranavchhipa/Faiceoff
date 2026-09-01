@@ -211,24 +211,24 @@ export default function AdminHomePage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}
         initial="initial"
         animate="animate"
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between"
+        className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between"
       >
         <div>
           <p className="flex items-center gap-2 font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             <Radio className="h-3 w-3 text-emerald-500" />
             Operations · {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
           </p>
-          <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] md:text-[34px]">
+          <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
             Triage overview
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          <p className="mt-1.5 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
             <span className="font-600 text-[var(--color-foreground)]">{totalPending}</span> items need your attention across{" "}
             <span className="font-600 text-[var(--color-foreground)]">4</span> queues.
             Platform running green.
@@ -278,7 +278,7 @@ export default function AdminHomePage() {
               <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
                 Needs attention
               </p>
-              <h3 className="mt-1 font-display text-[18px] font-800 tracking-tight">
+              <h3 className="mt-1 font-display text-[14px] font-700 tracking-tight sm:text-[15px]">
                 Latest flags + stuck items
               </h3>
             </div>
@@ -346,7 +346,7 @@ export default function AdminHomePage() {
           <p className="font-mono text-[10px] font-700 uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             System health
           </p>
-          <h3 className="mt-1 font-display text-[16px] font-800 tracking-tight">
+          <h3 className="mt-1 font-display text-[16px] font-700 tracking-tight">
             <Activity className="mr-1 inline h-3.5 w-3.5 text-emerald-500" />
             Live metrics coming soon
           </h3>
@@ -424,7 +424,7 @@ function QueueCard({ tile, delay = 0 }: { tile: QueueTile; delay?: number }) {
             </span>
           )}
         </div>
-        <p className="font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <p className="font-display text-[15px] font-700 tracking-tight text-[var(--color-foreground)]">
           {tile.title}
         </p>
         <p className="mt-1 text-[12px] text-[var(--color-muted-foreground)]">
@@ -478,7 +478,7 @@ function SeverityPill({ severity }: { severity: Severity }) {
   const { label, icon: Icon, cls } = map[severity];
   return (
     <span
-      className={`hidden items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px] font-800 uppercase tracking-wider md:inline-flex ${cls}`}
+      className={`hidden items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider md:inline-flex ${cls}`}
     >
       <Icon className="h-2.5 w-2.5" />
       {label}

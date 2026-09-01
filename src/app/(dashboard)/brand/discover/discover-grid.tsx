@@ -358,7 +358,7 @@ function PageHeader({
           <Users className="mr-1.5 inline h-3 w-3 text-[var(--color-primary)]" />
           Discover creators
         </p>
-        <h1 className="mt-1 font-display text-[30px] font-800 leading-none tracking-tight text-[var(--color-foreground)] lg:text-[40px]">
+        <h1 className="mt-1 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Discover creators
         </h1>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[var(--color-muted-foreground)] lg:text-[14px]">
@@ -630,7 +630,7 @@ function FilterSheet({
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[var(--color-border)]" />
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
-          <p className="font-display text-[16px] font-800 text-[var(--color-foreground)]">
+          <p className="font-display text-[16px] font-700 text-[var(--color-foreground)]">
             Filters
           </p>
           <button
@@ -773,7 +773,7 @@ function CreatorCardCmp({
             className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center font-display text-[44px] font-800 text-[var(--color-muted-foreground)]/40">
+          <div className="flex h-full w-full items-center justify-center font-display text-[44px] font-700 text-[var(--color-muted-foreground)]/40">
             {c.display_name[0]?.toUpperCase() ?? "?"}
           </div>
         )}
@@ -814,7 +814,7 @@ function CreatorCardCmp({
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-center gap-1.5">
-          <span className="truncate font-display text-[15px] font-800 tracking-tight text-[var(--color-foreground)]">
+          <span className="truncate font-display text-[13.5px] font-600 tracking-tight text-[var(--color-foreground)] sm:text-[14px]">
             {c.display_name}
           </span>
           {c.is_verified && <Seal size={14} />}
@@ -855,7 +855,7 @@ function CreatorCardCmp({
                 <p className="font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-muted-foreground)]">
                   From
                 </p>
-                <p className="font-display text-[15px] font-800 leading-none tracking-tight text-[var(--color-foreground)]">
+                <p className="font-display text-[15px] font-700 leading-none tracking-tight text-[var(--color-foreground)]">
                   {formatINR(c.cheapest_paise)}
                 </p>
               </>
@@ -893,7 +893,7 @@ function Empty({
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
         <Search className="h-6 w-6" />
       </div>
-      <p className="font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+      <p className="font-display text-[14px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[15px]">
         {title}
       </p>
       <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
@@ -1073,7 +1073,7 @@ export function DiscoverGrid({ creators }: Props) {
     selectedCats.size + (followerRange ? 1 : 0) + (priceRange ? 1 : 0);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full max-w-6xl space-y-5 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
       <FaSealDefs />
 
       <PageHeader

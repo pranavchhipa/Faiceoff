@@ -393,7 +393,7 @@ export default function ProfileSetupPage() {
   // ── Render ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
         <div className="h-8 w-64 animate-pulse rounded bg-[var(--color-secondary)]" />
         <div className="mt-4 h-4 w-96 animate-pulse rounded bg-[var(--color-secondary)]" />
       </div>
@@ -408,16 +408,16 @@ export default function ProfileSetupPage() {
   const canPublish = readyCount > 0 && selected.length > 0;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-20 pt-8 lg:px-8 lg:pt-10">
+    <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
       {/* ── Hero ── */}
-      <div className="mb-10">
-        <span className="font-mono text-[11px] font-700 uppercase tracking-[0.18em] text-[var(--color-primary)]">
-          Public Profile · Step 1 of 1
+      <div className="mb-7">
+        <span className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-primary)] sm:text-[10.5px]">
+          Public Profile
         </span>
-        <h1 className="mt-3 font-display text-[36px] font-800 leading-[1.05] tracking-tight text-[var(--color-foreground)] md:text-[44px]">
+        <h1 className="mt-2 font-display text-[20px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[24px]">
           Your shareable creator page.
         </h1>
-        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
+        <p className="mt-2 max-w-2xl text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
           Pick the categories you want brands to discover you in. We&apos;ll build
           a hand-crafted Style Preview of you in each — no real-product needed. Drop
           the link in your Instagram bio and you&apos;re open for business.
@@ -432,10 +432,10 @@ export default function ProfileSetupPage() {
       )}
 
       {/* ── Section 1 · Categories ── */}
-      <section className="mb-10">
-        <div className="mb-4 flex items-baseline justify-between">
+      <section className="mb-8">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
               1 · Pick your categories
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
@@ -482,15 +482,15 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 1b · Cover photo (own image, optional) ──
+      {/* ── Section 2 · Cover photo (own image, optional) ──
           A real photo of you for the share-profile hero — sits alongside the
           AI Style Previews so visitors see a real face first, then the
           AI-generated frames. /api/creator/upload-cover handles storage.    */}
-      <section className="mb-10">
-        <div className="mb-4 flex items-baseline justify-between">
+      <section className="mb-8">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              1b · Your cover photo <span className="ml-2 font-mono text-[11px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Optional</span>
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
+              2 · Your cover photo <span className="ml-2 font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Optional</span>
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               One real photo of you — shown on your share-profile hero. Helps brands recognise the real face behind the AI Style Previews.
@@ -592,10 +592,10 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 2 · Slug + city ── */}
-      <section className="mb-10">
-        <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-          2 · Your public URL
+      {/* ── Section 3 · Slug + city ── */}
+      <section className="mb-8">
+        <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
+          3 · Your public URL
         </h2>
         <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
           Keep the handle short — easier to drop in a DM or bio. The city shows as a small location pin on brand discovery + your profile hero.
@@ -630,12 +630,12 @@ export default function ProfileSetupPage() {
         )}
       </section>
 
-      {/* ── Section 3 · Generate + gallery ── */}
-      <section className="mb-10">
-        <div className="mb-4 flex items-baseline justify-between">
+      {/* ── Section 4 · Generate + gallery ── */}
+      <section className="mb-8">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              3 · Your Style Previews
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
+              4 · Your Style Previews
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               {anyPending
@@ -688,12 +688,12 @@ export default function ProfileSetupPage() {
         </div>
       </section>
 
-      {/* ── Section 4 · Custom links (Linktree-style) ────────────────────── */}
-      <section className="mb-10">
-        <div className="mb-4 flex items-baseline justify-between">
+      {/* ── Section 5 · Custom links (Linktree-style) ────────────────────── */}
+      <section className="mb-8">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              4 · Your links
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
+              5 · Your links
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               Add buttons to anything — Instagram, YouTube, WhatsApp, your site, latest work. Social platforms (auto-detected) render as icons; everything else becomes a labeled button.
@@ -855,12 +855,12 @@ export default function ProfileSetupPage() {
         )}
       </section>
 
-      {/* ── Section 5 · Your link + Publish ──────────────────────────────── */}
-      <section className="mb-10">
-        <div className="mb-5 flex items-baseline justify-between">
+      {/* ── Section 6 · Your link + Publish ──────────────────────────────── */}
+      <section className="mb-8">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="font-display text-[20px] font-800 tracking-tight text-[var(--color-foreground)]">
-              5 · Your creator link
+            <h2 className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
+              6 · Your creator link
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
               One link, always live. Update the handle anytime above — the old URL stops working the moment you save.
@@ -917,7 +917,7 @@ export default function ProfileSetupPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               Your shareable URL
             </p>
-            <p className="mt-2 break-all font-display text-[20px] font-700 tracking-tight text-[var(--color-foreground)] md:text-[26px]">
+            <p className="mt-2 break-all font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
               faiceoff.com/creators/
               <span className="text-[var(--color-primary)]">
                 {liveSlug ?? slugDraft ?? "your-handle"}

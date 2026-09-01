@@ -117,12 +117,12 @@ export default function PricingPage() {
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-600 text-[var(--color-muted-foreground)] mb-3">
           <Tag className="size-3.5" />
           Pricing
         </div>
-        <h2 className="text-2xl font-700 text-[var(--color-foreground)] mb-1">
+        <h2 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)] mb-1">
           Review your pricing
         </h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">

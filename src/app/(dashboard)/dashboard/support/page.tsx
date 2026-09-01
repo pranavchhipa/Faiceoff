@@ -112,14 +112,14 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
+    <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/12 text-[var(--color-primary)]">
               <LifeBuoy className="h-4 w-4" />
             </span>
-            <h1 className="font-display text-[26px] font-800 tracking-tight text-[var(--color-foreground)]">
+            <h1 className="font-display text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">
               Support
             </h1>
           </div>
@@ -502,7 +502,7 @@ function TicketDetail({ ticketId, onBack }: { ticketId: string; onBack: () => vo
       </div>
 
       <div className="p-4">
-        <h2 className="font-display text-[18px] font-800 tracking-tight text-[var(--color-foreground)]">
+        <h2 className="font-display text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)]">
           {ticket.subject}
         </h2>
         <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)]">

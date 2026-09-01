@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   Outfit,
   Plus_Jakarta_Sans as PlusJakartaSans,
+  Inter,
 } from "next/font/google";
 import { Providers } from "@/components/providers/providers";
 import "./globals.css";
@@ -28,6 +29,21 @@ const outfit = Outfit({
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-outfit",
+  display: "swap",
+});
+
+// Inter — the app (dashboard) UI face. Chosen over Outfit for the product
+// surface because dashboards live at 12-15px where Outfit's geometric
+// roundness gets mushy, and because Inter ships true tabular figures, which
+// matter on a page full of INR amounts. Outfit + Plus Jakarta stay on the
+// marketing/auth surfaces via `.landing-scope`, so the brand voice is intact
+// where it does the selling.
+// No `weight` array on purpose: that would download static cuts and the app
+// uses font-500/600/700/800 across ~1,100 call sites. Omitting it loads the
+// variable axis (one file, every weight renders true rather than faux-bold).
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -103,7 +119,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${plusJakartaSans.variable}`}
+      className={`${outfit.variable} ${plusJakartaSans.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       {/* No image preloads here: the root layout wraps EVERY route (dashboard,
