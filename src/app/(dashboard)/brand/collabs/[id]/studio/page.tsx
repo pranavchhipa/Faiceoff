@@ -322,9 +322,13 @@ export default function BrandStudioPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const outputCardRef = useRef<HTMLDivElement>(null);
 
-  // Phase 6a/6b — vision-call suggestions for the uploaded product image.
-  // suggestionsLoading = true while the suggest-brief endpoint is in flight.
-  // `suggestion` = the latest result (or null if not fetched yet).
+  // Vision call on the uploaded product image.
+  //
+  // The suggested-pills BANNER was removed (2026-09-02) — brands pick their
+  // own scene. The call itself stays because it also returns `label_bbox`,
+  // which drives the 3-panel label composite in the generation pipeline and
+  // is what makes small packaging text come out readable. Only `label_bbox`
+  // is consumed now; the pill suggestions are discarded.
   // `suggestedKeys` = set of pill keys we pre-selected from the suggestion
   // so the UI can render a ✨ chip and the "Apply all" CTA.
   const [suggestion, setSuggestion] = useState<{
@@ -685,9 +689,9 @@ export default function BrandStudioPage() {
         labelBbox: s.labelBbox,
         confidence: s.confidence,
       });
-      // Auto-apply label_bbox so the 3-panel label composite kicks in (image-
-      // based). pack_text is no longer collected — the product photo is the
-      // only authority for packaging text.
+      // label_bbox is the only field used — it turns on the 3-panel label
+      // composite. pack_text is not collected: the product photo is the only
+      // authority for packaging text.
       setBrief((b) => ({
         ...b,
         label_bbox: s.labelBbox,
@@ -976,53 +980,6 @@ export default function BrandStudioPage() {
               </div>
             </div>
           </BriefSection>
-
-          {/* Phase 6a/6b — vision-call suggestion banner */}
-          {(suggestionsLoading || suggestion) && (
-            <div className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/[0.04] px-4 py-3">
-              {suggestionsLoading ? (
-                <div className="flex items-center gap-2 text-[12px] font-600 text-[var(--color-foreground)]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-primary)]" />
-                  <span>✨ Analyzing your product…</span>
-                </div>
-              ) : suggestion ? (
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[12px] font-600 text-[var(--color-foreground)]">
-                        ✨ Suggested settings for this product
-                      </span>
-                      <span className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
-                        {suggestion.productCategory
-                          ? `Detected as ${suggestion.productCategory.replace(/_/g, " ")}.`
-                          : ""}
-                        {" "}Click below to apply, or pick your own.
-                      </span>
-                    </div>
-                    <span className="rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 font-mono text-[9px] font-700 uppercase tracking-wider text-[var(--color-primary)]">
-                      {suggestion.confidence}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={applyAllSuggestions}
-                      className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-1.5 text-[12px] font-600 text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
-                    >
-                      Apply all suggestions
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearSuggestions}
-                      className="rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-[12px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
-                    >
-                      Clear suggestions
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
 
           {/* Scene */}
           <BriefSection

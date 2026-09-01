@@ -18,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
           here so it covers every authenticated AND public surface. */}
       <RouteProgress />
       {children}
-      <Toaster position="top-center" />
+      <Toaster />
     </ThemeProvider>
   );
 }
