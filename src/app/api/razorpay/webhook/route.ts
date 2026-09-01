@@ -18,6 +18,7 @@ import {
 import { addCredits } from "@/lib/billing/credits-service";
 import { sendBrandTopupReceipt } from "@/lib/email/transactional";
 import { signBrandAndActivate, renderAndStorePDF, notifyAgreementActivated } from "@/lib/agreements";
+import { generationCreditsFor } from "@/config/generation-credits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -171,7 +172,9 @@ async function handleRazorpayEvent(admin: Admin, event: RazorpayWebhookPayload):
               .maybeSingle();
             if (!claimed) return;
 
-            const gen_credits_total = (fullReq.gen_credits as number) || (fullReq.final_images as number) * 3;
+            const gen_credits_total =
+              (fullReq.gen_credits as number) ||
+              generationCreditsFor(fullReq.final_images as number);
 
             const { data: session, error: sessionErr } = await admin
               .from("collab_sessions")

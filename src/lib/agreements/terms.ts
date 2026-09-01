@@ -15,6 +15,7 @@ import {
 } from "@/lib/billing";
 import { AGREEMENT_VERSION } from "./clauses";
 import type { AgreementTerms } from "./types";
+import { generationCreditsFor } from "@/config/generation-credits";
 
 // ── Label maps ───────────────────────────────────────────────────────────────
 
@@ -101,7 +102,8 @@ export function buildAgreementTerms(input: AgreementTermsInput): AgreementTerms 
     tier_label: TIER_LABELS[input.package_tier] ?? input.package_tier,
     package_price_paise: input.package_price_paise,
     final_images: input.final_images,
-    generation_credits: input.gen_credits ?? input.final_images * 3,
+    generation_credits:
+      input.gen_credits ?? generationCreditsFor(input.final_images),
     usage_scope: input.usage_scope,
     usage_label: USAGE_LABELS[input.usage_scope] ?? input.usage_scope,
     usage_description:

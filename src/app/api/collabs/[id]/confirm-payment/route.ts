@@ -1,3 +1,4 @@
+import { generationCreditsFor } from "@/config/generation-credits";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -148,7 +149,8 @@ export async function POST(
   }
 
   // Create collab_session
-  const gen_credits_total = (req.gen_credits as number) || (req.final_images as number) * 3;
+  const gen_credits_total =
+    (req.gen_credits as number) || generationCreditsFor(req.final_images as number);
 
   const { data: session, error: sessionErr } = await admin
     .from("collab_sessions")

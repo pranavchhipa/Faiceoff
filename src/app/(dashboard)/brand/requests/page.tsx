@@ -19,6 +19,7 @@ import {
   Globe,
 } from "lucide-react";
 import Image from "next/image";
+import { generationCreditsFor } from "@/config/generation-credits";
 
 interface BrandRequest {
   id: string;
@@ -294,7 +295,7 @@ function RequestCard({ req, delay }: { req: BrandRequest; delay: number }) {
               </span>
               <span className="text-[10px] text-[var(--color-muted-foreground)]">·</span>
               <span className="text-[12px] font-600 text-[var(--color-muted-foreground)]">
-                {req.final_images * 3} credits
+                {generationCreditsFor(req.final_images)} credits
               </span>
             </div>
           </div>

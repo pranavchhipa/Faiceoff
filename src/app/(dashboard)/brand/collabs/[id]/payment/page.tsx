@@ -8,6 +8,10 @@ import { motion } from "framer-motion";
 import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import { AgreementReviewModal } from "@/components/agreements/agreement-review-modal";
 import {
+  generationCreditsFor,
+  GENERATION_CREDITS_PER_IMAGE,
+} from "@/config/generation-credits";
+import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -208,7 +212,7 @@ export default function CollabPaymentPage() {
 
   // Pricing breakup
   const subtotal   = req.package_price_paise;
-  const genCredits = req.final_images * 3;
+  const genCredits = generationCreditsFor(req.final_images);
 
   return (
     <div className="max-w-[920px] px-4 py-6 sm:py-10 lg:px-8">
@@ -350,7 +354,7 @@ export default function CollabPaymentPage() {
               <Perk
                 icon={Zap}
                 label={`${genCredits} generation credits`}
-                sub={`3× per final image — iterate freely until you pick the keeper`}
+                sub={`${GENERATION_CREDITS_PER_IMAGE}× per final image — 1 credit per render or retry`}
               />
               <Perk
                 icon={FileCheck2}

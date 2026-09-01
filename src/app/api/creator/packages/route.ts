@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { generationCreditsFor } from "@/config/generation-credits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -47,7 +48,7 @@ export async function GET() {
 
   const packages = (data ?? []).map((p: Record<string, unknown>) => ({
     ...p,
-    gen_credits: (p.final_images as number) * 3,
+    gen_credits: generationCreditsFor(p.final_images as number),
     ...(TIER_SCOPE[p.tier as keyof typeof TIER_SCOPE] ?? {}),
   }));
 
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     package: {
       ...data,
-      gen_credits: (data.final_images as number) * 3,
+      gen_credits: generationCreditsFor(data.final_images as number),
       ...(TIER_SCOPE[data.tier as keyof typeof TIER_SCOPE] ?? {}),
     },
   }, { status: 201 });

@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/redis/rate-limiter";
 import { track } from "@/lib/observability/analytics";
 import { sendCreatorCollabRequest } from "@/lib/email/transactional";
 import { emitNotification } from "@/lib/notifications/emit";
+import { generationCreditsFor } from "@/config/generation-credits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
   }
 
   const tierMeta = TIER_SCOPE[pkg.tier as string] ?? TIER_SCOPE.frame;
-  const gen_credits = (pkg.final_images as number) * 3;
+  const gen_credits = generationCreditsFor(pkg.final_images as number);
   const expires_at = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(); // 72h
 
   const { data: reqRow, error: insertErr } = await admin

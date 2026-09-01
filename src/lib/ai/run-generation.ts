@@ -363,8 +363,12 @@ export async function runGeneration(generationId: string): Promise<void> {
 
   // ── 1b. Charge brand: -1 credit (skipped for free retries / collab gens) ─
   // Collab-funded generations are billed at /api/collabs/[id]/generate (the
-  // single-pool source of truth) before this pipeline runs. Free retries
-  // (is_free_retry=true) are never charged at all.
+  // single-pool source of truth) before this pipeline runs.
+  //
+  // The free-retry exemption is GONE (2026-09-01): every retry/edit costs a
+  // credit, charged upfront by the retry route. `is_free_retry` is never set
+  // true by any writer, so the old check was dead weight that only risked
+  // silently skipping a charge if someone flipped the column by hand.
   // ── Billing pre-charge: best-effort, never block the pipeline ─────────────
   // The billing RPCs (deduct_credit, reserve_wallet) live in Postgres and
   // are still being finalised — schema mismatches between code and DB
@@ -376,11 +380,9 @@ export async function runGeneration(generationId: string): Promise<void> {
   try {
     const { data: meta } = await admin
       .from("generations")
-      .select("is_free_retry, retry_count, collab_session_id")
+      .select("collab_session_id")
       .eq("id", generationId)
       .maybeSingle();
-    const isFreeRetry =
-      Boolean(meta?.is_free_retry) && (meta?.retry_count as number) > 0;
 
     // Collab generations are billed at the /api/collabs/[id]/generate route
     // (the single-pool source of truth) BEFORE this pipeline runs — charging
@@ -388,7 +390,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     // path (no collab_session_id) relies on this billing block.
     const isCollabGen = !!meta?.collab_session_id;
 
-    if (!isFreeRetry && !isCollabGen) {
+    if (!isCollabGen) {
       try {
         const result = await deductCredit({ brandId, generationId });
 

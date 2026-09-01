@@ -3,9 +3,12 @@
  *
  * Brand action: image not satisfactory, request ONE iteration with text feedback.
  *
- * Pricing (final model — credit-only, single retry):
+ * Pricing (2026-09-01 — credit-only, unlimited):
  *   - Each retry costs 1 CREDIT (deducted at request time)
- *   - Brand has only 1 retry per generation slot. retry_count > 0 → 409
+ *   - No retry cap. The old "1 retry per slot" limit existed because the
+ *     first retry used to be free; now that every attempt is paid, capping
+ *     it only pushed brands into discard-then-regenerate, which costs them
+ *     the same credit and loses the previous image as an iteration base.
  *   - On Gemini failure, the credit is auto-refunded by run-iteration.ts
  *
  * Body: { iteration_notes: string (1-500 chars) }
@@ -113,16 +116,9 @@ export async function POST(
     );
   }
 
-  // ── Hard cap: only 1 retry allowed ──
+  // Retries are unbounded — each one is paid for upfront, and each iterates
+  // on the previous image, so a brand can refine progressively.
   const oldRetryCount = (original.retry_count as number) ?? 0;
-  if (oldRetryCount > 0) {
-    return NextResponse.json(
-      {
-        error: "You've already used your retry on this image. Send to creator or discard.",
-      },
-      { status: 409 },
-    );
-  }
 
   // ── Need the previous image to send back to Gemini ──
   if (!original.image_url) {
