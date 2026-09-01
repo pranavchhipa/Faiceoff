@@ -51,7 +51,7 @@ const FEATURE_FLAGS: FlagDef[] = [
   {
     name: "NANO_BANANA_MODEL",
     kind: "string",
-    defaultValue: "gemini-3-pro-image-preview",
+    defaultValue: "gemini-3-pro-image",
     description: "Gemini model id used for image generation",
   },
   {

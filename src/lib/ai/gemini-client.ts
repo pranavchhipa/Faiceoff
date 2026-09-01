@@ -30,7 +30,10 @@ import {
 //   1. NANO_BANANA_MODEL  (existing Vercel env from Apr 21)
 //   2. GEMINI_MODEL       (new alias for clarity)
 //   3. hardcoded default
-const DEFAULT_MODEL = "gemini-3-pro-image-preview";
+// GA stable ID (June 2026). The old gemini-3-pro-image-preview is on Google's
+// shutdown list — it only kept working via silent aliasing. Never point this
+// back at a -preview ID.
+const DEFAULT_MODEL = "gemini-3-pro-image";
 function getModel(): string {
   return (
     process.env.NANO_BANANA_MODEL ??

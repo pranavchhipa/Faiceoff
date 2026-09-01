@@ -125,7 +125,7 @@ export default async function AIPage({ params }: Props) {
   const recent = (recentRes.data ?? []) as RecentGen[];
 
   // Env-var snapshot.
-  const imageModel = process.env.NANO_BANANA_MODEL ?? "gemini-3-pro-image-preview";
+  const imageModel = process.env.NANO_BANANA_MODEL ?? "gemini-3-pro-image";
   const promptAssembler = process.env.PROMPT_ASSEMBLER_MODEL ?? "meta-llama/llama-3.1-8b-instruct";
   const stage2Enabled = process.env.ENABLE_PRODUCT_REFINEMENT === "true";
   const faceSimEnabled = process.env.ENABLE_FACE_SIMILARITY === "true";

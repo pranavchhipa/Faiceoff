@@ -666,7 +666,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     const modelName =
       process.env.NANO_BANANA_MODEL ??
       process.env.GEMINI_MODEL ??
-      "gemini-3-pro-image-preview";
+      "gemini-3-pro-image";
     const provenance = {
       v: "1",
       platform: "Faiceoff",
@@ -1070,7 +1070,7 @@ export async function runIteration(generationId: string): Promise<void> {
     const modelName =
       process.env.NANO_BANANA_MODEL ??
       process.env.GEMINI_MODEL ??
-      "gemini-3-pro-image-preview";
+      "gemini-3-pro-image";
     const provenance = {
       v: "1",
       platform: "Faiceoff",

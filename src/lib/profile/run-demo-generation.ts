@@ -38,7 +38,7 @@ function getGeminiModel(): string {
   return (
     process.env.NANO_BANANA_MODEL ??
     process.env.GEMINI_MODEL ??
-    "gemini-3-pro-image-preview"
+    "gemini-3-pro-image"
   );
 }
 
