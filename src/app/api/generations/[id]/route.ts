@@ -9,7 +9,8 @@ const APPROVAL_EXPIRY_MS = 48 * 60 * 60 * 1000;
 const GEN_COLUMNS = `id, collab_session_id, creator_id, brand_id, status, assembled_prompt,
        structured_brief, image_url, cost_paise, created_at, updated_at,
        upscaled_url, quality_scores, generation_attempts,
-       provider_prediction_id, pipeline_version, retry_count, is_free_retry`;
+       provider_prediction_id, pipeline_version, retry_count, is_free_retry,
+       failure_reason`;
 
 /**
  * GET /api/generations/[id]
@@ -72,6 +73,7 @@ export async function GET(
         pipeline_version: string | null;
         retry_count: number | null;
         is_free_retry: boolean | null;
+        failure_reason: string | null;
       }
     | null;
 

@@ -34,13 +34,12 @@ import { assemblePromptWithLLM, buildSceneDirectives } from "@/lib/ai/prompt-ass
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { upscaleImage } from "@/lib/ai/upscaler-client";
 import { buildProductComposite } from "@/lib/ai/product-composite";
-import { shouldTriggerStage2 } from "@/lib/ai/ocr-client";
 import { track } from "@/lib/observability/analytics";
 import { sendBrandLowCredits } from "@/lib/email/transactional";
+import { emitNotification } from "@/lib/notifications/emit";
 import {
   generateImage,
   iterateOnImage,
-  refineProductInImage,
   type ImageInput,
 } from "@/lib/ai/gemini-client";
 
@@ -235,6 +234,88 @@ async function rollbackCreditSafe(admin: any, brandId: string, generationId: str
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Brand-facing outcome notifications
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Generation takes 1-2 minutes. The Studio polls while it is open, but a brand
+// that switches tabs or closes the laptop used to get NOTHING — no in-app
+// notification, no email — and had to come back and check manually. Worse, a
+// failed generation refunded the credit silently, so the brand never learned
+// either that it failed or that they were not charged.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function brandUserId(admin: any, brandId: string): Promise<string | null> {
+  try {
+    const { data } = await admin
+      .from("brands")
+      .select("user_id")
+      .eq("id", brandId)
+      .maybeSingle();
+    return (data?.user_id as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist a user-safe failure reason and tell the brand (best-effort). */
+async function notifyGenerationFailed(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  opts: {
+    generationId: string;
+    brandId: string;
+    collabSessionId?: string | null;
+    reason: string;
+    refunded: boolean;
+  },
+): Promise<void> {
+  try {
+    await admin
+      .from("generations")
+      .update({ failure_reason: opts.reason })
+      .eq("id", opts.generationId);
+
+    const userId = await brandUserId(admin, opts.brandId);
+    if (!userId) return;
+    await emitNotification(admin, {
+      userId,
+      type: "generation_failed",
+      title: "Generation didn't complete",
+      body: `${opts.reason}${opts.refunded ? " Your credit has been returned." : ""}`,
+      href: opts.collabSessionId
+        ? `/brand/collabs/${opts.collabSessionId}/studio`
+        : "/brand/dashboard",
+    });
+  } catch (err) {
+    console.warn("[run-generation] failure notify failed", err);
+  }
+}
+
+/** Tell the brand their image is ready for review (best-effort). */
+async function notifyGenerationReady(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  opts: { brandId: string; collabSessionId?: string | null },
+): Promise<void> {
+  try {
+    const userId = await brandUserId(admin, opts.brandId);
+    if (!userId) return;
+    await emitNotification(admin, {
+      userId,
+      type: "generation_ready",
+      title: "Your image is ready",
+      body: "Review it and send it to the creator for approval.",
+      href: opts.collabSessionId
+        ? `/brand/collabs/${opts.collabSessionId}/studio`
+        : "/brand/dashboard",
+    });
+  } catch (err) {
+    console.warn("[run-generation] ready notify failed", err);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public entrypoint
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,7 +340,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     .update({ status: "generating" })
     .eq("id", generationId)
     .eq("status", "draft")
-    .select("id, brand_id, creator_id, structured_brief")
+    .select("id, brand_id, creator_id, structured_brief, collab_session_id")
     .maybeSingle();
 
   if (claimError) {
@@ -278,6 +359,7 @@ export async function runGeneration(generationId: string): Promise<void> {
   const brandId = claimed.brand_id as string;
   const creatorId = claimed.creator_id as string;
   const brief = claimed.structured_brief as Record<string, unknown>;
+  const collabSessionId = (claimed.collab_session_id as string | null) ?? null;
 
   // ── 1b. Charge brand: -1 credit (skipped for free retries / collab gens) ─
   // Collab-funded generations are billed at /api/collabs/[id]/generate (the
@@ -391,6 +473,14 @@ export async function runGeneration(generationId: string): Promise<void> {
           .eq("id", generationId);
         // Refund — the brief was rejected, not a fault of the AI
         await rollbackCreditSafe(admin, brandId, generationId);
+        await notifyGenerationFailed(admin, {
+          generationId,
+          brandId,
+          collabSessionId,
+          reason:
+            "This brief matched a category the creator has blocked. Adjust the scene or product and try again.",
+          refunded: true,
+        });
         return;
       }
     } catch (complianceErr) {
@@ -440,6 +530,14 @@ export async function runGeneration(generationId: string): Promise<void> {
         .update({ status: "failed" })
         .eq("id", generationId);
       await rollbackCreditSafe(admin, brandId, generationId);
+      await notifyGenerationFailed(admin, {
+        generationId,
+        brandId,
+        collabSessionId,
+        reason:
+          "We couldn't load the product photo or the creator's reference images. Re-upload the product photo and try again.",
+        refunded: true,
+      });
       return;
     }
 
@@ -539,6 +637,14 @@ export async function runGeneration(generationId: string): Promise<void> {
         })
         .eq("id", generationId);
       await rollbackCreditSafe(admin, brandId, generationId);
+      await notifyGenerationFailed(admin, {
+        generationId,
+        brandId,
+        collabSessionId,
+        reason:
+          "The image generator couldn't complete this render. This is usually temporary — try again.",
+        refunded: true,
+      });
       return;
     }
 
@@ -565,50 +671,14 @@ export async function runGeneration(generationId: string): Promise<void> {
       | "dense_label"
       | null = null;
 
-    const preUpscaleTrigger = shouldTriggerStage2({
-      highDetailMode: brief.high_detail_mode === true,
-    });
-
-    if (preUpscaleTrigger.trigger) {
-      try {
-        const refineStart = Date.now();
-        const refined = await refineProductInImage({
-          generatedImage: {
-            bytes: geminiResult.bytes,
-            mimeType: geminiResult.mimeType,
-          },
-          productImage,
-          aspectRatio,
-          generationId,
-        });
-        finalImage = { bytes: refined.bytes, mimeType: refined.mimeType };
-        refinementApplied = true;
-        stage2TriggeredBy = preUpscaleTrigger.reason as
-          | "manual"
-          | "dense_label";
-        track(
-          "stage2_triggered",
-          {
-            generation_id: generationId,
-            trigger_type: stage2TriggeredBy,
-          },
-          brandId,
-        );
-        console.log(
-          `[run-generation] gen=${generationId} stage 2 refinement complete (reason=${stage2TriggeredBy}) in ${Date.now() - refineStart}ms`,
-        );
-      } catch (refineErr) {
-        const msg =
-          refineErr instanceof Error ? refineErr.message : String(refineErr);
-        console.warn(
-          `[run-generation] gen=${generationId} stage 2 refinement failed, falling back to stage-1: ${msg}`,
-        );
-        Sentry.captureException(refineErr, {
-          tags: { route: "run-generation", phase: "refinement" },
-          extra: { generation_id: generationId },
-        });
-      }
-    }
+    // ── 5b. Stage-2 product refinement REMOVED (2026-09-01) ────────────────
+    // This fired a SECOND paid Nano Banana Pro call to re-copy the product
+    // from the reference. Its only trigger was the "high detail mode" toggle,
+    // which was already removed from the Studio UI — so the path was dead
+    // code that could only ever cost money if someone re-enabled the flag.
+    // Product fidelity is handled by the PRODUCT LOCK prompt + the 3-panel
+    // label composite, which is the image-authoritative approach. One model,
+    // one call, one price.
 
     // ── 5c. Real-ESRGAN upscale (Phase 3.1, optional, fail-open) ───────────
     // 2× super-resolution. Real-ESRGAN does NOT hallucinate features (unlike
@@ -802,6 +872,7 @@ export async function runGeneration(generationId: string): Promise<void> {
     console.log(
       `[run-generation] gen=${generationId} ready_for_brand_review (${r2Url})`,
     );
+    await notifyGenerationReady(admin, { brandId, collabSessionId });
   } catch (err) {
     // Catch-all for unexpected pipeline errors (DB issues, fetch failures
     // before Gemini, etc.) — mark for admin review, do NOT refund (we don't
@@ -863,7 +934,7 @@ export async function runIteration(generationId: string): Promise<void> {
     .update({ status: "generating" })
     .eq("id", generationId)
     .eq("status", "draft")
-    .select("id, brand_id, creator_id, structured_brief")
+    .select("id, brand_id, creator_id, structured_brief, collab_session_id")
     .maybeSingle();
 
   if (claimError) {
@@ -878,6 +949,7 @@ export async function runIteration(generationId: string): Promise<void> {
   const brandId = claimed.brand_id as string;
   const creatorId = claimed.creator_id as string;
   const brief = claimed.structured_brief as Record<string, unknown>;
+  const collabSessionId = (claimed.collab_session_id as string | null) ?? null;
 
   const iterationNotes = (brief.iteration_notes as string | undefined)?.trim();
   const previousImageUrl = brief.previous_image_url as string | undefined;

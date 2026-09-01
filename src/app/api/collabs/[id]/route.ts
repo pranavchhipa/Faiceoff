@@ -60,7 +60,7 @@ export async function GET(
       .maybeSingle(),
     admin
       .from("generations")
-      .select("id, status, image_url, cost_paise, created_at, structured_brief")
+      .select("id, status, image_url, cost_paise, created_at, structured_brief, failure_reason")
       .eq("collab_session_id", id)
       .not("status", "in", "(discarded)")
       .order("created_at", { ascending: false })

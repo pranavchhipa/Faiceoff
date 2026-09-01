@@ -16,6 +16,7 @@ export type NotificationType =
   | "collab_agreement"
   | "payment_received"
   | "generation_ready"
+  | "generation_failed"
   | "approval_requested"
   | "approval_approved"
   | "approval_rejected"

@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Bell,
   CheckCheck,
   Inbox,
@@ -60,6 +61,8 @@ function iconFor(type: string) {
       return <IndianRupee className="h-3.5 w-3.5" />;
     case "generation_ready":
       return <ImageIcon className="h-3.5 w-3.5" />;
+    case "generation_failed":
+      return <AlertTriangle className="h-3.5 w-3.5" />;
     case "approval_requested":
     case "approval_approved":
     case "approval_rejected":

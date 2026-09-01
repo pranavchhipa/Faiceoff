@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  AlertTriangle,
   ArrowLeft,
   Wand2,
   Loader2,
@@ -65,6 +66,8 @@ interface Generation {
   image_url: string | null;
   created_at: string;
   retry_count?: number | null;
+  /** User-safe explanation when status = failed (migration 00077). */
+  failure_reason?: string | null;
 }
 
 type PillKey = string | null;
@@ -146,6 +149,9 @@ const STATUS_LABEL: Record<string, string> = {
   rejected: "Rejected",
   failed: "Failed",
   discarded: "Discarded",
+  // Hive flagged this render for a human safety check (migration 00076).
+  // Without a label here the chip rendered the raw enum string.
+  needs_admin_review: "Under safety review",
 };
 
 const STATUS_TONE: Record<string, { bg: string; text: string; dot: string }> = {
@@ -159,6 +165,7 @@ const STATUS_TONE: Record<string, { bg: string; text: string; dot: string }> = {
   rejected:               { bg: "bg-red-500/10",               text: "text-red-500",                          dot: "bg-red-500" },
   failed:                 { bg: "bg-red-500/10",               text: "text-red-500",                          dot: "bg-red-500" },
   discarded:              { bg: "bg-[var(--color-secondary)]", text: "text-[var(--color-muted-foreground)]", dot: "bg-[var(--color-muted-foreground)]" },
+  needs_admin_review:     { bg: "bg-amber-500/10",             text: "text-amber-600",                        dot: "bg-amber-500" },
 };
 
 // Section icons
@@ -1188,6 +1195,24 @@ export default function BrandStudioPage() {
                     {STATUS_LABEL[heroGen?.status ?? "generating"]}…<br />
                     <span className="text-[10px]">Usually takes 20–40 seconds</span>
                   </p>
+                </div>
+              ) : heroGen?.status === "failed" ? (
+                /* A failed render used to show the same blank "Your output
+                   appears here" placeholder as a fresh studio — the brand had
+                   no idea it failed, why, or that the credit came back. */
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10">
+                    <AlertTriangle className="h-7 w-7 text-red-500" />
+                  </div>
+                  <div className="max-w-sm">
+                    <p className="font-display text-[15px] font-700 text-[var(--color-foreground)]">
+                      This render didn&apos;t complete
+                    </p>
+                    <p className="mt-1.5 text-[12px] leading-[1.55] text-[var(--color-muted-foreground)]">
+                      {heroGen.failure_reason ??
+                        "Something went wrong on our side. Your credit has been returned — try generating again."}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
