@@ -172,7 +172,7 @@ export default function CreatorRequestsPage() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-[860px] px-4 py-8 space-y-3 lg:px-8">
+      <div className="w-full py-8 space-y-3">
         <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
         {[1, 2].map((i) => (
           <div key={i} className="h-[160px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
@@ -185,7 +185,7 @@ export default function CreatorRequestsPage() {
   const past    = requests.filter((r) => r.status !== "pending");
 
   return (
-    <div className="w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
 
       {/* Header */}
       <motion.div
@@ -227,7 +227,7 @@ export default function CreatorRequestsPage() {
               {pending.length}
             </span>
           </div>
-          <div className="space-y-3">
+          <div className="grid gap-3 xl:grid-cols-2">
             <AnimatePresence>
               {pending.map((req, i) => (
                 <RequestCard
@@ -250,7 +250,7 @@ export default function CreatorRequestsPage() {
           <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Past requests
           </p>
-          <div className="space-y-3">
+          <div className="grid gap-3 xl:grid-cols-2">
             {past.map((req, i) => (
               <RequestCard
                 key={req.id}

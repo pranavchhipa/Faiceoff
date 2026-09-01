@@ -7,7 +7,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getGstCaptcha } from "@/lib/gst/gstverify-client";
+import {
+  getGstCaptcha,
+  GstServiceUnavailableError,
+} from "@/lib/gst/gstverify-client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
@@ -35,6 +38,16 @@ export async function GET() {
     return NextResponse.json({ sessionId, image });
   } catch (err) {
     console.error("[brand/verification/captcha]", err);
+
+    // Vendor outage — 503 + a flag so the UI can offer the manual route
+    // instead of showing the brand a raw "HTTP 502" and a dead end.
+    if (err instanceof GstServiceUnavailableError) {
+      return NextResponse.json(
+        { error: err.message, service_unavailable: true },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Could not load GST captcha" },
       { status: 500 },

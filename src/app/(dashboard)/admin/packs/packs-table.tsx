@@ -401,7 +401,7 @@ export function PacksTable({ initialPacks }: PacksTableProps) {
   const activeCount = packs.filter((p) => p.is_active).length;
 
   return (
-    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>

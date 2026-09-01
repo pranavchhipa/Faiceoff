@@ -194,7 +194,7 @@ export default function ApprovalsPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-5xl"
+      className="w-full"
     >
       {/* Header */}
       <div className="mb-4 sm:mb-6">
@@ -231,6 +231,7 @@ export default function ApprovalsPage() {
       )}
 
       {/* -- Approval cards -- */}
+      <div className="grid gap-4 xl:grid-cols-2">
       <AnimatePresence mode="popLayout">
         {approvals.map((approval, i) => {
           const gen = approval.generation;
@@ -446,6 +447,7 @@ export default function ApprovalsPage() {
           );
         })}
       </AnimatePresence>
+      </div>
     </motion.div>
   );
 }

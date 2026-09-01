@@ -132,7 +132,7 @@ export default function SendRequestPage() {
 
   if (submitted) {
     return (
-      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="mx-auto flex max-w-2xl flex-col items-center py-20 text-center">
         <CheckCircle2 className="mb-4 h-12 w-12 text-emerald-500" />
         <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
           Request sent!
@@ -152,7 +152,7 @@ export default function SendRequestPage() {
 
   if (pkgUnavailable) {
     return (
-      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="mx-auto flex max-w-2xl flex-col items-center py-20 text-center">
         <p className="font-display text-[15px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[16px]">
           Package not available
         </p>
@@ -171,7 +171,7 @@ export default function SendRequestPage() {
 
   if (pkgLoading && !pkg) {
     return (
-      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="mx-auto flex max-w-2xl flex-col items-center py-20 text-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -181,7 +181,7 @@ export default function SendRequestPage() {
   const meta = TIER_META[tierKey];
 
   return (
-    <div className="max-w-xl px-4 py-6 sm:py-10 lg:px-8">
+    <div className="mx-auto w-full max-w-2xl py-6 sm:py-10">
       <Link
         href={`/brand/discover/${creatorId}`}
         className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"

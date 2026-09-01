@@ -165,7 +165,7 @@ export default async function BrandCreatorDetailPage({ params }: PageProps) {
   const totalReachStr = fmtFollowers(totalReach);
 
   return (
-    <div className="max-w-6xl px-4 py-6 sm:py-10 lg:px-8">
+    <div className="w-full py-6 sm:py-10">
       {/* Back link */}
       <Link
         href="/brand/discover"

@@ -137,7 +137,7 @@ export default function CreatorLikenessPage() {
   if (loading) return <LikenessSkeleton />;
 
   return (
-    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}
@@ -475,7 +475,7 @@ function ManageCard({
 
 function LikenessSkeleton() {
   return (
-    <div className="w-full max-w-[1200px] animate-pulse px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full animate-pulse py-6 lg:py-8">
       <div className="mb-8 h-16 w-56 rounded-lg bg-[var(--color-secondary)]" />
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
         <div className="aspect-[16/10] rounded-2xl bg-[var(--color-secondary)]" />

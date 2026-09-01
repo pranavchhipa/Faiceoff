@@ -153,7 +153,7 @@ export default function CreatorCollabsPage() {
   );
 
   return (
-    <div className="w-full max-w-[1200px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       <motion.div
         variants={fadeUp}
         initial="initial"
@@ -237,7 +237,7 @@ export default function CreatorCollabsPage() {
               <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
                 Active — {active.length}
               </p>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {active.map((c, i) => (
                   <ActiveCollabCard key={c.id} collab={c} delay={i * 0.05} />
                 ))}

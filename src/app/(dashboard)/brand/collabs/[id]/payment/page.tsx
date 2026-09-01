@@ -175,7 +175,7 @@ export default function CollabPaymentPage() {
 
   if (paid) {
     return (
-      <div className="flex max-w-md flex-col items-center px-4 py-20 text-center">
+      <div className="mx-auto flex max-w-2xl flex-col items-center py-20 text-center">
         <CheckCircle2 className="mb-4 h-12 w-12 text-emerald-500" />
         <h2 className="font-display text-[16px] font-700 tracking-[-0.01em] text-[var(--color-foreground)] sm:text-[18px]">
           Payment successful!
@@ -195,7 +195,7 @@ export default function CollabPaymentPage() {
 
   if (!req) {
     return (
-      <div className="max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-2xl py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Request not found.</p>
         <Link href="/brand/collabs" className="mt-4 block text-sm text-[var(--color-primary)]">
           Back to collabs
@@ -215,7 +215,7 @@ export default function CollabPaymentPage() {
   const genCredits = generationCreditsFor(req.final_images);
 
   return (
-    <div className="max-w-[920px] px-4 py-6 sm:py-10 lg:px-8">
+    <div className="mx-auto w-full max-w-[920px] py-6 sm:py-10">
       <Link
         href="/brand/requests"
         className="mb-5 inline-flex items-center gap-1.5 text-xs font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"

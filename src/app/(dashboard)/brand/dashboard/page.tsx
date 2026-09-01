@@ -201,7 +201,7 @@ export default function BrandDashboardPage() {
   if (loading && !statsData && !collabsData) return <BrandDashboardSkeleton />;
 
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 pt-5 pb-12 lg:px-8">
+    <div className="w-full space-y-6 pt-5 pb-12">
       {/* ── Verification nudge (hidden once verified) ── */}
       <BrandVerifyBanner />
 
@@ -998,7 +998,7 @@ function RingLegend({
 
 function BrandDashboardSkeleton() {
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 py-8 lg:px-8 lg:py-10">
+    <div className="w-full space-y-6 py-8 lg:py-10">
       <div className="space-y-3">
         <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
         <div className="h-10 w-80 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />

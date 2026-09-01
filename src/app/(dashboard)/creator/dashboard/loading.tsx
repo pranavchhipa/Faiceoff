@@ -7,7 +7,7 @@ import {
 /** Skeleton for /creator/dashboard — header + earnings stats + approvals grid. */
 export default function CreatorDashboardLoading() {
   return (
-    <div className="w-full max-w-[1180px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full pt-4 pb-10 lg:pt-5 lg:pb-12">
       <PageHeaderSkeleton withCta />
       <StatStripSkeleton count={4} />
       <CardGridSkeleton count={6} aspect="aspect-square" />

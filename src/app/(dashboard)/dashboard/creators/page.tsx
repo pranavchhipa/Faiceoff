@@ -161,7 +161,7 @@ export default function CreatorCatalogPage() {
 
   /* ── Render ── */
   return (
-    <div className="max-w-6xl">
+    <div className="w-full">
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
@@ -206,7 +206,7 @@ export default function CreatorCatalogPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
@@ -255,7 +255,7 @@ export default function CreatorCatalogPage() {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
         >
           {filteredCreators.map((creator) => {
             const minPrice = getMinPrice(creator);

@@ -115,7 +115,7 @@ export default function CreatorProfilePage({
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl">
+      <div className="w-full">
         <div className="mb-6 h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         <div className="animate-pulse rounded-[var(--radius-card)] bg-[var(--color-card)] p-8 shadow-[var(--shadow-card)]">
           <div className="h-[280px] rounded-xl bg-[var(--color-neutral-200)]" />
@@ -126,7 +126,7 @@ export default function CreatorProfilePage({
 
   if (error || !data) {
     return (
-      <div className="max-w-5xl">
+      <div className="w-full">
         <Link
           href="/dashboard/creators"
           className="mb-6 inline-flex items-center gap-2 text-sm font-500 text-[var(--color-neutral-500)] no-underline hover:text-[var(--color-ink)]"
@@ -160,7 +160,7 @@ export default function CreatorProfilePage({
     : null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       <motion.div
         initial={{ opacity: 0, x: -12 }}
         animate={{ opacity: 1, x: 0 }}
@@ -302,7 +302,7 @@ export default function CreatorProfilePage({
                 <h3 className="mb-3 text-sm font-700 uppercase tracking-wider text-[var(--color-ink)]">
                   Recent AI-Generated Work
                 </h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
                   {validGallery.map((url, idx) => (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img

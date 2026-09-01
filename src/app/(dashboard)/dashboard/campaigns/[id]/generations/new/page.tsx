@@ -408,7 +408,7 @@ export default function NewGenerationPage() {
 
   if (loadError || !campaign) {
     return (
-      <div className="max-w-2xl py-12">
+      <div className="mx-auto w-full max-w-2xl py-12">
         <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50 p-6">
           <p className="text-sm font-600 text-red-700 mb-2">
             Couldn&apos;t load campaign
@@ -432,7 +432,7 @@ export default function NewGenerationPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-4xl"
+      className="mx-auto w-full max-w-4xl"
     >
       <Link
         href={`/dashboard/campaigns/${campaign.id}`}

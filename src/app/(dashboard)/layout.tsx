@@ -239,28 +239,29 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
 
         {/* Page content. Bottom padding leaves room for mobile bottom nav.
 
-            Alignment (2026-09-01) — content is LEFT-aligned against the
-            sidebar, not centered in the viewport.
+            Alignment — content FILLS the space next to the sidebar.
 
-            The previous `mx-auto` + `[&>*]:mx-auto` pair centered this
-            container AND force-centered every page inside it. Stacked with
-            each page's own `mx-auto max-w-*`, a narrow page (max-w-2xl =
-            672px) ended up ~480px away from the sidebar on a wide display —
-            the "big gap between the nav and the content" report. Centering
-            also made the gap *change size per page*, since every page picked
-            its own max-width, so nothing ever lined up between routes.
+            Two earlier attempts were both wrong. First this container used
+            `mx-auto` + `[&>*]:mx-auto`, centering itself AND force-centering
+            every page inside it: a narrow page landed ~480px from the
+            sidebar, and the gap changed size per route because every page
+            picked its own max-width. Then it was left-aligned with a
+            1400px cap, which fixed the sidebar gap but stranded 400-600px of
+            dead space on the right of a 1920px display.
 
-            Now: the container hugs the sidebar and caps at 1400px, so every
-            route starts at the same x-position (aligned with the top bar)
-            and only the line length varies. Pages must not re-add `mx-auto`
-            to their outermost wrapper. */}
+            Now: the container fills the row (capped at 1920px only so 4K
+            monitors don't stretch a data grid to absurd line lengths). Pages
+            that show grids, tables, stats or cards must NOT cap themselves —
+            they fill. Only genuinely single-column pages (a form, a status
+            card) keep a readable max-w, and those centre themselves so the
+            column reads as deliberate rather than shoved into a corner. */}
         <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
           {/* Top padding intentionally removed (2026-05-08): pages own their
               vertical spacing. Previously `py-6 lg:py-8` here stacked with
               page-level `py-6/8/10`, producing ~70px ghost gaps below the
               top bar across the entire site. Bare pages without their own
               `py-` add it inline. */}
-          <div className="w-full max-w-[1400px] px-4 pb-6 lg:px-8 lg:pb-8">
+          <div className="mx-auto w-full max-w-[1920px] px-4 pb-6 lg:px-8 lg:pb-8">
             {children}
           </div>
         </main>

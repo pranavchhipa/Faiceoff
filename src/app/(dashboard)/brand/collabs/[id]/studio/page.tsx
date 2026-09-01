@@ -762,7 +762,7 @@ export default function BrandStudioPage() {
 
   if (!session || session.status !== "active") {
     return (
-      <div className="max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-2xl py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Studio unavailable — collab not active.</p>
         <Link href={`/brand/collabs/${collabId}`} className="mt-4 block text-sm text-[var(--color-primary)]">Back to collab</Link>
       </div>
@@ -794,7 +794,7 @@ export default function BrandStudioPage() {
   };
 
   return (
-    <div className="w-full max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
 
       {/* Back link */}
       <Link
@@ -877,7 +877,7 @@ export default function BrandStudioPage() {
       </motion.div>
 
       {/* ── Main grid ── */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_520px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_520px] 2xl:grid-cols-[minmax(0,1fr)_640px]">
 
         {/* ─── LEFT — Brief form ─── */}
         <div className="space-y-3">

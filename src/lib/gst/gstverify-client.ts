@@ -35,16 +35,62 @@ export interface GstCaptcha {
   image: string; // data:image/png;base64,... — render directly in <img src>
 }
 
+/** Upstream is an AWS ALB in front of a scraper of the GST portal — 502/503/504
+ *  mean its backend blinked, and a second attempt usually lands. */
+const TRANSIENT = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/** Raised when the vendor is unreachable, so callers can offer manual review
+ *  instead of dead-ending the brand. */
+export class GstServiceUnavailableError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(
+      "The GST portal service is temporarily unavailable. This is on their side, not yours — try again in a few minutes, or upload your certificate and submit for manual review.",
+    );
+    this.name = "GstServiceUnavailableError";
+    this.status = status;
+  }
+}
+
 export async function getGstCaptcha(): Promise<GstCaptcha> {
-  const res = await fetch(`${BASE}/api/v1/gst/captcha`, {
-    method: "GET",
-    headers: { "X-API-Key": apiKey() },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`GST captcha failed (HTTP ${res.status})`);
-  const json = (await res.json()) as { sessionId?: string; image?: string };
-  if (!json.sessionId || !json.image) throw new Error("GST captcha returned an unexpected shape");
-  return { sessionId: json.sessionId, image: json.image };
+  let lastStatus = 0;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}/api/v1/gst/captcha`, {
+        method: "GET",
+        headers: { "X-API-Key": apiKey() },
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      lastStatus = 0;
+      if (attempt === 1) {
+        await new Promise((r) => setTimeout(r, 800));
+        continue;
+      }
+      throw new GstServiceUnavailableError(0);
+    }
+
+    if (!res.ok) {
+      lastStatus = res.status;
+      if (TRANSIENT.has(res.status) && attempt === 1) {
+        await new Promise((r) => setTimeout(r, 800));
+        continue;
+      }
+      if (TRANSIENT.has(res.status)) throw new GstServiceUnavailableError(res.status);
+      // 4xx that is not transient = our request/key is wrong, not their outage.
+      throw new Error(`GST captcha rejected (HTTP ${res.status})`);
+    }
+
+    const json = (await res.json()) as { sessionId?: string; image?: string };
+    if (!json.sessionId || !json.image) {
+      throw new Error("GST captcha returned an unexpected shape");
+    }
+    return { sessionId: json.sessionId, image: json.image };
+  }
+
+  throw new GstServiceUnavailableError(lastStatus);
 }
 
 export interface GstDetails {

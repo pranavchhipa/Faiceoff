@@ -138,7 +138,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-4xl pt-6 lg:pt-8"
+      className="w-full pt-6 lg:pt-8"
     >
       {/* Header */}
       <div className="mb-5">
@@ -187,7 +187,7 @@ export default function PayoutsTable({ initial }: { initial: ListResponse }) {
 
       {/* Cards */}
       {!isPending && items.length > 0 && (
-        <div className="space-y-3">
+        <div className="grid gap-3 xl:grid-cols-2">
           {items.map((p, i) => {
             const statusKey = (p.status as PayoutStatus) in STATUS_CONFIG
               ? (p.status as PayoutStatus)

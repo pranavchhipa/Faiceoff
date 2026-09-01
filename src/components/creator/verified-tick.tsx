@@ -12,7 +12,10 @@
  */
 
 import { useCachedFetch } from "@/lib/hooks/use-cached-fetch";
-import { VerifiedSeal } from "@/components/ui/verified-seal";
+import {
+  VerifiedCheck,
+  VerifiedAvatarBadge,
+} from "@/components/ui/verified-seal";
 import type { Role } from "@/config/routes";
 
 interface VState {
@@ -20,28 +23,56 @@ interface VState {
   status: "not_started" | "pending" | "verified" | "rejected";
 }
 
+export function useIsVerifiedCreator(role: Role | null): boolean {
+  // Only creators can hold this badge — skip the fetch entirely otherwise.
+  const { data } = useCachedFetch<VState>(
+    role === "creator" ? "/api/creator/verification" : null,
+  );
+  return Boolean(data?.is_verified || data?.status === "verified");
+}
+
+/** Inline check beside a name. Uses the small-size mark, not the petal seal. */
 export function VerifiedTick({
   role,
-  size = 14,
+  size = 15,
   className = "",
 }: {
   role: Role | null;
   size?: number;
   className?: string;
 }) {
-  // Only creators can hold this badge — skip the fetch entirely otherwise.
-  const { data } = useCachedFetch<VState>(
-    role === "creator" ? "/api/creator/verification" : null,
-  );
-  if (!data?.is_verified && data?.status !== "verified") return null;
+  const verified = useIsVerifiedCreator(role);
+  if (!verified) return null;
 
   return (
     <span
       className={`inline-flex shrink-0 items-center ${className}`}
       title="Faiceoff Verified Creator"
-      aria-label="Verified creator"
     >
-      <VerifiedSeal size={size} />
+      <VerifiedCheck size={size} />
+    </span>
+  );
+}
+
+/**
+ * Corner badge for an avatar. The parent must be `relative` — this positions
+ * itself bottom-right and overlaps the avatar edge slightly.
+ */
+export function VerifiedAvatarTick({
+  role,
+  size = 12,
+  ringColor,
+}: {
+  role: Role | null;
+  size?: number;
+  ringColor?: string;
+}) {
+  const verified = useIsVerifiedCreator(role);
+  if (!verified) return null;
+
+  return (
+    <span className="pointer-events-none absolute -bottom-0.5 -right-0.5">
+      <VerifiedAvatarBadge size={size} ringColor={ringColor} />
     </span>
   );
 }

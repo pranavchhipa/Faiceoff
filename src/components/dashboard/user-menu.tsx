@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { VerifiedTick } from "@/components/creator/verified-tick";
+import {
+  VerifiedTick,
+  VerifiedAvatarTick,
+} from "@/components/creator/verified-tick";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Settings, ChevronDown } from "lucide-react";
@@ -55,7 +58,7 @@ export function UserMenu({ displayName, email, avatarUrl, role, variant = "topba
           <button
             type="button"
             aria-label="Account menu"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] text-sm font-700 text-[var(--color-foreground)] transition-all hover:border-[var(--color-primary)] hover:shadow-[0_0_0_3px_rgba(201,169,110,0.15)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] text-sm font-700 text-[var(--color-foreground)] transition-all hover:border-[var(--color-primary)] hover:shadow-[0_0_0_3px_rgba(201,169,110,0.15)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -63,6 +66,7 @@ export function UserMenu({ displayName, email, avatarUrl, role, variant = "topba
             ) : (
               <span>{initial}</span>
             )}
+            <VerifiedAvatarTick role={role} size={13} ringColor="var(--color-card)" />
           </button>
         </DropdownMenuTrigger>
         <MenuBody displayName={displayName} email={email} settingsHref={settingsHref} signingOut={signingOut} onSignOut={handleSignOut} role={role} />
@@ -77,18 +81,19 @@ export function UserMenu({ displayName, email, avatarUrl, role, variant = "topba
           type="button"
           className="flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] py-1 pl-1 pr-3 text-sm transition-colors hover:bg-[var(--color-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-700 text-[var(--color-primary-foreground)]">
+          <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-700 text-[var(--color-primary-foreground)]">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt={displayName} className="h-full w-full rounded-full object-cover" />
             ) : (
               initial
             )}
+            {/* Verification belongs to the face, not to the text beside it. */}
+            <VerifiedAvatarTick role={role} size={12} ringColor="var(--color-card)" />
           </span>
           <span className="hidden max-w-[140px] truncate font-600 md:block">
             {displayName || "…"}
           </span>
-          <VerifiedTick role={role} size={14} className="hidden md:inline-flex" />
           <ChevronDown className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
         </button>
       </DropdownMenuTrigger>

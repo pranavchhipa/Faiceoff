@@ -111,6 +111,25 @@ export default async function BrandVerificationDetailPage({ params }: Props) {
             GST (pulled from GSTVerify)
             <span className="cc-pill cc-pill-neutral" style={{ fontSize: 10, fontWeight: 600 }}>locked</span>
           </h3>
+          {ver.manual_gst_review ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: "1px solid var(--cc-warn-border, #6b4a12)",
+                background: "var(--cc-warn-bg, rgba(180,120,20,0.12))",
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Manual GST check required.</strong> This brand submitted
+              without the automated portal pull (the GST vendor was
+              unavailable), so the fields below are blank or unverified. Look up
+              the GSTIN on the GST portal yourself and compare it against the
+              uploaded certificate before approving.
+            </div>
+          ) : null}
           <div className="cc-kv" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", fontSize: 12.5 }}>
             <span style={{ color: "var(--cc-fg-dim)" }}>GST number</span>
             <span>{ver.gst_number ?? "—"}</span>

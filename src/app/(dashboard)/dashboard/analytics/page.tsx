@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4 pt-6 lg:pt-8">
+    <div className="space-y-4 pt-6 lg:pt-8">
       {/* Header */}
       <div>
         <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-foreground)]">Analytics</h1>

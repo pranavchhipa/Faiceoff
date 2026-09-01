@@ -139,7 +139,7 @@ export default function WithdrawWizard({
     const remainingPaise = Math.max(0, min_payout_paise - available_paise);
     const progressPct = Math.min(100, Math.round((available_paise / min_payout_paise) * 100));
     return (
-      <div className="mx-auto w-full max-w-[760px] px-4 py-6 lg:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-[760px] py-6 lg:py-8">
         {/* Back */}
         <Link
           href="/creator/earnings"
@@ -254,7 +254,7 @@ export default function WithdrawWizard({
   /* ═══════════ Success state ═══════════ */
   if (success) {
     return (
-      <div className="mx-auto w-full max-w-[640px] px-4 py-6 lg:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-[640px] py-6 lg:py-8">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -324,7 +324,7 @@ export default function WithdrawWizard({
 
   /* ═══════════ Wizard ═══════════ */
   return (
-    <div className="mx-auto w-full max-w-[760px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto w-full max-w-[760px] py-6 lg:py-8">
       {/* Back */}
       <Link
         href="/creator/earnings"

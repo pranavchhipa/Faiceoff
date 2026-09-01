@@ -13,7 +13,7 @@ import { CreditsPackGrid } from "./credits-pack-grid";
 
 function PackGridSkeleton() {
   return (
-    <div className="px-4 pt-5 pb-12 lg:px-8">
+    <div className="w-full pt-5 pb-12">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
@@ -67,7 +67,7 @@ async function CreditsPageInner() {
 
 export default function CreditsPage() {
   return (
-    <div className="max-w-7xl">
+    <div className="w-full">
       <Suspense fallback={<PackGridSkeleton />}>
         <CreditsPageInner />
       </Suspense>

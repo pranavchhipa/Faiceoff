@@ -251,7 +251,7 @@ export default function CreatorDashboardPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full space-y-6 pt-4 pb-10 lg:pt-5 lg:pb-12">
 
       {/* ── Verification nudge (hidden once verified) ── */}
       <VerifyBanner />
@@ -884,7 +884,7 @@ export default function CreatorDashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="w-full max-w-6xl space-y-8 px-4 py-8 lg:px-8 lg:py-10">
+    <div className="w-full space-y-8 py-8 lg:py-10">
       <div className="space-y-3">
         <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--color-secondary)]" />
         <div className="h-12 w-72 animate-pulse rounded-2xl bg-[var(--color-secondary)]" />

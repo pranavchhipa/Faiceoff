@@ -72,7 +72,7 @@ export default function BrandVerifyPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
+      <div className="mx-auto flex min-h-[50vh] w-full max-w-2xl items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -82,7 +82,7 @@ export default function BrandVerifyPage() {
   const pending = data?.status === "pending";
 
   return (
-    <div className="w-full max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto w-full max-w-2xl py-6 lg:py-8">
       <Header />
       {verified ? (
         <VerifiedState data={data!} />
@@ -254,6 +254,8 @@ function VerifyFlow({
   // Submit step
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Vendor outage — the GST portal service is down, not the brand's input.
+  const [gstServiceDown, setGstServiceDown] = useState(false);
 
   /** GET a fresh captcha for the current GST session. */
   async function fetchCaptcha() {
@@ -263,7 +265,11 @@ function VerifyFlow({
     try {
       const res = await fetch("/api/brand/verification/captcha");
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error ?? d.message ?? "Couldn't load captcha");
+      if (!res.ok) {
+        if (res.status === 503 || d.service_unavailable) setGstServiceDown(true);
+        throw new Error(d.error ?? d.message ?? "Couldn't load captcha");
+      }
+      setGstServiceDown(false);
       setSessionId(d.sessionId);
       setCaptchaImage(d.image);
     } catch (err) {
@@ -320,7 +326,9 @@ function VerifyFlow({
   }
 
   const gstVerified = !!gstDetails;
-  const canSubmit = gstVerified && certUploaded && !submitting;
+  // The certificate is the hard requirement; the automated pull is skippable
+  // when the GST vendor is down (an operator verifies the GSTIN by hand).
+  const canSubmit = (gstVerified || gstServiceDown) && certUploaded && !submitting;
 
   return (
     <motion.div
@@ -442,10 +450,26 @@ function VerifyFlow({
               </div>
             )}
 
-            {gstError && (
+            {gstError && !gstServiceDown && (
               <p className="rounded-xl border border-rose-500/30 bg-rose-500/8 px-3 py-2 text-[12.5px] text-rose-500">
                 {gstError}
               </p>
+            )}
+
+            {/* A vendor outage is not the brand's fault and not a dead end —
+                say whose problem it is and give them the way through. */}
+            {gstServiceDown && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-3.5 py-3">
+                <p className="text-[13px] font-700 text-amber-500">
+                  GST portal service is temporarily down
+                </p>
+                <p className="mt-1 text-[12.5px] leading-[1.55] text-[var(--color-muted-foreground)]">
+                  This is on the verification provider&apos;s side, not
+                  yours. You can retry in a few minutes — or skip this step,
+                  upload your GST certificate below, and submit. Our team will
+                  verify your GSTIN manually, which takes 1&ndash;2 business days.
+                </p>
+              </div>
             )}
           </div>
         )}

@@ -52,7 +52,7 @@ export default function CreatorVerifyPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] max-w-2xl items-center justify-center px-4">
+      <div className="flex min-h-[50vh] w-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
       </div>
     );
@@ -62,7 +62,7 @@ export default function CreatorVerifyPage() {
   const pending = data?.status === "pending";
 
   return (
-    <div className="w-full max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto w-full max-w-3xl py-6 lg:py-8">
       <Header />
       {verified ? (
         <VerifiedState

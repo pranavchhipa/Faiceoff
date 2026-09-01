@@ -47,16 +47,8 @@ export async function POST() {
       .eq("brand_id", brand.id)
       .maybeSingle();
 
-    // Require both prior steps: GST pull + certificate upload.
-    if (!ver?.gst_status) {
-      return NextResponse.json(
-        {
-          error: "gst_not_verified",
-          message: "Verify your GSTIN first — enter your GST number and solve the captcha.",
-        },
-        { status: 400 },
-      );
-    }
+    // The certificate is the one hard requirement — it is what the operator
+    // actually reads when approving.
     if (!ver?.gst_certificate_path) {
       return NextResponse.json(
         {
@@ -67,12 +59,23 @@ export async function POST() {
       );
     }
 
+    // The automated GST pull is STRONGLY preferred but not mandatory. It runs
+    // against a third-party scraper of the GST portal; when that vendor is
+    // down (it returns ALB 502s) an unverified brand could not submit at all,
+    // and since verification gates start-payment, a vendor outage quietly
+    // froze all new collab revenue. The operator already reviews every
+    // submission by hand with the certificate in front of them, so a
+    // submission without the auto-pull is reviewable — it just needs to be
+    // labelled so the operator knows to verify the GSTIN themselves.
+    const autoVerified = Boolean(ver?.gst_status);
+
     const nowIso = new Date().toISOString();
     const { error: updateErr } = await admin
       .from("brand_verifications")
       .update({
         status: "pending",
         submitted_at: nowIso,
+        manual_gst_review: !autoVerified,
         reviewed_by: null,
         reviewed_at: null,
         rejection_reason: null,

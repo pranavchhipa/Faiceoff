@@ -132,7 +132,7 @@ export default function CreatorEarningsPage() {
   const historyLoading = payoutsLoading && !payoutsData;
 
   return (
-    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Hero ═══════════ */}
       <motion.div
         variants={fadeUp}

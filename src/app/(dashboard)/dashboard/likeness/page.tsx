@@ -106,7 +106,7 @@ export default function LikenessPage() {
   // Non-creator (brand/admin) — show a helpful message
   if (isNonCreator) {
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="mx-auto w-full max-w-2xl space-y-4">
         <div>
           <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">
             My Likeness
@@ -144,7 +144,7 @@ export default function LikenessPage() {
   const hasEnoughPhotos = photos.length >= 3;
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       {/* Header */}
       <div>
         <h1 className="text-[20px] sm:text-[24px] font-700 tracking-[-0.02em] leading-[1.15] text-[var(--color-ink)]">

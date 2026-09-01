@@ -155,7 +155,7 @@ export default function BrandCollabWorkspacePage() {
     // "not found" for BOTH, sending users away from collabs that exist.
     if (error) {
       return (
-        <div className="max-w-md px-4 py-20 text-center">
+        <div className="mx-auto max-w-2xl py-20 text-center">
           <p className="text-[var(--color-muted-foreground)]">
             Couldn&apos;t load this collab. Check your connection and try again.
           </p>
@@ -170,7 +170,7 @@ export default function BrandCollabWorkspacePage() {
       );
     }
     return (
-      <div className="max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-2xl py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">Collab not found.</p>
         <Link href="/brand/collabs" className="mt-4 block text-sm text-[var(--color-primary)]">Back to collabs</Link>
       </div>
@@ -204,7 +204,7 @@ export default function BrandCollabWorkspacePage() {
   const noCredits = creditsLeft !== null && creditsLeft <= 0;
 
   return (
-    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
 
       {/* Back link */}
       <Link
@@ -515,7 +515,7 @@ function VaultTab({ generations }: { generations: Generation[] }) {
           Original quality · ZIP includes licence cert
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
         {generations.map((g) => (
           <VaultCell key={g.id} gen={g} />
         ))}
@@ -654,7 +654,7 @@ function ChatTab({
   }
 
   return (
-    <div className="h-[640px] overflow-hidden rounded-2xl border border-[var(--color-border)]">
+    <div className="h-[640px] w-full max-w-[900px] overflow-hidden rounded-2xl border border-[var(--color-border)]">
       <ChatThread
         conversationId={conversationId}
         counterparty={{
@@ -808,7 +808,7 @@ function BrandLicenseSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {licenses.map((lic) => {
           const gen = generations.get(lic.generation_id);
           return (

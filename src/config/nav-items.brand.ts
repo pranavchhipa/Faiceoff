@@ -10,6 +10,7 @@ import {
   User as UserIcon,
   Send,
   LifeBuoy,
+  BadgeCheck,
 } from "lucide-react";
 
 export interface NavItem {
@@ -43,6 +44,11 @@ export const BRAND_SIDE_NAV: NavItem[] = [
   { label: "Library", href: "/brand/vault", icon: Library, group: "Work" },
   { label: "Licenses", href: "/brand/licenses", icon: FileSignature, group: "Work" },
   { label: "Credits", href: "/brand/credits", icon: Coins, group: "Money" },
+  // Brand verification had no nav entry at all — /brand/verify was only
+  // reachable from the dashboard banner, which disappears once dismissed or
+  // scrolled past, so a brand who left it half-done had no way back. The
+  // creator side has carried "Get Verified" in its nav all along.
+  { label: "Get verified", short: "Verify", href: "/brand/verify", icon: BadgeCheck, group: "Account" },
   { label: "Support", href: "/brand/support", icon: LifeBuoy, group: "Account" },
   { label: "Settings", href: "/brand/settings", icon: SettingsIcon, group: "Account" },
 ];

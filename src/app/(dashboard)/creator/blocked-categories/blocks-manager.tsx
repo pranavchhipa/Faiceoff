@@ -116,7 +116,7 @@ export default function BlocksManager({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-3xl px-4 pt-6 lg:px-8 lg:pt-8"
+      className="w-full pt-6 lg:pt-8"
     >
       {/* Header */}
       <div className="mb-2">
@@ -138,7 +138,7 @@ export default function BlocksManager({
       </div>
 
       {/* 3x3 grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {CATEGORIES.map((cat, i) => {
           const isBlocked = Boolean(blockedMap[cat.id]);
           const isLoading = Boolean(loading[cat.id]);

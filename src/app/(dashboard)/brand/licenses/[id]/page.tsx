@@ -165,7 +165,7 @@ export default function LicenseDetailPage({
   /* ── Loading ── */
   if (loading) {
     return (
-      <div className="max-w-5xl">
+      <div className="w-full">
         <div className="mb-6 h-5 w-40 animate-pulse rounded bg-[var(--color-secondary)]" />
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="animate-pulse rounded-[var(--radius-card)] bg-[var(--color-card)] p-6 space-y-4">
@@ -182,7 +182,7 @@ export default function LicenseDetailPage({
   /* ── Not found ── */
   if (notFound || !license) {
     return (
-      <div className="max-w-2xl py-24 text-center">
+      <div className="mx-auto max-w-2xl py-24 text-center">
         <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-500/10">
           <AlertTriangle className="size-7 text-red-500" />
         </div>
@@ -209,7 +209,7 @@ export default function LicenseDetailPage({
   const certSrc = `/api/licenses/${id}/certificate`;
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       {/* Breadcrumb */}
       <motion.div
         initial={{ opacity: 0, x: -10 }}

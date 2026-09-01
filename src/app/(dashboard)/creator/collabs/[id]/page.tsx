@@ -227,7 +227,7 @@ export default function CreatorCollabWorkspacePage() {
 
   if (!data) {
     return (
-      <div className="max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-md py-20 text-center">
         <p className="text-[var(--color-muted-foreground)]">
           Collab not found.
         </p>
@@ -284,7 +284,7 @@ export default function CreatorCollabWorkspacePage() {
   ];
 
   return (
-    <div className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* Back link */}
       <Link
         href="/creator/collabs"
@@ -694,7 +694,7 @@ function ImagesTab({
           <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-amber-600 dark:text-amber-400">
             Awaiting your review — {pending.length}
           </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {pending.map((g) => (
               <ApprovalCard
                 key={g.id}
@@ -713,7 +713,7 @@ function ImagesTab({
           <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Approved — {approvedList.length}
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {approvedList.map((g) => (
               <button
                 type="button"
@@ -752,7 +752,7 @@ function ImagesTab({
           <p className="mb-3 font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Not selected — {rejectedList.length}
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {rejectedList.map((g) => (
               <button
                 type="button"
@@ -892,7 +892,7 @@ function ChatTab({
   }
 
   return (
-    <div className="h-[640px] overflow-hidden rounded-2xl border border-[var(--color-border)]">
+    <div className="h-[640px] w-full max-w-[900px] overflow-hidden rounded-2xl border border-[var(--color-border)]">
       <ChatThread
         conversationId={conversationId}
         counterparty={{
@@ -1111,7 +1111,7 @@ function LicenseSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {licenses.map((lic) => {
           const gen = generations.get(lic.generation_id);
           return (

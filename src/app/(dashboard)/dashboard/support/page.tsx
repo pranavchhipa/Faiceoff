@@ -112,7 +112,7 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
+    <div className="w-full pb-20 pt-6 lg:pt-8">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

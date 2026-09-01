@@ -6,9 +6,9 @@ import {
 /** Skeleton for /brand/discover — creator marketplace grid. */
 export default function BrandDiscoverLoading() {
   return (
-    <div className="w-full max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full pt-4 pb-10 lg:pt-5 lg:pb-12">
       <PageHeaderSkeleton withCta />
-      <CardGridSkeleton count={8} aspect="aspect-[3/4]" />
+      <CardGridSkeleton count={10} aspect="aspect-[3/4]" />
     </div>
   );
 }

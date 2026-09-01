@@ -83,7 +83,7 @@ export default async function BrandVaultPage({ searchParams }: PageProps) {
   const count = data.total;
 
   return (
-    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Hero header ═══════════ */}
       <div className="mb-5 flex flex-col gap-4 md:mb-6 md:flex-row md:items-end md:justify-between">
         <div>

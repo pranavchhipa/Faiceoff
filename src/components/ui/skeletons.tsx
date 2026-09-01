@@ -5,6 +5,12 @@
  *
  * Everything here is intentionally tiny — no animations beyond the Tailwind
  * `animate-pulse` so the skeleton can render server-side with zero JS.
+ *
+ * Width: these primitives are always full-width. The dashboard layout owns the
+ * horizontal padding and the outer 1920px cap, and every route that uses a
+ * skeleton fills that row, so a skeleton must never cap itself — a capped
+ * skeleton under an uncapped page makes the content visibly jump sideways
+ * when the data lands.
  */
 
 interface PulseProps {
@@ -68,7 +74,7 @@ export function CardGridSkeleton({
   aspect?: string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -89,7 +95,7 @@ export function CardGridSkeleton({
 /** Two-up split for detail surfaces (Studio, Collab detail). */
 export function SplitSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_520px]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_520px] 2xl:grid-cols-[minmax(0,1fr)_640px]">
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div

@@ -182,7 +182,7 @@ export default function SettingsPage() {
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="w-full max-w-[1100px] px-4 py-6 lg:px-8 lg:py-8 pb-32"
+      className="mx-auto w-full max-w-[1100px] py-6 lg:py-8 pb-32"
     >
       {/* Hero header */}
       <div className="mb-6">

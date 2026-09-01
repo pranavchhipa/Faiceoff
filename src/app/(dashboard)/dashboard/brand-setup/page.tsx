@@ -102,7 +102,7 @@ export default function BrandSetupPage() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="max-w-3xl py-8"
+      className="mx-auto w-full max-w-3xl py-8"
     >
       {/* Ocean accent badge */}
       <div className="mb-6 flex justify-center">

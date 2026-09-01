@@ -84,7 +84,7 @@ export default function BrandRequestsPage() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-[860px] space-y-3 px-4 py-8 lg:px-8">
+      <div className="w-full space-y-3 py-8">
         <div className="h-8 w-40 animate-pulse rounded-xl bg-[var(--color-secondary)]" />
         {[1, 2].map((i) => (
           <div key={i} className="h-[160px] animate-pulse rounded-2xl bg-[var(--color-secondary)]" />
@@ -99,7 +99,7 @@ export default function BrandRequestsPage() {
   const past         = requests.filter((r) => ["declined", "expired", "cancelled"].includes(r.status));
 
   return (
-    <div className="w-full max-w-[860px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
 
       {/* Header */}
       <motion.div
@@ -207,7 +207,7 @@ function Section({ label, count, highlight, children }: {
           </span>
         )}
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="grid gap-3 xl:grid-cols-2">{children}</div>
     </section>
   );
 }

@@ -211,7 +211,7 @@ export default function AdminHomePage() {
   ];
 
   return (
-    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}

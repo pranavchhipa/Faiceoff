@@ -354,7 +354,7 @@ export default function GenerationDetailPage({
   /* ── Loading ── */
   if (authLoading || loading) {
     return (
-      <div className="max-w-5xl">
+      <div className="w-full">
         <div className="mb-6">
           <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-neutral-200)]" />
         </div>
@@ -376,7 +376,7 @@ export default function GenerationDetailPage({
   /* ── Not Found ── */
   if (notFound || !generation) {
     return (
-      <div className="max-w-2xl py-24 text-center">
+      <div className="mx-auto w-full max-w-2xl py-24 text-center">
         <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-2">
           Generation not found
         </h2>
@@ -403,7 +403,7 @@ export default function GenerationDetailPage({
     generation.status === "ready_for_approval" && isCreator && !actionDone;
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       {/* Back link */}
       <motion.div
         initial={{ opacity: 0, x: -12 }}

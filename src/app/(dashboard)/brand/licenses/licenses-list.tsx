@@ -334,7 +334,7 @@ export default function LicensesList() {
 
 
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full space-y-6 pt-4 pb-10 lg:pt-5 lg:pb-12">
       {/* ── Header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
@@ -408,7 +408,7 @@ export default function LicensesList() {
 
       {/* ── List ─────────────────────────────────────────────────────── */}
       {items.length > 0 && (
-        <div className="space-y-3">
+        <div className="grid gap-3 xl:grid-cols-2">
           <AnimatePresence mode="popLayout">
             {items.map((license, i) => (
               <LicenseCard
@@ -501,7 +501,7 @@ function EmptyState({ filter }: { filter: string }) {
 
 function SkeletonList() {
   return (
-    <div className="space-y-3">
+    <div className="grid gap-3 xl:grid-cols-2">
       {[1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}

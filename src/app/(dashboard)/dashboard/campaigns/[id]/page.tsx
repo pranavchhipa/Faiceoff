@@ -262,7 +262,7 @@ export default function CampaignDetailPage() {
   /* ── Not Found ── */
   if (notFound || !campaign) {
     return (
-      <div className="max-w-2xl py-24 text-center">
+      <div className="mx-auto w-full max-w-2xl py-24 text-center">
         <h2 className="text-[15px] sm:text-[16px] font-700 tracking-[-0.01em] text-[var(--color-ink)] mb-2">
           Campaign not found
         </h2>
@@ -315,7 +315,7 @@ export default function CampaignDetailPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="max-w-5xl"
+      className="w-full"
     >
       {/* Back link */}
       <Link

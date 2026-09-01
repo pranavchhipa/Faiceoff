@@ -393,7 +393,7 @@ export default function ProfileSetupPage() {
   // ── Render ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
+      <div className="w-full pb-20 pt-6 lg:pt-8">
         <div className="h-8 w-64 animate-pulse rounded bg-[var(--color-secondary)]" />
         <div className="mt-4 h-4 w-96 animate-pulse rounded bg-[var(--color-secondary)]" />
       </div>
@@ -408,7 +408,7 @@ export default function ProfileSetupPage() {
   const canPublish = readyCount > 0 && selected.length > 0;
 
   return (
-    <div className="max-w-5xl px-4 pb-20 pt-6 lg:px-8 lg:pt-8">
+    <div className="w-full pb-20 pt-6 lg:pt-8">
       {/* ── Hero ── */}
       <div className="mb-7">
         <span className="font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-primary)] sm:text-[10.5px]">

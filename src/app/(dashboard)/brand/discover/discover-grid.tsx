@@ -406,7 +406,7 @@ function FilterBar({
 }) {
   return (
     <div className="sticky top-0 z-30 -mx-4 hidden border-y border-[var(--color-border)] bg-[var(--color-background)]/85 px-4 backdrop-blur-md lg:-mx-8 lg:block lg:px-8">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 py-3">
+      <div className="flex items-center gap-3 py-3">
         <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
@@ -1073,7 +1073,7 @@ export function DiscoverGrid({ creators }: Props) {
     selectedCats.size + (followerRange ? 1 : 0) + (priceRange ? 1 : 0);
 
   return (
-    <div className="w-full max-w-6xl space-y-5 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full space-y-5 pt-4 pb-10 lg:pt-5 lg:pb-12">
       <FaSealDefs />
 
       <PageHeader
@@ -1129,7 +1129,7 @@ export function DiscoverGrid({ creators }: Props) {
             delay: 0.05,
             ease: [0.22, 1, 0.36, 1] as const,
           }}
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5 2xl:grid-cols-6"
         >
           {filtered.map((c) => (
             <CreatorCardCmp

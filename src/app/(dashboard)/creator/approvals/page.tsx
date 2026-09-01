@@ -208,7 +208,7 @@ export default function CreatorApprovalsPage() {
 
   if (error) {
     return (
-      <div className="max-w-md py-20 text-center">
+      <div className="mx-auto max-w-md py-20 text-center">
         <p className="font-display text-lg font-700 text-[var(--color-foreground)]">
           Couldn&apos;t load approvals
         </p>
@@ -218,7 +218,7 @@ export default function CreatorApprovalsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+    <div className="w-full py-6 lg:py-8">
       {/* ═══════════ Header ═══════════ */}
       <motion.div
         variants={fadeUp}

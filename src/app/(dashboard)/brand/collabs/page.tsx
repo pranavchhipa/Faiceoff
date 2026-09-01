@@ -200,7 +200,7 @@ export default function BrandCollabsPage() {
   if (loading) return <CollabsSkeleton />;
 
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full space-y-6 pt-4 pb-10 lg:pt-5 lg:pb-12">
       <FaSealDefs />
 
       {/* ═══════════ Header ═══════════ */}
@@ -333,7 +333,7 @@ export default function BrandCollabsPage() {
             count={active.length}
             tone="success"
           />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {active.map((c, i) => (
               <CollabCard key={c.id} collab={c} delay={i * 0.04} />
             ))}
@@ -691,7 +691,7 @@ function EmptyState({ pendingRequests }: { pendingRequests: number }) {
 
 function CollabsSkeleton() {
   return (
-    <div className="w-full max-w-6xl space-y-6 px-4 pt-4 pb-10 lg:px-8 lg:pt-5 lg:pb-12">
+    <div className="w-full space-y-6 pt-4 pb-10 lg:pt-5 lg:pb-12">
       <div className="flex items-end justify-between">
         <div>
           <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-secondary)]" />
@@ -708,7 +708,7 @@ function CollabsSkeleton() {
           />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
