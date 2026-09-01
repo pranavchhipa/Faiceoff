@@ -93,6 +93,7 @@ export default function BrandVerifyPage() {
           rejected={data?.status === "rejected"}
           rejectionReason={data?.rejection_reason ?? null}
           hasCertificate={data?.has_certificate ?? false}
+          hasGstPull={Boolean(data?.gst_status)}
           onSubmitted={() => {
             invalidateCache("/api/brand/verification");
             refresh();
@@ -231,11 +232,16 @@ function VerifyFlow({
   rejected,
   rejectionReason,
   hasCertificate,
+  hasGstPull,
   onSubmitted,
 }: {
   rejected: boolean;
   rejectionReason: string | null;
   hasCertificate: boolean;
+  /** A GST pull already succeeded on a previous visit (server state). Without
+   *  this, reloading the page dropped the in-memory result and re-locked the
+   *  submit button even though the work was done. */
+  hasGstPull: boolean;
   onSubmitted: () => void;
 }) {
   // GST step
@@ -306,9 +312,10 @@ function VerifyFlow({
     }
   }
 
-  /** POST submit once GST is verified + certificate uploaded. */
+  /** POST submit. Mirrors `canSubmit` exactly — when these two drift, the
+   *  button renders enabled and the click silently does nothing. */
   async function handleSubmit() {
-    if (!gstDetails || !certUploaded || submitting) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -328,7 +335,8 @@ function VerifyFlow({
   const gstVerified = !!gstDetails;
   // The certificate is the hard requirement; the automated pull is skippable
   // when the GST vendor is down (an operator verifies the GSTIN by hand).
-  const canSubmit = (gstVerified || gstServiceDown) && certUploaded && !submitting;
+  const canSubmit =
+    (gstVerified || hasGstPull || gstServiceDown) && certUploaded && !submitting;
 
   return (
     <motion.div
@@ -496,7 +504,7 @@ function VerifyFlow({
         n={3}
         icon={ShieldCheck}
         title="Submit for verification"
-        desc="Once your GST is verified and certificate uploaded, send it to our team."
+        desc="Send your details to our team for review."
         muted={!canSubmit}
       >
         {submitError && (
@@ -524,9 +532,9 @@ function VerifyFlow({
         </button>
         {!canSubmit && (
           <p className="mt-2 text-center text-[11.5px] text-[var(--color-muted-foreground)]">
-            {!gstVerified
-              ? "Verify your GSTIN first."
-              : "Upload your GST certificate to continue."}
+            {!certUploaded
+              ? "Upload your GST certificate to continue."
+              : "Verify your GSTIN first."}
           </p>
         )}
       </StepCard>
