@@ -94,11 +94,31 @@ export async function checkRateLimit(
   limiter: Ratelimit | null,
   identifier: string,
 ): Promise<{ allowed: boolean; remaining: number; reset: number; limit: number }> {
-  // Null limiter → Upstash unavailable. Fail open (allow), matching the
+  // Null limiter → Upstash unconfigured. Fail open (allow), matching the
   // documented intent in src/lib/redis/rate-limiter.ts.
   if (!limiter) {
     return { allowed: true, remaining: 0, reset: Date.now() + 60_000, limit: 0 };
   }
-  const { success, remaining, reset, limit } = await limiter.limit(identifier);
-  return { allowed: success, remaining, reset, limit };
+
+  try {
+    const { success, remaining, reset, limit } = await limiter.limit(identifier);
+    return { allowed: success, remaining, reset, limit };
+  } catch (err) {
+    // Fail open on a REACHABILITY failure too — this was the gap. The null
+    // check above only covers "env vars absent". When the vars are present
+    // but the credentials are stale (the Upstash URL no longer resolves),
+    // getRedis() hands back a perfectly good client and limiter.limit()
+    // throws on the network call. Nothing caught it, so the throw escaped
+    // the route and Next returned a bare 500 with an empty body — which is
+    // exactly what /api/auth/sign-up was doing: dying before it ever reached
+    // generateAndSendOtp, so no account and no OTP.
+    //
+    // A rate limiter is a guard rail, not a dependency: an outage on it must
+    // never take down signup, password reset, or generation.
+    console.warn(
+      `[anti-fraud] rate limiter unreachable for "${identifier}" — failing open`,
+      err instanceof Error ? err.message : err,
+    );
+    return { allowed: true, remaining: 0, reset: Date.now() + 60_000, limit: 0 };
+  }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateAndSendOtp } from "@/lib/email/send-otp";
 import { authEmailLimiter, checkRateLimit } from "@/lib/anti-fraud";
@@ -14,6 +15,23 @@ import { authEmailLimiter, checkRateLimit } from "@/lib/anti-fraud";
  * Body: { email, displayName, role, password, phone? }
  */
 export async function POST(request: Request) {
+  try {
+    return await handleSignUp(request);
+  } catch (err) {
+    // Signup had NO top-level guard, so anything that threw (a stale Upstash
+    // credential in the rate limiter, a malformed body) escaped as a bare 500
+    // with an empty response body — the user saw "Something went wrong" and
+    // the logs said nothing useful. Never let that happen silently again.
+    console.error("[auth/sign-up] unhandled error", err);
+    Sentry.captureException(err, { tags: { route: "auth/sign-up" } });
+    return NextResponse.json(
+      { error: "Could not create your account. Please try again." },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleSignUp(request: Request) {
   const { email, displayName, role, password, phone, accepted_terms } =
     await request.json();
 
