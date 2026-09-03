@@ -361,22 +361,36 @@ export default function SettingsPage() {
           </Section>
 
           {/* Account & Security */}
-          <Section id="section-security" title="Account & security" subtitle="Login credentials and contact information — changes here require support.">
+          <Section id="section-security" title="Account & security" subtitle="Your login email and contact number.">
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Email address" hint="Used for login and notifications.">
+              <Field label="Email address" hint="Used for login — contact support to change it.">
                 <IconInput icon={Mail} disabled value={up.email} onChange={() => {}} type="email" />
               </Field>
-              <Field label="Phone number" hint={up.phone ? "Linked at signup." : "Not linked yet."}>
-                <IconInput icon={Phone} disabled value={up.phone || "—"} onChange={() => {}} type="tel" />
+              {/* Phone was rendered `disabled` with a no-op onChange, so it
+                  could never be filled in — while the hint said "Not linked
+                  yet" and the support card implied someone could link it for
+                  you. Both the page's PUT body and /api/settings already
+                  accepted `phone`; only the input was shut off. */}
+              <Field
+                label="Phone number"
+                hint="Optional — used for payout and support contact."
+              >
+                <IconInput
+                  icon={Phone}
+                  value={up.phone}
+                  onChange={(v) => setUp({ ...up, phone: v })}
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                />
               </Field>
             </div>
 
             <InfoRow
               icon={HelpCircle}
-              title="Need to change email or phone?"
+              title="Need to change your email?"
               description={
                 <>
-                  For security, our team handles these manually. Reply to any Faiceoff email or write to{" "}
+                  Your email is your login, so our team changes it manually. Reply to any Faiceoff email or write to{" "}
                   <span className="font-600 text-[var(--color-foreground)]">support@faiceoff.com</span>.
                 </>
               }

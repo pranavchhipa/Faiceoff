@@ -163,10 +163,24 @@ export default function ProfileSetupPage() {
     return () => clearInterval(handle);
   }, [anyPending, refresh]);
 
+  // Any category with a demo — ready OR still generating — is locked in:
+  // that generation is already paid for and cannot be traded for another.
+  const lockedCategories = useMemo(
+    () => new Set<DemoCategoryKey>((status?.samples ?? []).map((s) => s.category)),
+    [status],
+  );
+
   // ── Selection handlers ──────────────────────────────────────────────────
   function toggleCategory(key: DemoCategoryKey) {
     setSelected((prev) => {
-      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      if (prev.includes(key)) {
+        // A category whose Style Preview has already been generated cannot be
+        // dropped. Swapping used to be free — drop one, pick another, get a
+        // fresh demo and a fresh regen quota — which made both the 4-category
+        // cap and the 3-free-regen cap meaningless. The API enforces this too.
+        if (lockedCategories.has(key)) return prev;
+        return prev.filter((k) => k !== key);
+      }
       if (prev.length >= MAX_CATEGORIES_PER_CREATOR) return prev;
       return [...prev, key];
     });
@@ -404,6 +418,7 @@ export default function ProfileSetupPage() {
   for (const s of status?.samples ?? []) {
     samplesByCategory.set(s.category, s);
   }
+
   const readyCount = (status?.samples ?? []).filter((s) => s.status === "ready").length;
   const canPublish = readyCount > 0 && selected.length > 0;
 
@@ -450,8 +465,10 @@ export default function ProfileSetupPage() {
           {ALL_CATEGORY_KEYS.map((key) => {
             const def = DEMO_CATEGORIES[key];
             const isSelected = selected.includes(key);
+            const isLocked = lockedCategories.has(key);
             const disabled =
-              !isSelected && selected.length >= MAX_CATEGORIES_PER_CREATOR;
+              isLocked ||
+              (!isSelected && selected.length >= MAX_CATEGORIES_PER_CREATOR);
             return (
               <button
                 type="button"
@@ -462,7 +479,18 @@ export default function ProfileSetupPage() {
                   isSelected
                     ? "border-[var(--color-primary)] bg-[var(--color-primary)]/8 shadow-[0_4px_16px_-8px_rgba(201,169,110,0.5)]"
                     : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-secondary)]"
-                } ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
+                } ${
+                  isLocked
+                    ? "cursor-default"
+                    : disabled
+                      ? "cursor-not-allowed opacity-40"
+                      : "cursor-pointer"
+                }`}
+                title={
+                  isLocked
+                    ? "Locked — this Style Preview has already been generated"
+                    : undefined
+                }
               >
                 <span className="text-[22px] leading-none">{def.emoji}</span>
                 <span className="font-display text-[13px] font-700 leading-tight tracking-tight text-[var(--color-foreground)]">

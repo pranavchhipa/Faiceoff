@@ -147,6 +147,35 @@ export async function POST(request: Request) {
     .eq("creator_id", creator.id)
     .eq("is_visible", true);
 
+  // ── Categories that already cost us a generation are LOCKED ─────────────
+  // Swapping a category used to be free: dropping one archived its sample,
+  // and re-picking anything generated a fresh demo with a fresh quota of
+  // free regenerations. A creator could cycle categories forever and never
+  // run out — unlimited paid generations on our bill, bypassing both
+  // MAX_CATEGORIES_PER_CREATOR and FREE_REGENERATIONS_PER_CATEGORY.
+  //
+  // Archived rows count too, otherwise one drop→save cycle unlocks it again.
+  const { data: everGenerated } = await admin
+    .from("creator_demo_samples")
+    .select("category")
+    .eq("creator_id", creator.id);
+
+  const lockedCategories = Array.from(
+    new Set(((everGenerated ?? []) as Array<{ category: string }>).map((r) => r.category)),
+  );
+  const missingLocked = lockedCategories.filter((c) => !categories.includes(c as DemoCategoryKey));
+  if (missingLocked.length > 0) {
+    return NextResponse.json(
+      {
+        error: "category_locked",
+        message:
+          "A category can't be removed once its Style Preview has been generated. You can still fill any empty slots.",
+        locked: lockedCategories,
+      },
+      { status: 409 },
+    );
+  }
+
   const existingByCategory = new Map<string, { status: string }>();
   for (const s of (existingSamples ?? []) as Array<{
     category: string;

@@ -98,13 +98,26 @@ export async function PUT(req: Request) {
     const updates: Promise<{ error: { message: string } | null }>[] = [];
 
     if (body.profile) {
+      // Phone is now user-editable (the settings input used to be disabled),
+      // so it needs a bound — it reached the DB as unvalidated free text.
+      // Deliberately permissive: creators write "+91 98765 43210",
+      // "09876543210", "98765 43210". Only length and character class are
+      // enforced; empty clears the field.
+      const rawPhone = body.profile.phone?.trim() ?? "";
+      if (rawPhone && !/^[+\d][\d\s()-]{7,19}$/.test(rawPhone)) {
+        return NextResponse.json(
+          { error: "Enter a valid phone number, or leave it blank." },
+          { status: 400 },
+        );
+      }
+
       updates.push(
         Promise.resolve(
           admin
             .from("users")
             .update({
               display_name: body.profile.display_name?.trim() || null,
-              phone: body.profile.phone?.trim() || null,
+              phone: rawPhone || null,
             })
             .eq("id", user.id),
         ),

@@ -34,12 +34,20 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "";
 
 /* ───────── Gemini model ───────── */
 
+/**
+ * Style Previews run on the FAST model, not Nano Banana Pro.
+ *
+ * These are marketing demos for the creator's own public page — nobody
+ * licenses them, no brand pays for them, and the platform eats every one
+ * (4 categories x up to 3 free regenerations = 16 renders per creator).
+ * On Pro that is ~₹205 per creator before a single rupee of revenue; on
+ * Flash it is ~₹56. Client deliverables in the Studio stay on Pro, where
+ * the quality actually gets sold — this deliberately does NOT read
+ * NANO_BANANA_MODEL, so pointing that at Pro can't silently re-inflate
+ * the cost of free demos.
+ */
 function getGeminiModel(): string {
-  return (
-    process.env.NANO_BANANA_MODEL ??
-    process.env.GEMINI_MODEL ??
-    "gemini-3-pro-image"
-  );
+  return process.env.DEMO_GENERATION_MODEL ?? "gemini-3.1-flash-image";
 }
 
 let _genai: GoogleGenAI | null = null;
