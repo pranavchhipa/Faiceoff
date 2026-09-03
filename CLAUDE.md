@@ -154,7 +154,7 @@ stale relative to these fixes.
 ### What's BROKEN / soft-failing right now
 | Issue | Impact | Fix |
 |---|---|---|
-| **Upstash Redis stale** | Rate limiter fails OPEN — `/api/auth/sign-up`, `/api/auth/forgot-password` and `/api/auth/verify-otp` have limiters wired but they no-op, so the OTP/reset mailers are uncapped (inbox-bomb + Resend-quota + domain-reputation risk). Verified broken 2026-08-14: a REST `/ping` to the stored URL fails to connect. | User must rotate `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` at console.upstash.com and update Vercel. No code change needed — the limiters activate the moment the creds work. |
+
 | **No creators are live** | `is_verified` gates package visibility + Discover, and 0 of 14 creators are verified → brands see an EMPTY marketplace. 7 have finished onboarding and are `is_active`, but none have passed KYC. 1 submission is sitting in the Control Centre queue. | Operator approves in `/<ccSlug>/verifications`; remaining creators must submit KYC from `/creator/verify`. Pure ops, no code. |
 
 **RESOLVED (do not re-add):** Razorpay is on LIVE keys. `ignoreBuildErrors` is GONE
@@ -163,10 +163,30 @@ name now fails the build instead of 500ing in prod. Don't reintroduce the flag;
 fix the types instead (annotate at the `createAdminClient() as any` boundary, which
 is where every implicit-any originated).
 
+### ⚠️ Upstash free tier deletes itself after 14 days idle
+
+RESOLVED 2026-09-03, but it will recur. The free database was auto-deleted
+after 14 days of inactivity ("Free databases are deleted by automation after
+14 days of inactivity"), while `UPSTASH_REDIS_REST_URL` still pointed at the
+dead host. That did NOT fail open: `getRedis()` only returns null when the
+env vars are ABSENT, so a stale-but-present URL produced a valid client whose
+`limit()` call threw on the network — and `checkRateLimit` had no try/catch,
+so the throw escaped and **`/api/auth/sign-up` returned a bare 500 with an
+empty body**. Signup and OTP were fully broken in production and the logs said
+nothing.
+
+Fixed in `cee4685`: `checkRateLimit` fails open on an unreachable backend the
+same way it already did on a missing one, and sign-up has a top-level guard.
+A new database (`faiceoff`, ap-south-1) is wired up.
+
+If traffic stays near zero the free DB will be deleted again. The app now
+survives it — rate limiting silently stops, a warning is logged — but do not
+mistake "signup works" for "throttling works". Check the Commands counter in
+the Upstash console if you need to be sure.
+
 ### What needs the user (cannot do without their input)
 1. **Razorpay live keys** — test keys work now; live keys for real transactions
 2. **RazorpayX keys** — for automated creator payouts
-3. **Upstash Redis rotate** — rate limits currently fail-open
 4. **GST registration** — required for B2B invoicing
 5. **Resend domain DNS** — emails currently work but from test address
 6. **Sentry account + DSN** — error monitoring not active in prod
@@ -191,7 +211,7 @@ is where every implicit-any originated).
 - **Storage**: Cloudflare R2 (S3-compatible CDN) — for generated images; Supabase Storage — for product/reference photos
 - **Background tasks**: Next.js `after()` (Inngest was deleted — see Anti-Patterns)
 - **Realtime**: Supabase channels (chat)
-- **Rate Limiting**: Upstash Redis (currently failing-open due to stale credentials)
+- **Rate Limiting**: Upstash Redis (fail-open by design — an outage must never 500 a route)
 - **Observability**: Sentry, PostHog (server + client)
 - **Email**: Resend — OTP working; transactional templates wired but domain may need DNS verification
 - **Styling**: Tailwind CSS v4, Framer Motion 12, shadcn/ui components
@@ -657,10 +677,6 @@ npx supabase gen types typescript --project-id jgmhronskdnzqkkimffp > src/types/
 **Issue:** `column "credits" of relation "credit_transactions" does not exist`
 **Either:** add the missing column via migration, OR rewrite RPC to match actual schema
 **Then:** remove the soft-fail try/catch around `deductCredit` in `run-generation.ts`
-
-#### 3. Rotate Upstash Redis credentials
-**User does:** console.upstash.com → rotate REST URL + Token → update Vercel env
-**Then:** rate limits become real again (currently fail-open)
 
 ### 🟡 TIER 1 — Important
 
