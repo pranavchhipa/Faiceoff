@@ -99,7 +99,7 @@ function LoginForm() {
               value={email}
               onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
               placeholder="you@example.com"
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.email ? "border-destructive" : "border-input focus:border-ring"}`}
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/45 transition-all ${errors.email ? "border-destructive" : "border-input focus:border-ring"}`}
             />
           </div>
           {errors.email && (
@@ -119,7 +119,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
               placeholder="Your password"
-              className={`w-full pl-10 pr-11 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all ${errors.password ? "border-destructive" : "border-input focus:border-ring"}`}
+              className={`w-full pl-10 pr-11 py-3 rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/45 transition-all ${errors.password ? "border-destructive" : "border-input focus:border-ring"}`}
             />
             <button
               type="button"
@@ -153,7 +153,7 @@ function LoginForm() {
           type="submit"
           whileTap={{ scale: 0.98 }}
           disabled={loading}
-          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70"
+          className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] text-[14px] font-700 text-[var(--color-primary-foreground)] transition-all hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-muted-foreground)]"
         >
           {loading ? <><Loader2 size={18} className="animate-spin" /> Logging in…</> : <>Log in <ArrowRight size={18} /></>}
         </motion.button>

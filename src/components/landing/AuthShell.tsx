@@ -24,27 +24,41 @@ export function AuthShell({
   children: React.ReactNode;
   side?: { tint: "creator" | "brand" | "success"; heading: string; body: string };
 }) {
+  // Explicit dark tints, not the `bg-tint-*` utilities. Those read their
+  // colour from `--tint-*`, which `.landing-scope` overrode to dark values —
+  // and this shell no longer uses that scope, so they'd resolve to the light
+  // marketing blush and put white copy on a pale panel.
   const tintBg =
     side?.tint === "creator"
-      ? "bg-tint-creator"
+      ? "bg-[#1A1813]"
       : side?.tint === "brand"
-        ? "bg-tint-brand"
-        : "bg-tint-success";
+        ? "bg-[#141A1B]"
+        : "bg-[#131A16]";
 
   const photo = side ? SIDE_PHOTOS[side.tint] : null;
 
   return (
-    <div className="landing-scope relative min-h-screen bg-background overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-hero opacity-70 pointer-events-none" />
-      <div className="absolute inset-0 grain opacity-30 pointer-events-none" />
+    /* Auth uses the APP palette, not `.landing-scope`. These screens sit
+       between the marketing site and the product, and they hand straight off
+       to a dark-only dashboard — rendering them on the cream editorial
+       surface made login flash light and then dark one redirect later. */
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(70rem 40rem at 15% -10%, rgba(201,169,110,0.10), transparent 60%)",
+        }}
+      />
 
       <header className="relative z-10 px-4 md:px-8 py-4 flex items-center justify-between max-w-5xl mx-auto">
         <Link href="/" aria-label="Faiceoff home" className="inline-flex items-center">
-          <Logo variant="full" tone="dark" className="h-16 w-auto" />
+          <Logo variant="full" adaptive className="h-9 w-auto" />
         </Link>
         <Link
           href="/"
-          className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="text-[12.5px] font-600 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
         >
           ← Back to home
         </Link>
@@ -57,18 +71,18 @@ export function AuthShell({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] as const }}
-            className="relative rounded-2xl border border-border bg-card shadow-card-landing p-6 sm:p-8"
+            className="relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] sm:p-8"
           >
             {eyebrow && (
-              <p className="text-[10px] font-mono uppercase tracking-widest text-primary mb-2">
+              <p className="mb-2 font-mono text-[10px] font-700 uppercase tracking-[0.16em] text-[var(--color-primary)] sm:text-[10.5px]">
                 {eyebrow}
               </p>
             )}
-            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
+            <h1 className="font-display text-[22px] font-700 leading-[1.15] tracking-[-0.02em] text-[var(--color-foreground)] sm:text-[26px]">
               {title}
             </h1>
             {subtitle && (
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              <p className="mt-2 text-[13px] leading-[1.55] text-[var(--color-muted-foreground)] sm:text-[13.5px]">
                 {subtitle}
               </p>
             )}
@@ -180,11 +194,11 @@ export function FormField({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-600 text-muted-foreground">
+      <span className="text-[12px] font-600 text-[var(--color-muted-foreground)]">
         {label}
       </span>
       <div className="mt-1.5">{children}</div>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-1 text-[11.5px] text-[var(--color-muted-foreground)]">{hint}</p>}
     </label>
   );
 }

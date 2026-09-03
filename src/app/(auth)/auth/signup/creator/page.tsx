@@ -71,7 +71,7 @@ export default function CreatorSignupPage() {
                   value={formState[key as keyof typeof formState]}
                   onChange={(e) => updateField(key, e.target.value)}
                   placeholder={ph}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/45 transition-all text-sm"
                 />
               </div>
             </FormField>
@@ -89,7 +89,7 @@ export default function CreatorSignupPage() {
                 value={formState.password}
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="Create a password"
-                className="w-full pl-10 pr-11 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all text-sm"
+                className="w-full pl-10 pr-11 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/45 transition-all text-sm"
               />
               <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
                 {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -109,7 +109,7 @@ export default function CreatorSignupPage() {
                 value={formState.confirmPassword}
                 onChange={(e) => updateField("confirmPassword", e.target.value)}
                 placeholder="Re-enter password"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring transition-all text-sm"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/45 transition-all text-sm"
               />
             </div>
           </FormField>
@@ -149,7 +149,7 @@ export default function CreatorSignupPage() {
           type="submit"
           whileTap={{ scale: 0.98 }}
           disabled={loading || !formState.email || !formState.displayName || !formState.password || !acceptedTerms}
-          className="w-full py-3 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-shadow disabled:opacity-70 text-sm"
+          className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] text-[14px] font-700 text-[var(--color-primary-foreground)] transition-all hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-muted-foreground)]"
         >
           {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <>Create account & send code <ArrowRight size={16} /></>}
         </motion.button>

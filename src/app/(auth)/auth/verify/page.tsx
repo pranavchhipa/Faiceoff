@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, ArrowRight, CheckCheck, RotateCw } from "lucide-react";
@@ -116,10 +116,13 @@ function VerifyForm() {
       side={{ tint: "success", heading: "Almost in.", body: "One tap and you're part of India's first AI face licensing platform." }}
     >
       <form onSubmit={verify} className="space-y-6" noValidate>
-        <div className="grid grid-cols-8 gap-1.5 sm:gap-2.5">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
           {digits.map((d, i) => (
+            <Fragment key={i}>
+              {i === 4 && (
+                <span aria-hidden className="mx-0.5 h-px w-2.5 shrink-0 bg-[var(--color-border)] sm:w-3" />
+              )}
             <motion.input
-              key={i}
               ref={(el) => { inputs.current[i] = el; }}
               type="text"
               inputMode="numeric"
@@ -132,8 +135,13 @@ function VerifyForm() {
               whileFocus={{ scale: 1.04 }}
               animate={d ? { scale: [1, 1.08, 1] } : undefined}
               transition={{ duration: 0.25 }}
-              className={`aspect-square w-full text-center font-display text-lg sm:text-2xl font-bold rounded-lg sm:rounded-xl border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors ${d ? "border-primary/60 bg-primary/5" : "border-input"}`}
-            />
+              className={`aspect-square w-9 shrink-0 rounded-lg border text-center font-display text-[18px] font-700 text-[var(--color-foreground)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 sm:w-11 sm:rounded-xl sm:text-[22px] ${
+                  d
+                    ? "border-[var(--color-primary)]/60 bg-[var(--color-primary)]/10"
+                    : "border-[var(--color-border)] bg-[var(--color-background)]"
+                }`}
+              />
+            </Fragment>
           ))}
         </div>
 
@@ -147,7 +155,7 @@ function VerifyForm() {
           type="submit"
           whileTap={{ scale: 0.98 }}
           disabled={!filled || verifying || success}
-          className="w-full py-3.5 rounded-xl bg-gradient-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:shadow-glow transition-all disabled:opacity-50"
+          className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] text-[14px] font-700 text-[var(--color-primary-foreground)] transition-all hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-muted-foreground)]"
         >
           <AnimatePresence mode="wait">
             {success ? (
