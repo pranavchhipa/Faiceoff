@@ -52,6 +52,7 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
   const [isDragging, setIsDragging] = useState(false);
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
 
   const [up, setUp] = useState<UserProfile>({ display_name: "", email: "", phone: "", avatar_url: "" });
   const [cp, setCp] = useState<CreatorProfile>({ instagram_handle: "", bio: "" });
@@ -90,6 +91,9 @@ export default function SettingsPage() {
     const b = baselineRef.current;
     if (!b) return false;
     if (b.user.display_name !== up.display_name) return true;
+    // Phone was missing here, so editing it never enabled Save and the change
+    // was silently dropped on navigate — the field looked writable and wasn't.
+    if (b.user.phone !== up.phone) return true;
     if (role === "creator") return b.creator.instagram_handle !== cp.instagram_handle || b.creator.bio !== cp.bio;
     if (role === "brand") return b.brand.company_name !== bp.company_name || b.brand.website_url !== bp.website_url || b.brand.industry !== bp.industry;
     return false;
@@ -98,6 +102,11 @@ export default function SettingsPage() {
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
     if (!up.display_name.trim()) e.display_name = "Required";
+    // Mirrors the API check. Deliberately loose — people type +91 98765 43210,
+    // 09876543210, 98765 43210, and all of those are fine.
+    if (up.phone.trim() && !/^[+\d][\d\s()-]{7,19}$/.test(up.phone.trim())) {
+      e.phone = "Enter a valid phone number";
+    }
     if (role === "creator" && !isValidHandle(cp.instagram_handle)) e.instagram_handle = "Letters, numbers, dots, underscores only";
     if (role === "brand" && !isValidUrl(bp.website_url)) e.website_url = "Enter a valid URL";
     return e;
@@ -230,7 +239,11 @@ export default function SettingsPage() {
           {/* Profile */}
           <Section id="section-profile" title="Profile" subtitle="Your photo and display name — visible across the marketplace.">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <label
+              {/* The whole avatar used to be one <label>, so tapping your own
+                  photo opened a file picker and there was no way to actually
+                  LOOK at it. Split: the image opens a viewer, the camera badge
+                  replaces it. Drag-and-drop still works on the wrapper. */}
+              <div
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={(e) => {
@@ -238,32 +251,66 @@ export default function SettingsPage() {
                   const file = e.dataTransfer.files?.[0];
                   if (file) void uploadAvatarFile(file);
                 }}
-                className={`group relative block shrink-0 cursor-pointer self-start rounded-full ring-2 ring-offset-2 ring-offset-[var(--color-card)] transition-all ${
+                className={`group relative block shrink-0 self-start rounded-full ring-2 ring-offset-2 ring-offset-[var(--color-card)] transition-all ${
                   isDragging ? "ring-[var(--color-primary)]" : "ring-[var(--color-border)] hover:ring-[var(--color-primary)]/40"
                 }`}
               >
-                <input
-                  type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarUploading} className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (f) await uploadAvatarFile(f);
-                    e.target.value = "";
-                  }}
-                />
-                <div className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-[var(--color-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => up.avatar_url && setAvatarPreviewOpen(true)}
+                  disabled={!up.avatar_url || avatarUploading}
+                  aria-label={up.avatar_url ? "View profile photo" : "No profile photo yet"}
+                  className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-[var(--color-secondary)] disabled:cursor-default"
+                >
                   {avatarUploading ? (
                     <Loader2 className="h-6 w-6 animate-spin text-[var(--color-muted-foreground)]" />
                   ) : up.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img loading="lazy" decoding="async" src={up.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={up.avatar_url} alt="Your profile photo" className="h-full w-full object-cover" />
                   ) : (
                     <span className="font-display text-[26px] font-700 text-[var(--color-foreground)]">{initial}</span>
                   )}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-transform group-hover:scale-110">
+                </button>
+                <label
+                  aria-label="Change profile photo"
+                  className="absolute -bottom-0.5 -right-0.5 flex size-7 cursor-pointer items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm transition-transform group-hover:scale-110"
+                >
+                  <input
+                    type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarUploading} className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (f) await uploadAvatarFile(f);
+                      e.target.value = "";
+                    }}
+                  />
                   <Camera className="h-3.5 w-3.5" />
+                </label>
+              </div>
+
+              {avatarPreviewOpen && up.avatar_url && (
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Profile photo"
+                  onClick={() => setAvatarPreviewOpen(false)}
+                  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={up.avatar_url}
+                    alt="Your profile photo"
+                    className="max-h-[80vh] max-w-[min(90vw,520px)] rounded-2xl object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAvatarPreviewOpen(false)}
+                    aria-label="Close"
+                    className="absolute right-5 top-5 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-white"
+                  >
+                    ✕
+                  </button>
                 </div>
-              </label>
+              )}
 
               <div className="flex-1 space-y-4">
                 <Field label="Display name" hint="Shown on your invoices and creator card." error={errors.display_name}>
@@ -374,6 +421,7 @@ export default function SettingsPage() {
               <Field
                 label="Phone number"
                 hint="Optional — used for payout and support contact."
+                error={errors.phone}
               >
                 <IconInput
                   icon={Phone}

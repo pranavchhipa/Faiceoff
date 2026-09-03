@@ -24,7 +24,7 @@ export async function GET() {
       const { data: creator } = await admin
         .from("creators")
         .select(
-          "id, onboarding_step, is_active, instagram_handle, bio, kyc_status",
+          "id, onboarding_step, is_active, instagram_handle, bio, kyc_status, profile_slug, profile_published",
         )
         .eq("user_id", user.id)
         .maybeSingle();

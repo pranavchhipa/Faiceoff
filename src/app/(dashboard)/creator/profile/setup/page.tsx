@@ -52,6 +52,7 @@ import {
 } from "@/lib/profile/platform-detect";
 import { PlatformIcon } from "@/components/profile/platform-icon";
 import { compressImageForUpload } from "@/lib/utils/image-compression";
+import { GeneratingMessage } from "@/components/ui/generating-message";
 
 interface DemoSample {
   id: string;
@@ -666,9 +667,11 @@ export default function ProfileSetupPage() {
               4 · Your Style Previews
             </h2>
             <p className="mt-1 text-[13px] text-[var(--color-muted-foreground)]">
-              {anyPending
-                ? "Generating… each frame takes ~60-90 seconds."
-                : "Hand-crafted style frames of you in each category. Brand-safe — no real logos."}
+              {anyPending ? (
+                <GeneratingMessage />
+              ) : (
+                "Hand-crafted style frames of you in each category. Brand-safe — no real logos."
+              )}
             </p>
           </div>
           {!anyPending && (
@@ -1111,9 +1114,7 @@ function DemoCard({
             <span className="font-mono text-[10px] font-700 uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               Generating
             </span>
-            <span className="text-[10px] text-[var(--color-muted-foreground)]">
-              ~60-90s
-            </span>
+            <GeneratingMessage className="max-w-[140px] text-[10px] leading-snug text-[var(--color-muted-foreground)]" />
           </div>
         </div>
       ) : status === "failed" ? (

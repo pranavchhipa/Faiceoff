@@ -43,6 +43,7 @@ import {
   type PillOption,
 } from "@/config/campaign-options";
 import { compressImageForUpload } from "@/lib/utils/image-compression";
+import { GeneratingMessage } from "@/components/ui/generating-message";
 
 interface SessionSummary {
   id: string;
@@ -1082,7 +1083,10 @@ export default function BrandStudioPage() {
               {generating ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Submitting…</>
               ) : pendingGenId ? (
-                <><RefreshCw className="h-5 w-5 animate-spin" /> Generating image…</>
+                <>
+                  <RefreshCw className="h-5 w-5 shrink-0 animate-spin" />
+                  <GeneratingMessage />
+                </>
               ) : collabCapLeft <= 0 ? (
                 "Iteration limit reached"
               ) : !brief.product_name.trim() || !brief.product_image_url ? (

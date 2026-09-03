@@ -803,3 +803,11 @@ pre code {
     background-size: 3px 3px;
   }
 }
+
+/* Rotating generation-status copy (see components/ui/generating-message.tsx).
+   Each line fades in as it replaces the previous one, so a 90-second wait
+   shows movement instead of a frozen string. */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

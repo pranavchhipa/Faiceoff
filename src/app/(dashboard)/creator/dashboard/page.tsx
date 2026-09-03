@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCachedFetch, invalidateCache } from "@/lib/hooks/use-cached-fetch";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,6 +41,8 @@ interface CreatorProfile {
   instagram_handle: string | null;
   bio: string | null;
   kyc_status: string | null;
+  profile_slug: string | null;
+  profile_published: boolean | null;
 }
 
 interface CategoryInfo {
@@ -200,7 +202,15 @@ export default function CreatorDashboardPage() {
     [reqData],
   );
 
+  const [copiedLink, setCopiedLink] = useState(false);
   const isOnboardingComplete = profile?.onboarding_step === "complete";
+  // A published page means the CTA below has already been completed — it kept
+  // telling creators to "build your Style Previews" long after their link was
+  // live, because it only ever checked onboarding + packages.
+  const profileLive = Boolean(profile?.profile_published && profile?.profile_slug);
+  const profileUrl = profile?.profile_slug
+    ? `${typeof window !== "undefined" ? window.location.origin : "https://faiceoff.com"}/creators/${profile.profile_slug}`
+    : null;
   const needsOnboarding = profile && !isOnboardingComplete;
   // Only show LIVE if onboarding is complete AND the creator has been activated
   const isLive = isOnboardingComplete && profile?.is_active === true;
@@ -365,7 +375,7 @@ export default function CreatorDashboardPage() {
       )}
 
       {/* ── PUBLIC PROFILE CTA — share-link feature, shown when ready ── */}
-      {isOnboardingComplete && hasPackages && (
+      {isOnboardingComplete && hasPackages && !profileLive && (
         <motion.div
           variants={fadeUp}
           initial="initial"
@@ -393,6 +403,51 @@ export default function CreatorDashboardPage() {
               Set up <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </Link>
+        </motion.div>
+      )}
+
+      {/* ── PUBLIC PROFILE LIVE — the same slot, once the page exists ── */}
+      {isOnboardingComplete && profileLive && profileUrl && (
+        <motion.div
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={{ duration: 0.4, delay: 0.06 }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/10 via-[var(--color-primary)]/5 to-transparent p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-[var(--color-primary)] text-white">
+                <Share2 className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-700 text-[14px] text-[var(--color-foreground)]">
+                  Your creator page is live
+                </p>
+                <p className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                  faiceoff.com/creators/{profile?.profile_slug}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(profileUrl).catch(() => {});
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }}
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--color-border)] px-3 text-[12.5px] font-700 text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-secondary)]"
+              >
+                {copiedLink ? "Copied" : "Copy link"}
+              </button>
+              <Link
+                href="/creator/profile/setup"
+                className="inline-flex min-h-[36px] items-center gap-1 text-[12.5px] font-700 text-emerald-600 no-underline"
+              >
+                Edit <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
         </motion.div>
       )}
 
