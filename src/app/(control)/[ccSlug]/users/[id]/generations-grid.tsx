@@ -36,7 +36,13 @@ function relativeFrom(iso: string | null): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export default function GenerationsGrid({ generations }: { generations: Gen[] }) {
+export default function GenerationsGrid({
+  generations,
+  ccSlug,
+}: {
+  generations: Gen[];
+  ccSlug: string;
+}) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   // Esc + arrow keys
@@ -186,6 +192,17 @@ export default function GenerationsGrid({ generations }: { generations: Gen[] })
                 {open.id} · {relativeFrom(open.created_at)} · {(openIdx ?? 0) + 1} / {generations.length}
               </span>
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {/* The raw R2 file answers "what does it look like"; the
+                    detail page answers "what produced it" — brief, prompt,
+                    approval, feedback. From a creator's grid that second
+                    question is usually the one being asked. */}
+                <a
+                  href={`/${ccSlug}/generations/${open.id}`}
+                  className="cc-btn"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Open generation →
+                </a>
                 <a
                   href={open.image_url}
                   target="_blank"

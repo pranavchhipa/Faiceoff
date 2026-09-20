@@ -8,6 +8,12 @@
  *
  * All queries are read-only and parallel. Designed for quick scan, not
  * exhaustive paging — defaults: 100 generations, 50 messages, 200 audit.
+ *
+ * For a creator this also shows what they actually signed up to DO: their
+ * uploaded face references (private bucket, short-lived signed URLs), the
+ * categories they picked vs the priced category rows that exist, the
+ * concepts they blocked, and their public profile + Style Previews. That is
+ * the set an operator needs to judge a verification without leaving the page.
  */
 
 import Link from "next/link";
@@ -17,8 +23,40 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/cc/audit";
 import { getCurrentSession } from "@/lib/cc/session";
 import GenerationsGrid from "./generations-grid";
+import MediaGrid, { type MediaItem } from "./media-grid";
 
 export const dynamic = "force-dynamic";
+
+/** Private bucket holding face references + profile covers. */
+const REFERENCE_BUCKET = "reference-photos";
+/** Signed-URL lifetime. Long enough to review, short enough not to leak. */
+const SIGNED_URL_TTL = 60 * 10;
+
+/**
+ * Canonical creator onboarding order (see the STEP_ROUTES map in
+ * dashboard/onboarding/page.tsx). onboarding_step is TEXT, not a number —
+ * `lora_review` and `pricing` are legacy values kept so old rows still
+ * resolve to a position.
+ */
+const ONBOARDING_STEPS = [
+  "identity",
+  "instagram",
+  "categories",
+  "compliance",
+  "consent",
+  "photos",
+  "pricing",
+  "complete",
+] as const;
+
+/** Buckets written by classifySource() in src/lib/analytics/attribution.ts. */
+const SOURCE_LABEL: Record<string, string> = {
+  direct: "Direct",
+  organic_search: "Organic search",
+  social: "Social",
+  referral: "Referral",
+  campaign: "Campaign (UTM)",
+};
 
 interface Props {
   params: Promise<{ ccSlug: string; id: string }>;
@@ -33,6 +71,11 @@ interface UserRow {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  // Migration 00079 — NULL for everyone who signed up before it landed.
+  signup_referrer: string | null;
+  signup_landing_path: string | null;
+  signup_utm: Record<string, string> | null;
+  signup_source: string | null;
 }
 
 interface CreatorRow {
@@ -42,8 +85,17 @@ interface CreatorRow {
   is_verified: boolean | null;
   kyc_status: string | null;
   instagram_handle: string | null;
+  instagram_followers: number | null;
   bio: string | null;
-  onboarding_step: number | null;
+  city: string | null;
+  /** TEXT step name ('photos', 'complete', …) — NOT a number. */
+  onboarding_step: string | null;
+  selected_categories: string[] | null;
+  profile_slug: string | null;
+  profile_published: boolean | null;
+  profile_published_at: string | null;
+  profile_view_count: number | null;
+  cover_image_path: string | null;
   dpdp_consent_at: string | null;
   lifetime_earned_gross_paise: number | null;
   pending_balance_paise: number | null;
@@ -151,6 +203,37 @@ interface RequestRow {
   created_at: string;
 }
 
+interface ReferencePhotoRow {
+  id: string;
+  storage_path: string;
+  is_primary: boolean;
+  uploaded_at: string;
+}
+
+interface CreatorCategoryRow {
+  id: string;
+  category: string;
+  subcategories: string[] | null;
+  is_active: boolean;
+}
+
+interface BlockedConceptRow {
+  id: string;
+  blocked_concept: string;
+  created_at: string;
+}
+
+interface DemoSampleRow {
+  id: string;
+  category: string;
+  image_url: string | null;
+  status: string;
+  is_visible: boolean;
+  regeneration_count: number | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 function fmt(paise: number | null | undefined): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -205,12 +288,12 @@ export default async function UserDrillDownPage({ params }: Props) {
   const [userRes, creatorRes, brandRes] = await Promise.all([
     admin
       .from("users")
-      .select("id, display_name, email, phone, role, avatar_url, created_at, updated_at")
+      .select("id, display_name, email, phone, role, avatar_url, created_at, updated_at, signup_referrer, signup_landing_path, signup_utm, signup_source")
       .eq("id", userId)
       .maybeSingle(),
     admin
       .from("creators")
-      .select("id, user_id, is_active, is_verified, kyc_status, instagram_handle, bio, onboarding_step, dpdp_consent_at, lifetime_earned_gross_paise, pending_balance_paise, lifetime_withdrawn_net_paise, bank_account_holder_name, bank_ifsc, bank_added_at, created_at")
+      .select("id, user_id, is_active, is_verified, kyc_status, instagram_handle, instagram_followers, bio, city, onboarding_step, selected_categories, profile_slug, profile_published, profile_published_at, profile_view_count, cover_image_path, dpdp_consent_at, lifetime_earned_gross_paise, pending_balance_paise, lifetime_withdrawn_net_paise, bank_account_holder_name, bank_ifsc, bank_added_at, created_at")
       .eq("user_id", userId)
       .maybeSingle(),
     admin
@@ -238,6 +321,10 @@ export default async function UserDrillDownPage({ params }: Props) {
     requestsForCreator,
     requestsForBrand,
     auditEntries,
+    referencePhotos,
+    creatorCategories,
+    blockedConcepts,
+    demoSamples,
   ] = await Promise.all([
     // Generations the user is tied to (as creator OR brand)
     safe(async () => {
@@ -369,7 +456,86 @@ export default async function UserDrillDownPage({ params }: Props) {
         .limit(100);
       return (data ?? []) as Array<{ id: string; action: string; target_type: string | null; target_id: string | null; ip: string | null; created_at: string }>;
     }, []),
+
+    // Face reference photos — the primary evidence for a verification call.
+    safe(async () => {
+      if (!creator) return [];
+      const { data } = await admin
+        .from("creator_reference_photos")
+        .select("id, storage_path, is_primary, uploaded_at")
+        .eq("creator_id", creator.id)
+        .order("is_primary", { ascending: false })
+        .order("uploaded_at", { ascending: true })
+        .limit(100);
+      return (data ?? []) as ReferencePhotoRow[];
+    }, [] as ReferencePhotoRow[]),
+
+    // Priced category rows. Distinct from creators.selected_categories, which
+    // is only the profile picker — a creator can have one without the other.
+    safe(async () => {
+      if (!creator) return [];
+      const { data } = await admin
+        .from("creator_categories")
+        .select("id, category, subcategories, is_active")
+        .eq("creator_id", creator.id)
+        .order("category", { ascending: true })
+        .limit(100);
+      return (data ?? []) as CreatorCategoryRow[];
+    }, [] as CreatorCategoryRow[]),
+
+    // Blocked concepts — what this creator refuses to be generated into.
+    safe(async () => {
+      if (!creator) return [];
+      const { data } = await admin
+        .from("creator_compliance_vectors")
+        .select("id, blocked_concept, created_at")
+        .eq("creator_id", creator.id)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      return (data ?? []) as BlockedConceptRow[];
+    }, [] as BlockedConceptRow[]),
+
+    // Style Previews on the public profile. Archived (is_visible=false) rows
+    // are fetched too so a regen history is visible, newest first.
+    safe(async () => {
+      if (!creator) return [];
+      const { data } = await admin
+        .from("creator_demo_samples")
+        .select("id, category, image_url, status, is_visible, regeneration_count, error_message, created_at")
+        .eq("creator_id", creator.id)
+        .order("is_visible", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(40);
+      return (data ?? []) as DemoSampleRow[];
+    }, [] as DemoSampleRow[]),
   ]);
+
+  // Sign the private reference-photo paths in ONE batch call. A failure here
+  // is non-fatal: the tile renders as "no image" rather than blanking the page.
+  const referencePhotoUrls: Record<string, string> = {};
+  if (referencePhotos.length > 0) {
+    await safe(async () => {
+      const { data: signed } = await admin.storage
+        .from(REFERENCE_BUCKET)
+        .createSignedUrls(referencePhotos.map((p) => p.storage_path), SIGNED_URL_TTL);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const s of (signed ?? []) as any[]) {
+        if (s?.path && s?.signedUrl) referencePhotoUrls[s.path] = s.signedUrl;
+      }
+      return null;
+    }, null);
+  }
+
+  // Cover image lives in the same private bucket, so it needs signing too.
+  const coverPath = creator?.cover_image_path ?? null;
+  const coverUrl: string | null = coverPath
+    ? await safe<string | null>(async () => {
+        const { data: signed } = await admin.storage
+          .from(REFERENCE_BUCKET)
+          .createSignedUrl(coverPath, SIGNED_URL_TTL);
+        return (signed?.signedUrl as string | undefined) ?? null;
+      }, null)
+    : null;
 
   // 3. Hydrate recent messages for the active conversations
   const conversationIds = conversations.map((c) => c.id);
@@ -471,6 +637,53 @@ export default async function UserDrillDownPage({ params }: Props) {
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .slice(0, 30);
 
+  // 6. Creator likeness / profile derivations.
+  const stepName = creator?.onboarding_step ?? null;
+  // 'lora_review' is a dead step that now forwards to pricing — map it there
+  // so a legacy row still lands on a real position instead of "unknown".
+  const normalisedStep = stepName === "lora_review" ? "pricing" : stepName;
+  const stepIndex = normalisedStep
+    ? (ONBOARDING_STEPS as readonly string[]).indexOf(normalisedStep)
+    : -1;
+  const onboardingDone = normalisedStep === "complete";
+
+  const selectedCategories = creator?.selected_categories ?? [];
+  const activeCategories = creatorCategories.filter((c) => c.is_active);
+
+  const photoItems: MediaItem[] = referencePhotos.map((p, i) => ({
+    id: p.id,
+    url: referencePhotoUrls[p.storage_path] ?? null,
+    caption: `${i + 1} · ${new Date(p.uploaded_at).toISOString().slice(0, 10)}`,
+    badge: p.is_primary ? "primary" : null,
+    badgeClass: "cc-pill-ok",
+  }));
+
+  const demoItems: MediaItem[] = demoSamples.map((d) => ({
+    id: d.id,
+    url: d.status === "ready" ? d.image_url : null,
+    // error_message is the only thing that explains a red "failed" badge, and
+    // it was already being fetched — MediaGrid puts the full caption in the
+    // tile's title, so a long message stays readable on hover.
+    caption: `${d.category}${d.is_visible ? "" : " (archived)"}${
+      (d.regeneration_count ?? 0) > 0 ? ` · ${d.regeneration_count} regen` : ""
+    }${d.status === "failed" && d.error_message ? ` · ${d.error_message}` : ""}`,
+    badge: d.status,
+    badgeClass:
+      d.status === "ready" ? "cc-pill-ok" : d.status === "failed" ? "cc-pill-bad" : "cc-pill-warn",
+  }));
+
+  const profileLive = !!creator?.profile_published && !!creator?.profile_slug;
+
+  // 7. Signup attribution — one shared block for creators and brands alike.
+  // jsonb — trust nothing about its shape beyond "object of strings".
+  const utm =
+    user.signup_utm && typeof user.signup_utm === "object" && !Array.isArray(user.signup_utm)
+      ? user.signup_utm
+      : null;
+  const utmPairs = utm ? Object.entries(utm).filter(([, v]) => !!v) : [];
+  const hasAttribution =
+    !!user.signup_source || !!user.signup_referrer || !!user.signup_landing_path || utmPairs.length > 0;
+
   return (
     <>
       <div style={{ marginBottom: 12 }}>
@@ -515,9 +728,33 @@ export default async function UserDrillDownPage({ params }: Props) {
                 value={creator!.kyc_status ?? "—"}
                 pill={creator!.kyc_status === "verified" || creator!.kyc_status === "approved" ? "ok" : creator!.kyc_status === "rejected" ? "bad" : "warn"}
               />
-              <KV label="Instagram" value={creator!.instagram_handle ? `@${creator!.instagram_handle.replace(/^@/, "")}` : "—"} mono />
+              <KV
+                label="Instagram"
+                value={
+                  creator!.instagram_handle
+                    ? `@${creator!.instagram_handle.replace(/^@/, "")}${
+                        creator!.instagram_followers
+                          ? ` · ${creator!.instagram_followers.toLocaleString("en-IN")} followers`
+                          : ""
+                      }`
+                    : "—"
+                }
+                mono
+              />
+              <KV label="City" value={creator!.city ?? "—"} />
               <KV label="Bank added" value={creator!.bank_added_at ? `yes · ${relativeFrom(creator!.bank_added_at)}` : "no"} pill={creator!.bank_added_at ? "ok" : "warn"} />
-              <KV label="Onboarding" value={creator!.onboarding_step != null ? String(creator!.onboarding_step) : "—"} mono />
+              {/* onboarding_step is a TEXT step name, not a number. */}
+              <KV
+                label="Onboarding"
+                value={
+                  stepName
+                    ? stepIndex >= 0
+                      ? `${stepName} · step ${stepIndex + 1}/${ONBOARDING_STEPS.length}`
+                      : stepName
+                    : "—"
+                }
+                pill={onboardingDone ? "ok" : stepName ? "warn" : "neutral"}
+              />
               <KV label="DPDP consent" value={creator!.dpdp_consent_at ? relativeFrom(creator!.dpdp_consent_at) : "—"} mono />
             </div>
           )}
@@ -532,6 +769,25 @@ export default async function UserDrillDownPage({ params }: Props) {
               <KV label="GSTIN" value={brand!.gst_number ?? "—"} mono />
               <KV label="Website" value={brand!.website_url ?? "—"} mono />
               <KV label="Industry" value={brand!.industry ?? "—"} />
+              <KV
+                label="Credits remaining"
+                value={`${(brand!.credits_remaining ?? 0).toLocaleString("en-IN")} of ${(brand!.credits_lifetime_purchased ?? 0).toLocaleString("en-IN")} ever`}
+                mono
+              />
+              <KV label="Brand since" value={new Date(brand!.created_at).toISOString().slice(0, 10)} mono />
+              {brand!.website_url && (
+                <div style={{ marginTop: 6 }}>
+                  <a
+                    href={brand!.website_url.startsWith("http") ? brand!.website_url : `https://${brand!.website_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cc-btn"
+                    style={{ padding: "3px 10px", fontSize: 11 }}
+                  >
+                    Visit site ↗
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -546,6 +802,189 @@ export default async function UserDrillDownPage({ params }: Props) {
             <KV label="Conversations" value={String(conversations.length)} mono />
           </div>
         </div>
+
+        {/* SIGNUP ATTRIBUTION — where this person actually came from.
+            First-touch, captured in the browser and written at OTP verify
+            (migration 00079). Anyone who signed up before that has nothing
+            recorded, which is stated plainly rather than shown as blanks. */}
+        <div>
+          <p className="cc-card-title" style={{ marginBottom: 8 }}>Where they came from</p>
+          <div className="cc-card">
+            {hasAttribution ? (
+              <>
+                <KV
+                  label="Source"
+                  value={user.signup_source ? SOURCE_LABEL[user.signup_source] ?? user.signup_source : "—"}
+                  pill={user.signup_source === "campaign" || user.signup_source === "social" ? "info" : "neutral"}
+                />
+                <KV label="Landing page" value={user.signup_landing_path ?? "—"} mono />
+                <KV label="Referrer" value={user.signup_referrer ?? "none (direct)"} mono />
+                {utmPairs.length > 0 ? (
+                  utmPairs.map(([k, v]) => <KV key={k} label={`utm_${k}`} value={String(v)} mono />)
+                ) : (
+                  <KV label="UTM" value="none" mono />
+                )}
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--cc-fg-muted)" }}>
+                Not recorded — this person signed up before attribution capture existed
+                (migration 00079). Nothing was lost; there was never anything to store.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* CREATOR LIKENESS + WHAT THEY SIGNED UP TO DO */}
+        {isCreator && (
+          <>
+            <div>
+              <p className="cc-card-title" style={{ marginBottom: 8 }}>
+                Reference photos ({referencePhotos.length}) — private bucket, links expire in 10 min
+              </p>
+              <div className="cc-card" style={{ padding: 12 }}>
+                <MediaGrid
+                  items={photoItems}
+                  emptyText="No reference photos uploaded — this creator cannot be generated."
+                />
+                {referencePhotos.length > 0 && (
+                  <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--cc-fg-dim)" }}>
+                    {referencePhotos.filter((p) => p.is_primary).length === 0
+                      ? "No primary photo set — the pipeline picks the primary first, so this is worth fixing."
+                      : `${referencePhotos.length} uploaded · primary set · latest upload ${relativeFrom(
+                          referencePhotos.reduce(
+                            (newest, p) => (p.uploaded_at > newest ? p.uploaded_at : newest),
+                            referencePhotos[0].uploaded_at,
+                          ),
+                        )}`}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="cc-grid cc-grid-3">
+              <div className="cc-card">
+                <p className="cc-card-title">Selected categories</p>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--cc-fg-dim)" }}>
+                  What they picked on the public-profile setup (creators.selected_categories).
+                  Drives the Style Previews, not pricing.
+                </p>
+                {selectedCategories.length === 0 ? (
+                  <p className="cc-dim" style={{ margin: 0, fontSize: 12 }}>None picked.</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {selectedCategories.map((c) => (
+                      <span key={c} className="cc-pill cc-pill-info">{c}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="cc-card">
+                <p className="cc-card-title">Category rows ({activeCategories.length} active)</p>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--cc-fg-dim)" }}>
+                  Rows in creator_categories — the onboarding-era records, with
+                  subcategories. Separate from the picker above.
+                </p>
+                {creatorCategories.length === 0 ? (
+                  <p className="cc-dim" style={{ margin: 0, fontSize: 12 }}>No category rows.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {creatorCategories.map((c) => (
+                      <div key={c.id} style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                        <span className={`cc-pill ${c.is_active ? "cc-pill-ok" : "cc-pill-neutral"}`}>
+                          {c.category}
+                        </span>
+                        <span style={{ fontSize: 11, color: "var(--cc-fg-muted)" }}>
+                          {c.subcategories && c.subcategories.length > 0 ? c.subcategories.join(", ") : "no subcategories"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="cc-card">
+                <p className="cc-card-title">Blocked concepts ({blockedConcepts.length})</p>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--cc-fg-dim)" }}>
+                  What this creator refuses. The compliance check hard-blocks
+                  generations matching these.
+                </p>
+                {blockedConcepts.length === 0 ? (
+                  <p className="cc-dim" style={{ margin: 0, fontSize: 12 }}>
+                    Nothing blocked — every category is fair game for this creator.
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {blockedConcepts.map((b) => (
+                      <span key={b.id} className="cc-pill cc-pill-bad">{b.blocked_concept}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="cc-card-title" style={{ marginBottom: 8 }}>Public profile</p>
+              <div className="cc-grid cc-grid-3">
+                <div className="cc-card">
+                  <KV
+                    label="State"
+                    value={profileLive ? "Live" : creator!.profile_slug ? "Draft (unpublished)" : "Not set up"}
+                    pill={profileLive ? "ok" : creator!.profile_slug ? "warn" : "neutral"}
+                  />
+                  <KV label="Slug" value={creator!.profile_slug ?? "—"} mono />
+                  <KV
+                    label="Published"
+                    value={creator!.profile_published_at ? relativeFrom(creator!.profile_published_at) : "—"}
+                    mono
+                  />
+                  <KV label="Profile views" value={(creator!.profile_view_count ?? 0).toLocaleString("en-IN")} mono />
+                  <KV label="Cover image" value={creator!.cover_image_path ? "uploaded" : "none"} pill={creator!.cover_image_path ? "ok" : "neutral"} />
+                  {profileLive && (
+                    <div style={{ marginTop: 8 }}>
+                      <a
+                        href={`/creators/${creator!.profile_slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cc-btn"
+                        style={{ padding: "3px 10px", fontSize: 11 }}
+                      >
+                        Open /creators/{creator!.profile_slug} ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="cc-card" style={{ gridColumn: "span 2" }}>
+                  <p className="cc-card-title">Style Previews ({demoSamples.filter((d) => d.is_visible).length} visible)</p>
+                  <MediaGrid
+                    items={demoItems}
+                    emptyText="No Style Previews generated yet."
+                    minTile={96}
+                  />
+                </div>
+              </div>
+              {coverUrl && (
+                <div className="cc-card" style={{ marginTop: 12, padding: 12 }}>
+                  <p className="cc-card-title">Cover image</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={coverUrl}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      maxHeight: 220,
+                      objectFit: "cover",
+                      borderRadius: 4,
+                      border: "1px solid var(--cc-border)",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* MONEY KPIS */}
         <div>
@@ -651,6 +1090,7 @@ export default async function UserDrillDownPage({ params }: Props) {
           </p>
           <div className="cc-card" style={{ padding: 12 }}>
             <GenerationsGrid
+              ccSlug={ccSlug}
               generations={generations.map((g) => ({
                 id: g.id,
                 status: g.status,

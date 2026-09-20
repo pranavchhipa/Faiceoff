@@ -15,6 +15,8 @@ import {
   Users,
   Wallet,
   Megaphone,
+  Images,
+  LineChart,
   BadgeCheck,
   Building2,
   Banknote,
@@ -47,6 +49,8 @@ export const CC_NAV: CCNavItem[] = [
   { segment: "users", label: "People", icon: Users, group: "EVERYDAY" },
   { segment: "money", label: "Money", icon: Wallet, group: "EVERYDAY" },
   { segment: "collabs", label: "Collabs", icon: Megaphone, group: "EVERYDAY" },
+  { segment: "generations", label: "Generations", icon: Images, group: "EVERYDAY" },
+  { segment: "funnel", label: "Funnel", icon: LineChart, group: "EVERYDAY" },
 
   // QUEUES — the daily action queues (visible — this IS the core operator work)
   { segment: "verifications", label: "Creator verifications", icon: BadgeCheck, group: "QUEUES" },

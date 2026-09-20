@@ -8,7 +8,12 @@
  *   balance) plus a generation count.
  *
  * Filters (all server-side via searchParams): role (all/creators/brands/
- * admin), verified/unverified, and free-text search on name/email.
+ * admin), verified/unverified, signup source, and free-text search on
+ * name/email.
+ *
+ * Signup source (users.signup_source, migration 00079) answers "where did
+ * this cohort come from" at a glance. It is NULL for everyone who signed up
+ * before the column existed — rendered as "not recorded", never "null".
  *
  * Clicking a row opens the per-user drill-down at /<slug>/users/[id].
  */
@@ -23,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ ccSlug: string }>;
-  searchParams: Promise<{ role?: string; q?: string; verified?: string }>;
+  searchParams: Promise<{ role?: string; q?: string; verified?: string; source?: string }>;
 }
 
 interface UserRow {
@@ -34,6 +39,7 @@ interface UserRow {
   role: string;
   avatar_url: string | null;
   created_at: string;
+  signup_source: string | null;
 }
 
 interface CreatorRow {
@@ -54,6 +60,29 @@ interface BrandRow {
   is_verified: boolean | null;
   credits_remaining: number | null;
 }
+
+/**
+ * The coarse buckets written by classifySource() in
+ * src/lib/analytics/attribution.ts. "none" is our own pseudo-value for rows
+ * predating migration 00079 (signup_source IS NULL).
+ */
+const SOURCE_OPTIONS = ["direct", "organic_search", "social", "referral", "campaign", "none"] as const;
+
+const SOURCE_LABEL: Record<string, string> = {
+  direct: "Direct",
+  organic_search: "Search",
+  social: "Social",
+  referral: "Referral",
+  campaign: "Campaign",
+};
+
+const SOURCE_PILL: Record<string, string> = {
+  direct: "cc-pill-neutral",
+  organic_search: "cc-pill-ok",
+  social: "cc-pill-info",
+  referral: "cc-pill-neutral",
+  campaign: "cc-pill-warn",
+};
 
 function fmt(paise: number | null | undefined): string {
   return new Intl.NumberFormat("en-IN", {
@@ -79,13 +108,18 @@ export default async function UsersPage({ params, searchParams }: Props) {
   // the users.role column; we still hydrate the profile rows for everyone.
   const roleFilter = sp.role && ["creator", "brand", "admin"].includes(sp.role) ? sp.role : "";
   const verifiedFilter = sp.verified === "verified" || sp.verified === "unverified" ? sp.verified : "";
+  const sourceFilter =
+    sp.source && (SOURCE_OPTIONS as readonly string[]).includes(sp.source) ? sp.source : "";
 
   let q = admin
     .from("users")
-    .select("id, display_name, email, phone, role, avatar_url, created_at")
+    .select("id, display_name, email, phone, role, avatar_url, created_at, signup_source")
     .order("created_at", { ascending: false })
     .limit(200);
   if (roleFilter) q = q.eq("role", roleFilter);
+  // "none" = the pre-00079 cohort, which has no attribution recorded at all.
+  if (sourceFilter === "none") q = q.is("signup_source", null);
+  else if (sourceFilter) q = q.eq("signup_source", sourceFilter);
   if (sp.q) {
     const escaped = sp.q.replace(/[%_]/g, (m: string) => `\\${m}`);
     q = q.or(`email.ilike.%${escaped}%,display_name.ilike.%${escaped}%`);
@@ -142,12 +176,30 @@ export default async function UsersPage({ params, searchParams }: Props) {
       })
     : list;
 
+  // Cohort breakdown by acquisition channel, over the rows actually shown.
+  const sourceCounts = new Map<string, number>();
+  for (const u of visible) {
+    const key = u.signup_source ?? "none";
+    sourceCounts.set(key, (sourceCounts.get(key) ?? 0) + 1);
+  }
+  const sourceSummary = [...sourceCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${k === "none" ? "not recorded" : SOURCE_LABEL[k] ?? k} ${n}`)
+    .join(" · ");
+
   return (
     <>
       <PageHeader
         title="People"
         subtitle={`${visible.length} shown · creators + brands · last 200 by signup · click any row for full activity`}
       />
+
+      <p
+        className="cc-mono-cell"
+        style={{ margin: "-4px 0 12px", fontSize: 11, color: "var(--cc-fg-muted)", letterSpacing: "0.04em" }}
+      >
+        Where they came from: {sourceSummary || "—"}
+      </p>
 
       <form className="cc-toolbar" method="get">
         <input
@@ -169,6 +221,15 @@ export default async function UsersPage({ params, searchParams }: Props) {
           <option value="verified">Verified only</option>
           <option value="unverified">Unverified only</option>
         </select>
+        <select name="source" defaultValue={sourceFilter} className="cc-select" style={{ maxWidth: 180 }}>
+          <option value="">Any source</option>
+          <option value="direct">Direct</option>
+          <option value="organic_search">Organic search</option>
+          <option value="social">Social</option>
+          <option value="referral">Referral</option>
+          <option value="campaign">Campaign (UTM)</option>
+          <option value="none">Not recorded</option>
+        </select>
         <button type="submit" className="cc-btn">Filter</button>
         <a href={`/${ccSlug}/users`} className="cc-btn">Reset</a>
       </form>
@@ -189,6 +250,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
               <th style={{ width: 80 }}>Role</th>
               <th>Email</th>
               <th style={{ width: 120 }}>Verified</th>
+              <th style={{ width: 120 }}>Source</th>
               <th>Money / activity</th>
               <th style={{ width: 70 }}>Gens</th>
               <th style={{ width: 100 }}>Joined</th>
@@ -198,7 +260,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={8} className="cc-table-empty">No people match.</td>
+                <td colSpan={9} className="cc-table-empty">No people match.</td>
               </tr>
             ) : (
               visible.map((u) => {
@@ -248,6 +310,15 @@ export default async function UsersPage({ params, searchParams }: Props) {
                     <td className="cc-mono-cell" style={{ fontSize: 12 }}>{u.email ?? "—"}</td>
                     <td>
                       <span className={`cc-pill ${verified.cls}`}>{verified.text}</span>
+                    </td>
+                    <td>
+                      {u.signup_source ? (
+                        <span className={`cc-pill ${SOURCE_PILL[u.signup_source] ?? "cc-pill-neutral"}`}>
+                          {SOURCE_LABEL[u.signup_source] ?? u.signup_source}
+                        </span>
+                      ) : (
+                        <span className="cc-dim" style={{ fontSize: 11 }}>not recorded</span>
+                      )}
                     </td>
                     <td className="cc-mono-cell" style={{ fontSize: 11.5, color: "var(--cc-fg-muted)" }}>{stat}</td>
                     <td className="cc-mono-cell" style={{ fontSize: 11.5 }}>{gens}</td>
