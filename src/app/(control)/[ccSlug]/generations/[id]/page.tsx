@@ -54,6 +54,14 @@ export default async function GenerationDetailPage({ params }: Props) {
   const { data: gen } = await admin.from("generations").select("*").eq("id", id).maybeSingle();
   if (!gen) notFound();
 
+  // run-generation.ts writes quality_scores.prompt_fallback_used only when the
+  // LLM art director could not be reached, so a degraded render is
+  // identifiable here instead of looking like every other image.
+  const promptFellBack =
+    !!gen.quality_scores &&
+    typeof gen.quality_scores === "object" &&
+    (gen.quality_scores as Record<string, unknown>).prompt_fallback_used === true;
+
   const [creatorRes, brandRes, collabRes, approvalRes, licenseRes] = await Promise.all([
     gen.creator_id
       ? admin
@@ -226,13 +234,50 @@ export default async function GenerationDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* ── 3. The prompt actually sent to the model ──────────────────── */}
+        {/* ── 3. The creative prompt ─────────────────────────────────────
+            NOT the final text sent to the model, despite what this field used
+            to claim. buildAnchorPrompt() in src/lib/ai/gemini-client.ts wraps
+            this in ~100 lines of identity lock, product lock, scene directives
+            and realism target, with identity anchors at BOTH ends. What is
+            stored here is only the middle "SCENE & STYLE" section. Labelling it
+            as the whole prompt made a normal generation look alarmingly thin. */}
         <div className="cc-card">
+          {promptFellBack && (
+            <p
+              className="cc-pill cc-pill-bad"
+              style={{ marginBottom: 10, display: "inline-block" }}
+            >
+              Fallback prompt — art direction failed
+            </p>
+          )}
           {gen.assembled_prompt ? (
-            <CopyBlock label="Assembled prompt — final text sent to the model" text={String(gen.assembled_prompt)} maxHeight={360} />
+            <>
+              <CopyBlock
+                label="Creative prompt — the SCENE &amp; STYLE section"
+                text={String(gen.assembled_prompt)}
+                maxHeight={360}
+              />
+              <p style={{ margin: "8px 0 0 0", fontSize: 11.5, color: "var(--cc-fg-muted)" }}>
+                {promptFellBack ? (
+                  <>
+                    The LLM art director could not be reached for this render, so the pipeline
+                    used its one-line template instead. The image was still generated and
+                    charged at full price, but its creative direction is far weaker than
+                    normal. Worth a free retry for this brand.
+                  </>
+                ) : (
+                  <>
+                    This is the art-directed scene description only. Before it reaches the
+                    model it is wrapped by <code>buildAnchorPrompt()</code> in roughly 100
+                    further lines — identity lock, product lock, the brand&rsquo;s scene
+                    directives and the realism target, with identity anchors at both ends.
+                  </>
+                )}
+              </p>
+            </>
           ) : (
             <>
-              <p className="cc-card-title">Assembled prompt</p>
+              <p className="cc-card-title">Creative prompt</p>
               <p style={{ margin: 0, fontSize: 12.5, color: "var(--cc-fg-dim)" }}>
                 Not assembled — this generation never reached the prompt stage.
               </p>

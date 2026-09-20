@@ -30,7 +30,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { deductCredit } from "@/lib/billing";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/storage/r2-client";
 import { checkImage } from "@/lib/ai/hive-client";
-import { assemblePromptWithLLM, buildSceneDirectives } from "@/lib/ai/prompt-assembler";
+import {
+  assemblePromptWithLLM,
+  buildSceneDirectives,
+  buildDeterministicPrompt,
+} from "@/lib/ai/prompt-assembler";
 import { runComplianceCheck, type ComplianceInput } from "@/lib/compliance";
 import { upscaleImage } from "@/lib/ai/upscaler-client";
 import { buildProductComposite } from "@/lib/ai/product-composite";
@@ -579,25 +583,34 @@ export async function runGeneration(generationId: string): Promise<void> {
 
     // ── 4. Assemble creative prompt via LLM ─────────────────────────────────
     let assembledPrompt: string;
+    // Whether this generation ran on the degraded one-line fallback instead of
+    // the art-directed LLM prompt. The brand pays the same either way, so this
+    // has to be recorded rather than left in a log line nobody reads.
+    let promptFallbackUsed = false;
     try {
       const { prompt } = await assemblePromptWithLLM(brief, generationId);
       assembledPrompt = prompt;
     } catch (err) {
-      // Fallback to a templated prompt so generation still proceeds.
+      // Fallback to a templated prompt so generation still proceeds. The
+      // assembler already retried 3× before giving up, so reaching here means
+      // OpenRouter is genuinely down or the key/model is misconfigured.
       console.warn(
         `[run-generation] prompt assembly failed for gen=${generationId} — using fallback`,
         err,
       );
-      const productName = brief.product_name as string | undefined;
-      const setting = brief.setting as string | null | undefined;
-      const mood = brief.mood_palette as string | null | undefined;
-      assembledPrompt = [
-        `A photorealistic image of ${productName ?? "the product"}`,
-        setting ? `in ${setting}` : null,
-        mood ? `mood: ${mood}` : null,
-      ]
-        .filter(Boolean)
-        .join(", ");
+      promptFallbackUsed = true;
+      track(
+        "prompt_assembly_fallback",
+        {
+          generation_id: generationId,
+          error: err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300),
+        },
+        brandId,
+      );
+      // Renders every field the brand chose, locally, with no network call —
+      // rather than the single line this used to emit, which discarded the
+      // whole brief on a render the brand still pays full price for.
+      assembledPrompt = buildDeterministicPrompt(brief);
     }
 
     const aspectRatio = (brief.aspect_ratio as string | undefined) ?? "1:1";
@@ -868,6 +881,11 @@ export async function runGeneration(generationId: string): Promise<void> {
         // Phase 6e — OCR drift + Stage 2 trigger reason for admin audit.
         ocr_validation_result: ocrValidationResult,
         stage2_triggered_by: stage2TriggeredBy,
+        // Only written when the art-directed prompt could not be built, so a
+        // degraded render is identifiable afterwards in the Control Centre
+        // instead of looking like every other image. Set conditionally so the
+        // normal path never clobbers quality_scores written elsewhere.
+        ...(promptFallbackUsed ? { quality_scores: { prompt_fallback_used: true } } : {}),
       })
       .eq("id", generationId);
 

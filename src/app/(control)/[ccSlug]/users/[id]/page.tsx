@@ -285,27 +285,33 @@ export default async function UserDrillDownPage({ params }: Props) {
   const admin = createAdminClient() as any;
 
   // 1. Resolve user + role-specific row in parallel.
+  //
+  // select("*") on purpose, not a column list. PostgREST rejects the ENTIRE
+  // query if one named column is absent, and these rows are read through the
+  // `as any` boundary so TypeScript cannot catch a name that drifted or a
+  // migration that was never applied in production. A long explicit list meant
+  // one missing column silently produced `creator = null`, which this page then
+  // rendered as "Admin user — no creator or brand profile" — a confident lie
+  // about a real creator, with every photo/category/profile section gone.
+  // These are single-row lookups; the extra bytes are irrelevant.
   const [userRes, creatorRes, brandRes] = await Promise.all([
-    admin
-      .from("users")
-      .select("id, display_name, email, phone, role, avatar_url, created_at, updated_at, signup_referrer, signup_landing_path, signup_utm, signup_source")
-      .eq("id", userId)
-      .maybeSingle(),
-    admin
-      .from("creators")
-      .select("id, user_id, is_active, is_verified, kyc_status, instagram_handle, instagram_followers, bio, city, onboarding_step, selected_categories, profile_slug, profile_published, profile_published_at, profile_view_count, cover_image_path, dpdp_consent_at, lifetime_earned_gross_paise, pending_balance_paise, lifetime_withdrawn_net_paise, bank_account_holder_name, bank_ifsc, bank_added_at, created_at")
-      .eq("user_id", userId)
-      .maybeSingle(),
-    admin
-      .from("brands")
-      .select("id, user_id, company_name, website_url, gst_number, industry, is_verified, credits_remaining, credits_lifetime_purchased, created_at")
-      .eq("user_id", userId)
-      .maybeSingle(),
+    admin.from("users").select("*").eq("id", userId).maybeSingle(),
+    admin.from("creators").select("*").eq("user_id", userId).maybeSingle(),
+    admin.from("brands").select("*").eq("user_id", userId).maybeSingle(),
   ]);
 
   const user = userRes.data as UserRow | null;
   const creator = creatorRes.data as CreatorRow | null;
   const brand = brandRes.data as BrandRow | null;
+
+  // A failed lookup must never be presentable as "this person has no profile".
+  // Surfaced at the top of the page so the operator sees the cause, not a
+  // plausible-looking empty page.
+  const lookupErrors = [
+    userRes.error ? `users: ${userRes.error.message}` : null,
+    creatorRes.error ? `creators: ${creatorRes.error.message}` : null,
+    brandRes.error ? `brands: ${brandRes.error.message}` : null,
+  ].filter(Boolean) as string[];
 
   if (!user) notFound();
 
@@ -705,6 +711,24 @@ export default async function UserDrillDownPage({ params }: Props) {
       />
 
       <div className="cc-stack">
+        {lookupErrors.length > 0 && (
+          <div className="cc-card" style={{ borderColor: "var(--cc-bad)" }}>
+            <p className="cc-card-title" style={{ color: "var(--cc-bad)" }}>
+              Profile lookup failed — this page is incomplete
+            </p>
+            <p style={{ fontSize: 12.5, color: "var(--cc-fg-muted)", margin: "0 0 8px 0" }}>
+              One or more of the role tables could not be read, so sections below may look
+              empty when they are not. Usually a migration that has not been applied in
+              production yet.
+            </p>
+            {lookupErrors.map((e) => (
+              <p key={e} className="cc-mono-cell" style={{ fontSize: 11.5, margin: "2px 0", color: "var(--cc-bad)" }}>
+                {e}
+              </p>
+            ))}
+          </div>
+        )}
+
         {/* PROFILE BLOCK */}
         <div className="cc-grid cc-grid-3">
           <div className="cc-card">
@@ -1007,7 +1031,18 @@ export default async function UserDrillDownPage({ params }: Props) {
             )}
             {!isCreator && !isBrand && (
               <div className="cc-kpi" style={{ gridColumn: "span 4" }}>
-                <span className="cc-kpi-sub">Admin user — no creator or brand profile.</span>
+                {/* users.role is the source of truth for what they signed up
+                    as. If it says creator or brand but the matching row is
+                    missing, this is NOT an admin — it is a half-completed
+                    signup, which is a real problem worth naming rather than
+                    papering over. */}
+                <span className="cc-kpi-sub">
+                  {user.role === "admin" || !user.role
+                    ? "Admin user — no creator or brand profile."
+                    : `Signed up as ${user.role}, but no ${user.role}s row exists for them. ` +
+                      "Their onboarding never wrote one, so every creator/brand section on " +
+                      "this page is empty. Worth checking whether signup half-failed."}
+                </span>
               </div>
             )}
           </div>

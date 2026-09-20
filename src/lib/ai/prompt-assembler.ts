@@ -153,10 +153,96 @@ export function buildSceneDirectives(brief: Record<string, unknown>): string {
 }
 
 /**
+ * Last-resort prompt, built locally with no network call.
+ *
+ * The previous fallback was a single line — "A photorealistic image of
+ * Guinness Draught, in beach, mood: cool_minimal" — which threw away almost
+ * the entire brief and left a paid render with no art direction at all. This
+ * one renders EVERY field the brand chose as prose the image model can act on.
+ *
+ * It is not as good as the LLM art director: it cannot invent composition or
+ * photographic craft. It is dramatically better than one line, it cannot fail,
+ * and it needs no upstream service. Combined with the SCENE DIRECTIVES block
+ * and the identity/product locks that buildAnchorPrompt() adds around it, a
+ * render on this path is still a usable commercial image.
+ */
+export function buildDeterministicPrompt(brief: Record<string, unknown>): string {
+  const str = (k: string): string | null => {
+    const v = brief[k];
+    if (typeof v !== "string" || !v.trim()) return null;
+    return v.startsWith("custom:")
+      ? sanitizeUserText(v.slice("custom:".length), 120)
+      : pillValueToLabel(k, v) || null;
+  };
+
+  const product = typeof brief.product_name === "string" && brief.product_name.trim()
+    ? sanitizeUserText(brief.product_name, 120)
+    : "the product";
+
+  const setting = str("setting");
+  const lighting = str("time_lighting");
+  const mood = str("mood_palette");
+  const interaction = str("interaction");
+  const pose = str("pose_energy");
+  const expression = str("expression");
+  const outfit = str("outfit_style");
+  const framing = str("camera_framing");
+  const camera = str("camera_type");
+
+  const lines: string[] = [];
+
+  // Sentence 1 — subject, product and place.
+  lines.push(
+    `A professional commercial photograph of the person from the face references together with ${product}` +
+      (setting ? `, photographed in ${setting}` : "") +
+      ".",
+  );
+
+  // Sentence 2 — what is actually happening. Without this the model tends to
+  // produce a static product-holding pose.
+  if (interaction || pose) {
+    lines.push(
+      [
+        interaction ? `They are ${interaction.toLowerCase()}` : "They are engaged naturally with the product",
+        pose ? `with ${pose.toLowerCase()} body language` : null,
+        expression ? `and a ${expression.toLowerCase()} expression` : null,
+      ]
+        .filter(Boolean)
+        .join(", ") + ". The moment should look caught rather than posed.",
+    );
+  }
+
+  if (outfit) lines.push(`Wardrobe: ${outfit}.`);
+  if (lighting) lines.push(`Lighting: ${lighting}, with natural direction, accurate shadows and believable falloff.`);
+  if (mood) lines.push(`Overall mood and colour palette: ${mood}.`);
+  if (framing || camera) {
+    lines.push(
+      `Camera: ${[framing, camera].filter(Boolean).join(", ")}. Natural perspective and realistic depth of field.`,
+    );
+  }
+
+  if (typeof brief.custom_notes === "string" && brief.custom_notes.trim()) {
+    lines.push(`Brand notes to honour: ${sanitizeUserText(brief.custom_notes, 300)}`);
+  }
+
+  lines.push(
+    "The product must be clearly visible, in focus and rendered exactly as the product reference shows it. " +
+      "Composition should read as a real brand campaign photograph — considered framing, clean background separation, no clutter competing with the product.",
+  );
+
+  return lines.join("\n");
+}
+
+/**
  * LLM used for the prompt-assembly step. Overridable via env var.
  *
- * Default: Gemini 2.5 Flash for quality. Llama 3.1 8B available as fast
- * fallback via env.
+ * Default: Gemini 3.8 Flash (current generation, released 2026-09-02).
+ *
+ * Was google/gemini-2.5-flash, dated 2025-06-17 — over a year and several
+ * model generations old. This call writes the art direction for every paid
+ * render, so it is the cheapest place in the pipeline to buy image quality:
+ * at ~3k in / ~1k out per assembly the upgrade costs roughly Rs 0.2 more per
+ * generation against a ~Rs 15 render.
  *
  * Phase 4.1 — switched default from `meta-llama/llama-3.1-8b-instruct` to
  * `google/gemini-2.5-flash`. The system prompt grew significantly with the
@@ -174,7 +260,24 @@ export function buildSceneDirectives(brief: Record<string, unknown>): string {
  * in Vercel env — no code change required.
  */
 const PROMPT_LLM_MODEL =
-  process.env.PROMPT_ASSEMBLER_MODEL ?? "google/gemini-2.5-flash";
+  process.env.PROMPT_ASSEMBLER_MODEL ?? "google/gemini-3.8-flash";
+
+/**
+ * Second model, tried once after the primary has exhausted its retries.
+ *
+ * Deliberately NOT another Google model: if Gemini is rate-limiting or down,
+ * every Gemini call fails together and a same-provider fallback buys nothing.
+ * DeepSeek V4 Flash is a different provider on different infrastructure,
+ * follows long instruction templates well, and is cheap enough
+ * ($0.04 / $0.07 per M) that the extra attempt costs nothing worth counting.
+ *
+ * Not Llama 3.1 8B: it was this codebase's default before Phase 4.1 and was
+ * dropped precisely because it missed the India-context cues in the system
+ * prompt, which has only grown since. Reinstating it as the safety net would
+ * make the safety net the thing that degrades quality.
+ */
+const PROMPT_LLM_FALLBACK_MODEL =
+  process.env.PROMPT_ASSEMBLER_FALLBACK_MODEL ?? "deepseek/deepseek-v4-flash";
 
 const SYSTEM_PROMPT = `You are a senior commercial photography art director writing prompts for a multi-reference photorealistic image generator (Gemini 3 Pro Image / Flux Kontext Max). Inputs supplied at generation time: (a) 3-5 face reference photos of ONE specific person, (b) a product reference photo, (c) your text prompt.
 
@@ -403,9 +506,60 @@ export async function assemblePromptWithLLM(
   }
   const userMessage = briefLines.join("\n");
 
+  // One transient 429 or timeout used to send a paid generation out with the
+  // caller's one-line fallback prompt ("A photorealistic image of X, in beach")
+  // — permanently degrading an image the brand pays full price for, with
+  // nothing recorded anywhere. A retry costs a second or two against a
+  // 60-90s pipeline; not retrying costs the whole generation's quality.
+  const MAX_ATTEMPTS = 3;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Final attempt switches to a DIFFERENT model. Retrying the same model
+    // three times only helps against a blip; a model that is itself degraded,
+    // rate-limited or withdrawn fails identically every time. A second model
+    // is a different upstream path, which is what actually breaks the
+    // correlation.
+    const model = attempt === MAX_ATTEMPTS ? PROMPT_LLM_FALLBACK_MODEL : PROMPT_LLM_MODEL;
+    try {
+      return await callAssembler(userMessage, generationId, model);
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[prompt-assembler] attempt ${attempt}/${MAX_ATTEMPTS} failed for gen=${generationId ?? "?"}`,
+        error,
+      );
+      // A missing API key is not transient — retrying it twice more just adds
+      // 4s of sleep to every single generation while the whole platform
+      // silently renders on the fallback prompt. Fail fast and loudly instead.
+      if (error instanceof Error && /Missing required environment variable/i.test(error.message)) {
+        console.error(
+          "[prompt-assembler] OPENROUTER_API_KEY is not configured — EVERY generation " +
+            "will render on the deterministic fallback prompt until this is fixed.",
+        );
+        break;
+      }
+      if (attempt < MAX_ATTEMPTS) {
+        // 1s, then 3s. Enough to clear a rate-limit blip without meaningfully
+        // extending a pipeline that already takes over a minute.
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1_000 : 3_000));
+      }
+    }
+  }
+
+  console.error("[prompt-assembler] all attempts failed — caller will fall back:", lastError);
+  throw lastError instanceof Error ? lastError : new Error("LLM prompt assembly failed");
+}
+
+/** One attempt at the LLM call. Throws on any failure; the caller retries. */
+async function callAssembler(
+  userMessage: string,
+  generationId: string | null | undefined,
+  model: string,
+): Promise<{ prompt: string; method: "llm" }> {
   try {
     const response = await chatCompletion({
-      model: PROMPT_LLM_MODEL,
+      model,
       generationId: generationId ?? null,
       callType: "prompt_assembly",
       messages: [
