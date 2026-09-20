@@ -84,6 +84,28 @@ const SOURCE_PILL: Record<string, string> = {
   campaign: "cc-pill-warn",
 };
 
+/**
+ * Joined timestamp, in IST.
+ *
+ * The date alone was useless the day it mattered: 69 signups landed inside one
+ * afternoon and every row read "2026-09-20". The time is what shows the shape
+ * of a spike — when it started, whether it is still running.
+ *
+ * IST, not UTC: the operator is in India and reasons in local time, and the
+ * Funnel page already buckets everything at +05:30. A fixed offset is exact
+ * because India has no DST.
+ */
+const IST_MS = 5.5 * 60 * 60 * 1000;
+
+function joinedParts(iso: string): { date: string; time: string } {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return { date: "—", time: "" };
+  const d = new Date(t + IST_MS);
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return { date: d.toISOString().slice(0, 10), time: `${hh}:${mm}` };
+}
+
 function fmt(paise: number | null | undefined): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -284,7 +306,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
               <th style={{ width: 120 }}>Source</th>
               <th>Money / activity</th>
               <th style={{ width: 70 }}>Gens</th>
-              <th style={{ width: 100 }}>Joined</th>
+              <th style={{ width: 96 }}>Joined · IST</th>
               <th style={{ width: 80 }}>Open</th>
             </tr>
           </thead>
@@ -354,7 +376,17 @@ export default async function UsersPage({ params, searchParams }: Props) {
                     <td className="cc-mono-cell" style={{ fontSize: 11.5, color: "var(--cc-fg-muted)" }}>{stat}</td>
                     <td className="cc-mono-cell" style={{ fontSize: 11.5 }}>{gens}</td>
                     <td className="cc-mono-cell" style={{ color: "var(--cc-fg-muted)", fontSize: 11.5 }}>
-                      {new Date(u.created_at).toISOString().slice(0, 10)}
+                      {(() => {
+                        const j = joinedParts(u.created_at);
+                        return (
+                          <>
+                            <div>{j.date}</div>
+                            {j.time && (
+                              <div style={{ color: "var(--cc-fg-dim)", fontSize: 11 }}>{j.time}</div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td>
                       <Link

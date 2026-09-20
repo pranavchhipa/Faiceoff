@@ -224,6 +224,19 @@ interface CreatorCategoryRow {
  */
 const ATTRIBUTION_SHIPPED_MS = Date.parse("2026-09-20T00:00:00Z");
 
+/**
+ * Timestamps here are shown in IST, matching the People list and the Funnel.
+ * This field used to render UTC unlabelled, which reads as a wrong time to an
+ * operator in India and disagrees with the same person's row in the list.
+ * Fixed +05:30 is exact — India has no DST. (The audit-log table below is
+ * deliberately left in UTC, where it says so in its own header.)
+ */
+function istStamp(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return "—";
+  return new Date(t + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ");
+}
+
 interface EscrowRow {
   id: string;
   type: string | null;
@@ -784,7 +797,7 @@ export default async function UserDrillDownPage({ params }: Props) {
             <KV label="Email" value={user.email ?? "—"} mono />
             <KV label="Phone" value={user.phone ?? "—"} mono />
             <KV label="Role" value={user.role} />
-            <KV label="Created" value={new Date(user.created_at).toISOString().slice(0, 16).replace("T", " ")} mono />
+            <KV label="Joined · IST" value={istStamp(user.created_at)} mono />
           </div>
 
           {isCreator && (
