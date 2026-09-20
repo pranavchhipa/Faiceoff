@@ -217,6 +217,22 @@ interface CreatorCategoryRow {
   is_active: boolean;
 }
 
+/**
+ * When first-touch attribution went live (migration 00079). Used only to tell
+ * "there was nothing to capture" apart from "capture failed" — two very
+ * different operator conclusions that both surface as a NULL signup_source.
+ */
+const ATTRIBUTION_SHIPPED_MS = Date.parse("2026-09-20T00:00:00Z");
+
+interface EscrowRow {
+  id: string;
+  type: string | null;
+  amount_paise: number | null;
+  payout_id: string | null;
+  holding_until: string | null;
+  created_at: string;
+}
+
 interface BlockedConceptRow {
   id: string;
   blocked_concept: string;
@@ -329,6 +345,7 @@ export default async function UserDrillDownPage({ params }: Props) {
     auditEntries,
     referencePhotos,
     creatorCategories,
+    escrow,
     blockedConcepts,
     demoSamples,
   ] = await Promise.all([
@@ -489,6 +506,19 @@ export default async function UserDrillDownPage({ params }: Props) {
       return (data ?? []) as CreatorCategoryRow[];
     }, [] as CreatorCategoryRow[]),
 
+    // Live earnings ledger — see the KPI note below for why the creators
+    // rollup columns cannot be used.
+    safe(async () => {
+      if (!creator) return [];
+      const { data } = await admin
+        .from("escrow_ledger")
+        .select("id, type, amount_paise, payout_id, holding_until, created_at")
+        .eq("creator_id", creator.id)
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      return (data ?? []) as EscrowRow[];
+    }, [] as EscrowRow[]),
+
     // Blocked concepts — what this creator refuses to be generated into.
     safe(async () => {
       if (!creator) return [];
@@ -558,14 +588,30 @@ export default async function UserDrillDownPage({ params }: Props) {
     : [];
 
   // 4. Aggregate KPIs
-  // Prefer the authoritative balance columns on the creators row; fall back to
-  // the licence-derived sum if the rollup column is null (older rows).
-  const licenseDerivedEarnedPaise = licenses.reduce((s, l) => s + (l.creator_share_paise ?? 0), 0);
-  const lifetimeEarnedPaise = creator?.lifetime_earned_gross_paise ?? licenseDerivedEarnedPaise;
-  const availableBalancePaise = creator
-    ? (creator.lifetime_earned_gross_paise ?? 0) - (creator.lifetime_withdrawn_net_paise ?? 0)
-    : 0;
-  const pendingBalancePaise = creator?.pending_balance_paise ?? 0;
+  //
+  // NOT creators.lifetime_earned_gross_paise / pending_balance_paise. Those
+  // rollup columns are written by exactly one thing — the commit_image_approval
+  // Postgres function (migration 00029) — and nothing in live code calls it:
+  // its only wrapper, commitImageApproval() in src/lib/ledger/commit.ts, has no
+  // callers. The approval route inserts into escrow_ledger directly instead.
+  // So those columns sit at their `default 0` forever, and this page was
+  // reporting ₹0 earned for creators whose own dashboard correctly showed real
+  // money (see the same note at api/dashboard/stats/route.ts:119).
+  //
+  // escrow_ledger `release_per_image` rows are the live earnings ledger:
+  //   lifetime earned = every release row
+  //   available       = released, not yet paid out, holding period elapsed
+  //   pending         = released, not yet paid out, still inside holding
+  const releases = escrow.filter((e) => e.type === "release_per_image");
+  const nowMs = Date.now();
+  const lifetimeEarnedPaise = releases.reduce((s, e) => s + (e.amount_paise ?? 0), 0);
+  const unpaid = releases.filter((e) => !e.payout_id);
+  const availableBalancePaise = unpaid
+    .filter((e) => !e.holding_until || Date.parse(e.holding_until) <= nowMs)
+    .reduce((s, e) => s + (e.amount_paise ?? 0), 0);
+  const pendingBalancePaise = unpaid
+    .filter((e) => e.holding_until && Date.parse(e.holding_until) > nowMs)
+    .reduce((s, e) => s + (e.amount_paise ?? 0), 0);
   const lifetimeSpentPaise = brand ? licenses.reduce((s, l) => s + (l.amount_paid_paise ?? 0), 0) : 0;
   const totalPayoutsPaise = payouts.filter((p) => p.status === "success").reduce((s, p) => s + p.amount_paise, 0);
   const totalTopupsPaise = topups.filter((t) => t.status === "success").reduce((s, t) => s + t.amount_paise, 0);
@@ -851,8 +897,24 @@ export default async function UserDrillDownPage({ params }: Props) {
               </>
             ) : (
               <p style={{ margin: 0, fontSize: 12, color: "var(--cc-fg-muted)" }}>
-                Not recorded — this person signed up before attribution capture existed
-                (migration 00079). Nothing was lost; there was never anything to store.
+                {/* A NULL source has two causes and the page must not assert the
+                    wrong one. Before attribution shipped there was genuinely
+                    nothing to store; after it, a NULL means the browser could
+                    not keep it — private windows and in-app webviews such as
+                    Instagram's block localStorage, and that is precisely where
+                    this product's traffic comes from. */}
+                {Date.parse(user.created_at) < ATTRIBUTION_SHIPPED_MS ? (
+                  <>
+                    Not recorded — this person signed up before attribution capture existed
+                    (migration 00079). Nothing was lost; there was never anything to store.
+                  </>
+                ) : (
+                  <>
+                    Not recorded — this signup happened after attribution shipped, so their
+                    browser could not hand it over. Usually a private window or an in-app
+                    webview (Instagram, WhatsApp) where localStorage is blocked.
+                  </>
+                )}
               </p>
             )}
           </div>

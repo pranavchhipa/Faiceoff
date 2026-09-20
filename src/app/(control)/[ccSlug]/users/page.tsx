@@ -148,14 +148,45 @@ export default async function UsersPage({ params, searchParams }: Props) {
   // Generation counts per creator / brand — one query each, counted in-memory.
   const creatorIds = [...creatorMap.values()].map((c) => c.id);
   const brandIds = [...brandMap.values()].map((b) => b.id);
-  const [creatorGensRes, brandGensRes] = await Promise.all([
+  const [creatorGensRes, brandGensRes, escrowRes] = await Promise.all([
     creatorIds.length > 0
-      ? admin.from("generations").select("creator_id").in("creator_id", creatorIds)
+      ? admin.from("generations").select("creator_id").in("creator_id", creatorIds).limit(20000)
       : Promise.resolve({ data: [] }),
     brandIds.length > 0
-      ? admin.from("generations").select("brand_id").in("brand_id", brandIds)
+      ? admin.from("generations").select("brand_id").in("brand_id", brandIds).limit(20000)
+      : Promise.resolve({ data: [] }),
+    // Real earnings. creators.lifetime_earned_gross_paise / pending_balance_paise
+    // are written ONLY by the commit_image_approval RPC (migration 00029), which
+    // nothing in live code calls — the approval route writes escrow_ledger
+    // directly. Reading the rollup columns showed every creator as ₹0 earned
+    // while their own dashboard showed real money.
+    creatorIds.length > 0
+      ? admin
+          .from("escrow_ledger")
+          .select("creator_id, amount_paise, payout_id, holding_until")
+          .in("creator_id", creatorIds)
+          .eq("type", "release_per_image")
+          .limit(20000)
       : Promise.resolve({ data: [] }),
   ]);
+
+  const earnedByCreator = new Map<string, number>();
+  const pendingByCreator = new Map<string, number>();
+  const nowMs = Date.now();
+  for (const e of (escrowRes.data ?? []) as Array<{
+    creator_id: string;
+    amount_paise: number | null;
+    payout_id: string | null;
+    holding_until: string | null;
+  }>) {
+    const amt = e.amount_paise ?? 0;
+    earnedByCreator.set(e.creator_id, (earnedByCreator.get(e.creator_id) ?? 0) + amt);
+    // Pending = released to them but not yet paid out and still inside the
+    // 7-day holding window.
+    if (!e.payout_id && e.holding_until && Date.parse(e.holding_until) > nowMs) {
+      pendingByCreator.set(e.creator_id, (pendingByCreator.get(e.creator_id) ?? 0) + amt);
+    }
+  }
   const creatorGenCount = new Map<string, number>();
   for (const g of (creatorGensRes.data ?? []) as Array<{ creator_id: string }>) {
     creatorGenCount.set(g.creator_id, (creatorGenCount.get(g.creator_id) ?? 0) + 1);
@@ -290,7 +321,7 @@ export default async function UsersPage({ params, searchParams }: Props) {
 
                 // Money / activity stat — creator → lifetime earned; brand → wallet + credits.
                 const stat = c
-                  ? `${fmt(c.lifetime_earned_gross_paise)} earned · ${fmt(c.pending_balance_paise)} pending`
+                  ? `${fmt(earnedByCreator.get(c.id) ?? 0)} earned · ${fmt(pendingByCreator.get(c.id) ?? 0)} pending`
                   : b
                     ? `${(b.credits_remaining ?? 0).toLocaleString("en-IN")} credits`
                     : "—";

@@ -211,6 +211,7 @@ interface ApprovalRow {
   decided_at: string | null;
 }
 interface LicenceRow {
+  creator_id: string | null;
   creator_share_paise: number | null;
   platform_share_paise: number | null;
   amount_paid_paise: number | null;
@@ -288,7 +289,7 @@ export default async function FunnelPage({ params, searchParams }: Props) {
         .limit(CAP_LARGE),
       admin
         .from("licenses")
-        .select("creator_share_paise, platform_share_paise, amount_paid_paise, issued_at")
+        .select("creator_id, creator_share_paise, platform_share_paise, amount_paid_paise, issued_at")
         .order("issued_at", { ascending: false })
         .limit(CAP_LARGE),
     ]);
@@ -454,6 +455,10 @@ export default async function FunnelPage({ params, searchParams }: Props) {
   const brandsPaid = new Set(requests.filter((r) => r.status === "paid" || !!r.paid_at).map((r) => r.brand_id));
   const brandsApproved = new Set(approvals.filter((a) => a.status === "approved").map((a) => a.brand_id));
 
+  const creatorsWithLicence = new Set(
+    licences.map((l) => l.creator_id).filter((x): x is string => !!x),
+  );
+
   const cohortCreators = creators.filter((c) => inWindow(c.created_at));
   const cohortBrands = brands.filter((b) => inWindow(b.created_at));
 
@@ -495,9 +500,15 @@ export default async function FunnelPage({ params, searchParams }: Props) {
       definition: "A brand sent them at least one request, in any status.",
     },
     {
+      // NOT creators.lifetime_earned_gross_paise. That rollup column is written
+      // only by the commit_image_approval RPC (migration 00029), which nothing
+      // in live code calls — so it sits at its `default 0` for every creator
+      // and this step read a flat zero forever. A licence issued in their name
+      // IS the money event: it is written by the approval route in the same
+      // transaction that credits escrow.
       label: "Earned",
-      count: cohortCreators.filter((c) => (c.lifetime_earned_gross_paise ?? 0) > 0).length,
-      definition: "lifetime_earned_gross_paise above zero — money actually released to them.",
+      count: cohortCreators.filter((c) => creatorsWithLicence.has(c.id)).length,
+      definition: "At least one licence issued in their name — real money recognised, not a rollup column.",
     },
   ];
 

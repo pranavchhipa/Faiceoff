@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     // (prevents multi-role overwrite vuln); otherwise fall back to metadata.
     const { data: existingUser } = await admin
       .from("users")
-      .select("id, role")
+      .select("id, role, signup_source")
       .eq("id", authUserId)
       .maybeSingle();
 
@@ -114,7 +114,12 @@ export async function POST(request: Request) {
         display_name:
           meta?.display_name ?? authUserEmail.split("@")[0] ?? "User",
         phone: meta?.phone ?? null,
-        ...(attr
+        // First-touch means first-touch. onConflict:"id" makes this an UPDATE
+        // on repeat verification, so without the signup_source check a later
+        // sign-in would overwrite the original channel with whatever that
+        // session happened to carry. The comment above has always claimed this
+        // guard; now it exists.
+        ...(attr && !(existingUser as { signup_source?: string | null } | null)?.signup_source
           ? {
               signup_referrer: attr.referrer ?? null,
               signup_landing_path: attr.landing_path ?? null,
@@ -125,24 +130,6 @@ export async function POST(request: Request) {
       },
       { onConflict: "id" },
     );
-
-    if (!existingUser) {
-      // The single most important conversion in the product had no event at
-      // all — the funnel started at "generation_created", long after the
-      // moment that actually decides whether a channel is working.
-      track(
-        "signup_completed",
-        {
-          role,
-          source: attr?.source ?? "direct",
-          referrer: attr?.referrer ?? null,
-          landing_path: attr?.landing_path ?? null,
-          utm_source: attr?.utm?.source ?? null,
-          utm_campaign: attr?.utm?.campaign ?? null,
-        },
-        authUserId,
-      );
-    }
 
     if (userUpsertErr) {
       console.error(
@@ -162,6 +149,24 @@ export async function POST(request: Request) {
     // existingUser === null means this is the first time the user has
     // verified — perfect signal to send the role-appropriate welcome.
     if (!existingUser) {
+      // Fired here, AFTER the userUpsertErr guard above returns, so a signup
+      // whose profile row failed to persist is not counted as a conversion.
+      // The single most important conversion in the product had no event at
+      // all — the funnel started at "generation_created", long after the
+      // moment that actually decides whether a channel is working.
+      track(
+        "signup_completed",
+        {
+          role,
+          source: attr?.source ?? "direct",
+          referrer: attr?.referrer ?? null,
+          landing_path: attr?.landing_path ?? null,
+          utm_source: attr?.utm?.source ?? null,
+          utm_campaign: attr?.utm?.campaign ?? null,
+        },
+        authUserId,
+      );
+
       const displayName =
         (meta?.display_name as string | undefined) ??
         authUserEmail.split("@")[0] ??

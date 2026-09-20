@@ -25,10 +25,16 @@ export interface Attribution {
 
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 
+/**
+ * Trailing boundary is `(\.|$)`, not a bare `\.`: with a mandatory dot the
+ * `wa\.me` and `t\.me` alternatives could never match, because nothing follows
+ * `me` in those hostnames. WhatsApp short links — a primary sharing channel for
+ * this product in India — were silently classified as generic referrals.
+ */
 /** Search engines worth separating from generic referrals. */
 const SEARCH_HOSTS = /(^|\.)(google|bing|duckduckgo|yahoo|ecosia|brave|yandex)\./i;
 const SOCIAL_HOSTS =
-  /(^|\.)(instagram|facebook|fb|linkedin|x|twitter|t|reddit|youtube|pinterest|threads|whatsapp|wa\.me|telegram|t\.me)\./i;
+  /(^|\.)(instagram|facebook|fb|linkedin|lnkd|x|twitter|t|reddit|youtube|pinterest|threads|whatsapp|wa\.me|telegram|t\.me)(\.|$)/i;
 
 /**
  * Coarse bucket so day-to-day questions ("how much came from social?") don't

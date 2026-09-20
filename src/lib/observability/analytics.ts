@@ -28,12 +28,22 @@ function getClient(): PostHog | null {
     return null; // silently disabled
   }
 
-  const host =
-    process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://app.posthog.com";
+  // us.posthog.com is the DASHBOARD host and silently drops events; ingestion
+  // lives on us.i.posthog.com. The browser provider already refuses to trust
+  // this env var (see analytics-provider.tsx) — the server client was reading
+  // it raw, so every server-side event, signup_completed included, was posted
+  // to a host that throws them away. The old default, app.posthog.com, is a
+  // dashboard host too.
+  const rawHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+  const host = rawHost?.includes(".i.posthog.com") ? rawHost : "https://us.i.posthog.com";
 
   _client = new PostHog(apiKey, {
     host,
-    flushAt: 20,
+    // flushAt: 1, not 20. On Vercel the function is frozen the moment it
+    // returns its response, so a batch waiting for a 20-event threshold or a
+    // 10s timer is simply never sent. Most routes here fire a single event and
+    // return immediately — batching guaranteed they were lost.
+    flushAt: 1,
     flushInterval: 10_000,
   });
   return _client;

@@ -35,8 +35,15 @@ export const MIN_DENOMINATOR = 5;
 
 export function pct(numerator: number, denominator: number): string {
   if (denominator <= 0) return "—";
+  if (numerator >= denominator) return "100%";
   const v = (numerator / denominator) * 100;
-  return `${v >= 99.5 || v === 0 || v >= 10 ? Math.round(v) : v.toFixed(1)}%`;
+  // Floor, never round. Rounding printed "100%" for anything above 99.5% —
+  // so a step that lost a creator showed a perfect conversion right next to a
+  // "Dropped −1" cell computed from the raw counts, and the table contradicted
+  // itself. Only an exact numerator === denominator earns "100%".
+  if (v === 0) return "0%";
+  if (v >= 10) return `${Math.floor(v)}%`;
+  return `${Math.max(Math.floor(v * 10) / 10, 0.1)}%`;
 }
 
 /* ── KPI tile ─────────────────────────────────────────────────────────── */
