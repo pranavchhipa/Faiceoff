@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { RouteProgress } from "@/components/ui/route-progress";
+import { Suspense } from "react";
+import { AnalyticsProvider } from "./analytics-provider";
 
 /**
  * Providers — Composes all application-level providers.
@@ -17,6 +19,11 @@ export function Providers({ children }: { children: ReactNode }) {
       {/* Tiny rust route-progress bar pulses on every navigation. Mounted
           here so it covers every authenticated AND public surface. */}
       <RouteProgress />
+      {/* useSearchParams needs a Suspense boundary or it opts every static
+          page into client rendering. */}
+      <Suspense fallback={null}>
+        <AnalyticsProvider />
+      </Suspense>
       {children}
       <Toaster />
     </ThemeProvider>

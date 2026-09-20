@@ -1,32 +1,21 @@
-import posthog from 'posthog-js';
-
-function getEnvVar(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-let initialized = false;
+import posthog from "posthog-js";
 
 /**
- * Get the PostHog browser client. Initializes on first call.
- * Only call this in browser/client components.
+ * Browser PostHog handle.
+ *
+ * Initialisation now lives in `components/providers/analytics-provider.tsx`,
+ * which is mounted once at the root. This module only hands back the SDK for
+ * ad-hoc `capture()` / `identify()` calls from client components.
+ *
+ * The previous version initialised here and read config via
+ * `process.env[name]` — a dynamic lookup webpack cannot inline, so both
+ * values were `undefined` in the bundle and the call would have thrown. It
+ * was also never imported anywhere, so the app shipped with no browser
+ * analytics at all.
  */
 export function getPostHogClient() {
-  if (typeof window === 'undefined') {
-    throw new Error('PostHog client can only be used in the browser');
+  if (typeof window === "undefined") {
+    throw new Error("PostHog browser client used on the server");
   }
-
-  if (!initialized) {
-    posthog.init(getEnvVar('NEXT_PUBLIC_POSTHOG_KEY'), {
-      api_host: getEnvVar('NEXT_PUBLIC_POSTHOG_HOST'),
-      person_profiles: 'identified_only',
-      capture_pageview: false, // Manually controlled in Next.js App Router
-    });
-    initialized = true;
-  }
-
   return posthog;
 }

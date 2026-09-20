@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, Mail, Building2, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 import { AuthShell, FormField } from "@/components/landing/AuthShell";
+import { readAttribution } from "@/lib/analytics/attribution";
 
 export default function BrandSignupPage() {
   const router = useRouter();
@@ -37,6 +38,10 @@ export default function BrandSignupPage() {
           password: formState.password,
           role: "brand",
           accepted_terms: true,
+          // Where this person came from, captured on their FIRST page view.
+          // Read here rather than from document.referrer, which by now says
+          // faiceoff.com and would credit every signup to ourselves.
+          attribution: readAttribution(),
         }),
       });
       const data = await res.json();

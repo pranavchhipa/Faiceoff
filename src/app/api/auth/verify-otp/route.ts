@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/redis/rate-limiter";
 import { freeSignupGrant } from "@/lib/billing/credits-service";
 import { sendBrandWelcome, sendCreatorWelcome } from "@/lib/email/transactional";
+import { track } from "@/lib/observability/analytics";
 
 /**
  * POST /api/auth/verify-otp
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
   // Create / upsert public.users + role-specific row using admin client
   // (bypasses RLS). This block is idempotent — safe to hit on retries.
   if (data.user) {
-    const admin = createAdminClient();
+    // Cast at the boundary — src/types/supabase.ts predates the
+    // signup_* attribution columns (00079). Documented pattern in CLAUDE.md.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
     const meta = data.user.user_metadata ?? {};
     const authUserId = data.user.id;
     const authUserEmail = data.user.email ?? email;
@@ -95,6 +99,13 @@ export async function POST(request: Request) {
           : "creator";
 
     // Upsert public.users — always safe to run
+    // Attribution rides in from sign-up via user_metadata — this is the
+    // first point where public.users exists to hold it. Never overwrite a
+    // value already stored: this upsert also runs on repeat verifications,
+    // and first-touch must stay first-touch.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const attr = (meta as any)?.attribution ?? null;
+
     const { error: userUpsertErr } = await admin.from("users").upsert(
       {
         id: authUserId,
@@ -103,9 +114,35 @@ export async function POST(request: Request) {
         display_name:
           meta?.display_name ?? authUserEmail.split("@")[0] ?? "User",
         phone: meta?.phone ?? null,
+        ...(attr
+          ? {
+              signup_referrer: attr.referrer ?? null,
+              signup_landing_path: attr.landing_path ?? null,
+              signup_utm: attr.utm ?? null,
+              signup_source: attr.source ?? "direct",
+            }
+          : {}),
       },
       { onConflict: "id" },
     );
+
+    if (!existingUser) {
+      // The single most important conversion in the product had no event at
+      // all — the funnel started at "generation_created", long after the
+      // moment that actually decides whether a channel is working.
+      track(
+        "signup_completed",
+        {
+          role,
+          source: attr?.source ?? "direct",
+          referrer: attr?.referrer ?? null,
+          landing_path: attr?.landing_path ?? null,
+          utm_source: attr?.utm?.source ?? null,
+          utm_campaign: attr?.utm?.campaign ?? null,
+        },
+        authUserId,
+      );
+    }
 
     if (userUpsertErr) {
       console.error(

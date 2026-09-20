@@ -14,6 +14,28 @@ import { authEmailLimiter, checkRateLimit } from "@/lib/anti-fraud";
  *
  * Body: { email, displayName, role, password, phone? }
  */
+/** Trim client-supplied attribution to known keys and safe lengths. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitiseAttribution(a: any) {
+  if (!a || typeof a !== "object") return null;
+  const str = (v: unknown, n: number) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null;
+  const utmIn = a.utm && typeof a.utm === "object" ? a.utm : null;
+  const utm: Record<string, string> = {};
+  if (utmIn) {
+    for (const k of ["source", "medium", "campaign", "term", "content"]) {
+      const v = str(utmIn[k], 120);
+      if (v) utm[k] = v;
+    }
+  }
+  return {
+    referrer: str(a.referrer, 500),
+    landing_path: str(a.landingPath, 300),
+    utm: Object.keys(utm).length ? utm : null,
+    source: str(a.source, 40) ?? "direct",
+  };
+}
+
 export async function POST(request: Request) {
   try {
     return await handleSignUp(request);
@@ -32,7 +54,7 @@ export async function POST(request: Request) {
 }
 
 async function handleSignUp(request: Request) {
-  const { email, displayName, role, password, phone, accepted_terms } =
+  const { email, displayName, role, password, phone, accepted_terms, attribution } =
     await request.json();
 
   if (!email || !displayName || !role) {
@@ -106,6 +128,9 @@ async function handleSignUp(request: Request) {
         terms_accepted: accepted_terms === true,
         terms_accepted_at: accepted_terms === true ? new Date().toISOString() : null,
         terms_version: "v1.0-2026",
+        // Carried through metadata because public.users doesn't exist yet —
+        // the row is created at verify-otp, which copies this onto it.
+        attribution: sanitiseAttribution(attribution),
       },
     });
 
