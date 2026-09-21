@@ -80,16 +80,26 @@ export async function POST(request: Request) {
 
   if (!pkg) return NextResponse.json({ error: "Package not found or inactive" }, { status: 404 });
 
-  // Verify creator is live
+  // Verify creator is live AND verified.
+  //
+  // is_verified is checked directly rather than trusted to is_live. go-live
+  // refuses to set is_live without verification, so the two usually agree —
+  // but rejectVerification() in the Control Centre flips is_verified back to
+  // false without touching is_live, which left a de-verified creator still
+  // live and still bookable. On a face-licensing marketplace, taking money for
+  // a likeness nobody has confirmed belongs to the person is the one thing
+  // this gate exists to prevent, so it checks the fact itself, not a proxy.
   const { data: creator } = await admin
     .from("creators")
-    .select("id, is_live, user_id")
+    .select("id, is_live, is_verified, user_id")
     .eq("id", pkg.creator_id)
     .eq("is_active", true)
     .maybeSingle();
 
   if (!creator) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
-  if (!creator.is_live) return NextResponse.json({ error: "Creator is not accepting requests" }, { status: 400 });
+  if (!creator.is_live || creator.is_verified !== true) {
+    return NextResponse.json({ error: "Creator is not accepting requests" }, { status: 400 });
+  }
 
   // Don't let brand request their own creator account.
   // Compare the AUTH user id (request sender) against the creator's user_id

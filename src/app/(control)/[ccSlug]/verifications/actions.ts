@@ -118,10 +118,13 @@ export async function rejectVerification(formData: FormData): Promise<void> {
     })
     .eq("id", verificationId);
 
-  // Roll KYC back so the payout gate reflects the rejection.
+  // Roll KYC back so the payout gate reflects the rejection — and take them
+  // off the marketplace. go-live only lets a VERIFIED creator set is_live, so
+  // un-verifying without also clearing is_live left them live and bookable.
+  // They can go live again themselves once a resubmission is approved.
   await admin
     .from("creators")
-    .update({ is_verified: false, kyc_status: "rejected" })
+    .update({ is_verified: false, kyc_status: "rejected", is_live: false })
     .eq("id", ver.creator_id);
 
   const userId = await loadCreatorUserId(admin, ver.creator_id);
